@@ -669,6 +669,17 @@ export const agentsUsageViewScenarios: Scenario[] = [
     commands: commands(TWO.accounts, TWO.inv),
   },
   {
+    id: 'usage-tab-accounts',
+    title: 'Usage — when a terminal tab runs out',
+    looksRightWhen:
+      'With two Claude Code accounts: “When a terminal tab runs out”, a hugging three-option control (Switch on its own selected, Ask me, Off) and one muted line saying a tab moves to the next account with room and carries on the same conversation, and that projects in another workspace keep that workspace’s login. Nothing accent-coloured.',
+    openSelector: AGENTS_TAB,
+    steps: OPEN,
+    requires: '[data-tab-accounts]',
+    clipSelector: '[data-tab-accounts]',
+    commands: commands(TWO.accounts, TWO.inv),
+  },
+  {
     id: 'usage-add-account-warning',
     title: 'Usage — adding an account warns about the browser first',
     looksRightWhen:

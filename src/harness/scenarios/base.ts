@@ -449,6 +449,12 @@ export const baseCommands: CommandMap = {
     codex: args.engine === 'codex' ? args.mode : 'ask',
     away: [],
   }),
+  // Terminal tabs on the wallet's accounts (`agents::tab_accounts`): never
+  // chosen (switch on its own), and no tab has run out.
+  tab_account_mode: 'auto',
+  tab_account_set_mode: (args: Record<string, unknown>) => args.mode,
+  tab_account_notice: null,
+  tab_account_settle: null,
   // How much agents do on their own (`agents::independence`): never chosen.
   agents_independence: 'judgement',
   agents_set_independence: (args: Record<string, unknown>) => args.level,

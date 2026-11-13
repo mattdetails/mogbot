@@ -352,6 +352,8 @@ pub fn run() {
             agents::slack::spawn(_app.handle().clone());
             // Every account's limits, read without a turn: on open, then every 10 minutes.
             agents::usage_read::spawn(_app.handle().clone());
+            // Terminal tabs on the wallet's accounts: a tab that runs out moves on.
+            agents::tab_accounts::spawn(_app.handle().clone());
             agents::disk::spawn(_app.handle().clone());
             // The engines' CLIs, asked now rather than when Agents first opens.
             agents::engine::look_early();
@@ -802,6 +804,17 @@ pub fn run() {
             commands::agents_usage::agents_spare_spend_now,
             commands::agents_usage::agents_usage_sign_in_seen,
             commands::agents_usage::agents_usage_check_account,
+            commands::agents_folders::agents_folder_create,
+            commands::agents_folders::agents_folder_rename,
+            commands::agents_folders::agents_folder_delete,
+            commands::agents_folders::agents_folders_reorder,
+            commands::agents_folders::agents_set_folder,
+            commands::agents_folders::agents_folders_set_pinned,
+            commands::agents_folders::agents_folders_bring_in,
+            commands::agents_usage::tab_account_notice,
+            commands::agents_usage::tab_account_settle,
+            commands::agents_usage::tab_account_mode,
+            commands::agents_usage::tab_account_set_mode,
             commands::agents::agents_account_add,
             commands::agents::agents_account_rename,
             commands::agents::agents_account_reorder,

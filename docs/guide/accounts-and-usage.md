@@ -47,6 +47,23 @@ a turn moves on to the next account when one runs out.
 
 OpenCode's providers are managed in OpenCode itself, so there are no accounts to add for it here.
 
+## Terminal tabs in your projects
+
+With two or more Claude Code accounts signed in, the agent tabs in your projects use them too.
+
+- A new Claude Code or Codex tab starts on the first account in your order that has room, the same
+  one an agent would use.
+- When a Claude Code tab runs out, it moves to your next account and carries on the same
+  conversation: the tab restarts, picks up where it stopped, and says which account it moved to.
+- **Settings → Accounts & usage → When a terminal tab runs out** sets this: **Switch on its own**
+  (the default), **Ask me** (a bar on the tab offers **Continue on** the next account), or **Off**
+  (tabs use the account you signed in with on this computer, as before).
+- A project in another workspace keeps that workspace's own login and is never switched.
+- If every account is out, the tab says when the first one is back.
+- A Codex tab starts on an account with room, but isn't moved partway through: Codex tabs don't
+  keep a conversation to pick up. After `/clear` in a Claude Code tab, its next limit is left to
+  Claude Code's own message.
+
 ## When every account is out
 
 If Claude Code and Codex are both set up, you choose what happens when every account on one engine

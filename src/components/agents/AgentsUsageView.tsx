@@ -86,6 +86,7 @@ import { AccountSignIn } from './AccountSignIn';
 import { EngineSignInModal } from './EngineSignInModal';
 import { AgentsPageHeader, type AgentsPageCompact, type UsageCrumb } from './AgentsPageHeader';
 import { AgentsCrossover } from './AgentsCrossover';
+import { AgentsTabAccounts } from './AgentsTabAccounts';
 import { SpareList } from './AgentsUsage';
 import { useUsageGlance } from './AccountSwitcher';
 import { AccountDetail, AccountRow, SameNotes, TotalBar } from './UsageStack';
@@ -562,6 +563,9 @@ export function UsagePanel({
               now={now}
             />
           )}
+          <AgentsTabAccounts
+            claudeSignedIn={all.filter((a) => a.engine === 'claude' && a.signedIn).length}
+          />
           {inventory && <SpareList inventory={inventory} onChanged={reload} />}
 
           {inventory && inventory.local.length > 0 && (
