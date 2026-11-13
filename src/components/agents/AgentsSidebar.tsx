@@ -58,6 +58,7 @@ import {
 import {
   inYourOrder,
   moveAgent,
+  PINNED_KEY,
   sectionAgents,
   toggleCollapsed,
   useAgentGroups,
@@ -324,7 +325,7 @@ export function AgentsSidebar({
   rooms,
   roomActions,
 }: AgentsSidebarProps) {
-  // Optional groups (by project, or your own), off by default.
+  // Optional sections: by project, or the folders you make (none until the first).
   const grouping = useAgentGroups();
   const searching = query.trim().length > 0;
   // By attention (waiting on you, working, recent), held still while the
@@ -397,8 +398,8 @@ export function AgentsSidebar({
       arrived={isNew(agent.id)}
       onSelect={onSelect}
       actions={actions}
-      groups={custom ? grouping.groups : undefined}
-      group={custom ? grouping.assign[agent.id] : undefined}
+      groups={agent.isMain ? undefined : grouping.groups}
+      group={grouping.assign[agent.id]}
       onReorder={onReorder}
     />
   );
@@ -438,7 +439,8 @@ export function AgentsSidebar({
                     key={section.key}
                     section={section}
                     collapsed={grouping.collapsed.includes(section.key)}
-                    droppable={custom}
+                    droppable={custom && section.key !== PINNED_KEY}
+                    pinned={grouping.pinned}
                   >
                     {section.agents.map(row)}
                   </AgentGroupSection>
@@ -609,9 +611,9 @@ const AgentRow = memo(function AgentRow({
   arrived: boolean;
   onSelect: (agentId: string) => void;
   actions: AgentActions;
-  /** Your own groups, when the list is grouped by them: the row drags into one. */
+  /** The folders, for the row's menu (not the Chief's: it stays at the top). */
   groups?: AgentGroup[];
-  /** The group it's in. */
+  /** The folder it's in. */
   group?: string;
   /** Another row dropped on this one: put it just before (or after) this. */
   onReorder: (moved: string, target: string, after: boolean) => void;
@@ -664,7 +666,7 @@ const AgentRow = memo(function AgentRow({
             const moved = e.dataTransfer.getData(AGENT_DRAG_TYPE);
             if (!moved) return;
             e.preventDefault();
-            // Not stopped: inside your own groups, the group under it takes the agent too.
+            // Not stopped: in folders, the folder under it takes the agent too.
             onReorder(moved, agent.id, side === 'after');
           }}
           onDragEnd={() => setDrop(null)}
@@ -716,7 +718,7 @@ const AgentRow = memo(function AgentRow({
       </ContextMenuTrigger>
       <ContextMenuContent aria-label={`Actions for ${agent.name}`}>
         <AgentActionItems agent={agent} kind="context" {...actions} />
-        {groups && groups.length > 0 && (
+        {groups && (
           <>
             <ContextMenuSeparator />
             <MoveToGroupItems agentId={agent.id} groups={groups} current={group} />

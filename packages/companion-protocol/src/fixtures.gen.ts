@@ -362,6 +362,10 @@ export const agentsOverview = {
       "signedIn": false
     }
   ],
+  "folders": {
+    "folders": [],
+    "pinned": "top"
+  },
   "hour24": false,
   "importChoice": "undecided",
   "independence": "go_hard"
@@ -6467,6 +6471,10 @@ export const frames = [
             "signedIn": false
           }
         ],
+        "folders": {
+          "folders": [],
+          "pinned": "top"
+        },
         "hour24": false,
         "importChoice": "undecided",
         "independence": "go_hard"
@@ -6916,6 +6924,10 @@ export const frames = [
             "signedIn": false
           }
         ],
+        "folders": {
+          "folders": [],
+          "pinned": "top"
+        },
         "hour24": false,
         "importChoice": "undecided",
         "independence": "go_hard"

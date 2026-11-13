@@ -6734,19 +6734,34 @@ cards.
   1.8s per step, "Thinking" only after 2.5s) and its time sits in a fixed
   column of tabular figures. Other lists
   (switcher, Quick Entry) still use `sortAgents` (pinned, then recency).
-- **Groups** (`lib/agentGroups.ts`, `AgentGroupParts.tsx`), off by default:
-  ⌘K → Group agents by project, Group agents into your own groups, New
-  agent group…, Stop grouping agents. The Chief stays first, outside any;
-  each group is a folding header (chevron, name, count) with its rows in the
-  attention order above. Your own groups take a dragged row (or the row's
-  menu: Move to …, Remove from group); an empty one says "Drag agents here";
-  right-click its header to remove it (its agents go back to Ungrouped). A
-  per-window convenience in localStorage (`shipstudio.agents.groups`), never
-  the registry or the phone. The **Rooms** section uses the same header and
-  folds the same way (its fold is kept with the groups'); folded, the open
-  room and any that is unread or waiting on you still show.
-- **One column.** Every label in the list (names, the Hidden and group
-  headers, an empty group's line, a room's name) starts on the names'
+- **Folders** (`agents/folders.rs`, `lib/agentGroups.ts`, `AgentGroupParts.tsx`),
+  optional: nothing shows until the first folder is made ("Website", "SEO",
+  "Outreach"). Made from any agent's right-click menu (**New folder…**, which
+  files that agent in it), a folder header's menu, ⌘K → New agent folder…, or
+  by asking the Chief (`file_agent`, Chief-only: no folder lists them, "none"
+  takes an agent out, a new name makes the folder). They live on this Mac in
+  `agents/folders.json` (the folders, in order, and where pinned agents sit),
+  each agent's folder in its registry entry (`Agent.folder`), so the desk, the
+  phone (the overview's `folders`) and the Chief see the same ones; every
+  change is said with `agents://registry`. The Chief stays first, outside any
+  (`folders::file` refuses it). Each folder is a folding header (chevron,
+  name, count) with its rows in the attention order; a dragged row or the
+  row's menu (Move to …, Remove from folder) files an agent; an empty folder
+  says "Drag agents here"; a header's menu has Rename…, New folder…, the
+  pinned choice and Remove folder (its agents go to "Not in a folder").
+  **Pinned agents** sit in a "Pinned" section above the folders, or first in
+  their own folder (the header menu or ⌘K → Show pinned agents in their
+  folder / at the top). ⌘K → Group agents by project groups by bound project
+  instead, and Show agents in one list turns folders off in that window
+  (Show agents in folders brings them back). The view choice, folds and sort
+  order stay per window in localStorage (`shipstudio.agents.groups`); a
+  window's own groups from before folders lived on the Mac are brought there
+  once by name (`agents_folders_bring_in`, `broughtIn`). The **Rooms**
+  section uses the same header and folds the same way (its fold is kept with
+  the folders'); folded, the open room and any that is unread or waiting on
+  you still show.
+- **One column.** Every label in the list (names, the Hidden and folder
+  headers, an empty folder's line, a room's name) starts on the names'
   column: the row's inset, the md key (`--agent-key-size-md`), the gap. Room
   badges are the key's size. The New agent / New room actions under the list
   share the footer rows' column instead, since they sit with Routines and

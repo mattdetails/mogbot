@@ -34,6 +34,7 @@ import {
 } from './agents';
 import { asCommandError, formatCommandError } from './errors';
 import { logger } from './logger';
+import { syncFolders } from './agentGroups';
 import { getRoomMessages, getRooms, roomIdOf, roomKey, ROOMS_EVENT, type Room } from './agentRooms';
 import {
   FIRST_CONVERSATION,
@@ -140,6 +141,7 @@ export async function refreshAgents(): Promise<void> {
       loaded: true,
       error: null,
     });
+    syncFolders(overview.folders, state.agents);
   } catch (error) {
     logger.error('[Agents] overview failed', { error: String(error) });
     if (mine < refreshLanded) return;

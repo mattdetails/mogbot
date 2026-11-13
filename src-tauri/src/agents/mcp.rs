@@ -293,6 +293,18 @@ const TOOLS: &[Tool] = &[
         }),
     },
     Tool {
+        name: "file_agent",
+        description: "Put an agent in a folder on the user's agent list (\"put the SEO agents in a Marketing folder\", \"file Outreach under Sales\"), or take it out. `folder` is a folder's name: a new name makes that folder. `folder: \"none\"` takes the agent out of its folder. Folders are only how the list is arranged: they change nothing an agent may do, so this needs no card. The Chief of Staff is never filed; it stays at the top. With no `agent`, it lists the folders and who is in each.",
+        main_only: true,
+        schema: || json!({
+            "type": "object",
+            "properties": {
+                "agent": { "type": "string", "description": "The agent's name." },
+                "folder": { "type": "string", "description": "A folder's name, new or existing, or \"none\"." }
+            }
+        }),
+    },
+    Tool {
         name: "delete_agent",
         description: "Admin: delete another agent. It leaves the team at once and waits in Recently deleted for 30 days with its memory and conversation, where the user can restore it.",
         main_only: true,
@@ -870,6 +882,7 @@ async fn call(
         super::page::TOOL => page(app, caller, turn, args).await,
         "create_agent" => create_agent(app, caller, args).await,
         "update_agent" => update_agent(app, caller, args).await,
+        "file_agent" => file_agent(app, args).await,
         "delete_agent" => delete_agent(app, caller, args).await,
         "schedule_check_in" | "list_check_ins" | "cancel_check_in" | "watch_for" => {
             check_ins(app, caller, turn, name, args).await
@@ -2244,6 +2257,67 @@ async fn create_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> V
                 agent.name
             ))
         }
+        Err(e) => error(e.to_string()),
+    }
+}
+
+/// The Chief files an agent in a folder (making it when new), takes it out,
+/// or, with no agent, lists the folders.
+async fn file_agent(app: &AppHandle, args: &Value) -> Value {
+    let Some(target) = arg(args, "agent") else {
+        let view = super::folders::view();
+        if view.folders.is_empty() {
+            return text("There are no folders yet. Name one with an agent to make it.");
+        }
+        let team = store::list().unwrap_or_default();
+        let lines: Vec<String> = view
+            .folders
+            .iter()
+            .map(|f| {
+                let names: Vec<&str> = team
+                    .iter()
+                    .filter(|a| a.folder.as_deref() == Some(f.id.as_str()))
+                    .map(|a| a.name.as_str())
+                    .collect();
+                if names.is_empty() {
+                    format!("{}: empty", f.name)
+                } else {
+                    format!("{}: {}", f.name, names.join(", "))
+                }
+            })
+            .collect();
+        return text(lines.join("\n"));
+    };
+    let Some(folder) = arg(args, "folder") else {
+        return error("`folder` is required: a folder's name, or \"none\".");
+    };
+    let agent = match store::find(target) {
+        Ok(Some(a)) => a,
+        _ => return error(format!("There's no agent called {target}.")),
+    };
+    let none = matches!(folder.trim().to_ascii_lowercase().as_str(), "none" | "");
+    let result = tokio::task::spawn_blocking({
+        let id = agent.id.clone();
+        let folder = folder.to_string();
+        move || {
+            if none {
+                return super::folders::file(&id, None).map(|_| None);
+            }
+            let made = super::folders::create(&folder)?;
+            super::folders::file(&id, Some(&made.id)).map(|_| Some(made.name))
+        }
+    })
+    .await;
+    match result {
+        Ok(Ok(Some(name))) => {
+            let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
+            text(format!("{} is in the {name} folder now.", agent.name))
+        }
+        Ok(Ok(None)) => {
+            let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
+            text(format!("{} is in no folder now.", agent.name))
+        }
+        Ok(Err(e)) => error(e.to_string()),
         Err(e) => error(e.to_string()),
     }
 }
@@ -4846,6 +4920,7 @@ mod tests {
             is_main: false,
             pinned: false,
             hidden: false,
+            folder: None,
             session_id: None,
             created_at: 0,
             last_activity_at: 0,

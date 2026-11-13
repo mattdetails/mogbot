@@ -131,6 +131,27 @@ const groupedCommands = {
   agents_messages: messagesFor,
 };
 
+/** Folders you made (Website, SEO, Outreach), Native App pinned. */
+const FOLDERS = [
+  { id: 'f-web', name: 'Website' },
+  { id: 'f-seo', name: 'SEO' },
+  { id: 'f-out', name: 'Outreach' },
+];
+const FILED: Record<string, string> = {
+  acme: 'f-web',
+  clients: 'f-web',
+  social: 'f-seo',
+  leadgen: 'f-out',
+  native: 'f-web',
+};
+const folderCommands = (pinned: 'top' | 'inFolder') => ({
+  agents_overview: {
+    ...overview(TEAM.map((a) => (FILED[a.id] ? { ...a, folder: FILED[a.id] } : a))),
+    folders: { folders: FOLDERS, pinned, broughtIn: true },
+  },
+  agents_messages: messagesFor,
+});
+
 export const agentsDeskScenarios: Scenario[] = [
   {
     id: 'agents-desk-ran-on',
@@ -211,6 +232,44 @@ export const agentsDeskScenarios: Scenario[] = [
       }),
     },
     commands: groupedCommands,
+  },
+  {
+    id: 'agents-desk-folders',
+    title: 'Agents — the agent list in folders you made',
+    looksRightWhen:
+      'The Chief of Staff first, outside any folder. Then “Pinned 1” over Native App, then folding headers in the Rooms header’s quiet style with a chevron and a count: “Website 1” over Acme Site (Client Sites QA is in it too, but hidden, so it stays under Hidden), “SEO 1” over Social Posts, “Outreach 1” over Lead Gen, then “Not in a folder” over Finance and Hiring. Rows look exactly as they do in one list.',
+    requires: '.agents-list__group-toggle',
+    openSelector: AGENTS_TAB,
+    commands: folderCommands('top'),
+  },
+  {
+    id: 'agents-desk-folders-pinned-inside',
+    title: 'Agents — pinned agents shown in their folder',
+    looksRightWhen:
+      'No “Pinned” section: Native App, with its small pin mark, is the first row under “Website 2”, above Acme Site. The other folders as in agents-desk-folders.',
+    requires: '.agents-list__group-toggle',
+    openSelector: AGENTS_TAB,
+    commands: folderCommands('inFolder'),
+  },
+  {
+    id: 'agents-desk-folder-menu',
+    title: 'Agents — a folder header’s menu',
+    looksRightWhen:
+      'Right-clicking “SEO” opens its menu: Rename… (pencil), New folder… (folder with a plus), “Show pinned agents in their folder”, a divider, then Remove folder in danger red with a bin.',
+    requires: '.ss-context-menu__item',
+    openSelector: AGENTS_TAB,
+    steps: [{ rightClick: '.agents-list__group-toggle', text: 'SEO' }],
+    commands: folderCommands('top'),
+  },
+  {
+    id: 'agents-desk-folder-row-menu',
+    title: 'Agents — an agent’s right-click menu offers folders, even before the first',
+    looksRightWhen:
+      'One list, no folders yet. Right-clicking Finance opens its usual menu; after a divider at the bottom, “New folder…” with a folder-plus icon. No “Move to” items, since there are no folders.',
+    requires: '.ss-context-menu__item',
+    openSelector: AGENTS_TAB,
+    steps: [{ rightClick: '[data-agent-id="finance"]' }],
+    commands: { agents_overview: overview(), agents_messages: messagesFor },
   },
   {
     id: 'agents-desk-approval-keys',

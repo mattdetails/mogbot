@@ -74,6 +74,7 @@ pub(super) fn from_homes(root: &Path) -> Registry {
             is_main,
             pinned: is_main,
             hidden: false,
+            folder: None,
             session_id: None,
             created_at: created,
             last_activity_at: active,

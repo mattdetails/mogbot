@@ -446,6 +446,7 @@ pub fn overview() -> Value {
             independence: crate::agents::independence::Level::GoHard,
             import_choice: crate::agents::import_choice::Choice::Undecided,
             hour24: false,
+            folders: Default::default(),
         })
         .unwrap(),
     )
