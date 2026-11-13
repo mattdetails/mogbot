@@ -1,6 +1,6 @@
 import type { Agent, TeamSetupView } from '@shipstudio/companion-protocol';
 import { attentionCounts, nextNeedsYou } from '../src/lib/agents';
-import { buildHome, quietAgentIds } from '../src/lib/home';
+import { buildHome, homeSections, quietAgentIds } from '../src/lib/home';
 import { feedItems } from '../src/lib/needsYou';
 import { agent, msg } from './helpers';
 
@@ -107,5 +107,45 @@ describe('one count: the cards the list shows', () => {
   it('an agent whose cards this phone hasn’t loaded yet is one row until they are', () => {
     const designer = a('Designer', { pendingApprovals: 2 });
     expect(feedItems([designer], {}, null)).toHaveLength(1);
+  });
+});
+
+describe('homeSections', () => {
+  const team = [
+    a('chief', { isMain: true }),
+    a('web', { folder: 'f1', lastActivityAt: 3 }),
+    a('pin', { folder: 'f1', pinned: true, lastActivityAt: 1 }),
+    a('seo', { folder: 'f2', lastActivityAt: 2 }),
+    a('loose', { lastActivityAt: 4 }),
+    a('gone', { folder: 'deleted', lastActivityAt: 0 }),
+  ];
+  const home = buildHome(team, null);
+  const shape = (v: Parameters<typeof homeSections>[1]) =>
+    homeSections(home, v).map((s) => [s.title, s.agents.map((x) => x.id)]);
+  const folders = [
+    { id: 'f1', name: 'Website' },
+    { id: 'f2', name: 'SEO' },
+    { id: 'f3', name: 'Empty' },
+  ];
+
+  it('with no folders, one untitled run, pinned first, as before', () => {
+    expect(shape(undefined)).toEqual([[null, ['pin', 'loose', 'web', 'seo', 'gone']]]);
+  });
+
+  it('pinned above the folders, then each folder with agents, then the rest', () => {
+    expect(shape({ folders, pinned: 'top' })).toEqual([
+      ['Pinned', ['pin']],
+      ['Website', ['web']],
+      ['SEO', ['seo']],
+      ['Not in a folder', ['loose', 'gone']],
+    ]);
+  });
+
+  it('pinned first in their own folder when the Mac says so', () => {
+    expect(shape({ folders, pinned: 'inFolder' })).toEqual([
+      ['Website', ['pin', 'web']],
+      ['SEO', ['seo']],
+      ['Not in a folder', ['loose', 'gone']],
+    ]);
   });
 });

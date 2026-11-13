@@ -15,7 +15,7 @@
  *
  *   pnpm qa:web                          # everything, into qa-shots/
  *   pnpm qa:web --only chat-,composer-   # shots whose name starts with chat- or composer-
- *   pnpm qa:web --phases heavy           # only these phases (demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,heavy,importing,team-setup,live-work,engine,probe,torture)
+ *   pnpm qa:web --phases heavy           # only these phases (demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture)
  *   pnpm qa:web --themes dark            # one theme
  *   pnpm qa:web --size 375x667           # another phone (default 402x874)
  *   pnpm qa:web --phases send            # a send, frame by frame (not in the default run)
@@ -61,7 +61,7 @@ const MAX_MS = Number(opt('--max-ms', 'QA_MAX_MS', 75 * 60 * 1000));
 const PHASES = opt(
   '--phases',
   'QA_PHASES',
-  'demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,heavy,importing,team-setup,live-work,engine,probe,torture'
+  'demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture'
 ).split(',');
 const phase = (name) => PHASES.includes(name);
 // Ports other tools in this repo own: the desktop app, its harness, the phone's Metro.
@@ -3139,6 +3139,17 @@ const IMPORTING = [
 ];
 
 /** `--heavy`: an account in daily use (17 agents, ~40 cards waiting, long chats). */
+/** Agents in folders made on the Mac (`--folders`). */
+const FOLDERS = [
+  {
+    name: 'agents-folders',
+    route: '/agents',
+    ready: 'Not in a folder',
+    check:
+      'The Chief first, no label; then section labels in the Agents/Rooms header style: Pinned over Designer, Website over Acme Site and QA 2, Operations over Ops, Not in a folder over Finance. No Design label (its one agent is pinned at the top), no empty folders',
+  },
+];
+
 const HEAVY = [
   {
     name: 'heavy-agents',
@@ -4284,6 +4295,13 @@ async function main() {
         },
       ]);
     }
+  }
+
+  if (phase('folders')) {
+    await startMock('--folders');
+    await page.goto(`${WEB}/agents`);
+    await sleep(4000);
+    await each(FOLDERS);
   }
 
   if (phase('heavy')) {

@@ -11,7 +11,7 @@
  */
 
 import { agentNeedsYou, setupHold } from '@shipstudio/companion-protocol';
-import type { Agent, TeamSetupView } from '@shipstudio/companion-protocol';
+import type { Agent, AgentFolders, TeamSetupView } from '@shipstudio/companion-protocol';
 import { shows } from './teamSetup';
 
 export interface Home {
@@ -52,6 +52,41 @@ export function buildHome(agents: Agent[], setup: TeamSetupView | null | undefin
     .filter((a) => !a.pinned)
     .sort((a, b) => Number(loud(b)) - Number(loud(a)) || recent(a, b));
   return { chief, pinned, rest, hidden, quiet };
+}
+
+/** A run of rows under one label (none: straight under the Chief). */
+export interface HomeSection {
+  key: string;
+  title: string | null;
+  agents: Agent[];
+}
+
+/**
+ * Home's agents after the Chief, in the folders made on the Mac (the desk
+ * sidebar's): pinned ones above the folders, or first in their own, as the
+ * Mac says; each folder in its order, empty ones left out (there's nothing to
+ * drop into here); then "Not in a folder". With no folders, one untitled run,
+ * pinned first, exactly as before folders.
+ */
+export function homeSections(home: Home, view: AgentFolders | null | undefined): HomeSection[] {
+  const folders = view?.folders ?? [];
+  if (folders.length === 0) {
+    return [{ key: 'agents', title: null, agents: [...home.pinned, ...home.rest] }];
+  }
+  const atTop = (view?.pinned ?? 'top') === 'top';
+  const known = new Set(folders.map((f) => f.id));
+  const filed = atTop ? home.rest : [...home.pinned, ...home.rest];
+  const out: HomeSection[] = [];
+  if (atTop && home.pinned.length > 0) {
+    out.push({ key: 'pinned', title: 'Pinned', agents: home.pinned });
+  }
+  for (const folder of folders) {
+    const agents = filed.filter((a) => a.folder === folder.id);
+    if (agents.length > 0) out.push({ key: `folder:${folder.id}`, title: folder.name, agents });
+  }
+  const loose = filed.filter((a) => !a.folder || !known.has(a.folder));
+  if (loose.length > 0) out.push({ key: 'loose', title: 'Not in a folder', agents: loose });
+  return out;
 }
 
 /** "Setting up your team", as Catch up and One at a time both say it. */

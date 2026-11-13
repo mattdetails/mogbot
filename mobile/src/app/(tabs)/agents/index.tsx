@@ -1,6 +1,7 @@
 /**
  * Home: every agent, in the desktop's order (pinned, then most recently
- * active), with what needs you pulled to the top. Rows slide when the order
+ * active), with what needs you pulled to the top; in the folders made on the
+ * Mac when there are any (`homeSections`). Rows slide when the order
  * changes rather than jumping.
  *
  * The connection says nothing while it's fine; when it isn't, a notice sits
@@ -41,7 +42,7 @@ import { DemoCard } from '../../../components/DemoCard';
 import { Button, Icon, IconButton, useRipple, T, tap } from '../../../components/ui';
 import { toggleFor, type AgentAction } from '../../../lib/actions';
 import { formatAgo, needsYou, pendingApproval } from '../../../lib/agents';
-import { buildHome } from '../../../lib/home';
+import { buildHome, homeSections } from '../../../lib/home';
 import { haptic } from '../../../lib/haptics';
 import {
   call,
@@ -217,8 +218,11 @@ export default function Agents() {
     // whether its agent works, is free or needs you.
     if (rooms?.length) out.push({ kind: 'header', key: 'h-rest', title: 'Agents' });
     if (home.chief) add(home.chief);
-    home.pinned.forEach(add);
-    home.rest.forEach(add);
+    // In the folders made on the Mac, when there are any (the desk's sidebar).
+    for (const section of homeSections(home, overview.folders)) {
+      if (section.title) out.push({ kind: 'header', key: `h-${section.key}`, title: section.title });
+      section.agents.forEach(add);
+    }
     const hidden = home.hidden;
     if (rooms?.length) {
       out.push({ kind: 'header', key: 'h-rooms', title: 'Rooms' });

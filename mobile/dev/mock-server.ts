@@ -211,6 +211,8 @@ export interface MockOptions {
    * minutes after pairing, and the shortest list Home can have.
    */
   solo?: boolean;
+  /** Agents filed in folders made on the Mac (Website, Design, Ops). */
+  folders?: boolean;
   /** How long a sign-in "on the Mac" takes before the card says it's connected. */
   loginAfterMs?: number;
   /**
@@ -1528,12 +1530,32 @@ export function createMockServer(opts: MockOptions = {}) {
   /** Why `key` can't be this agent's: someone else has it. */
   const keyTaken = (key: string, self: string) =>
     agents.find((o) => o.id !== self && o.boundKey === key);
+  // Folders made on the Mac (`agents::folders`), with the Designer pinned at the top.
+  const FOLDERS = opts.folders
+    ? {
+        folders: [
+          { id: 'f-web', name: 'Website' },
+          { id: 'f-design', name: 'Design' },
+          { id: 'f-ops', name: 'Operations' },
+        ],
+        pinned: 'top' as const,
+        broughtIn: true,
+      }
+    : undefined;
+  const FILED: Record<string, string> = { site: 'f-web', qa: 'f-web', design: 'f-design', ops: 'f-ops' };
+  if (opts.folders) {
+    for (const a of agents) {
+      if (FILED[a.id]) a.folder = FILED[a.id];
+      if (a.id === 'design') a.pinned = true;
+    }
+  }
   const overview = (): AgentsOverview => ({
     agents: (fillKeys(), structuredClone(agents)),
     engineReady: !opts.codexOnly,
     engines: engines(),
     defaults: defaults(),
     independence,
+    ...(FOLDERS ? { folders: FOLDERS } : {}),
   });
   // What each agent remembers (its CLAUDE.md `## Memory`), and secrets saved.
   const memories = new Map<string, MemoryEntry[]>([
