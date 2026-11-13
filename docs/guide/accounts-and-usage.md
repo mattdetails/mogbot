@@ -64,6 +64,18 @@ With two or more Claude Code accounts signed in, the agent tabs in your projects
   keep a conversation to pick up. After `/clear` in a Claude Code tab, its next limit is left to
   Claude Code's own message.
 
+## From the menu bar
+
+Click the app's icon in your Mac's menu bar to see your accounts in your order, with how much
+each has left, when one that's out comes back, and which one runs next. Pick an account and
+choose **Use this one first** to move it to the front.
+
+**Claude Code in your own Terminal.** The app can't restart a chat running in another app's
+window, so it watches instead. When a chat in Terminal hits its limit, you get a notification,
+and the account is marked out so your agents skip it too. Then open the menu bar icon, choose
+**Continue a Terminal chat**, pick the chat and **Continue on** another account. A new Terminal
+window opens with the same conversation on that account. Close the old one.
+
 ## When every account is out
 
 If Claude Code and Codex are both set up, you choose what happens when every account on one engine

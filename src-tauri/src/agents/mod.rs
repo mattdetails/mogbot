@@ -198,6 +198,7 @@ pub mod templates;
 pub mod tidy;
 pub mod transcript;
 pub mod tray;
+pub mod tray_accounts;
 pub mod turn_end;
 pub mod typed_answer;
 pub mod usage;

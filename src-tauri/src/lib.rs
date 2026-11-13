@@ -354,6 +354,8 @@ pub fn run() {
             agents::usage_read::spawn(_app.handle().clone());
             // Terminal tabs on the wallet's accounts: a tab that runs out moves on.
             agents::tab_accounts::spawn(_app.handle().clone());
+            // The menu bar's Accounts section, and Terminal chats watched for the limit.
+            agents::tray_accounts::spawn(_app.handle().clone());
             agents::disk::spawn(_app.handle().clone());
             // The engines' CLIs, asked now rather than when Agents first opens.
             agents::engine::look_early();

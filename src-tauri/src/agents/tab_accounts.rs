@@ -170,6 +170,12 @@ fn runs() -> std::sync::MutexGuard<'static, HashMap<String, Run>> {
     RUNS.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// The Claude Code sessions project tabs are running now: they move
+/// accounts on their own, so the menu bar leaves them out (`tray_accounts`).
+pub fn tracked_sessions() -> std::collections::HashSet<String> {
+    runs().values().filter_map(|r| r.session.clone()).collect()
+}
+
 /// What the tab's process is opened with to run as the account picked.
 #[derive(Debug, Default)]
 pub struct Picked {
@@ -347,7 +353,7 @@ pub fn limit_in(line: &str) -> Option<Option<i64>> {
 
 /// What a transcript gained since `from`: whole lines only, and how far
 /// they reach.
-fn read_new(path: &Path, from: u64) -> Option<(Vec<String>, u64)> {
+pub fn read_new(path: &Path, from: u64) -> Option<(Vec<String>, u64)> {
     let len = std::fs::metadata(path).ok()?.len();
     if len < from {
         // Replaced by a shorter copy (a carry): start again from its end.
