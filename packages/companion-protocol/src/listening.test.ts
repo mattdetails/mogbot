@@ -5,10 +5,10 @@ const base = { startedAt: 0, lastVoiceAt: null, lastWordsAt: null, wordsExpected
 
 describe('hearing', () => {
   it('says nothing for the first moments', () => {
-    expect(hearing({ ...base, now: 2_000 })).toBe('ok');
+    expect(hearing({ ...base, now: 7_000 })).toBe('ok');
   });
-  it('no voice at all for 3 s: can’t hear you', () => {
-    expect(hearing({ ...base, now: 3_000 })).toBe('silent');
+  it('no voice at all for 8 s: can’t hear you', () => {
+    expect(hearing({ ...base, now: 8_000 })).toBe('silent');
   });
   it('a pause after talking is fine until 10 s', () => {
     expect(hearing({ ...base, now: 9_000, lastVoiceAt: 1_000, lastWordsAt: 1_000 })).toBe('ok');

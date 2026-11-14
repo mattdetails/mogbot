@@ -302,6 +302,7 @@ export function Composer({
   const onLevel = useCallback(
     (l: number) => {
       level.set(l);
+      heard.current.readyAt ??= Date.now();
       if (l >= VOICE_LEVEL) heard.current.lastVoiceAt = Date.now();
     },
     [level]

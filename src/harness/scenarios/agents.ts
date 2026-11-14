@@ -3816,11 +3816,11 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-dictation-silent',
     title: 'Agents — dictating, but the mic hears nothing',
     looksRightWhen:
-      'After three seconds of nothing, the row under the field says “Can’t hear you · check the mic (MacBook Pro Microphone)” in the warning colour, its dot steady; the wave beside it is flat and dim. Cancel stays.',
+      'After eight seconds of nothing, the row under the field says “Can’t hear you · check the mic (MacBook Pro Microphone)” in the warning colour, its dot steady; the wave beside it is flat and dim. Cancel stays.',
     openSelector: AGENTS_TAB,
     requires: '.agent-composer__listening-clock[data-hearing="silent"]',
     clipSelector: '.agent-chat__footer',
-    steps: [{ click: '.agent-composer__mic' }, { wait: 3_600 }],
+    steps: [{ click: '.agent-composer__mic' }, { wait: 8_600 }],
     mockEvents: true,
     commands: {
       agents_overview: overview(),

@@ -84,7 +84,8 @@ function ListeningClock({ meter }: { meter: DictationMeter }) {
       <span className="agent-composer__listening-dot" aria-hidden />
       {warning ?? (
         <span className="agent-composer__listening-time" aria-label="Listening">
-          {elapsedLabel(now - meter.startedAt)}
+          {/* Until your voice first reaches it: "Listening…", calm. Then the clock. */}
+          {meter.lastVoiceAt === null ? 'Listening…' : elapsedLabel(now - meter.startedAt)}
         </span>
       )}
     </span>

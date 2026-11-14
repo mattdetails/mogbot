@@ -6,8 +6,12 @@
 
 /** A level at or above this is a voice, not the room. */
 export const VOICE_LEVEL = 0.3;
-/** Never heard a voice: say so after this. */
-export const SILENT_FIRST_MS = 3_000;
+/**
+ * Never heard a voice: say so after this, counted from the moment the mic
+ * is really running. 3 s fired while people were still drawing breath (and
+ * while the phone's mic was still starting), in the warning colour.
+ */
+export const SILENT_FIRST_MS = 8_000;
 /** Heard one, then nothing for this long. */
 export const SILENT_AFTER_MS = 10_000;
 /** Sound coming in but no words recognised for this long. */

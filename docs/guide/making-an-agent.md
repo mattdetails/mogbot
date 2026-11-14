@@ -92,7 +92,7 @@ An agent works on one thing at a time. Messages sent while it's busy wait their 
 
 Click the microphone in the message box (or press ⌘⇧D, or hold ⌥Space) and talk. No words show
 while you talk: the box becomes one row, with how long it's been and your voice moving as a wave
-where the words would be. If the mic hears nothing for three seconds, the row says **Can't hear you · check the mic** and names
+where the words would be. Until your voice reaches it, the row says **Listening…** quietly. If the mic hears nothing for eight seconds once it is running, the row says **Can't hear you · check the mic** and names
 the microphone it's using, so you never talk for minutes into a dead mic; if it hears sound but no
 words for ten seconds (a muted or wrong input), it says that instead. **Enter** (or Send) stops and
 sends; **Esc** cancels. The phone works the same way.
