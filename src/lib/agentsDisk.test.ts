@@ -10,7 +10,7 @@ describe('agentsDisk', () => {
 
   it('says how much of a home is regenerable only when it is', () => {
     const h = { agentId: 'a', name: 'A', bytes: 39_400_000_000, regenerableBytes: 37_200_000_000 };
-    expect(homeLine(h)).toBe('Its folder uses 39 GB, 37 GB of it in dependency and build folders.');
+    expect(homeLine(h)).toBe('Its folder uses 39 GB, 37 GB of it safe to free.');
     expect(homeLine({ ...h, regenerableBytes: 0 })).toBe('Its folder uses 39 GB.');
   });
 

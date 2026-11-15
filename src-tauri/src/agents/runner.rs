@@ -148,6 +148,10 @@ const HUNG_NOTE: &str = "Stopped: the command it was running had ended, but it n
 /// Its engine no longer had the conversation, so the turn started a new one
 /// with a recap of the chat (its memory is in its instructions either way).
 const FRESH_SESSION_NOTE: &str = "Its earlier conversation couldn't be found, so it started a new one with a recap of this chat.";
+/// The conversation had grown past `transcript::LONG_TRANSCRIPT`, so the
+/// turn started a new one with a recap (its memory is in its instructions).
+const LONG_SESSION_NOTE: &str =
+    "Its conversation had grown very long, so it started a new one with a recap of this chat.";
 /// How often a running turn is looked at for signs of life (`work::pulse`).
 const PULSE_EVERY: Duration = Duration::from_secs(15);
 /// How often what a running command printed is sent on, at most.

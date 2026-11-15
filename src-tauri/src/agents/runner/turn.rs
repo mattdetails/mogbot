@@ -310,6 +310,29 @@ pub(super) async fn run_turn(
             },
         )
     };
+    // A conversation grown past `transcript::LONG_TRANSCRIPT`: the engine
+    // would load all of it for this turn. Start a new one with a recap, as
+    // for a lost one (once: the retry has `retry_fresh` false).
+    if resuming && retry_fresh && !crossed && !quiet && branch.is_none() && engine == Engine::Claude
+    {
+        let (h, s) = (home.clone(), session_id.clone());
+        let long = tokio::task::spawn_blocking(move || super::transcript::claude_too_long(&h, &s))
+            .await
+            .unwrap_or(false);
+        if long {
+            tracing::info!(
+                "[Agents] {agent_id}'s conversation is very long; starting a new one with a recap"
+            );
+            store::update(agent_id, |a| super::crossover::drop_session(a, engine))
+                .or_log("an agent's dropped engine session");
+            let _ = record_in_turn(
+                app,
+                new_message(agent_id, MessageKind::Note, LONG_SESSION_NOTE),
+            );
+            let prompt = with_recap(agent_id, prompt);
+            return Box::pin(run_turn(app, agent_id, &prompt, routine, false, account)).await;
+        }
+    }
     let recapped = !resuming
         && (agent.new_engine || !retry_fresh || branch == Some(super::rewind::Branch::Recap));
     // First turn on a new engine: it starts blank, so it gets the conversation.

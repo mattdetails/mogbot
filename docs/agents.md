@@ -7677,8 +7677,12 @@ at 8 levels and 200,000 entries.
 **Settings → Agents → Disk space** (`AgentsDiskSettings`, ⌘K "Disk space used
 by agents…") is hidden while disk is fine and no home is 1 GB or more.
 Otherwise it shows free space when low, and each home of 1 GB or more: its
-size, how much of it is in regenerable folders, and **Free up space**, which
-runs the same prune with no age limit (refused while the agent is working). Its
+size, how much of it is safe to free, and **Free up space**, which
+runs the same prune with no age limit (refused while the agent is working),
+and also removes the app's kept conversation copies (`.session`) that an
+account folder still holds in full: nothing is lost, the next turn keeps a
+copy again. A Claude Code conversation past 100 MB starts a new one with a
+recap of the chat and one quiet line (`transcript::LONG_TRANSCRIPT`). Its
 line then says what it did ("Freed 37 GB."), and how many it left because git
 doesn't ignore them. Sizes are on-disk blocks, measured on demand and kept for 5
 minutes.

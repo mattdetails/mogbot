@@ -701,7 +701,7 @@ export const agentsUsageScenarios: Scenario[] = [
     id: 'settings-agents-disk-floor',
     title: 'Settings — Agents → Disk space: nearly full, one agent home at 39 GB',
     looksRightWhen:
-      'A “Disk space” group. “On this Mac”: “This Mac has 1.8 GB free. Agents ask before installing packages or cloning.” Then Security & DevOps: “Its folder uses 39 GB, 37 GB of it in dependency and build folders.” with a secondary “Free up space”; Research: “Its folder uses 1.4 GB.” with no button (nothing regenerable). Neutral buttons, nothing accent-coloured, readable in both themes.',
+      'A “Disk space” group. “On this Mac”: “This Mac has 1.8 GB free. Agents ask before installing packages or cloning.” Then Security & DevOps: “Its folder uses 39 GB, 37 GB of it safe to free.” with a secondary “Free up space”; Research: “Its folder uses 1.4 GB.” with no button (nothing regenerable). Neutral buttons, nothing accent-coloured, readable in both themes.',
     command: 'agents.disk',
     requires: '.agents-disk [data-disk-home]',
     clipSelector: '.agents-disk',

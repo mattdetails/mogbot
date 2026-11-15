@@ -325,6 +325,55 @@ pub fn claude_leaf(home: &Path, session: &str) -> Option<String> {
     leaf_in(path)
 }
 
+/// Past this, a Claude Code conversation starts afresh with a recap of the
+/// chat: every resumed turn has the engine load the whole file, and the
+/// app's copy of it is rewritten after each turn (one on Julian's Mac had
+/// reached 1.05 GB).
+pub const LONG_TRANSCRIPT: u64 = 100 * 1024 * 1024;
+
+/// Whether Claude Code's conversation `session` (its largest copy on this
+/// Mac, `home`'s kept one included) is past [`LONG_TRANSCRIPT`].
+pub fn claude_too_long(home: &Path, session: &str) -> bool {
+    claude_too_long_in(&wallet::engine_folders(Engine::Claude), home, session)
+}
+
+/// [`claude_too_long`] over the account folders `roots`.
+pub fn claude_too_long_in(roots: &[PathBuf], home: &Path, session: &str) -> bool {
+    if !valid_session(session) {
+        return false;
+    }
+    let mut found = claude_copies(roots, session);
+    found.push(home.join(DIR).join(format!("{session}.jsonl")));
+    found.iter().map(|p| len(p)).max().unwrap_or(0) > LONG_TRANSCRIPT
+}
+
+/// The app's kept copies in `home` that a Claude Code account folder still
+/// holds in full (as long or longer): removing one loses nothing, and the
+/// next turn keeps a fresh copy. With their sizes.
+pub fn redundant_copies(roots: &[PathBuf], home: &Path) -> Vec<(PathBuf, u64)> {
+    let own = home.join(DIR);
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(&own).into_iter().flatten().flatten() {
+        let path = entry.path();
+        let is_file = std::fs::symlink_metadata(&path).is_ok_and(|m| m.is_file());
+        let Some(session) = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.strip_suffix(".jsonl"))
+        else {
+            continue;
+        };
+        if !is_file || !valid_session(session) {
+            continue;
+        }
+        let size = len(&path);
+        if claude_copies(roots, session).iter().any(|c| len(c) >= size) {
+            out.push((path, size));
+        }
+    }
+    out
+}
+
 /// [`leaf_of`] for a transcript on disk, read from its end only as far as
 /// the last main-chain entry. Transcripts reach a gigabyte; reading the
 /// whole file for its last id spiked that much memory on every turn.
@@ -388,6 +437,36 @@ mod tests {
         .unwrap();
         assert_eq!(leaf_in(&path).as_deref(), Some("old"));
         assert_eq!(leaf_in(&dir.path().join("none.jsonl")), None);
+    }
+
+    /// A Claude account folder holding `session` at `size` bytes (sparse).
+    fn engine_copy(root: &Path, session: &str, size: u64) {
+        let dir = root.join("projects").join("-x");
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = std::fs::File::create(dir.join(format!("{session}.jsonl"))).unwrap();
+        f.set_len(size).unwrap();
+    }
+
+    #[test]
+    fn a_long_conversation_is_told_apart_and_a_redundant_copy_found() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (root, home) = (tmp.path().join("acct"), tmp.path().join("home"));
+        let roots = vec![root.clone()];
+        let s = "11111111-2222-3333-4444-555555555555";
+        engine_copy(&root, s, 1024);
+        assert!(!claude_too_long_in(&roots, &home, s));
+        engine_copy(&root, s, LONG_TRANSCRIPT + 1);
+        assert!(claude_too_long_in(&roots, &home, s));
+        assert!(!claude_too_long_in(&roots, &home, "../x"));
+        // The kept copy is redundant while the engine's is as long; not when
+        // the engine's is shorter (or gone).
+        std::fs::create_dir_all(home.join(DIR)).unwrap();
+        let kept = home.join(DIR).join(format!("{s}.jsonl"));
+        std::fs::File::create(&kept).unwrap().set_len(4096).unwrap();
+        assert_eq!(redundant_copies(&roots, &home), vec![(kept.clone(), 4096)]);
+        engine_copy(&root, s, 100);
+        assert!(redundant_copies(&roots, &home).is_empty());
+        assert!(redundant_copies(&[tmp.path().join("none")], &home).is_empty());
         assert_eq!(leaf_of(r#"{"type":"mode"}"#), None);
     }
 
