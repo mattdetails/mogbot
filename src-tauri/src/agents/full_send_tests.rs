@@ -452,7 +452,11 @@ fn a_commit_then_push_to_main_in_one_command_asks() {
     let dir = tempfile::tempdir().unwrap();
     let repo = dir.path().join("site");
     std::fs::create_dir_all(repo.join(".git")).unwrap();
-    std::fs::write(repo.join(".git/HEAD"), "ref: refs/heads/services/architecture\n").unwrap();
+    std::fs::write(
+        repo.join(".git/HEAD"),
+        "ref: refs/heads/services/architecture\n",
+    )
+    .unwrap();
     let c = Ctx {
         cwd: repo.clone(),
         ..ctx()
@@ -463,6 +467,9 @@ fn a_commit_then_push_to_main_in_one_command_asks() {
     );
     for level in [Level::GoHard, Level::FullSend] {
         assert!(card_at(level, false, "Bash", &bash(&cmd), &c), "{level:?}");
-        assert!(card_at(level, false, "Bash", &bash("git push origin HEAD:main"), &c), "{level:?} plain");
+        assert!(
+            card_at(level, false, "Bash", &bash("git push origin HEAD:main"), &c),
+            "{level:?} plain"
+        );
     }
 }
