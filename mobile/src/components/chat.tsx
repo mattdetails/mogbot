@@ -884,6 +884,10 @@ export function WorkingRow({
   const live = label ? liveCallShown(work, agent?.status.activity) : undefined;
   const ticking = !!label && (work != null || live != null);
   const now = useClock(ticking);
+  const comp = useComputer();
+  // A turn past half a minute says where it runs (Cade, 2026-11-14: people
+  // kept the app open, thinking closing it would stop the work).
+  const long = !!work && now - work.startedAt > KEEPS_RUNNING_AFTER_MS;
   return (
     <Animated.View entering={FadeIn.duration(250)} style={styles.working}>
       {agent && label ? (
@@ -909,9 +913,23 @@ export function WorkingRow({
           )}
         </View>
       )}
+      {long && !bare && (
+        <Animated.View entering={FadeIn.duration(250)}>
+          <T variant="caption" color={colors.textSecondary} testID="keeps-running">
+            {keepsRunning(comp.your)}
+          </T>
+        </Animated.View>
+      )}
     </Animated.View>
   );
 }
+
+/** How long a turn runs before the working row says where it runs. */
+export const KEEPS_RUNNING_AFTER_MS = 30_000;
+
+/** "Keeps running on your Mac, even with this app closed." */
+export const keepsRunning = (yourComputer: string) =>
+  `Keeps running on ${yourComputer}, even with this app closed.`;
 
 const useStyles = makeStyles((colors) => ({
   userRow: { alignItems: 'flex-end', gap: space.xs },

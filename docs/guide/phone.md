@@ -52,6 +52,11 @@ If the phone can't reach your computer, it shows a short checklist of what to lo
 with the app open, Tailscale on with the same account (when you use Tailscale), and the phone
 paired.
 
+Agents work on your computer, not on the phone: closing the app never stops them. A turn that
+runs past half a minute says so under its working line ("Keeps running on your Mac, even with
+this app closed"). Tables too wide for the screen read row by row, each column named beside its
+value.
+
 ## What the phone can't do
 
 Pushing to git, deleting agents, and a few room settings are done on the computer.
