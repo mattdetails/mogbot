@@ -135,6 +135,27 @@ pub(super) fn plain_words(command: &str) -> Option<Vec<&str>> {
     Some(command.split_whitespace().collect())
 }
 
+/// Flags that make an otherwise harmless command run a program or write
+/// where it's told: `git fetch --upload-pack=./evil.sh .` under a saved
+/// `git fetch` rule. An always-allow prefix never stretches over them; the
+/// call asks as it would without the rule.
+const CODE_FLAGS: &[&str] = &[
+    "--upload-pack",
+    "--receive-pack",
+    "--exec",
+    "--output",
+    "-c",
+    "--config",
+    "--git-dir",
+];
+
+fn runs_code(word: &str) -> bool {
+    let flag = word.split_once('=').map_or(word, |(f, _)| f);
+    CODE_FLAGS.contains(&flag)
+        // `-cfoo=bar`, `-ccore.sshCommand=…`: git's -c glued to its value.
+        || (word.starts_with("-c") && !word.starts_with("--") && word.len() > 2 && word.contains('='))
+}
+
 /// A word that names a subcommand rather than a flag, path or assignment.
 fn is_subcommand(word: &str) -> bool {
     !word.starts_with('-')
@@ -239,7 +260,11 @@ impl Scope {
                 // A one-word prefix can't come from `suggest`; don't honour one
                 // that was written into the registry by hand.
                 match self.kind {
-                    RuleKind::CommandPrefix => rule.len() >= 2 && words.starts_with(&rule),
+                    RuleKind::CommandPrefix => {
+                        rule.len() >= 2
+                            && words.starts_with(&rule)
+                            && !words[rule.len()..].iter().any(|w| runs_code(w))
+                    }
                     _ => words == rule,
                 }
             }
@@ -336,6 +361,28 @@ mod tests {
             assert!(!allows(&rule, command), "{command:?} must not match");
         }
         assert!(!rule.matches("Write", &bash("npm test")));
+    }
+
+    /// CTO review 2026-11-14: approving `git fetch origin` saved `git fetch`,
+    /// which then let `git fetch --upload-pack=./evil.sh .` run unasked.
+    #[test]
+    fn a_prefix_never_covers_flags_that_run_code() {
+        let rule = suggest("Bash", &bash("git fetch origin")).unwrap();
+        assert!(allows(&rule, "git fetch origin"));
+        assert!(allows(&rule, "git fetch --prune origin"));
+        for command in [
+            "git fetch --upload-pack=./evil.sh .",
+            "git fetch --upload-pack ./evil.sh .",
+            "git fetch origin --receive-pack=x",
+            "git fetch --exec=x origin",
+            "git fetch -c core.sshCommand=x origin",
+            "git fetch -ccore.sshCommand=x origin",
+            "git fetch --config=core.sshCommand=x origin",
+            "git fetch --git-dir=/tmp/x origin",
+            "git fetch origin --output=/etc/x",
+        ] {
+            assert!(!allows(&rule, command), "{command:?} must ask");
+        }
     }
 
     #[test]
