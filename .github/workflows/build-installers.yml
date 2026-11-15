@@ -23,8 +23,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The signing secrets (Tauri update key, Azure signing, the bug-report
+  # secret) live only in the `release` environment, which needs the owner's
+  # approval. This job refuses any other ref first, so a dispatch from a
+  # feature branch fails here rather than waiting for that approval.
+  check-ref:
+    name: Only main or a v* tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Refuse other refs
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          case "$REF" in
+            refs/heads/main|refs/tags/v*) echo "Building from $REF" ;;
+            *) echo "::error::Installers are signed only from main or a v* tag, not $REF"; exit 1 ;;
+          esac
+
   build:
     name: ${{ matrix.name }}
+    needs: check-ref
+    environment: release
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     strategy:
