@@ -9,8 +9,8 @@ from "Asks a lot" to "Just does it".
 | Stop | What it does on its own |
 | --- | --- |
 | **Careful** | Reads and looks around; asks before bigger changes. |
-| **Steady** (the default) | Reads and edits; asks before running changes or anything leaving your computer. |
-| **Bold** | Does local work on your computer; asks before anything leaves it. |
+| **Steady** | Reads and edits; asks before running changes or anything leaving your computer. |
+| **Bold** (where a new install starts) | Does local work on your computer; asks before anything leaves it. |
 | **Unleashed** | Sends, posts and pushes too; only stops for money, logins, deleting for good or going live. |
 
 ## Setting it

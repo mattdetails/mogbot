@@ -1534,8 +1534,8 @@ left end and "Just does it" at the right:
 | Stop | Stored id | Its line under the slider |
 | --- | --- | --- |
 | **Careful** | `often` | Reads and looks around; asks before bigger changes. |
-| **Steady** (the default) | `judgement` | Reads and edits; asks before running changes or anything leaving this Mac. |
-| **Bold** | `go_hard` | Does local work on this Mac; asks before anything leaves it. |
+| **Steady** (the default before 1.0.14; still where an older install that never moved the slider runs) | `judgement` | Reads and edits; asks before running changes or anything leaving this Mac. |
+| **Bold** (a new install starts here, `independence::NEW_INSTALL`) | `go_hard` | Does local work on this Mac; asks before anything leaves it. |
 | **Unleashed** | `full_send` | Sends, posts and pushes too; only stops for money, logins, deleting for good or going live. |
 
 Under it, at every stop: "Always asks before spending money, using your
