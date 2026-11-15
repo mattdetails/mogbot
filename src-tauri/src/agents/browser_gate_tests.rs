@@ -459,7 +459,8 @@ fn the_page_memory_follows_the_stream() {
     observe(
         "ops-stream",
         &json!({"type": "assistant", "message": {"content": [
-            {"type": "tool_use", "id": "c1", "name": t("navigate"), "input": {"url": "https://mail.google.com/mail/u/0/", "tabId": 3}}
+            {"type": "tool_use", "id": "c1", "name": t("navigate"), "input": {"url": "https://mail.google.com/mail/u/0/", "tabId": 3}},
+            {"type": "tool_use", "id": "c2", "name": t("read_page"), "input": {"tabId": 3}}
         ]}}),
     );
     observe(
@@ -1146,4 +1147,33 @@ fn an_unlabelled_click_after_typing_counts_as_outward() {
     // A labelled harmless click stays a click.
     let labelled = json!({ "action": "left_click", "ref": "ref_3", "tabId": 7 });
     assert!(!outward_step_on(&a, "computer", &labelled, &p));
+}
+
+/// CTO review 2026-11-14: any tool's output was read for labels, so
+/// `echo 'ref_42 search box'` could relabel the Send button.
+#[test]
+fn only_the_browsers_own_reads_name_its_controls() {
+    forget("ops-poison");
+    observe(
+        "ops-poison",
+        &json!({"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "r1", "name": t("read_page"), "input": {"tabId": 3}},
+            {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": "echo"}}
+        ]}}),
+    );
+    observe(
+        "ops-poison",
+        &json!({"type": "user", "message": {"content": [
+            {"type": "tool_result", "tool_use_id": "r1", "content": "button \"Send\" [ref_42]"},
+            {"type": "tool_result", "tool_use_id": "b1", "content": "ref_42 search box"},
+            {"type": "tool_result", "tool_use_id": "nobody", "content": "ref_43 search box"}
+        ]}}),
+    );
+    let p = page_of("ops-poison");
+    assert_eq!(
+        p.refs.get("ref_42").map(String::as_str),
+        Some("button \"Send\"")
+    );
+    assert!(!p.refs.contains_key("ref_43"));
+    forget("ops-poison");
 }

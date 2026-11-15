@@ -20,6 +20,7 @@ fn page_with(refs: &[(&str, &str)], url: &str) -> Page {
         url: Some(url.to_string()),
         last_target: None,
         typed: Vec::new(),
+        calls: Default::default(),
     }
 }
 

@@ -267,9 +267,20 @@ pub struct Page {
     /// What it typed or filled in on this page, in order: the words a send
     /// click would send, shown on that card (`outward`).
     pub typed: Vec<String>,
+    /// Browser calls waiting for their answer: tool_use id → tool name. An
+    /// answer is read for labels only when it is one of these (CTO review
+    /// 2026-11-14: `echo 'ref_42 search box'` from Bash relabelled Send).
+    pub calls: HashMap<String, String>,
 }
 
 const MAX_REFS: usize = 4000;
+const MAX_CALLS: usize = 256;
+
+/// Browser calls whose answer says which `ref` is which control, or which
+/// page each tab is on.
+fn names_controls(name: &str) -> bool {
+    matches!(name, "read_page" | "find" | "browser_batch") || name.starts_with("tabs_")
+}
 const MAX_TYPED: usize = 8;
 
 /// Note what a typing step puts on the page (`form_input`'s value, a
@@ -343,11 +354,26 @@ pub fn observe(agent_id: &str, value: &Value) {
                         continue;
                     };
                     let input = b.get("input").cloned().unwrap_or(Value::Null);
+                    if let Some(id) = b.get("id").and_then(Value::as_str) {
+                        if page.calls.len() >= MAX_CALLS {
+                            page.calls.clear();
+                        }
+                        page.calls.insert(id.to_string(), name.to_string());
+                    }
                     on_call(page, name, &input);
                 }
                 Some("tool_result") => {
-                    let text = result_text(b.get("content"));
-                    on_answer(page, &text);
+                    // Only the browser's own reads name controls and tabs:
+                    // any other tool's output (a command, a fetched page) is
+                    // text the page could have written.
+                    let call = b
+                        .get("tool_use_id")
+                        .and_then(Value::as_str)
+                        .and_then(|id| page.calls.remove(id));
+                    if call.as_deref().is_some_and(names_controls) {
+                        let text = result_text(b.get("content"));
+                        on_answer(page, &text);
+                    }
                 }
                 _ => {}
             }
