@@ -263,6 +263,18 @@ pub(super) async fn run_turn(
             .prompt
             .push_str(&super::account_reach::chrome_prompt_line());
     }
+    // Claude in Chrome on a locked Mac: its Allow window can't be answered,
+    // so the turn is told before it spends itself retrying.
+    if (access.browser || chrome_as_this_mac)
+        && tokio::task::spawn_blocking(super::chrome_health::screen_locked)
+            .await
+            .unwrap_or(false)
+    {
+        if !access.prompt.is_empty() {
+            access.prompt.push('\n');
+        }
+        access.prompt.push_str(super::chrome_health::LOCKED_LINE);
+    }
     let mcp_config = match engine {
         Engine::Claude => Some(super::reach::write_config(
             &super::reach::claude_config_with(&url, turn.secret(), claude_servers),
