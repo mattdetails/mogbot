@@ -3399,13 +3399,77 @@ pub fn describe_request(tool: &str, input: &Value) -> (String, String) {
             ("Read a claude.ai artifact".into(), field("url"))
         }
         other => {
-            let mut detail = serde_json::to_string_pretty(input).unwrap_or_default();
-            if detail.chars().count() > 600 {
-                detail = detail.chars().take(600).collect::<String>() + "…";
+            let mut detail = plain_fields(input)
+                .unwrap_or_else(|| serde_json::to_string_pretty(input).unwrap_or_default());
+            if detail.chars().count() > 1200 {
+                detail = detail.chars().take(1200).collect::<String>() + "…";
             }
             (mcp_title(other), detail)
         }
     }
+}
+
+/// An app call's arguments as lines anyone can read ("To: dana@acme.com",
+/// "Subject: Thursday"), not JSON (Cade, 2026-11-14: "the cards read like
+/// code"). Every value is shown as sent: text verbatim (a long or multi-line
+/// one under its name), numbers and yes/no as written, a list of words
+/// joined, anything nested as compact JSON. Empty fields are left out.
+/// `None` when the input isn't a set of named fields.
+pub(super) fn plain_fields(input: &Value) -> Option<String> {
+    let fields = input.as_object()?;
+    // Who and what first, the long text last, as a message reads.
+    let rank = |key: &str| {
+        let k = key.to_ascii_lowercase();
+        const FIRST: [&str; 8] = [
+            "to",
+            "recipients",
+            "channel",
+            "from",
+            "cc",
+            "bcc",
+            "subject",
+            "title",
+        ];
+        const LAST: [&str; 6] = ["body", "text", "content", "message", "html", "description"];
+        FIRST
+            .iter()
+            .position(|f| *f == k)
+            .map(|i| i as i32 - 100)
+            .or_else(|| LAST.iter().position(|f| *f == k).map(|i| 100 + i as i32))
+            .unwrap_or(0)
+    };
+    let mut ordered: Vec<(&String, &Value)> = fields.iter().collect();
+    ordered.sort_by_key(|(k, _)| rank(k));
+    let mut lines = Vec::new();
+    for (key, value) in ordered {
+        let shown = match value {
+            Value::Null => continue,
+            Value::String(s) if s.trim().is_empty() => continue,
+            Value::Array(a) if a.is_empty() => continue,
+            Value::Object(o) if o.is_empty() => continue,
+            Value::String(s) => s.clone(),
+            Value::Bool(b) => (if *b { "yes" } else { "no" }).to_string(),
+            Value::Number(n) => n.to_string(),
+            Value::Array(a) if a.iter().all(Value::is_string) => a
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(", "),
+            other => serde_json::to_string(other).unwrap_or_default(),
+        };
+        let words = split_words(key).join(" ");
+        let mut name = words.chars();
+        let name = match name.next() {
+            Some(first) => first.to_uppercase().chain(name).collect::<String>(),
+            None => continue,
+        };
+        if shown.contains('\n') || shown.chars().count() > 60 {
+            lines.push(format!("{name}:\n{shown}"));
+        } else {
+            lines.push(format!("{name}: {shown}"));
+        }
+    }
+    (!lines.is_empty()).then(|| lines.join("\n"))
 }
 
 /// `mcp__gmail__send_email` → "Send an email · Gmail": a verb phrase from the
@@ -4808,6 +4872,32 @@ mod tests {
             describe_request("Bash", &json!({ "command": "git push origin main" }));
         assert_eq!(title, "Run a command");
         assert_eq!(detail, "git push origin main");
+    }
+
+    #[test]
+    fn an_app_calls_detail_reads_as_plain_lines_with_every_value_as_sent() {
+        let (_, detail) = describe_request(
+            "mcp__claude_ai_Gmail__send_email",
+            &json!({
+                "to": ["dana@acme.com", "ops@acme.com"],
+                "subject": "Thursday",
+                "body": "Hi Dana,\n40 bags works.",
+                "cc": "",
+                "isDraft": false,
+                "maxResults": 5,
+                "labels": [],
+                "thread": { "id": "t1" },
+                "replyTo": null
+            }),
+        );
+        assert_eq!(
+            detail,
+            "To: dana@acme.com, ops@acme.com\nSubject: Thursday\nIs draft: no\nMax results: 5\nThread: {\"id\":\"t1\"}\nBody:\nHi Dana,\n40 bags works."
+        );
+        assert!(!detail.contains('{') || detail.contains("Thread: {"));
+        // Not a set of named fields: as it was.
+        assert_eq!(plain_fields(&json!("x")), None);
+        assert_eq!(plain_fields(&json!({})), None);
     }
 
     #[test]

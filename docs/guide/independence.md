@@ -56,6 +56,8 @@ far back it is. **Review** on the "needs your OK" bar does the same.
   offers **Always allow reading your Gmail**: every read of that app stops asking, while sending,
   changing or deleting anything there still asks each time. On the phone it sits on its own line
   under Allow.
+- A card for one of your apps lists what it will send as plain lines (To, Subject, then the
+  text), each value exactly as it goes, never as code.
 - Answer from the computer, the phone, or by typing "yes" or "approve it" in the chat when there's
   exactly one card open.
 - A card can be answered once. If you answer on the phone and the computer at the same moment, only the
