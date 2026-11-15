@@ -444,10 +444,9 @@ async fn pair(c: Arc<Companion>, req: Request<Incoming>, peer: &Peer) -> Respons
             peer.login.clone(),
         ) {
             Ok((record, token, replaced)) => {
-                for id in replaced {
-                    // Revoked as the desk asked: its files and push go too.
-                    c.blobs.forget_device(&id);
-                    c.hub.signal(HubItem::Revoked { device_id: id });
+                for d in &replaced {
+                    // Revoked as the desk asked: the same clean-up as Remove.
+                    c.revoked(d, "replaced by a new pairing");
                 }
                 let server_id = c.registry.server_id();
                 let hosts = serve_hosts(&c);

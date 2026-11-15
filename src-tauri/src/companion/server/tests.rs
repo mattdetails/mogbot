@@ -179,6 +179,53 @@ async fn post_pair(port: u16, body: &Value) -> reqwest::Response {
         .unwrap()
 }
 
+/// CTO review 2026-11-14: a phone replaced at pairing went without most of a
+/// revoke (its watches, its push token, the "revoked" audit line). Now it
+/// goes through the same clean-up as Remove.
+#[tokio::test]
+async fn a_phone_replaced_at_pairing_is_revoked_in_full() {
+    let (c, stub) = Stub::companion();
+    let port = start(c.clone()).await;
+    let (code, _) = c.pairing.start(now_ms());
+    desk(&c, true);
+    let first: Value = post_pair(port, &pair_body(&code))
+        .await
+        .json()
+        .await
+        .unwrap();
+    let first_id = first["deviceId"].as_str().unwrap().to_string();
+
+    let (code, _) = c.pairing.start(now_ms());
+    let c2 = c.clone();
+    let replace = vec![first_id.clone()];
+    tokio::spawn(async move {
+        for _ in 0..200 {
+            if let Some(r) = c2.pairing.view(now_ms()).request {
+                c2.pairing.decide(
+                    &r.id,
+                    crate::companion::pairing::Decision::Allow { replace },
+                );
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    });
+    let second: Value = post_pair(port, &pair_body(&code))
+        .await
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(second["ok"], true, "{second}");
+    assert!(c.registry.get(&first_id).is_none());
+    assert!(
+        stub.audited()
+            .iter()
+            .any(|a| a.1 == "revoked" && a.2.contains("replaced") && a.3),
+        "{:?}",
+        stub.audited()
+    );
+}
+
 #[tokio::test]
 async fn pair_chat_resume_and_audit_end_to_end() {
     let (c, stub) = Stub::companion();
