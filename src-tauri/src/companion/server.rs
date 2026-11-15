@@ -132,6 +132,16 @@ pub(crate) fn json_response(value: &impl serde::Serialize) -> Response<Body> {
     res
 }
 
+/// The key a pairing attempt's backoff counts under: relayed attempts
+/// together (`relay:*`), others by their own source.
+fn pair_source(peer: &Peer) -> String {
+    if peer.relay {
+        "relay:*".into()
+    } else {
+        peer.source.clone()
+    }
+}
+
 /// Where a request came from, as far as the server can tell.
 #[derive(Default)]
 pub struct Peer {
@@ -402,11 +412,15 @@ async fn pair(c: Arc<Companion>, req: Request<Incoming>, peer: &Peer) -> Respons
     }
     let device = super::clean_pair_device(&request.device);
     let actor = actor_for(&device.name);
+    // Code guesses back off per source. A relay channel is a new source each
+    // time a phone reconnects, so relayed guesses share one key: otherwise a
+    // fresh channel reset the backoff (CTO review 2026-11-14).
+    let guess_source = pair_source(&peer);
     let rx = match c.pairing.claim(
         &request.code,
         device.clone(),
         request.public_key.clone(),
-        &peer.source,
+        &guess_source,
         peer.login.clone(),
         now_ms(),
     ) {

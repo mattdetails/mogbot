@@ -2171,3 +2171,22 @@ fn the_busy_words_are_the_ones_the_phone_tries_again_on() {
         super::BUSY
     );
 }
+
+/// CTO review 2026-11-14: relayed pairing guesses were keyed by channel, and
+/// each reconnect is a new channel, so the backoff started over every time.
+#[test]
+fn relayed_pairing_guesses_share_one_backoff() {
+    let peer = |source: &str, relay: bool| super::Peer {
+        source: source.into(),
+        login: None,
+        conn: None,
+        prehello: None,
+        relay,
+    };
+    assert_eq!(super::pair_source(&peer("relay:7", true)), "relay:*");
+    assert_eq!(super::pair_source(&peer("relay:8", true)), "relay:*");
+    assert_eq!(
+        super::pair_source(&peer("ip:100.64.0.2", false)),
+        "ip:100.64.0.2"
+    );
+}
