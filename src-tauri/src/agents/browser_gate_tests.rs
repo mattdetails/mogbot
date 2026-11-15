@@ -1124,3 +1124,26 @@ fn enter_after_a_click_by_position_asks_the_agent_to_name_the_box() {
     assert!(first_try(id, &by_position));
     assert!(!first_try(id, &by_position));
 }
+
+/// Exact-text on: a click by coordinate after typing is treated as a send
+/// (it may be the Post button), and before typing it isn't.
+#[test]
+fn an_unlabelled_click_after_typing_counts_as_outward() {
+    let mut p = page();
+    let a = agent();
+    let by_spot = json!({ "action": "left_click", "coordinate": [640, 410], "tabId": 7 });
+    let unknown_ref = json!({ "action": "left_click", "ref": "ref_999", "tabId": 7 });
+    // Nothing typed: an unlabelled click is just a click.
+    assert!(!outward_step_on(&a, "computer", &by_spot, &p));
+    on_call(
+        &mut p,
+        "computer",
+        &json!({ "action": "type", "text": "Big news today", "tabId": 7 }),
+    );
+    assert!(!p.typed.is_empty());
+    assert!(outward_step_on(&a, "computer", &by_spot, &p));
+    assert!(outward_step_on(&a, "computer", &unknown_ref, &p));
+    // A labelled harmless click stays a click.
+    let labelled = json!({ "action": "left_click", "ref": "ref_3", "tabId": 7 });
+    assert!(!outward_step_on(&a, "computer", &labelled, &p));
+}

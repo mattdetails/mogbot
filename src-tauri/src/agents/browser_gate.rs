@@ -1206,6 +1206,16 @@ pub fn outward_step_on(agent: &Agent, name: &str, input: &Value, page: &Page) ->
     {
         return false;
     }
+    // A click by coordinate (or on a ref nothing labelled) after typing on
+    // this page can't be told from the Post button: Go hard lets it through
+    // as unlabelled, so on its own it would skip the exact-text card. Found
+    // in review (CTO, 2026-11-14): type a post, click Post by position.
+    if name == "computer" && !page.typed.is_empty() {
+        let action = input.get("action").and_then(Value::as_str).unwrap_or("");
+        if CLICKS.contains(&action) && target_of(page, input).is_none() {
+            return true;
+        }
+    }
     decide(Level::GoHard, agent, name, input, page) != Gate::Allow
 }
 
