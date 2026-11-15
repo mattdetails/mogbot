@@ -1299,6 +1299,11 @@ fn command_asks_at(command: &str, ctx: &Ctx, outside: bool, depth: u8) -> bool {
                     return true;
                 }
             }
+            if interpreter_script(words, &written, &here)
+                .is_some_and(|c| script_code_asks(&c, &here, outside, depth))
+            {
+                return true;
+            }
             match git_alias(words, &git_aliases, &here) {
                 Some(Alias::Words(w)) if simple_asks(&w, &here, outside, known) => return true,
                 Some(Alias::Shell(line)) if command_asks_at(&line, &here, outside, depth + 1) => {
@@ -1535,6 +1540,141 @@ fn script_run(
             })
     };
     (by_shell || shell_bang(text.lines().next().unwrap_or(""))).then_some(text)
+}
+
+/// Interpreters whose script file is read, when this turn wrote it, for
+/// what it would do that Bold asks for. CTO review 2026-11-14: a `p.py`
+/// holding `subprocess.run(["git", "push", "-f"])` ran as `python3 p.py`
+/// with no card, since only shell scripts were followed.
+const SCRIPT_INTERPRETERS: &[&str] = &[
+    "python", "python3", "python2", "node", "perl", "ruby", "deno", "bun", "tsx", "ts-node", "php",
+];
+
+/// Calls in a script that start another program, and so are judged by the
+/// command they spell out: Python's subprocess/os, Node's child_process,
+/// Ruby's and Perl's system, Deno's and Bun's spawners.
+const SCRIPT_STARTS: &[&str] = &[
+    "subprocess.run(",
+    "subprocess.call(",
+    "subprocess.check_call(",
+    "subprocess.check_output(",
+    "subprocess.popen(",
+    "os.system(",
+    "os.popen(",
+    "execsync(",
+    "execfilesync(",
+    "spawnsync(",
+    "child_process.exec(",
+    "child_process.spawn(",
+    "execfile(",
+    "system(",
+    "deno.command(",
+    "bun.spawn(",
+    "bun.spawnsync(",
+];
+
+/// Places a script reaching would be a card if the turn reached them
+/// itself: launch agents, keys, shell profiles. Rare in everyday scripts.
+const SCRIPT_TOUCHES: &[&str] = &[
+    "launchagents",
+    "launchdaemons",
+    "/.ssh/",
+    "~/.ssh",
+    ".gnupg",
+    ".zshrc",
+    ".bashrc",
+    ".bash_profile",
+];
+
+/// The command a start call spells out with literal strings: the quoted
+/// words in its arguments, joined (`['git','push','-f']` → `git push -f`;
+/// Deno's `Command('git', {args: ['push']})` → `git push`).
+/// `None` when it builds the command from variables: not judged, as before.
+fn spelled_command(after: &str) -> Option<String> {
+    let mut depth = 0i32;
+    let mut end = after.len();
+    for (i, c) in after.char_indices() {
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' if depth == 0 => {
+                end = i;
+                break;
+            }
+            ')' | ']' | '}' => depth -= 1,
+            _ => {}
+        }
+    }
+    let arg = after[..end].trim();
+    let mut words = Vec::new();
+    let mut chars = arg.chars().peekable();
+    while let Some(c) = chars.next() {
+        if matches!(c, '\'' | '"' | '`') {
+            let mut w = String::new();
+            for d in chars.by_ref() {
+                if d == c {
+                    break;
+                }
+                w.push(d);
+            }
+            if w.contains("${") {
+                return None;
+            }
+            words.push(w);
+        }
+    }
+    (!words.is_empty()).then(|| words.join(" "))
+}
+
+/// Whether a script's code would do what Bold asks for: a program it
+/// starts whose spelled-out command asks, or a place it reaches that would.
+fn script_code_asks(code: &str, ctx: &Ctx, outside: bool, depth: u8) -> bool {
+    let lower = code.to_ascii_lowercase();
+    if SCRIPT_TOUCHES.iter().any(|m| lower.contains(m)) {
+        return true;
+    }
+    SCRIPT_STARTS.iter().any(|call| {
+        lower.match_indices(call).any(|(i, _)| {
+            spelled_command(&code[i + call.len()..])
+                .is_some_and(|cmd| command_asks_at(&cmd, ctx, outside, depth + 1))
+        })
+    })
+}
+
+/// The code of a script an interpreter runs (`python3 p.py`, `node x.js`,
+/// `deno run x.ts`), when this line wrote it or it was written in the last
+/// [`FRESH_SCRIPT`]. `None` keeps today's behaviour (an older file, a
+/// package script, one it can't read).
+fn interpreter_script(
+    words: &[String],
+    written: &std::collections::HashMap<String, String>,
+    ctx: &Ctx,
+) -> Option<String> {
+    let w: Vec<&str> = words.iter().map(String::as_str).collect();
+    let rest = unwrapped(&w);
+    let (&prog, args) = rest.split_first()?;
+    let prog = base(prog);
+    let name = prog.trim_end_matches(|c: char| c.is_ascii_digit() || c == '.');
+    if !SCRIPT_INTERPRETERS.contains(&name) && !SCRIPT_INTERPRETERS.contains(&prog) {
+        return None;
+    }
+    let mut args = args.iter().copied().skip_while(|a| a.starts_with('-'));
+    let mut path = args.next()?;
+    if matches!(name, "deno" | "bun") && path == "run" {
+        path = args.find(|a| !a.starts_with('-'))?;
+    }
+    if let Some(body) = written.get(path.trim_start_matches("./")) {
+        return Some(body.clone());
+    }
+    if !ctx.cwd.is_absolute() {
+        return None;
+    }
+    let file = resolve(path, ctx)?;
+    let meta = std::fs::metadata(&file).ok()?;
+    let age = meta.modified().ok()?.elapsed().unwrap_or_default();
+    if !meta.is_file() || meta.len() > MAX_SCRIPT_BYTES || age > FRESH_SCRIPT {
+        return None;
+    }
+    std::fs::read_to_string(&file).ok()
 }
 
 /* -------------------------------------------------- git aliases */
