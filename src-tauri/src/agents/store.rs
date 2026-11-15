@@ -869,7 +869,11 @@ pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), CommandError
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(format!(".{}.{}.tmp", std::process::id(), new_id()));
     let tmp = PathBuf::from(tmp);
-    let written = write_private(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, path));
+    // On disk before the rename: a power cut after it must not leave an
+    // empty file in place of the old one.
+    let written = write_private(&tmp, bytes)
+        .and_then(|()| std::fs::File::open(&tmp)?.sync_all())
+        .and_then(|()| std::fs::rename(&tmp, path));
     if written.is_err() {
         let _ = std::fs::remove_file(&tmp);
     }

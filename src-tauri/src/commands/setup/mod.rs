@@ -143,7 +143,14 @@ pub fn try_read_app_state() -> Result<AppState, std::io::Error> {
         Err(e) => {
             // Log the parse failure so it's visible in the app's log folder
             // rather than silently resetting all data (including saved Workspaces).
-            tracing::error!("Failed to parse app state — keeping defaults. Error: {e}. Raw: {raw}");
+            // Never the file itself in the log: it holds account details, and
+            // error lines can leave in a bug report.
+            let kept = set_aside_damaged(&path);
+            tracing::error!(
+                "Failed to parse app state — keeping defaults. Error: {e}. Damaged copy kept: {}",
+                kept.as_deref()
+                    .map_or("no".into(), |p| p.display().to_string())
+            );
             // Attempt a best-effort partial recovery: pull the accounts array out
             // of the raw JSON even if other fields fail to parse. This prevents
             // a one-time schema evolution from wiping all workspaces.
@@ -164,6 +171,19 @@ pub fn try_read_app_state() -> Result<AppState, std::io::Error> {
             AppState::default()
         }
     })
+}
+
+/// A copy of a damaged state file beside it (`app_state.json.damaged-<ms>`),
+/// before the next save writes over it: what was in it can still be
+/// recovered by hand. `None` when it couldn't be copied.
+fn set_aside_damaged(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let name = path.file_name()?.to_string_lossy().into_owned();
+    let ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let aside = path.with_file_name(format!("{name}.damaged-{ms}"));
+    std::fs::copy(path, &aside).ok().map(|_| aside)
 }
 
 /// Read-modify-write the persisted app state.
@@ -259,8 +279,21 @@ fn write_state_file(
         .unwrap_or_else(|| "app_state.json".to_string());
     let tmp_path = path.with_file_name(format!("{file_name}.{}.{seq}.tmp", std::process::id()));
 
-    std::fs::write(&tmp_path, contents)
-        .map_err(|e| crate::utils::classify_fs_error("write the app state file", &tmp_path, &e))?;
+    // Written and on disk before the rename: a power cut after it must not
+    // leave an empty app_state.json in place of the old one.
+    let written = std::fs::File::create(&tmp_path).and_then(|mut f| {
+        use std::io::Write;
+        f.write_all(contents.as_bytes())?;
+        f.sync_all()
+    });
+    if let Err(e) = written {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(crate::utils::classify_fs_error(
+            "write the app state file",
+            &tmp_path,
+            &e,
+        ));
+    }
     std::fs::rename(&tmp_path, path).map_err(|e| {
         // Nobody else will ever look for this write's temp file by name.
         let _ = std::fs::remove_file(&tmp_path);
@@ -505,6 +538,30 @@ mod tests {
         );
         assert_eq!(mock_failure(true, Some("  ".into())), None);
         assert_eq!(mock_failure(true, None), None);
+    }
+
+    /// CTO review 2026-11-14: a damaged app_state.json was logged whole (at
+    /// error level, which can leave in a bug report) and the next save wrote
+    /// defaults over it. Now the damaged file is copied aside first.
+    #[test]
+    fn a_damaged_state_file_is_kept_aside_before_anything_writes_over_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app_state.json");
+        std::fs::write(&path, "{ \"accounts\": [ broken").unwrap();
+        let aside = set_aside_damaged(&path).expect("copied aside");
+        assert!(aside
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("app_state.json.damaged-"));
+        assert_eq!(
+            std::fs::read_to_string(&aside).unwrap(),
+            "{ \"accounts\": [ broken"
+        );
+        // The save that follows replaces the original, not the copy.
+        write_state_file(&path, "{}").unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "{}");
+        assert!(aside.exists());
     }
 
     // ============ write_state_file ============
