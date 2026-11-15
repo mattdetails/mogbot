@@ -143,17 +143,33 @@ const CODE_FLAGS: &[&str] = &[
     "--upload-pack",
     "--receive-pack",
     "--exec",
+    "--exec-path",
     "--output",
-    "-c",
     "--config",
     "--git-dir",
+    "--work-tree",
+    "--template",
+    "--ext-diff",
+    "--textconv",
 ];
+
+/// Short flags with the same reach: `-c` (git config), `-u` (`clone -u`,
+/// its upload-pack).
+const CODE_SHORT: &[&str] = &["-c", "-u"];
 
 fn runs_code(word: &str) -> bool {
     let flag = word.split_once('=').map_or(word, |(f, _)| f);
-    CODE_FLAGS.contains(&flag)
-        // `-cfoo=bar`, `-ccore.sshCommand=…`: git's -c glued to its value.
-        || (word.starts_with("-c") && !word.starts_with("--") && word.len() > 2 && word.contains('='))
+    if flag.starts_with("--") {
+        // Git takes any unambiguous abbreviation of a long option
+        // (`--upload-p=`), so a prefix of one of these counts too (CTO
+        // follow-up, 2026-11-14).
+        return flag.len() > 3 && CODE_FLAGS.iter().any(|f| f.starts_with(flag));
+    }
+    // `-c`, `-u`, or glued to its value (`-ccore.sshCommand=…`, `-u./x`).
+    CODE_SHORT.contains(&flag)
+        || CODE_SHORT
+            .iter()
+            .any(|f| flag.starts_with(f) && flag.len() > 2)
 }
 
 /// A word that names a subcommand rather than a flag, path or assignment.
@@ -380,6 +396,13 @@ mod tests {
             "git fetch --config=core.sshCommand=x origin",
             "git fetch --git-dir=/tmp/x origin",
             "git fetch origin --output=/etc/x",
+            "git fetch --upload-p=./evil.sh .",
+            "git fetch --upl ./evil.sh .",
+            "git fetch -u ./evil.sh origin",
+            "git fetch --template=/tmp/t origin",
+            "git fetch --ext-diff origin",
+            "git fetch --textconv origin",
+            "git fetch --exec-path=/tmp origin",
         ] {
             assert!(!allows(&rule, command), "{command:?} must ask");
         }
