@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { newNonce, verifyMacLogin } from './auth';
+import { FETCH_TIMEOUT_MS } from './clerk';
 import type { Env } from './env';
 import { LINK_TTL_MS, hashCode, linkError, parseLinkCode, sameHash } from './link';
 
@@ -317,6 +318,7 @@ export class MacRelay extends DurableObject<Env> {
       const res = await fetch(`${clerkApi(this.env)}/v1/users/${encodeURIComponent(binding.id)}`, {
         method: 'DELETE',
         headers: { authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       status = res.status;
     } catch {
@@ -340,6 +342,7 @@ export class MacRelay extends DurableObject<Env> {
     try {
       const res = await fetch(`${clerkApi(this.env)}/v1/users/${encodeURIComponent(binding.id)}`, {
         headers: { authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       if (res.status === 404) {
         await this.ctx.storage.delete([ACCOUNT_KEY, PENDING_KEY]);

@@ -1,6 +1,13 @@
 /** Firebase Cloud Messaging (HTTP v1), for Android. Optional: off without its secret. */
 
-import { collapseKey, pemToDer, signJwt, TITLES, type Outcome } from './alert';
+import {
+  collapseKey,
+  FETCH_TIMEOUT_MS,
+  pemToDer,
+  signJwt,
+  TITLES,
+  type Outcome,
+} from './alert';
 import type { Env } from './env';
 import type { SendBody } from './schema';
 import type { DeviceRow } from './store';
@@ -55,6 +62,7 @@ async function accessToken(a: ServiceAccount, now: number): Promise<string> {
   );
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
@@ -101,6 +109,7 @@ export async function sendFcm(
     `https://fcm.googleapis.com/v1/projects/${a.project_id}/messages:send`,
     {
       method: 'POST',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       headers: {
         authorization: `Bearer ${await accessToken(a, now)}`,
         'content-type': 'application/json',

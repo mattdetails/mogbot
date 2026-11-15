@@ -271,6 +271,14 @@ describe('APNs', () => {
     expect(ok).toBe(true);
   });
 
+  // CTO review 2026-11-14: a stalled APNs held the send with no limit.
+  it('never waits on Apple without a time limit', async () => {
+    const auth = await installWithPhone();
+    await call('POST', '/v1/send', { auth, body: { device: 'dev_phone', kind: 'needs_you' } });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it('a finished turn is quiet, and development builds go to the sandbox', async () => {
     const auth = await installWithPhone('ios', 'development');
     await call('POST', '/v1/send', { auth, body: { device: 'dev_phone', kind: 'finished' } });
