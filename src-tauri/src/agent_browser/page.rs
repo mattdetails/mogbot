@@ -298,6 +298,23 @@ pub trait PageCdp {
             .map(|_| ())
     }
 
+    /// Paste what's on the clipboard where the cursor is, as ⌘V would:
+    /// Chrome's own paste command, so a page gets a real paste event with
+    /// the clipboard's files (an image a site's composer attaches).
+    fn paste(&self) -> Result<(), String> {
+        let ev = |t: &str| {
+            json!({
+                "type": t, "key": "v", "code": "KeyV", "modifiers": 4,
+                "windowsVirtualKeyCode": 86, "nativeVirtualKeyCode": 86,
+            })
+        };
+        let mut down = ev("keyDown");
+        down["commands"] = json!(["paste"]);
+        self.cdp("Input.dispatchKeyEvent", down)?;
+        self.cdp("Input.dispatchKeyEvent", ev("keyUp"))?;
+        Ok(())
+    }
+
     fn key(&self, key: Key) -> Result<(), String> {
         let (down, up) = key.events();
         self.cdp("Input.dispatchKeyEvent", down)?;

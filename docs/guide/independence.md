@@ -76,3 +76,10 @@ Unleashed, the turn also ends with one line listing what was sent or pushed with
 Agents never ask for a password in the chat. When one needs a key or token, it shows a masked card,
 and what you type goes into your Mac's Keychain, not the chat. To connect a service, you get a
 sign-in card: connect the app, use your own browser, or paste an API key.
+
+## Pictures in your Chrome
+
+Through Mogbot for Chrome an agent can attach a picture to a post or message, the way pasting it
+would: a PNG, JPEG, GIF or WebP from its own folder or a project. It counts as an upload, so below
+Unleashed it asks you first on a card. The picture goes on the clipboard for a moment, and the
+text that was there comes back after.

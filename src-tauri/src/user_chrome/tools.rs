@@ -127,6 +127,11 @@ pub const TOOLS: &[ToolDef] = &[
         schema: || same_as_agents("press"),
     },
     ToolDef {
+        name: "attach_image",
+        description: "Attach a picture from this Mac to the page, as pasting it would: into a post or message composer (by ref; it's clicked first) or wherever the cursor is. `path`: a PNG, JPEG, GIF or WebP in your own folder or a project, at most 20 MB. Asks the user first, like any upload.",
+        schema: || json!({ "type": "object", "properties": { "path": { "type": "string", "description": "Full path to the image." }, "ref": { "type": "string" }, "tab": tab_prop() }, "required": ["path"] }),
+    },
+    ToolDef {
         name: "scroll",
         description: "Scroll the page (or the control `ref` is in): up, down, left or right, by 1-10 steps.",
         schema: || same_as_agents("scroll"),
@@ -542,6 +547,43 @@ fn browsers_text(agent: &str) -> String {
         .join("\n")
 }
 
+/// Pictures an agent may attach: an image file, inside its own folder or
+/// the projects folder, at most 20 MB. Anything else is refused.
+pub fn attachable(agent: &str, raw: &str) -> Result<std::path::PathBuf, String> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Err("Give the picture's full path.".into());
+    }
+    let path = std::fs::canonicalize(raw).map_err(|_| format!("No file at {raw}."))?;
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default();
+    if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp") {
+        return Err("Only pictures attach this way: PNG, JPEG, GIF or WebP.".into());
+    }
+    let mut roots = Vec::new();
+    if let Ok(home) = crate::agents::store::agent_home(agent) {
+        roots.extend(std::fs::canonicalize(home));
+    }
+    if let Ok(projects) = crate::utils::projects_root() {
+        roots.extend(std::fs::canonicalize(projects));
+    }
+    if !roots.iter().any(|r| path.starts_with(r)) {
+        return Err(
+            "Attach pictures from your own folder or a project. Copy it there first.".into(),
+        );
+    }
+    let size = std::fs::metadata(&path)
+        .map(|m| m.len())
+        .unwrap_or(u64::MAX);
+    if size > 20 * 1024 * 1024 {
+        return Err("That picture is over 20 MB.".into());
+    }
+    Ok(path)
+}
+
 /// Run one tool, blocking. `label`: the agent's name, for its tab group.
 /// `Err` is told to the agent as an error result.
 pub fn run(agent: &str, label: &str, name: &str, args: &Value) -> Result<Vec<Value>, String> {
@@ -764,6 +806,30 @@ pub fn run(agent: &str, label: &str, name: &str, args: &Value) -> Result<Vec<Val
             }
             p.insert_text(t)?;
             Ok(vec![text("Typed.")])
+        }
+        "attach_image" => {
+            let path = attachable(
+                agent,
+                args.get("path").and_then(Value::as_str).unwrap_or(""),
+            )?;
+            let tab = tab_for(agent, &conn, tab_arg(args))?;
+            to_front(&conn, agent, &tab)?;
+            let p = page(&conn, agent, &tab);
+            if let Some(r) = args.get("ref").and_then(Value::as_str) {
+                let node = ref_of(agent, tab.tab_id, r)?;
+                let (x, y) = p.center_of(node.backend_node_id)?;
+                click(&p, x, y)?;
+            }
+            let kept = crate::user_chrome::clipboard::put_image(&path)?;
+            let pasted = p.paste();
+            std::thread::sleep(Duration::from_millis(800));
+            crate::user_chrome::clipboard::restore(kept);
+            pasted?;
+            p.settle(Duration::from_secs(3));
+            clear_refs(agent, tab.tab_id);
+            Ok(vec![text(
+                "Attached. Read the page or take a screenshot to check the picture shows before you post.",
+            )])
         }
         "press" => {
             let k = args.get("key").and_then(Value::as_str).unwrap_or("");

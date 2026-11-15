@@ -230,3 +230,41 @@ fn the_extension_relays_exactly_the_page_logics_methods_and_expressions() {
         );
     }
 }
+
+#[test]
+fn attaching_a_picture_is_an_upload_asks_at_bold_and_runs_at_unleashed() {
+    let page = Page::default();
+    let input = json!({ "path": "/Users/x/agent/post.png" });
+    assert_eq!(
+        gate(Level::GoHard, "attach_image", input.clone(), &page),
+        Gate::Ask
+    );
+    assert_eq!(
+        gate(Level::FullSend, "attach_image", input, &page),
+        Gate::Allow
+    );
+    let secret = json!({ "path": "/Users/x/.ssh/id_ed25519.png" });
+    assert_eq!(
+        gate(Level::FullSend, "attach_image", secret, &page),
+        Gate::Ask
+    );
+}
+
+#[test]
+fn only_pictures_inside_the_agents_folder_or_a_project_attach() {
+    let dir = tempfile::tempdir().unwrap();
+    let txt = dir.path().join("notes.txt");
+    std::fs::write(&txt, "x").unwrap();
+    assert!(attachable("ops", txt.to_str().unwrap())
+        .unwrap_err()
+        .contains("Only pictures"));
+    let png = dir.path().join("p.png");
+    std::fs::write(&png, "x").unwrap();
+    assert!(attachable("ops", png.to_str().unwrap())
+        .unwrap_err()
+        .contains("own folder"));
+    assert!(attachable("ops", "").is_err());
+    assert!(attachable("ops", "/nope/missing.png")
+        .unwrap_err()
+        .contains("No file"));
+}

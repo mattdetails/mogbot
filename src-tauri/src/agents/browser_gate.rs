@@ -1338,6 +1338,8 @@ pub fn agents_equivalent(name: &str, input: &Value) -> (String, Value) {
         "find" => ("find".into(), i),
         "get_text" => ("get_page_text".into(), i),
         "close_tab" => ("tabs_close_mcp".into(), i),
+        // A picture pasted from this Mac is an upload: the same rules.
+        "attach_image" => ("upload_image".into(), i),
         "browsers" => ("list_connected_browsers".into(), i),
         "use_browser" => ("select_browser".into(), i),
         "hover" => {

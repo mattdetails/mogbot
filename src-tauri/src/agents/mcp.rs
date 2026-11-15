@@ -3483,6 +3483,7 @@ fn browser_tool_title(server: &str, name: &str) -> Option<&'static str> {
             "hover" => "Point at something on the page",
             "type" => "Type on the page",
             "press" => "Press a key on the page",
+            "attach_image" => "Attach a picture on the page",
             "scroll" => "Scroll the page",
             "wait_for" => "Wait for the page",
             "tabs" => "See its tabs in your Chrome",
