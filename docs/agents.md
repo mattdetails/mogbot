@@ -5382,8 +5382,9 @@ MCP servers) stays per account, but its servers are brought over (below).
 Code 2.1.319, read in its own code and observed on this Mac 2026-11-08):
 
 - **MCP servers.** Before each turn on an added account, This Mac's
-  user-scope `mcpServers` are merged into the account's `.claude.json`
-  (`sync_servers`): only that key, atomic 0600 write, the account's own
+  user-scope `mcpServers`, and each project's (`projects["<path>"].mcpServers`,
+  such as the preview server registered for one project), are merged into
+  the account's `.claude.json` (`sync_servers`): only those keys, atomic 0600 write, the account's own
   servers kept, a server This Mac dropped removed only if the sync put it
   there (`.synced-mcp-servers.json` beside it). Nothing else of the file is
   touched; no login is copied. The servers' OAuth tokens live in Claude
@@ -5417,10 +5418,14 @@ Code 2.1.319, read in its own code and observed on this Mac 2026-11-08):
   browser. Nothing for the owner to do.
 - **claude.ai connectors** belong to each claude.ai account and can't be
   copied. When a switched turn's engine lists what it has, `lost_line`
-  compares it with the last turn's and posts one Note: "Gmail isn't on in
-  claude.ai for Personal: turn it on at claude.ai/settings/connectors while
-  signed in as Personal; agents use them in your Chrome meanwhile." (or "or
-  connect them here" without the browser). The access chain already falls
+  compares it with the last turn's and posts one Note. What the account
+  lists as needing a sign-in is said as that ("On Personal, Figma needs a
+  one-time sign-in…"), never as a claude.ai connector; the rest: "Gmail isn't
+  reachable on Personal. If it's a claude.ai connector, turn it on at
+  claude.ai/settings/connectors while signed in as Personal; agents use them
+  in your Chrome meanwhile." (or "or connect them here" without the browser).
+  The capabilities list can't tell a claude.ai connector from another
+  server, so the line doesn't claim which it is. The access chain already falls
   back to a connection here or the user's Chrome for that service, since
   the connector is no longer in the agent's capabilities.
 - **Not verified:** a real `claude auth login` into an added account's

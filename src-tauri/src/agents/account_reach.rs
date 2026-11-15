@@ -74,17 +74,19 @@ fn read_json(path: &Path) -> std::io::Result<Option<Value>> {
     }
 }
 
-/// Merge `native`'s user-scope `mcpServers` into `target`'s. Only that key
-/// is written; the rest of `target` (its login, its projects) is kept as
-/// read. A `target` that isn't JSON is left alone (an error). Nothing to
-/// change, nothing written.
+/// Merge `native`'s `mcpServers`, user-scope and each project's, into
+/// `target`'s. Only those keys are written; the rest of `target` (its login,
+/// its projects' other settings) is kept as read. A `target` that isn't
+/// JSON is left alone (an error). Nothing to change, nothing written.
 pub fn sync_servers(native: &Path, target: &Path) -> std::io::Result<Synced> {
     // One sync at a time: agents failing over together each sync the same
     // account before their turn, and a read-modify-write that overlapped
     // another could write back what it had read before the other's change.
     static SYNCING: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _one = SYNCING.lock().unwrap_or_else(|e| e.into_inner());
-    let from: Map<String, Value> = read_json(native)?
+    let native_config = read_json(native)?;
+    let from: Map<String, Value> = native_config
+        .as_ref()
         .and_then(|v| v.get("mcpServers")?.as_object().cloned())
         .unwrap_or_default();
     let mut config = match read_json(target)? {
@@ -103,35 +105,66 @@ pub fn sync_servers(native: &Path, target: &Path) -> std::io::Result<Synced> {
         .flatten()
         .and_then(|v| serde_json::from_value(v).ok())
         .unwrap_or_default();
+    let mut done = Synced::default();
+    let mut now = BTreeSet::new();
     let mut servers = config
         .get("mcpServers")
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    let mut done = Synced::default();
-    for (name, def) in &from {
-        match servers.get(name) {
-            None => done.added.push(name.clone()),
-            Some(have) if have != def => done.updated.push(name.clone()),
-            Some(_) => continue,
-        }
-        servers.insert(name.clone(), def.clone());
-    }
-    for name in &before {
-        if !from.contains_key(name) && servers.remove(name).is_some() {
-            done.removed.push(name.clone());
-        }
-    }
-    // Only what this sync put there is its own to take away later: a server
-    // the account already had under that name stays the account's, so this
-    // Mac dropping it never removes it from the account.
-    let now: BTreeSet<String> = from
-        .keys()
-        .filter(|n| before.contains(*n) || done.added.contains(n))
-        .cloned()
-        .collect();
-    if done.changed() {
+    let user_changed = merge(&from, &mut servers, &before, "", &mut done, &mut now);
+    if user_changed {
         config.insert("mcpServers".into(), Value::Object(servers));
+    }
+    // Project-scoped servers (`projects["<path>"].mcpServers`, e.g. the
+    // preview server registered for one project) are per config dir too: a
+    // turn in that project on an added account had none of them.
+    let native_projects: Map<String, Value> = native_config
+        .as_ref()
+        .and_then(|v| v.get("projects")?.as_object().cloned())
+        .unwrap_or_default();
+    let mut paths: BTreeSet<String> = native_projects
+        .iter()
+        .filter(|(_, p)| p.get("mcpServers").is_some_and(Value::is_object))
+        .map(|(k, _)| k.clone())
+        .collect();
+    // A project this Mac no longer has servers for: take back what we put.
+    paths.extend(
+        before
+            .iter()
+            .filter_map(|k| k.split_once(PROJECT_SEP).map(|(p, _)| p.to_string())),
+    );
+    let mut projects_changed = false;
+    let mut projects = config
+        .get("projects")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    for path in paths {
+        let from: Map<String, Value> = native_projects
+            .get(&path)
+            .and_then(|p| p.get("mcpServers")?.as_object().cloned())
+            .unwrap_or_default();
+        let mut entry = match projects.get(&path) {
+            Some(Value::Object(m)) => m.clone(),
+            _ => Map::new(),
+        };
+        let mut servers = entry
+            .get("mcpServers")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let prefix = format!("{path}{PROJECT_SEP}");
+        if merge(&from, &mut servers, &before, &prefix, &mut done, &mut now) {
+            entry.insert("mcpServers".into(), Value::Object(servers));
+            projects.insert(path, Value::Object(entry));
+            projects_changed = true;
+        }
+    }
+    if projects_changed {
+        config.insert("projects".into(), Value::Object(projects));
+    }
+    if user_changed || projects_changed {
         let bytes = serde_json::to_vec_pretty(&Value::Object(config))
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         write_atomic(target, &bytes)?;
@@ -141,6 +174,63 @@ pub fn sync_servers(native: &Path, target: &Path) -> std::io::Result<Synced> {
         write_atomic(&ledger, &bytes)?;
     }
     Ok(done)
+}
+
+/// In the ledger, a project's server is `<path>` + this + `<name>`; a
+/// user-scope one is its bare name (as before projects were synced).
+const PROJECT_SEP: char = '\u{0}';
+
+/// Merge one scope's servers (`from`, this Mac's) into `servers` (the
+/// account's). Ledger keys carry `prefix`. Only what this sync put there is
+/// its own to take away later: a server the account already had under that
+/// name stays the account's, so this Mac dropping it never removes it.
+/// True when `servers` changed.
+fn merge(
+    from: &Map<String, Value>,
+    servers: &mut Map<String, Value>,
+    before: &BTreeSet<String>,
+    prefix: &str,
+    done: &mut Synced,
+    now: &mut BTreeSet<String>,
+) -> bool {
+    let label = |name: &str| match prefix.strip_suffix(PROJECT_SEP) {
+        Some(path) => format!("{name} ({path})"),
+        None => name.to_string(),
+    };
+    let mut changed = false;
+    for (name, def) in from {
+        let key = format!("{prefix}{name}");
+        match servers.get(name) {
+            None => {
+                done.added.push(label(name));
+                now.insert(key);
+            }
+            Some(have) => {
+                if before.contains(&key) {
+                    now.insert(key);
+                }
+                if have == def {
+                    continue;
+                }
+                done.updated.push(label(name));
+            }
+        }
+        servers.insert(name.clone(), def.clone());
+        changed = true;
+    }
+    for key in before {
+        let Some(name) = key.strip_prefix(prefix) else {
+            continue;
+        };
+        if prefix.is_empty() && name.contains(PROJECT_SEP) {
+            continue;
+        }
+        if !from.contains_key(name) && servers.remove(name).is_some() {
+            done.removed.push(label(name));
+            changed = true;
+        }
+    }
+    changed
 }
 
 /// Written beside `path` under a name of its own, then renamed over it. A
@@ -280,20 +370,43 @@ pub fn lost_line(
     chrome: bool,
 ) -> Option<String> {
     let have: BTreeSet<String> = listed(now, "Connectors").into_iter().collect();
+    // Listed as needing a sign-in on this account: its OAuth login is kept
+    // per Claude account, so it's a one-time sign-in here, not a claude.ai
+    // connector to turn on (`needs_auth_line` says how). Calling those
+    // "not on in claude.ai" sent the user to the wrong place.
+    let sign_in: BTreeSet<String> = listed(now, "Needs sign-in").into_iter().collect();
     let lost: Vec<String> = listed(before, "Connectors")
         .into_iter()
         .filter(|c| !have.contains(c))
         .collect();
+    let (needs_sign_in, missing): (Vec<String>, Vec<String>) =
+        lost.into_iter().partition(|c| sign_in.contains(c));
     let lost_chrome = chrome_connected(before) && !chrome_connected(now);
-    if lost.is_empty() && !lost_chrome {
+    if missing.is_empty() && needs_sign_in.is_empty() && !lost_chrome {
         return None;
     }
     let mut parts = Vec::new();
-    if !lost.is_empty() {
-        let refs: Vec<&str> = lost.iter().map(String::as_str).collect();
+    if !needs_sign_in.is_empty() {
+        let refs: Vec<&str> = needs_sign_in.iter().map(String::as_str).collect();
+        let verb = if needs_sign_in.len() == 1 {
+            "needs"
+        } else {
+            "need"
+        };
+        parts.push(format!(
+            "On {account}, {} {verb} a one-time sign-in: their logins are kept per Claude account.",
+            join(&refs)
+        ));
+    }
+    if !missing.is_empty() {
+        let refs: Vec<&str> = missing.iter().map(String::as_str).collect();
         let (list, verb) = (
             join(&refs),
-            if lost.len() == 1 { "isn't" } else { "aren't" },
+            if missing.len() == 1 {
+                "isn't"
+            } else {
+                "aren't"
+            },
         );
         let meanwhile = if chrome && !lost_chrome {
             "agents use them in your Chrome meanwhile"
@@ -301,8 +414,9 @@ pub fn lost_line(
             "or connect them here"
         };
         parts.push(format!(
-            "{list} {verb} on in claude.ai for {account}: turn {} on at claude.ai/settings/connectors while signed in as {account}; {meanwhile}.",
-            if lost.len() == 1 { "it" } else { "them" }
+            "{list} {verb} reachable on {account}. If {} a claude.ai connector, turn {} on at claude.ai/settings/connectors while signed in as {account}; {meanwhile}.",
+            if missing.len() == 1 { "it's" } else { "they're" },
+            if missing.len() == 1 { "it" } else { "them" }
         ));
     }
     if lost_chrome {
