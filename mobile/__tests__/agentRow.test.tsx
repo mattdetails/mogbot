@@ -175,7 +175,7 @@ describe('AgentRow', () => {
       id: 'social',
       name: 'Social Posts',
       unread: 0,
-      status: { state: 'waiting', since: null },
+      status: { state: 'waiting', since: null, activity: null },
     });
     await render(<AgentRow agent={asks} caps={full} live onAction={jest.fn()} />);
     expect(screen.getByText('Needs your OK')).toBeTruthy();

@@ -28,6 +28,8 @@
 /src-tauri/src/agents/egress*.rs @julian-galluzzo
 /src-tauri/src/agents/exposure*.rs @julian-galluzzo
 /src-tauri/src/agents/browser_gate*.rs @julian-galluzzo
+/src-tauri/src/agents/permissions*.rs @julian-galluzzo
+/src-tauri/src/agents/outward*.rs @julian-galluzzo
 
 # The phone link: pairing, identity, the companion server and the relay
 /src-tauri/src/companion/ @julian-galluzzo
