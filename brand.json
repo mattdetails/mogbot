@@ -19,7 +19,7 @@
   },
   "links": {
     "issueRepo": null,
-    "securityAdvisories": null,
+    "securityAdvisories": "https://github.com/native-io-team/mogbot/security/advisories/new",
     "discussions": null,
     "community": null,
     "website": null,

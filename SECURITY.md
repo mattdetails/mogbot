@@ -9,10 +9,13 @@ patched; the app's update feed moves you to the fixed one.
 
 **Please don't open a public GitHub issue for a security report.**
 
-Email **[julian@native.agency](mailto:julian@native.agency)** with
-"Security" in the subject. Once this repository is public you can also use
-GitHub's private vulnerability reporting (the repo's **Security** tab →
-**Report a vulnerability**), which only the maintainers can see.
+Report it privately through GitHub's private vulnerability reporting:
+**[Report a vulnerability](https://github.com/native-io-team/mogbot/security/advisories/new)**
+(the repo's **Security** tab → **Report a vulnerability**). Only the
+maintainers can see it.
+
+If you can't use GitHub, email **[julian@native.agency](mailto:julian@native.agency)**
+with "Security" in the subject.
 
 Please include:
 
