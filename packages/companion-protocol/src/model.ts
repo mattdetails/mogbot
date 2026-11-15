@@ -688,7 +688,7 @@ export interface Capabilities {
 }
 
 export interface PermissionScope {
-  kind: 'command_prefix' | 'command' | 'domain' | 'tool';
+  kind: 'command_prefix' | 'command' | 'domain' | 'tool' | 'app_reads';
   value: string;
   label: string;
   /** The user's own words, when remembered from what they said in chat (`agents/remember.rs`). */

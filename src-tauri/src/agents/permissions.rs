@@ -24,6 +24,11 @@ pub enum RuleKind {
     Domain,
     /// Every call to this one tool: a connector tool, or web search.
     Tool,
+    /// Every read through one connected app (`value` is its server key, as
+    /// in `mcp__<value>__…`): "Always let it read your Gmail". A tool counts
+    /// as a read only by its name (`connections::reads_only`); anything else,
+    /// a send above all, still asks every time.
+    AppReads,
 }
 
 /// What a card offers to always allow. Becomes a [`Rule`] when chosen.
@@ -233,6 +238,13 @@ fn is_browser_tool(tool: &str) -> bool {
     tool.starts_with(super::browser_gate::SERVER) || super::browser_gate::is_own_browser(tool)
 }
 
+/// The app a connector tool reads from, when its name says it only reads
+/// (`mcp__claude_ai_Gmail__search_threads` → `claude_ai_Gmail`).
+fn app_read(tool: &str) -> Option<&str> {
+    let (server, name) = tool.strip_prefix("mcp__")?.split_once("__")?;
+    (!server.is_empty() && super::connections::reads_only(name)).then_some(server)
+}
+
 /// What a card for this call may offer to always allow, if anything.
 pub fn suggest(tool: &str, input: &Value) -> Option<Scope> {
     let field = |k: &str| input.get(k).and_then(Value::as_str).unwrap_or("");
@@ -250,6 +262,15 @@ pub fn suggest(tool: &str, input: &Value) -> Option<Scope> {
             label: "web searches".to_string(),
             said: None,
         }),
+        _ if is_scopable_tool(tool) && app_read(tool).is_some() => {
+            let server = app_read(tool)?;
+            Some(Scope {
+                kind: RuleKind::AppReads,
+                value: server.to_string(),
+                label: format!("reading your {}", super::mcp::service_name(server)),
+                said: None,
+            })
+        }
         _ if is_scopable_tool(tool) => Some(Scope {
             kind: RuleKind::Tool,
             value: tool.to_string(),
@@ -288,6 +309,7 @@ impl Scope {
                 tool == "WebFetch" && host_of(field("url")).is_some_and(|h| h == self.value)
             }
             RuleKind::Tool => tool == self.value && is_scopable_tool(tool),
+            RuleKind::AppReads => is_scopable_tool(tool) && app_read(tool) == Some(&self.value),
         }
     }
 }
@@ -468,6 +490,41 @@ mod tests {
         assert_eq!(rule.label, "Send an email · Gmail");
         assert!(rule.matches("mcp__gmail__send_email", &json!({ "to": "b" })));
         assert!(!rule.matches("mcp__gmail__delete_email", &json!({})));
+    }
+
+    #[test]
+    fn a_read_offers_every_read_of_that_app_and_never_its_sends() {
+        let rule = suggest("mcp__claude_ai_Gmail__search_threads", &json!({ "q": "x" })).unwrap();
+        assert_eq!(rule.kind, RuleKind::AppReads);
+        assert_eq!(rule.value, "claude_ai_Gmail");
+        assert_eq!(rule.label, "reading your Gmail");
+        assert!(rule.matches("mcp__claude_ai_Gmail__get_thread", &json!({})));
+        assert!(rule.matches("mcp__claude_ai_Gmail__list_labels", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail__send_email", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail__create_draft", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail__delete_thread", &json!({})));
+        // Another app's reads, a lookalike server, the browser: never.
+        assert!(!rule.matches("mcp__claude_ai_Slack__search_messages", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail2__get_thread", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail", &json!({})));
+        let chrome = Scope {
+            kind: RuleKind::AppReads,
+            value: "claude-in-chrome".into(),
+            label: "Chrome".into(),
+            said: None,
+        };
+        assert!(!chrome.matches("mcp__claude-in-chrome__get_page_text", &json!({})));
+        assert_eq!(
+            suggest("mcp__claude-in-chrome__get_page_text", &json!({})),
+            None
+        );
+        // A send still offers only itself.
+        assert_eq!(
+            suggest("mcp__claude_ai_Gmail__send_email", &json!({}))
+                .unwrap()
+                .kind,
+            RuleKind::Tool
+        );
     }
 
     #[test]

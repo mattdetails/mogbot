@@ -253,7 +253,8 @@ pub fn card_scope<'a>(log: &'a [AgentMessage], wanted: &str) -> Option<&'a Appro
             a.always.as_ref().is_some_and(|s| {
                 s.value == wanted
                     || s.label.eq_ignore_ascii_case(wanted)
-                    || (s.kind == RuleKind::Tool && a.tool.as_deref() == Some(wanted))
+                    || (matches!(s.kind, RuleKind::Tool | RuleKind::AppReads)
+                        && a.tool.as_deref() == Some(wanted))
             })
         })
 }
@@ -302,6 +303,10 @@ pub fn plan(
             scope.value.clone(),
             card.input.clone().unwrap_or_else(|| json!({})),
         ),
+        RuleKind::AppReads => (
+            card.tool.clone().unwrap_or_default(),
+            card.input.clone().unwrap_or_else(|| json!({})),
+        ),
         RuleKind::Command | RuleKind::CommandPrefix => {
             ("Bash".to_string(), json!({ "command": scope.value }))
         }
@@ -327,6 +332,7 @@ pub fn phrase(scope: &Scope) -> String {
         RuleKind::Command | RuleKind::CommandPrefix => format!("run {}", scope.label),
         RuleKind::Domain => format!("open pages on {}", scope.label),
         RuleKind::Tool if scope.value == "WebSearch" => "search the web".to_string(),
+        RuleKind::AppReads => scope.label.replacen("reading", "read", 1),
         RuleKind::Tool => {
             let mut chars = scope.label.chars();
             match chars.next() {

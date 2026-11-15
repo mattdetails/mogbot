@@ -577,7 +577,7 @@ export interface Capabilities {
 
 /** What "Always allow" covers; mirrors `permissions::Scope`. */
 export interface PermissionScope {
-  kind: 'command_prefix' | 'command' | 'domain' | 'tool';
+  kind: 'command_prefix' | 'command' | 'domain' | 'tool' | 'app_reads';
   value: string;
   /** The value in words: "npm test", "example.com", "Send an email · Gmail". */
   label: string;
@@ -596,10 +596,13 @@ export const SCOPE_KIND_LABEL: Record<PermissionScope['kind'], string> = {
   command: 'Exactly',
   domain: 'Web pages on',
   tool: '',
+  app_reads: '',
 };
 
 /** The tooltip on "Always allow": exactly what will stop asking. */
 export function describeScope(scope: PermissionScope, agentName: string): string {
+  if (scope.kind === 'app_reads')
+    return `${agentName} can go on ${scope.label} without asking. Sending, changing or deleting anything there still asks every time. Revoke it in Edit agent → Permissions.`;
   const what =
     scope.kind === 'command_prefix'
       ? `Any command starting with “${scope.label}”`

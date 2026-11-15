@@ -277,6 +277,10 @@ export function distinctInitials(name: string, names: string[]): string {
  * end by saying where it can be taken back (not needed beside Revoke itself).
  */
 export function describeScope(scope: PermissionScope, agentName: string, revocable = true): string {
+  if (scope.kind === 'app_reads') {
+    const revoke = revocable ? ` Revoke it any time from ${agentName}’s sheet.` : '';
+    return `${agentName} can go on ${scope.label} without asking. Sending, changing or deleting anything there still asks every time.${revoke}`;
+  }
   const what =
     scope.kind === 'command_prefix'
       ? `Any command starting with “${scope.label}”`

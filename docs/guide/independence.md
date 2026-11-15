@@ -52,7 +52,10 @@ and opening its chat takes you to the card, in whichever of its conversations it
 far back it is. **Review** on the "needs your OK" bar does the same.
 
 - **Allow** or **Deny**. Some cards also offer **Always allow** for that kind of thing (for
-  example, web searches).
+  example, web searches). When an agent reads one of your apps (searching your Gmail, say), it
+  offers **Always allow reading your Gmail**: every read of that app stops asking, while sending,
+  changing or deleting anything there still asks each time. On the phone it sits on its own line
+  under Allow.
 - Answer from the computer, the phone, or by typing "yes" or "approve it" in the chat when there's
   exactly one card open.
 - A card can be answered once. If you answer on the phone and the computer at the same moment, only the
