@@ -39,6 +39,7 @@ pub mod remote_access;
 // (docs/design/own-browser-layer.md).
 pub mod state;
 pub mod static_server;
+mod stray_browsers;
 pub mod types;
 pub mod user_chrome;
 pub mod utils;
@@ -345,6 +346,7 @@ pub fn run() {
             // The phone server and the agent bridge, asked every 10 s from a
             // thread of their own: a hang is logged loudly, never silent.
             watchdog::spawn();
+            stray_browsers::spawn();
             // Agents' check-ins and routines: one tick a minute, only while open.
             agents::schedule::spawn(_app.handle().clone());
             // "When…" routines: their checks, on their own minute tick.
