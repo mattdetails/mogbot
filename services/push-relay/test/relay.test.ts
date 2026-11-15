@@ -4,7 +4,7 @@ import worker, { SEND_PER_DEVICE } from '../src/index';
 import { resetApnsToken } from '../src/apns';
 import { resetFcmToken } from '../src/fcm';
 import type { Env } from '../src/env';
-import { sha256Hex } from '../src/store';
+import { hit, pruneRate, RATE_KEEP_MS, sha256Hex } from '../src/store';
 
 const IOS_TOKEN = 'a1'.repeat(32);
 const FCM_TOKEN = 'fcm_token:' + 'x'.repeat(40);
@@ -407,5 +407,27 @@ describe('FCM', () => {
         },
       },
     });
+  });
+});
+
+// CTO review 2026-11-14: rate rows were never pruned, and a dead token was
+// found by a full scan.
+describe('upkeep', () => {
+  it('prunes spent rate counters and keeps fresh ones', async () => {
+    const now = Date.now();
+    await hit(env.DB, 'i:old:send', 10, 60 * 60 * 1000, now - RATE_KEEP_MS - 1);
+    await hit(env.DB, 'i:new:send', 10, 60 * 60 * 1000, now);
+    expect(await pruneRate(env.DB, now)).toBe(1);
+    const keys = await env.DB.prepare('SELECT key FROM rate ORDER BY key').all<{ key: string }>();
+    const left = keys.results.map((r) => r.key);
+    expect(left).toContain('i:new:send');
+    expect(left).not.toContain('i:old:send');
+  });
+
+  it('looks dead tokens up by index', async () => {
+    const plan = await env.DB.prepare(
+      "EXPLAIN QUERY PLAN DELETE FROM devices WHERE token = 'x'"
+    ).all<{ detail: string }>();
+    expect(plan.results.map((r) => r.detail).join(' ')).toContain('devices_token');
   });
 });
