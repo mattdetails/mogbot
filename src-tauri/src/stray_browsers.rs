@@ -1,59 +1,113 @@
-//! Headless Chromes left running by agents' scripts.
+//! Headless Chromes agents' scripts start and leave running.
 //!
 //! Observed (Julian, 2026-11-14): eleven headless Chromes from agents'
-//! screenshot and render scripts (`--headless --user-data-dir=/tmp/…`), some
-//! five days old, still running. Each started in the background by a turn
-//! whose shell then exited, so nothing was left to stop them: they hold
-//! memory and debugging ports, and agents found and poked them later. The
-//! app's own browsers (the agents' browser, the user's Chrome) are never
-//! headless with a temporary profile, so they are never touched.
+//! screenshot and render scripts (`--headless --user-data-dir=/tmp/…`), up to
+//! five days old. Each was started in the background by a turn whose shell
+//! then exited, so nothing was left to stop them.
 //!
-//! Every [`EVERY`], a headless Chrome whose profile is in a temporary folder,
-//! whose parent is gone (adopted by launchd) and that has run longer than
-//! [`OLDER_THAN`] is stopped.
+//! Only a Chrome an agent started is ever stopped (CTO review 2026-11-14:
+//! "headless and old" alone would also kill the user's own Playwright or
+//! Puppeteer runs, CI emulators, other apps' Chrome). Every [`EVERY`] the
+//! app looks at the process table: a headless Chrome whose parents include
+//! an agent's engine (its command names this app's agent-bridge folder) is
+//! remembered, by pid and command line. One remembered that has since lost
+//! its parent (adopted by launchd) and has run past [`OLDER_THAN`] is
+//! stopped. A Chrome the app never saw under an agent is never touched.
 
+use std::collections::{HashMap, HashSet};
+use std::sync::Mutex;
 use std::time::Duration;
 
-/// How often to look.
-pub const EVERY: Duration = Duration::from_secs(15 * 60);
-/// How old an orphan must be before it's stopped: a render a script started
-/// and is still using is never this old.
+/// How often to look: often enough to see a script's Chrome while its
+/// parents are still alive.
+pub const EVERY: Duration = Duration::from_secs(60);
+/// How old an orphan must be before it's stopped.
 pub const OLDER_THAN: Duration = Duration::from_secs(60 * 60);
 
-/// Temporary folders a script's throwaway profile lives in.
-const TEMP_ROOTS: &[&str] = &[
-    "/tmp/",
-    "/private/tmp/",
-    "/var/folders/",
-    "/private/var/folders/",
-];
+/// One row of `ps -axo pid=,ppid=,etime=,command=`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Proc {
+    pub pid: u32,
+    pub ppid: u32,
+    pub age: Duration,
+    pub command: String,
+}
 
-/// One `ps -axo pid=,ppid=,etime=,command=` line that is a stray: its pid.
-pub fn stray(line: &str, older_than: Duration) -> Option<u32> {
+pub fn parse_row(line: &str) -> Option<Proc> {
     let mut parts = line.split_whitespace();
-    let pid: u32 = parts.next()?.parse().ok()?;
-    let ppid: u32 = parts.next()?.parse().ok()?;
+    let pid = parts.next()?.parse().ok()?;
+    let ppid = parts.next()?.parse().ok()?;
     let age = parse_etime(parts.next()?)?;
-    let command: Vec<&str> = parts.collect();
-    // The program's path has spaces ("Google Chrome.app/…/Google Chrome"),
-    // so it's found in the line, followed by a space: never a Helper.
-    let line = command.join(" ");
-    let chrome = [
+    let command = parts.collect::<Vec<_>>().join(" ");
+    Some(Proc {
+        pid,
+        ppid,
+        age,
+        command,
+    })
+}
+
+/// A headless Chrome's main process (never a Helper).
+fn headless_chrome(command: &str) -> bool {
+    [
         "/MacOS/Google Chrome ",
         "/MacOS/Chromium ",
         "/chrome-headless-shell ",
         "/chrome ",
     ]
     .iter()
-    .any(|p| line.contains(p));
-    let headless = command.iter().any(|a| a.starts_with("--headless"));
-    // A profile path with spaces splits across words: its first word starts
-    // with the root, which is all that matters here.
-    let temp_profile = command.iter().any(|a| {
-        a.strip_prefix("--user-data-dir=")
-            .is_some_and(|dir| TEMP_ROOTS.iter().any(|root| dir.starts_with(root)))
-    });
-    (chrome && headless && temp_profile && ppid == 1 && age >= older_than).then_some(pid)
+    .any(|p| command.contains(p))
+        && command
+            .split_whitespace()
+            .any(|a| a.starts_with("--headless"))
+}
+
+/// Whether one of `pid`'s parents is an agent's engine: its command line
+/// holds `marker` (this app's agent-bridge folder, in every engine's
+/// `--mcp-config` path and environment).
+fn under_agent(pid: u32, table: &HashMap<u32, &Proc>, marker: &str) -> bool {
+    let mut at = pid;
+    for _ in 0..32 {
+        let Some(p) = table.get(&at) else {
+            return false;
+        };
+        if p.pid != pid && p.command.contains(marker) {
+            return true;
+        }
+        if p.ppid <= 1 || p.ppid == at {
+            return false;
+        }
+        at = p.ppid;
+    }
+    false
+}
+
+/// One look: the agents' Chromes to remember from now on (pid, command line)
+/// and the pids to stop. Pure.
+pub fn plan(
+    rows: &[Proc],
+    known: &HashSet<(u32, String)>,
+    marker: &str,
+    older_than: Duration,
+) -> (HashSet<(u32, String)>, Vec<u32>) {
+    let table: HashMap<u32, &Proc> = rows.iter().map(|p| (p.pid, p)).collect();
+    let mut keep = HashSet::new();
+    let mut stop = Vec::new();
+    for p in rows.iter().filter(|p| headless_chrome(&p.command)) {
+        let key = (p.pid, p.command.clone());
+        // Same pid and command line as when it was seen under an agent:
+        // the same process, not a reused pid.
+        let ours = known.contains(&key) || under_agent(p.pid, &table, marker);
+        if !ours {
+            continue;
+        }
+        if p.ppid == 1 && p.age >= older_than {
+            stop.push(p.pid);
+        } else {
+            keep.insert(key);
+        }
+    }
+    (keep, stop)
 }
 
 /// `ps`'s elapsed time: `[[dd-]hh:]mm:ss`.
@@ -74,28 +128,45 @@ fn parse_etime(s: &str) -> Option<Duration> {
     Some(Duration::from_secs(((days * 24 + h) * 60 + m) * 60 + sec))
 }
 
-/// Stop every stray now. Returns how many.
+static KNOWN: Mutex<Option<HashSet<(u32, String)>>> = Mutex::new(None);
+
+fn marker() -> String {
+    crate::brand::app_support_dir()
+        .join("agent-bridge")
+        .display()
+        .to_string()
+}
+
+/// One look now; stops what [`plan`] says. Returns how many it stopped.
 pub fn sweep() -> usize {
     let Ok(out) = std::process::Command::new("ps")
-        .args(["-axo", "pid=,ppid=,etime=,command="])
+        .args(["-axww", "-o", "pid=,ppid=,etime=,command="])
         .output()
     else {
         return 0;
     };
     let text = String::from_utf8_lossy(&out.stdout);
-    let pids: Vec<u32> = text.lines().filter_map(|l| stray(l, OLDER_THAN)).collect();
-    for pid in &pids {
+    let rows: Vec<Proc> = text.lines().filter_map(parse_row).collect();
+    let mut known = KNOWN.lock().unwrap_or_else(|e| e.into_inner());
+    let (keep, stop) = plan(
+        &rows,
+        known.get_or_insert_with(HashSet::new),
+        &marker(),
+        OLDER_THAN,
+    );
+    *known = Some(keep);
+    for pid in &stop {
         let _ = std::process::Command::new("kill")
             .arg(pid.to_string())
             .status();
     }
-    if !pids.is_empty() {
+    if !stop.is_empty() {
         tracing::info!(
-            count = pids.len(),
-            "[Browsers] stopped headless Chromes left running by scripts"
+            count = stop.len(),
+            "[Browsers] stopped headless Chromes agents' scripts left running"
         );
     }
-    pids.len()
+    stop.len()
 }
 
 /// Look every [`EVERY`], on a thread of its own. Once per process.
@@ -116,41 +187,104 @@ mod tests {
     use super::*;
 
     const HOUR: Duration = Duration::from_secs(3600);
+    const MARK: &str = "/Users/x/Library/Application Support/Mogbot/agent-bridge";
     const CHROME: &str = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
-    #[test]
-    fn an_old_orphaned_headless_chrome_on_a_temp_profile_is_a_stray() {
-        let line = format!("4274 1 04-21:54:20 {CHROME} --headless=new --remote-debugging-port=9641 --user-data-dir=/tmp/app-snap-9641 --hide-scrollbars");
-        assert_eq!(stray(&line, HOUR), Some(4274));
-        let line = format!("45343 1 2-02:55:37 {CHROME} --headless=new --user-data-dir=/var/folders/c7/x/T/chp-56NvFA about:blank");
-        assert_eq!(stray(&line, HOUR), Some(45343));
+    fn row(pid: u32, ppid: u32, age: Duration, command: &str) -> Proc {
+        Proc {
+            pid,
+            ppid,
+            age,
+            command: command.into(),
+        }
+    }
+
+    fn engine() -> Proc {
+        row(
+            100,
+            50,
+            HOUR,
+            &format!("/Users/x/.local/bin/claude --print --mcp-config {MARK}/mcp-1.json"),
+        )
+    }
+
+    fn render(pid: u32, ppid: u32, age: Duration) -> Proc {
+        row(
+            pid,
+            ppid,
+            age,
+            &format!("{CHROME} --headless=new --user-data-dir=/tmp/app-snap-9641"),
+        )
     }
 
     #[test]
-    fn browsers_that_belong_to_someone_are_left_alone() {
-        // The user's Chrome.
-        assert_eq!(stray(&format!("4123 1 05-10:00:00 {CHROME}"), HOUR), None);
-        // The agents' browser: a real profile, not headless.
-        let agents = format!("60706 1 03:00:00 {CHROME} --user-data-dir=/Users/x/Library/Application Support/Mogbot/agent-browser/Agents --remote-debugging-pipe");
-        assert_eq!(stray(&agents, HOUR), None);
-        // A script still running it (its parent is alive).
-        let owned = format!("500 499 02:00:00 {CHROME} --headless=new --user-data-dir=/tmp/r");
-        assert_eq!(stray(&owned, HOUR), None);
-        // Young: a render that may still be in use.
-        let young = format!("501 1 12:30 {CHROME} --headless=new --user-data-dir=/tmp/r");
-        assert_eq!(stray(&young, HOUR), None);
-        // Headless on a real profile someone chose.
-        let kept =
-            format!("502 1 05:00:00 {CHROME} --headless --user-data-dir=/Users/x/profiles/scraper");
-        assert_eq!(stray(&kept, HOUR), None);
-        // Not Chrome.
-        assert_eq!(
-            stray(
-                "503 1 05:00:00 /usr/bin/python3 --headless --user-data-dir=/tmp/x",
-                HOUR
+    fn an_agents_chrome_is_remembered_then_stopped_once_orphaned_and_old() {
+        // Seen running under an agent: a shell, then node, then Chrome.
+        let rows = vec![
+            engine(),
+            row(200, 100, HOUR, "/bin/zsh -c node snap.mjs &"),
+            row(300, 200, HOUR, "node snap.mjs"),
+            render(400, 300, Duration::from_secs(60)),
+        ];
+        let (known, stop) = plan(&rows, &HashSet::new(), MARK, HOUR);
+        assert!(stop.is_empty(), "its script still runs");
+        assert_eq!(known.len(), 1);
+        // The turn and the script are gone; Chrome lives on, adopted by launchd.
+        let later = vec![render(400, 1, Duration::from_secs(30 * 60))];
+        let (known, stop) = plan(&later, &known, MARK, HOUR);
+        assert!(stop.is_empty(), "not old enough yet");
+        let much_later = vec![render(400, 1, 5 * HOUR)];
+        let (_, stop) = plan(&much_later, &known, MARK, HOUR);
+        assert_eq!(stop, vec![400]);
+    }
+
+    /// CTO review 2026-11-14: never on "headless and old" alone.
+    #[test]
+    fn a_headless_chrome_no_agent_started_survives() {
+        // Orphaned, old, temp profile, but never seen under an agent: the
+        // user's Playwright run, another app's, one from before the app ran.
+        let theirs = vec![render(500, 1, 5 * 24 * HOUR)];
+        let (known, stop) = plan(&theirs, &HashSet::new(), MARK, HOUR);
+        assert!(stop.is_empty());
+        assert!(known.is_empty());
+        // Started by the user's own tool, still parented.
+        let rows = vec![
+            row(
+                600,
+                1,
+                HOUR,
+                "/usr/local/bin/node node_modules/.bin/playwright test",
             ),
-            None
-        );
+            render(700, 600, 3 * HOUR),
+        ];
+        let (known, stop) = plan(&rows, &HashSet::new(), MARK, HOUR);
+        assert!(stop.is_empty() && known.is_empty());
+        // A pid an agent's Chrome had, now reused by someone else's: the
+        // command line differs, so it isn't ours.
+        let mut known = HashSet::new();
+        known.insert((
+            800u32,
+            format!("{CHROME} --headless=new --user-data-dir=/tmp/app-snap-1"),
+        ));
+        let reused = vec![row(
+            800,
+            1,
+            3 * HOUR,
+            &format!("{CHROME} --headless --user-data-dir=/tmp/ci"),
+        )];
+        let (_, stop) = plan(&reused, &known, MARK, HOUR);
+        assert!(stop.is_empty());
+    }
+
+    #[test]
+    fn the_users_and_the_agents_browser_are_never_counted() {
+        let rows = vec![
+            engine(),
+            row(900, 1, 5 * HOUR, CHROME),
+            row(901, 100, 5 * HOUR, &format!("{CHROME} --user-data-dir={MARK}/../agent-browser/Agents --remote-debugging-pipe")),
+        ];
+        let (known, stop) = plan(&rows, &HashSet::new(), MARK, HOUR);
+        assert!(stop.is_empty() && known.is_empty());
     }
 
     #[test]
