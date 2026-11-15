@@ -95,9 +95,11 @@ export function rowPill(
   const state = lineState(agent);
   if (state === 'waiting') {
     const cut = line.indexOf(' · ');
+    // Trimmed: an ask that's only blank space would leave an empty line
+    // under the pill, pushing the row's words above the key's middle.
     return cut < 0
       ? { tone: 'waiting', label: line, rest: '' }
-      : { tone: 'waiting', label: line.slice(0, cut), rest: line.slice(cut + 3) };
+      : { tone: 'waiting', label: line.slice(0, cut), rest: line.slice(cut + 3).trim() };
   }
   const failure = state === 'failed' || state === 'limited' ? failedTurn(agent) : null;
   if (!failure) return null;
