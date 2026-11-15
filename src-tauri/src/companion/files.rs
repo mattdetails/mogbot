@@ -500,6 +500,12 @@ pub async fn download(c: Arc<Companion>, req: Request<Incoming>) -> Response<Bod
             .len();
         let range = parse_range(range_header.as_deref(), len)
             .map_err(|_| StatusCode::RANGE_NOT_SATISFIABLE)?;
+        // Never more than an attachment's cap in memory at once: a whole
+        // file past it, or a range wider than it, is refused (a player asks
+        // in ranges) (CTO review 2026-11-14).
+        if too_big(len, range) {
+            return Err(StatusCode::PAYLOAD_TOO_LARGE);
+        }
         let bytes = read_bytes(&served.path, range).map_err(|_| StatusCode::NOT_FOUND)?;
         Ok(Read {
             bytes,
@@ -525,6 +531,15 @@ struct Read {
     /// The file's full length, for `Accept-Ranges` (absent for a thumbnail).
     total: Option<u64>,
     served: Served,
+}
+
+/// Whether serving `range` of a file `len` long would read more than
+/// [`MAX_FILE_BYTES`] into memory.
+fn too_big(len: u64, range: Option<(u64, u64)>) -> bool {
+    match range {
+        Some((start, end)) => end.saturating_sub(start).saturating_add(1) > MAX_FILE_BYTES,
+        None => len > MAX_FILE_BYTES,
+    }
 }
 
 fn read_bytes(path: &std::path::Path, range: Option<(u64, u64)>) -> std::io::Result<Vec<u8>> {
@@ -588,6 +603,17 @@ fn respond(read: Read, head: bool) -> Response<Body> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// CTO review 2026-11-14: a whole attachment was read into memory,
+    /// whatever its size.
+    #[test]
+    fn nothing_past_the_cap_is_read_into_memory() {
+        assert!(!too_big(MAX_FILE_BYTES, None));
+        assert!(too_big(MAX_FILE_BYTES + 1, None));
+        assert!(!too_big(10 * MAX_FILE_BYTES, Some((0, 1023))));
+        assert!(!too_big(10 * MAX_FILE_BYTES, Some((0, MAX_FILE_BYTES - 1))));
+        assert!(too_big(10 * MAX_FILE_BYTES, Some((0, MAX_FILE_BYTES))));
+    }
 
     #[test]
     fn ranges_are_single_and_inside_the_file() {
