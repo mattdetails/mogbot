@@ -60,6 +60,8 @@ const SLOW_HINT: Record<WorkSlow, string> = {
 export const CHROME_ALLOW_HINT_AFTER_MS = 20_000;
 /** A list row's words for a Claude in Chrome call that sits (`chromeAllowHint`). */
 export const CHROME_ALLOW_ROW = 'Allow in Chrome?';
+/** The same, while the Mac's screen is locked. */
+export const CHROME_LOCKED_ROW = 'Unlock your Mac to go on';
 
 /**
  * Chrome's per-site Allow window shows only on the Mac, never as a card, so
@@ -72,6 +74,10 @@ export function chromeAllowHint(
   computer = 'your Mac'
 ): string | null {
   if (!call?.chrome || now - call.startedAt < CHROME_ALLOW_HINT_AFTER_MS) return null;
+  if (call.locked) {
+    const cap = computer.charAt(0).toUpperCase() + computer.slice(1);
+    return `${cap} is locked: unlock it so Chrome can ask for its Allow and the agent can carry on`;
+  }
   return `Chrome may be waiting for you to click Allow on ${computer}`;
 }
 
@@ -151,7 +157,11 @@ export function workingRowLine(
   if (quiet) return { text: quiet, elapsed: null };
   const call = work?.current;
   // A list shows who is blocked on Chrome's Allow window without opening the chat.
-  const chrome = chromeAllowHint(call, now) ? CHROME_ALLOW_ROW : null;
+  const chrome = chromeAllowHint(call, now)
+    ? call?.locked
+      ? CHROME_LOCKED_ROW
+      : CHROME_ALLOW_ROW
+    : null;
   const text = chrome ?? call?.label ?? activity?.trim() ?? '';
   const from = call?.startedAt ?? since ?? null;
   return {

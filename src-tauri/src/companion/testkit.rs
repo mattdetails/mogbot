@@ -394,6 +394,7 @@ pub fn live_work() -> crate::agents::work::TurnWork {
             busy: Some(true),
             can_stop: true,
             chrome: false,
+            locked: false,
         }),
         last_sign_at: Some(1_762_290_500_000),
         quiet_since: Some(1_762_290_420_000),

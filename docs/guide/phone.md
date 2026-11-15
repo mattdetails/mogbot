@@ -60,7 +60,9 @@ value.
 Chrome asks for its own Allow, in a window on your computer, the first time an agent uses a site
 in your Chrome. The phone can't show or answer that window, so a step in your Chrome that sits for
 20 seconds says "Chrome may be waiting for you to click Allow on your Mac", and the agent's row in
-the list says "Allow in Chrome?". The same lines show on the desk.
+the list says "Allow in Chrome?". While your Mac's screen is locked Chrome can't show that window at
+all, so the step says your Mac is locked instead and the row says "Unlock your Mac to go on".
+The same lines show on the desk.
 
 ## What the phone can't do
 

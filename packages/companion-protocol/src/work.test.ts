@@ -126,6 +126,16 @@ describe('a Claude in Chrome step that sits', () => {
     );
   });
 
+  it('says the Mac is locked when it is, since then no Allow can show', () => {
+    const locked = { ...chrome, locked: true };
+    expect(slowHint(locked, 20_000)).toBe(
+      'Your Mac is locked: unlock it so Chrome can ask for its Allow and the agent can carry on'
+    );
+    expect(workingRowLine('x', work({ current: locked }), 0, 30_000).text).toBe(
+      'Unlock your Mac to go on'
+    );
+  });
+
   it('never for other browsers or tools', () => {
     expect(slowHint(call({ kind: 'tool', slow: undefined }), 600_000)).toBeNull();
   });

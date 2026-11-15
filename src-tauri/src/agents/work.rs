@@ -171,6 +171,10 @@ pub struct LiveCall {
     /// own per-site Allow window on this Mac, which no card of ours shows.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub chrome: bool,
+    /// A Claude in Chrome call while this Mac's screen is locked: Chrome
+    /// can't show its Allow window until someone unlocks it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
 }
 
 /// A turn's timeline. Live (on the status) while it runs, `endedAt` once over.
@@ -1668,6 +1672,22 @@ fn claude_in_chrome(tool: &str) -> bool {
         || tool.starts_with(&format!("mcp__{}__", super::account_reach::CHROME_SERVER))
 }
 
+/// [`super::chrome_health::screen_locked`], read at most every 15 s: the
+/// status is built on every step, and `ioreg` is a process.
+fn locked_now() -> bool {
+    static SEEN: std::sync::Mutex<Option<(i64, bool)>> = std::sync::Mutex::new(None);
+    let now = store::now_ms();
+    let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((at, locked)) = *seen {
+        if now - at < 15_000 {
+            return locked;
+        }
+    }
+    let locked = super::chrome_health::screen_locked();
+    *seen = Some((now, locked));
+    locked
+}
+
 #[derive(Default)]
 struct Live {
     work: TurnWork,
@@ -2265,6 +2285,7 @@ pub fn live(agent_id: &str) -> Option<TurnWork> {
                     busy: r.busy,
                     can_stop: command && r.needle.is_some(),
                     chrome: r.chrome,
+                    locked: r.chrome && locked_now(),
                 }
             }),
             last_sign_at: Some(live.last_sign),

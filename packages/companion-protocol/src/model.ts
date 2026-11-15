@@ -140,6 +140,8 @@ export interface LiveCall {
   canStop: boolean;
   /** A Claude in Chrome call: one running long may be held by Chrome's own Allow window on the Mac. */
   chrome?: boolean;
+  /** A Claude in Chrome call while the Mac's screen is locked: its Allow window can't show. */
+  locked?: boolean;
 }
 
 /** `agents::work::StepOutcome`. */

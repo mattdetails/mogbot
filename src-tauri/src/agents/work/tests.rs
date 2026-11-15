@@ -1083,6 +1083,7 @@ fn only_claude_in_chrome_calls_can_wait_on_chromes_allow_window() {
         busy: None,
         can_stop: false,
         chrome: false,
+        locked: false,
     };
     assert!(serde_json::to_value(&call).unwrap().get("chrome").is_none());
     let chrome = serde_json::to_value(LiveCall {
@@ -1091,4 +1092,5 @@ fn only_claude_in_chrome_calls_can_wait_on_chromes_allow_window() {
     })
     .unwrap();
     assert_eq!(chrome["chrome"], json!(true));
+    assert!(chrome.get("locked").is_none());
 }
