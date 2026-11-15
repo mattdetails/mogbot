@@ -62,7 +62,11 @@ in your Chrome. The phone can't show or answer that window, so a step in your Ch
 20 seconds says "Chrome may be waiting for you to click Allow on your Mac", and the agent's row in
 the list says "Allow in Chrome?". While your Mac's screen is locked Chrome can't show that window at
 all, so the step says your Mac is locked instead and the row says "Unlock your Mac to go on".
-The same lines show on the desk.
+The same lines show on the desk. Two ways to stop this happening: add Mogbot for Chrome (Settings →
+Agents → Let agents use your Chrome), which never shows that window, or turn on **Keep the screen
+on while agents work** (Settings → Agents, off by default), which keeps the screen from sleeping
+and locking while an agent is busy and lets it lock as usual once they're idle. It can't stop a
+lock you ask for, like closing the lid.
 
 ## What the phone can't do
 

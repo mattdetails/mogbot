@@ -179,8 +179,14 @@ export interface StayOn {
   openAtLogin: boolean;
   /** False in a dev build, which has no installed app to reopen. */
   openAtLoginAvailable: boolean;
+  /** "Keep the screen on while agents work": the switch (held only while a turn runs). */
+  keepScreenOn?: boolean;
+  /** macOS and Windows only. */
+  keepScreenOnAvailable?: boolean;
 }
-export type StayOnChange = Partial<Pick<StayOn, 'keepAwake' | 'keepRunning' | 'openAtLogin'>>;
+export type StayOnChange = Partial<
+  Pick<StayOn, 'keepAwake' | 'keepRunning' | 'openAtLogin' | 'keepScreenOn'>
+>;
 export const getStayOn = () => invoke<StayOn>('get_stay_on');
 export const setStayOn = (change: StayOnChange) => invoke<StayOn>('set_stay_on', change);
 

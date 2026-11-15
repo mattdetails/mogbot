@@ -700,6 +700,8 @@ export const baseCommands: CommandMap = {
     keepRunning: false,
     openAtLogin: false,
     openAtLoginAvailable: true,
+    keepScreenOn: false,
+    keepScreenOnAvailable: true,
   },
   set_stay_on: {
     supported: true,
@@ -707,6 +709,8 @@ export const baseCommands: CommandMap = {
     keepRunning: false,
     openAtLogin: false,
     openAtLoginAvailable: true,
+    keepScreenOn: false,
+    keepScreenOnAvailable: true,
   },
   close_to_background: false,
   // Settings → General's GPU row; the modal was never captured before.
