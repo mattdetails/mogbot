@@ -62,6 +62,13 @@ type MacState = {
 type PhoneState = {
   role: 'phone';
   ch: number;
+  /** When it connected, so a full house can let the oldest stranger go. */
+  at?: number;
+  /**
+   * The Mac said this channel reached its Welcome: a paired phone that proved
+   * its token, never evicted to make room.
+   */
+  authed?: boolean;
   /** The Mac already knows this channel is gone (it asked, or was told). */
   notified?: boolean;
 };
@@ -130,11 +137,22 @@ export class MacRelay extends DurableObject<Env> {
     // Offline wins: a phone is told its Mac needs to sign in only when the Mac is there.
     if (accounts && !(await this.binding())) return refuse(4402, 'sign_in_needed');
     const phones = this.openPhones();
-    if (phones.length >= MAX_PHONES) return refuse(4429, 'too_many_phones');
     const fromTag = /^[A-Za-z0-9_-]{1,32}$/.test(from) ? `from:${from}` : null;
     if (fromTag) {
       const same = this.ctx.getWebSockets(fromTag).filter((ws) => phones.includes(ws));
       if (same.length >= MAX_PHONES_PER_ADDRESS) return refuse(4429, 'too_many_phones');
+    }
+    if (phones.length >= MAX_PHONES) {
+      // Full: the oldest channel the Mac never welcomed goes, so strangers who
+      // know the fingerprint can't hold every slot against the owner's phone.
+      // A welcomed (paired) phone is never evicted; all welcomed is full.
+      const stranger = phones
+        .map((ws) => ({ ws, s: stateOf(ws) }))
+        .filter((p): p is { ws: WebSocket; s: PhoneState } => p.s?.role === 'phone' && !p.s.authed)
+        .sort((a, b) => (a.s.at ?? 0) - (b.s.at ?? 0) || a.s.ch - b.s.ch)[0];
+      if (!stranger) return refuse(4429, 'too_many_phones');
+      this.closePhone(stranger.ws, 4429, 'evicted');
+      this.currentMac()?.send(JSON.stringify({ t: 'close', ch: stranger.s.ch }));
     }
     const ch = await this.nextChannel();
     // The Mac may have gone while the counter was read.
@@ -142,7 +160,7 @@ export class MacRelay extends DurableObject<Env> {
     if (!mac) return refuse(4404, 'mac_offline');
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server, ['phone', channelTag(ch), ...(fromTag ? [fromTag] : [])]);
-    server.serializeAttachment({ role: 'phone', ch } satisfies PhoneState);
+    server.serializeAttachment({ role: 'phone', ch, at: Date.now() } satisfies PhoneState);
     mac.send(JSON.stringify({ t: 'open', ch }));
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -210,6 +228,10 @@ export class MacRelay extends DurableObject<Env> {
       if (frame?.t === 'close' && isChannel(frame.ch)) {
         const phone = this.phone(frame.ch);
         if (phone) this.closePhone(phone, 1000, 'closed');
+      } else if (frame?.t === 'authed' && isChannel(frame.ch)) {
+        const phone = this.phone(frame.ch);
+        const s = phone && stateOf(phone);
+        if (phone && s?.role === 'phone') phone.serializeAttachment({ ...s, authed: true });
       } else if (frame?.t === 'linkStart') {
         await this.startLink(state, frame.code);
       } else if (frame?.t === 'unlink') {

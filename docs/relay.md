@@ -102,7 +102,11 @@ clear 404 unlinks it (`checkStillThere`; any other answer keeps it).
   `mac_offline`), so the phone can say "Your Mac is offline or asleep" instead of "can't reach".
 - Limits: 24 phone sockets per Mac at once and 12 per client address (4429 past either; each
   relayed picture or file is a short socket of its own, and the phone keeps at most 3 of those
-  open and tries a 4429 again), payloads
+  open and tries a 4429 again). When all 24 are open, a new phone socket closes the oldest one
+  the Mac never welcomed (4429 `evicted`) instead of being refused: the Mac sends
+  `{"t":"authed","ch"}` once a channel's Welcome goes out (the phone proved its token), and a
+  welcomed channel is never evicted, so strangers who know the fingerprint can't keep the owner's
+  phone out. Payloads
   ≤ 256 KiB (1009 past it), and per-IP connection rate limiting at the Worker (300 a minute: every relayed picture is
   a connection). At most 4 Mac sockets
   may wait on their challenge; a fifth closes the oldest (4401 `superseded`).
