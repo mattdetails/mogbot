@@ -1386,7 +1386,9 @@ export const sendAgentMessage = (
   /** "Ask for changes": the id of the result this message revises. */
   revises?: string,
   /** The conversation on screen; absent, the one the user is in on the Mac. */
-  conversation?: string
+  conversation?: string,
+  /** When the user wrote it (ms): a typed yes answers only a card open then. */
+  writtenAt: number = Date.now()
 ) =>
   invoke<AgentMessage>('agents_send', {
     agentId,
@@ -1395,6 +1397,7 @@ export const sendAgentMessage = (
     mentions: mentions.length ? mentions : undefined,
     revises,
     conversation,
+    writtenAt,
   });
 export const inspectFiles = (paths: string[]) =>
   invoke<FileInfo[]>('agents_inspect_files', { paths });

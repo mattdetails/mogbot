@@ -233,6 +233,8 @@ pub struct SendExtras {
     /// The conversation it was sent in; `None` from an older phone (the one
     /// the user is in).
     pub conversation: Option<String>,
+    /// When the user wrote it (ms); `None` from an older phone.
+    pub written_at: Option<i64>,
 }
 
 /// What `rooms.send` carries besides the room and the text.
@@ -1742,6 +1744,10 @@ struct SendParams {
     revises: Option<String>,
     #[serde(default)]
     conversation: Option<String>,
+    /// When the user wrote it, by the phone's clock (ms): a typed yes
+    /// answers only a card that was open then (`agents_send`).
+    #[serde(default)]
+    written_at: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -2347,6 +2353,7 @@ async fn run(
                         client_id: Some(client_id),
                         revises: p.revises.filter(|r| !r.trim().is_empty()),
                         conversation: p.conversation.filter(|c| !c.trim().is_empty()),
+                        written_at: p.written_at,
                     };
                     let sent = b.send(&p.agent_id, text, extras).await?;
                     c.blobs.consume(&blob_ids);

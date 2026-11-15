@@ -247,6 +247,12 @@ export interface Methods {
       revises?: string;
       /** The conversation on screen; absent, the one the user is in on the Mac. */
       conversation?: string;
+      /**
+       * When the user wrote it (ms, phone clock), kept across retries: a typed
+       * yes answers only a card open then, and only within a minute. An older
+       * Mac ignores it.
+       */
+      writtenAt?: number;
     };
     result: AgentMessage;
   };

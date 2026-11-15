@@ -616,9 +616,14 @@ export async function send(
   // between finds the words in one file or the other, never in neither.
   void saveOutbox().then(() => flushDrafts());
   if (offline) return;
+  // When it was written, kept across retries and restarts: the Mac lets a
+  // typed yes answer only a card that was open then, and only while fresh.
+  const writtenAt =
+    getApp().pending[agentId]?.find((p) => p.clientId === id)?.ts ?? Date.now();
   let message: AgentMessage;
   try {
     message = await call('agents.send', {
+      writtenAt,
       agentId,
       text,
       clientId: id,
