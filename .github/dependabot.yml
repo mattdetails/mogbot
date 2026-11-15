@@ -1,0 +1,111 @@
+# Keeps dependencies current and raises security fixes as PRs.
+# Weekly; security updates are grouped per ecosystem and directory so one
+# advisory is one PR. Actions are SHA-pinned (ci.yml etc.), and Dependabot
+# moves the pin and its version comment together.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      npm-root-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-root-minor:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: "/mobile"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      npm-mobile-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-mobile-minor:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: "/services/relay"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      npm-relay-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-relay-minor:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: "/services/push-relay"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      npm-push-relay-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-push-relay-minor:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: "/packages/companion-protocol"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      npm-protocol-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-protocol-minor:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: "/src-tauri"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      cargo-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      cargo-minor:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      actions-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      actions-minor:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
