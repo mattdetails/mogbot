@@ -2444,6 +2444,21 @@ pub fn messages(agent_id: &str, limit: usize) -> Result<Vec<AgentMessage>, Comma
 /// `through` when that is older, but never more than `cap` in all. A `before`
 /// that isn't in the log yields nothing rather than a page from elsewhere.
 /// Read from the log's end, only as far back as the page needs.
+/// Every message in the log that `keep` takes, oldest first, read from the
+/// end a line at a time: only the kept ones are held, never the whole log
+/// (CTO review 2026-11-14: `messages(id, usize::MAX)` parsed and held it all).
+pub fn messages_where(
+    agent_id: &str,
+    keep: &dyn Fn(&AgentMessage) -> bool,
+) -> Result<Vec<AgentMessage>, CommandError> {
+    let lock = log_lock(agent_id);
+    let _guard = lock.lock().unwrap_or_else(|e| e.into_inner());
+    let path = log_path(agent_id)?;
+    let mut page = page_back_where(&path, usize::MAX, None, None, keep)?;
+    apply_answers(agent_id, &mut page)?;
+    Ok(page)
+}
+
 pub fn messages_page(
     agent_id: &str,
     limit: usize,
