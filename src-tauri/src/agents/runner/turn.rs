@@ -844,6 +844,9 @@ pub(super) async fn run_turn(
     // What it has done changed since it was last saved into the mark: saved
     // on the next peek tick, so a cut-off turn keeps its reply and timeline.
     let mut progress_dirty = false;
+    // Saved at most every PROGRESS_EVERY, off the async workers: a whole
+    // reply redacted and written each second was a steady cost for nothing.
+    let mut progress_saved = std::time::Instant::now();
 
     loop {
         tokio::select! {
@@ -1156,8 +1159,16 @@ pub(super) async fn run_turn(
             }
             _ = &mut deadline => { stopped = Some(Some(TIMEOUT_NOTE)); break; }
             _ = peek_tick.tick() => {
-                if std::mem::take(&mut progress_dirty) {
-                    save_progress(agent_id, drafts.current());
+                if progress_dirty && progress_saved.elapsed() >= PROGRESS_EVERY {
+                    progress_dirty = false;
+                    progress_saved = std::time::Instant::now();
+                    let (id, draft) = (
+                        agent_id.to_string(),
+                        drafts.current().map(|(m, t)| (m.to_string(), t.to_string())),
+                    );
+                    tokio::task::spawn_blocking(move || {
+                        save_progress(&id, draft.as_ref().map(|(m, t)| (m.as_str(), t.as_str())))
+                    });
                 }
                 if super::work::take_dirty(agent_id) {
                     let now = status_of(agent_id);

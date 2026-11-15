@@ -156,6 +156,9 @@ const LONG_SESSION_NOTE: &str =
 const PULSE_EVERY: Duration = Duration::from_secs(15);
 /// How often what a running command printed is sent on, at most.
 const PEEK_EVERY: Duration = Duration::from_secs(1);
+/// How often a running turn's reply so far and timeline are saved into its
+/// mark (what a cut-off turn picks up from).
+const PROGRESS_EVERY: Duration = Duration::from_secs(5);
 /// With no tool call open, this long without a word from the CLI and the
 /// working line says it may be stuck (see [`quiet_line`]).
 const QUIET_MS: i64 = 10 * 60 * 1000;

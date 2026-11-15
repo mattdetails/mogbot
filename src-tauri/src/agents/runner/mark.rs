@@ -79,14 +79,28 @@ pub(super) fn read_mark(agent_id: &str) -> Option<TurnMark> {
     serde_json::from_str(&raw).ok()
 }
 
-/// One writer at a time: the turn saves its progress while a Stop, from
-/// another thread, marks it stopped; neither may lose the other's change.
-pub(super) static MARK_LOCK: Mutex<()> = Mutex::new(());
+/// One writer at a time per agent: the turn saves its progress while a
+/// Stop, from another thread, marks it stopped; neither may lose the other's
+/// change. Per agent, so one agent's save never waits on another's (CTO
+/// review 2026-11-14: one lock for every agent's saves).
+static MARK_LOCKS: std::sync::LazyLock<
+    Mutex<std::collections::HashMap<String, std::sync::Arc<Mutex<()>>>>,
+> = std::sync::LazyLock::new(Default::default);
+
+pub(super) fn mark_lock(agent_id: &str) -> std::sync::Arc<Mutex<()>> {
+    MARK_LOCKS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .entry(agent_id.to_string())
+        .or_default()
+        .clone()
+}
 
 /// Written whole and redacted (what it took, the reply so far), 0600, by
 /// rename: a crash mid-write leaves the last good mark, never half of one.
 pub(super) fn write_mark(agent_id: &str, mark: TurnMark) {
-    let _one = MARK_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let lock = mark_lock(agent_id);
+    let _one = lock.lock().unwrap_or_else(|e| e.into_inner());
     put_mark(agent_id, &mark);
 }
 
@@ -107,7 +121,8 @@ pub(super) fn put_mark(agent_id: &str, mark: &TurnMark) {
 
 /// Change the mark in place, if the turn has one.
 pub(super) fn update_mark(agent_id: &str, f: impl FnOnce(&mut TurnMark)) {
-    let _one = MARK_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let lock = mark_lock(agent_id);
+    let _one = lock.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(mut mark) = read_mark(agent_id) {
         f(&mut mark);
         put_mark(agent_id, &mark);
@@ -138,7 +153,8 @@ pub(super) fn mark_path(agent_id: &str) -> Option<std::path::PathBuf> {
 }
 
 pub(super) fn clear_mark(agent_id: &str) {
-    let _one = MARK_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let lock = mark_lock(agent_id);
+    let _one = lock.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(path) = mark_path(agent_id) {
         let _ = std::fs::remove_file(path);
     }
@@ -308,4 +324,19 @@ pub(super) struct Recovery {
     /// Messages a turn took but never started on, back on the queue as
     /// they were ([`never_spawned`]).
     pub(super) resent: Vec<Inbound>,
+}
+
+#[cfg(test)]
+mod lock_tests {
+    /// CTO review 2026-11-14: one lock for every agent's progress saves.
+    #[test]
+    fn each_agent_has_its_own_mark_lock() {
+        let a = super::mark_lock("lock-a");
+        let b = super::mark_lock("lock-b");
+        assert!(!std::sync::Arc::ptr_eq(&a, &b));
+        assert!(std::sync::Arc::ptr_eq(&a, &super::mark_lock("lock-a")));
+        // Held for one, the other's save goes ahead.
+        let _held = a.lock().unwrap();
+        assert!(b.try_lock().is_ok());
+    }
 }
