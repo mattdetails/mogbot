@@ -26,8 +26,24 @@ fn held() -> std::sync::MutexGuard<'static, Option<Loaded>> {
     MODEL.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// The model in `slot`, loading it if it isn't already.
-fn ensure<'a>(slot: &'a mut Option<Loaded>, model: &Path) -> Result<&'a mut Loaded, String> {
+/// When a model last counted as used: a dictation counts, a warm-up of one
+/// already loaded doesn't. Warming on every chat the phone opened kept the
+/// ~0.8 GB model loaded for as long as chats kept being opened.
+fn used_since(was: Instant, now: Instant, dictating: bool) -> Instant {
+    if dictating {
+        now
+    } else {
+        was
+    }
+}
+
+/// The model in `slot`, loading it if it isn't already. `dictating`: this is
+/// a dictation, so it restarts the idle clock (a warm-up doesn't).
+fn ensure<'a>(
+    slot: &'a mut Option<Loaded>,
+    model: &Path,
+    dictating: bool,
+) -> Result<&'a mut Loaded, String> {
     if slot.as_ref().is_some_and(|l| l.path != model) {
         *slot = None;
     }
@@ -49,7 +65,7 @@ fn ensure<'a>(slot: &'a mut Option<Loaded>, model: &Path) -> Result<&'a mut Load
             .spawn(let_go_when_idle);
     }
     let loaded = slot.as_mut().ok_or("Whisper isn't loaded.")?;
-    loaded.used = Instant::now();
+    loaded.used = used_since(loaded.used, Instant::now(), dictating);
     Ok(loaded)
 }
 
@@ -77,7 +93,7 @@ pub fn warm(model: PathBuf) {
         .name("whisper-warm".into())
         .spawn(move || {
             let mut slot = held();
-            if let Err(error) = ensure(&mut slot, &model) {
+            if let Err(error) = ensure(&mut slot, &model, false) {
                 tracing::warn!(%error, "[Dictation] Whisper warm-up failed");
             }
         });
@@ -109,9 +125,20 @@ pub fn hint(names: &[String]) -> String {
     }
 }
 
+static LAST_DICTATION: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+
+/// Someone dictated (on the desk or the phone) within `ago`.
+pub fn dictated_within(ago: Duration) -> bool {
+    LAST_DICTATION
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_some_and(|at| at.elapsed() <= ago)
+}
+
 pub fn transcribe(model: &Path, samples_16k: &[f32], names: &[String]) -> Result<String, String> {
+    *LAST_DICTATION.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
     let mut slot = held();
-    let loaded = ensure(&mut slot, model)?;
+    let loaded = ensure(&mut slot, model, true)?;
     let mut state = loaded.ctx.create_state().map_err(|e| e.to_string())?;
 
     let mut params = FullParams::new(SamplingStrategy::BeamSearch {
@@ -156,6 +183,17 @@ pub fn clean(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn only_a_dictation_restarts_the_idle_clock() {
+        let was = Instant::now();
+        let now = was + Duration::from_secs(300);
+        assert_eq!(used_since(was, now, true), now);
+        // A warm-up (a chat opened on the phone) leaves it: the model is let
+        // go KEEP_FOR after the last dictation, however many chats opened.
+        assert_eq!(used_since(was, now, false), was);
+    }
+
     use super::*;
 
     #[test]

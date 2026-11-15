@@ -59,6 +59,16 @@ pub fn warm_up() {
     }
 }
 
+/// [`warm_up`] for a chat opened on the phone: only when someone dictated
+/// in the last day. Opening chats used to keep the ~0.8 GB model loaded all
+/// day for people who never dictate (CTO review 2026-11-14); a dictation
+/// still loads it, and anyone who dictates gets it warm as before.
+pub fn warm_up_for_chat() {
+    if transcribe::dictated_within(std::time::Duration::from_secs(24 * 60 * 60)) {
+        warm_up();
+    }
+}
+
 pub async fn improve(
     samples_16k: Vec<f32>,
     vocabulary: Vec<String>,

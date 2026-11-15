@@ -2398,8 +2398,9 @@ async fn run(
         "rooms.focus" => {
             let p: RoomFocusParams = parse(params)?;
             if p.room_id.is_some() {
-                // A chat open on the phone: dictation may come, so Whisper loads now.
-                crate::voice::warm_up();
+                // A chat open on the phone: dictation may come, so Whisper
+                // loads now, for someone who dictates.
+                crate::voice::warm_up_for_chat();
             }
             b.room_focus(&caller.label, p.room_id).await?;
             Ok(Value::Null)
@@ -2490,8 +2491,9 @@ async fn run(
         "agents.focus" => {
             let p: FocusParams = parse(params)?;
             if p.agent_id.is_some() {
-                // A chat open on the phone: dictation may come, so Whisper loads now.
-                crate::voice::warm_up();
+                // A chat open on the phone: dictation may come, so Whisper
+                // loads now, for someone who dictates.
+                crate::voice::warm_up_for_chat();
             }
             c.set_showing(&caller.label, p.agent_id.clone());
             b.focus(&caller.label, p.agent_id).await?;
