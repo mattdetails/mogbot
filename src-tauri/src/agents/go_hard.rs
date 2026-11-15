@@ -4233,6 +4233,23 @@ fn connector_floor(tool: &str) -> bool {
 /// changed, or a click (or Enter) where a string in the script names a
 /// control that sends (`browser_gate::sends`, `type=submit`). Anything else
 /// reads or clicks around, and runs at "Go hard".
+/// Whether a script (whitespace taken out, lower-cased) sets a request's
+/// method to anything but a literal GET or HEAD.
+fn method_not_a_read(compact: &str) -> bool {
+    ["method:", ".method=", "[\"method\"]=", "['method']="]
+        .iter()
+        .flat_map(|key| {
+            compact
+                .match_indices(key)
+                .map(move |(i, _)| &compact[i + key.len()..])
+        })
+        .any(|value| {
+            !["'get'", "\"get\"", "`get`", "'head'", "\"head\"", "`head`"]
+                .iter()
+                .any(|read| value.starts_with(read))
+        })
+}
+
 pub fn script_sends(input: &Value, level: super::independence::Level) -> bool {
     use super::independence::Level;
     // "Full send": a script that posts or submits is the job; one that names
@@ -4286,6 +4303,14 @@ pub fn script_sends(input: &Value, level: super::independence::Level) -> bool {
         })
     });
     if compact.contains("fetch(") && (write_method || compact.contains("body:")) {
+        return true;
+    }
+    // A method set any other way than a literal GET or HEAD (`o.method =
+    // 'POST'; fetch(u, o)`, `method: m`): it may be a write (CTO review
+    // 2026-11-14: pattern-matching only `method: 'post'` missed these).
+    if (compact.contains("fetch(") || compact.contains("newrequest("))
+        && method_not_a_read(&compact)
+    {
         return true;
     }
     if compact.contains("xmlhttprequest")
