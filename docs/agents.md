@@ -2256,7 +2256,10 @@ instead of only saying OK. Rust decides, not the prompt:
   a note the app queues (`runner::From::App`: late Allow, declined login) and a
   message the app writes from a button ("Say hi") carry no typed words, so an
   admin answering for another agent can't either. `quote` must be whole words
-  of what they typed.
+  of what they typed, must say it's for good ("always", "from now on", "every
+  time", "without asking"…; `FOR_GOOD`), and for scope "team" must name the
+  team ("the team", "everyone", "all agents"; `TEAM_WORDS`): "yes do those"
+  is a yes to the card, not a rule.
 - **Only a card they saw.** The rule is the `always` scope a card in this
   chat offered, found by tool name, command, host or label. Nothing broader.
 - **Never the floor** (`go_hard::floor`): Bold's ask list for commands and
