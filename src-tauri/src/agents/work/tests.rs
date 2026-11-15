@@ -1065,3 +1065,30 @@ fn exact_commands_go_when_their_steps_do() {
         Some(format!("echo {last}"))
     );
 }
+
+#[test]
+fn only_claude_in_chrome_calls_can_wait_on_chromes_allow_window() {
+    assert!(claude_in_chrome("mcp__claude-in-chrome__navigate"));
+    assert!(claude_in_chrome("mcp__user-chrome__computer"));
+    // Our own extension and the agents' browser have no Allow window.
+    assert!(!claude_in_chrome("mcp__user_chrome__navigate"));
+    assert!(!claude_in_chrome("mcp__browser__navigate"));
+    let call = LiveCall {
+        kind: StepKind::Tool,
+        label: "Opening x.com".into(),
+        started_at: 0,
+        slow: None,
+        output: Vec::new(),
+        streams: false,
+        busy: None,
+        can_stop: false,
+        chrome: false,
+    };
+    assert!(serde_json::to_value(&call).unwrap().get("chrome").is_none());
+    let chrome = serde_json::to_value(LiveCall {
+        chrome: true,
+        ..call
+    })
+    .unwrap();
+    assert_eq!(chrome["chrome"], json!(true));
+}

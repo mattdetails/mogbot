@@ -57,6 +57,11 @@ runs past half a minute says so under its working line ("Keeps running on your M
 this app closed"). Tables too wide for the screen read row by row, each column named beside its
 value.
 
+Chrome asks for its own Allow, in a window on your computer, the first time an agent uses a site
+in your Chrome. The phone can't show or answer that window, so a step in your Chrome that sits for
+20 seconds says "Chrome may be waiting for you to click Allow on your Mac", and the agent's row in
+the list says "Allow in Chrome?". The same lines show on the desk.
+
 ## What the phone can't do
 
 Pushing to git, deleting agents, and a few room settings are done on the computer.

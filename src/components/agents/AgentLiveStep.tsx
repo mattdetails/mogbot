@@ -18,6 +18,7 @@
  * @module components/agents/AgentLiveStep
  */
 
+import { THIS_COMPUTER } from '../../lib/computer';
 import { useId, useState, type ReactNode } from 'react';
 import { ChevronRightIcon } from '@/components/icons';
 import { TextButton } from '../primitives/TextButton';
@@ -167,7 +168,7 @@ export function useLiveStep({ agent, work, activity, leaving }: LiveStepProps): 
       ? call.label
       : null;
 
-  const hint = isCall && !quietText ? slowHint(call, now) : null;
+  const hint = isCall && !quietText ? slowHint(call, now, THIS_COMPUTER) : null;
   const command = isCall && call?.kind === 'command';
   const stopStep = isCall && !quietText && offersStopStep(call, now);
   const saidHere = said && said.at === work.startedAt ? said.text : null;

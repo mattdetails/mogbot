@@ -316,6 +316,39 @@ const longCommands = {
   ),
 };
 
+/** Lead Gen on a Claude in Chrome call that sits: Chrome's own Allow window may be up. */
+const CHROME_CALL = {
+  kind: 'web',
+  label: 'Opening northwind-supply.com in your Chrome',
+  startedAt: now - 48 * SEC,
+  streams: false,
+  canStop: false,
+  chrome: true,
+};
+const chromeCommands = {
+  ...commands,
+  agents_overview: overview(
+    TEAM.map((a) =>
+      a.id === 'leadgen'
+        ? {
+            ...a,
+            status: {
+              state: 'working',
+              activity: CHROME_CALL.label,
+              since: BROWSER_TURN.startedAt,
+              work: {
+                ...BROWSER_TURN,
+                ownBrowser: undefined,
+                doing: CHROME_CALL.label,
+                current: CHROME_CALL,
+              },
+            },
+          }
+        : a
+    )
+  ),
+};
+
 const openAcme = { click: '[data-agent-id="acme"]' };
 const openFinance = { click: '[data-agent-id="finance"]' };
 const openLeadgen = { click: '[data-agent-id="leadgen"]' };
@@ -380,6 +413,16 @@ export const agentsLiveScenarios: Scenario[] = [
     openSelector: AGENTS_TAB,
     steps: [openLeadgen, { click: '[data-message-ids="browser-finished"] .agent-work__toggle' }],
     commands: doneCommands,
+  },
+  {
+    id: 'agents-live-chrome-allow',
+    title: 'Agents — a Claude in Chrome step that sits on Chrome’s Allow window',
+    looksRightWhen:
+      'Lead Gen’s chat. The working line “Opening northwind-supply.com in your Chrome · 7 steps · 3:00”, and under its words one muted line: “Chrome may be waiting for you to click Allow on this Mac”. In the sidebar Lead Gen’s row reads “Allow in Chrome?”. No accent, no card.',
+    requires: '.agent-working__meta',
+    openSelector: AGENTS_TAB,
+    steps: [openLeadgen],
+    commands: chromeCommands,
   },
   {
     id: 'agents-live-stalled',

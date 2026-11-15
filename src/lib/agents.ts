@@ -133,6 +133,8 @@ export interface LiveCall {
   busy?: boolean;
   /** "Stop this step" can find its process. */
   canStop: boolean;
+  /** A Claude in Chrome call: one running long may be held by Chrome's own Allow window on the Mac. */
+  chrome?: boolean;
 }
 
 /** `agents::work::StepOutcome`. */

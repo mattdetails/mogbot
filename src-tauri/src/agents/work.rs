@@ -167,6 +167,10 @@ pub struct LiveCall {
     pub busy: Option<bool>,
     /// "Stop this step" can find its process.
     pub can_stop: bool,
+    /// A Claude in Chrome call: one that runs long may be held by Chrome's
+    /// own per-site Allow window on this Mac, which no card of ours shows.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub chrome: bool,
 }
 
 /// A turn's timeline. Live (on the status) while it runs, `endedAt` once over.
@@ -1653,6 +1657,15 @@ struct Running {
     /// When its process was first found gone while the call hadn't come back.
     gone_since: Option<i64>,
     busy: Option<bool>,
+    /// A Claude in Chrome call ([`claude_in_chrome`]).
+    chrome: bool,
+}
+
+/// A Claude in Chrome tool, under its own name or the name an added account
+/// reaches it by. Our own extension (`user_chrome`) has no Allow window.
+fn claude_in_chrome(tool: &str) -> bool {
+    tool.starts_with(super::browser_gate::SERVER)
+        || tool.starts_with(&format!("mcp__{}__", super::account_reach::CHROME_SERVER))
 }
 
 #[derive(Default)]
@@ -1845,6 +1858,7 @@ impl Live {
             started_at: now,
             slow: action.slow,
             needle: action.command.as_deref().and_then(needle),
+            chrome: claude_in_chrome(&action.tool),
             ..Running::default()
         });
         self.running = Some(id);
@@ -2250,6 +2264,7 @@ pub fn live(agent_id: &str) -> Option<TurnWork> {
                     streams: streams && command,
                     busy: r.busy,
                     can_stop: command && r.needle.is_some(),
+                    chrome: r.chrome,
                 }
             }),
             last_sign_at: Some(live.last_sign),
