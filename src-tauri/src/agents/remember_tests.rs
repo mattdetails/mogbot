@@ -114,6 +114,18 @@ fn the_quote_must_say_it_is_for_good_and_name_the_team_for_the_team() {
             "{ok:?}"
         );
     }
+    // Negated, or only about the next one: a yes to this card, not a rule.
+    for no in [
+        "not always, but do those now",
+        "you don't always have to ask for those",
+        "do those next time too",
+    ] {
+        assert_eq!(
+            plan(Some(no), &args(UPSERT, no), &log, Some(&ctx())),
+            Err(NOT_FOR_GOOD.to_string()),
+            "{no:?}"
+        );
+    }
     // For good, but nothing names the team: not for the team.
     let mut a = args(UPSERT, "ur always allowed to do those");
     a["scope"] = json!("team");

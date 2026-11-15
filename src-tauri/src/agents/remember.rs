@@ -203,7 +203,6 @@ const FOR_GOOD: &[&str] = &[
     "in future",
     "in the future",
     "from here on",
-    "next time",
     "forever",
     "permanently",
     "without asking",
@@ -229,7 +228,15 @@ const TEAM_WORDS: &[&str] = &[
 
 fn says_any(quote: &str, phrases: &[&str]) -> bool {
     let quote = format!(" {} ", words(quote));
-    phrases.iter().any(|p| quote.contains(&format!(" {p} ")))
+    phrases.iter().any(|p| {
+        let needle = format!(" {p} ");
+        quote.match_indices(&needle).any(|(i, _)| {
+            // "not always", "don't always", "never always": negated, so not
+            // a lasting yes (CTO follow-up, 2026-11-14).
+            let before = quote[..i].split_whitespace().next_back().unwrap_or("");
+            !matches!(before, "not" | "t" | "no" | "never" | "nt")
+        })
+    })
 }
 
 /// The most recent card in this chat that offered to always allow `wanted`:
