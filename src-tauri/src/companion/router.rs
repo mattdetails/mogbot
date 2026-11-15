@@ -1845,7 +1845,10 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
     let field = |k: &str| params.get(k).and_then(Value::as_str).unwrap_or("");
     let preview = crate::remote_access::preview;
     match method {
-        "agents.send" | "sessions.send" => preview(field("text")),
+        "agents.send" => preview(field("text")),
+        // Typed into a session's terminal: it may be a password at a prompt,
+        // so only how long it was (CTO review 2026-11-14).
+        "sessions.send" => format!("typed {} chars", field("text").chars().count()),
         "rooms.send" => preview(&format!("in a room: {}", field("text"))),
         "rooms.focus" => field("roomId").to_string(),
         "sessions.key" => format!("pressed {}", field("key")),
