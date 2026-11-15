@@ -1591,7 +1591,11 @@ changes (live regions are Android's only). A chart's accessible name says
 its values (`chartSummary`: each slice and share, a short series point by
 point, a long one by start, end, low and high), and every chart series is 3:1
 on app, panel and control in both themes.
-A command, code block, table or diff that runs past the edge scrolls sideways
+A table of three or more columns too wide for the screen (in a reply or a
+table block) reads row by row instead: each row's first cell as its title,
+then every column's name beside its value (`stacksAt`); a sideways scroll
+inside the chat was easy to miss and hard to start on an iPhone.
+A command, code block or diff that runs past the edge scrolls sideways
 and says so: its far edge fades into the well while there's more, and the
 indicator flashes once (`SideScroll`), so a cut-off command never reads as the
 whole one. A role squeezed to a stub ("Desig…") beside a name or an account is

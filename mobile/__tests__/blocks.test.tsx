@@ -253,6 +253,41 @@ describe('a table', () => {
   });
 });
 
+describe('a table wider than the card', () => {
+  it('reads row by row, each column named beside its value, never sideways', async () => {
+    await draw(
+      message([
+        S({
+          kind: 'table',
+          columns: [{ label: 'Item' }, { label: 'Today' }, { label: 'My pick' }, { label: 'Size' }],
+          rows: [
+            [
+              'Always allow',
+              'One tool at a time, asked again for every other read',
+              'Every read of that app, sends still ask',
+              'Small',
+            ],
+            [
+              'Bold default',
+              'Steady for every new install',
+              'Bold, and one onboarding screen with the slider',
+              'Medium',
+            ],
+          ],
+        } as Partial<Block> & { kind: 'table' }),
+      ]),
+      null
+    );
+    expect(screen.queryByTestId('table-stacked')).toBeNull();
+    await fireEvent(screen.getByTestId('table-well'), 'layout', {
+      nativeEvent: { layout: { width: 340, height: 100 } },
+    });
+    expect(screen.getByTestId('table-stacked')).toBeTruthy();
+    expect(screen.getAllByText('My pick')).toHaveLength(2);
+    expect(screen.getAllByTestId('table-row')).toHaveLength(2);
+  });
+});
+
 describe('fitting a table to the phone', () => {
   const brief = {
     columns: [{ label: 'Time' }, { label: 'Agent' }, { label: 'What' }],
