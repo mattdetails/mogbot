@@ -378,6 +378,20 @@ pub fn run() {
                 }
             }
 
+            // "Keep the screen on while agents work": held only while a turn
+            // runs, checked every 5 s (a Chrome Allow window waits ~60 s).
+            if remote_access::power::screen_on_available() {
+                remote_access::power::set_screen_on_asked(
+                    commands::setup::read_app_state().keep_screen_on == Some(true),
+                );
+                tauri::async_runtime::spawn(async {
+                    loop {
+                        remote_access::power::screen_tick(agents::runner::busy_count());
+                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    }
+                });
+            }
+
             // Dev-server approvals: owner-only, whatever an older build left.
             commands::projects::harden_dev_consent_store();
 

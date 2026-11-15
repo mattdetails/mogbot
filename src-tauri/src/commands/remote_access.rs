@@ -446,6 +446,11 @@ pub struct StayOn {
     pub open_at_login: bool,
     /// False in a dev build, which has no installed app to reopen.
     pub open_at_login_available: bool,
+    /// "Keep the screen on while agents work": the switch, not whether it's
+    /// held this moment (only while a turn runs).
+    pub keep_screen_on: bool,
+    /// macOS and Windows only.
+    pub keep_screen_on_available: bool,
 }
 
 /// Reopening at login points at the installed app (`login_item`): a
@@ -463,6 +468,8 @@ pub(crate) fn stay_on_now() -> StayOn {
         keep_running_available: cfg!(target_os = "macos"),
         open_at_login: power::open_at_login_active(),
         open_at_login_available: open_at_login_available(),
+        keep_screen_on: power::screen_on_asked(),
+        keep_screen_on_available: power::screen_on_available(),
     }
 }
 
@@ -480,8 +487,12 @@ pub fn set_stay_on(
     keep_awake: Option<bool>,
     keep_running: Option<bool>,
     open_at_login: Option<bool>,
+    keep_screen_on: Option<bool>,
 ) -> Result<StayOn, CommandError> {
     write_stay_on(keep_awake, keep_running, open_at_login)?;
+    if let Some(on) = keep_screen_on {
+        write_screen_on(on)?;
+    }
     Ok(sync_stay_on(&app, keep_running.is_some()))
 }
 
@@ -509,6 +520,17 @@ pub(crate) fn write_stay_on(
     if let Some(enabled) = open_at_login {
         power::set_open_at_login(enabled)?;
     }
+    Ok(())
+}
+
+/// "Keep the screen on while agents work": saved, then held from the next
+/// tick while a turn runs.
+pub(crate) fn write_screen_on(on: bool) -> Result<(), CommandError> {
+    let mut state = crate::commands::setup::read_app_state();
+    state.keep_screen_on = Some(on);
+    crate::commands::setup::write_app_state(&state)?;
+    power::set_screen_on_asked(on);
+    power::screen_tick(crate::agents::runner::busy_count());
     Ok(())
 }
 
