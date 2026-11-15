@@ -371,7 +371,12 @@ pub(super) async fn run_turn(
     let resumed_at = if !resuming || crossed || quiet {
         None
     } else if engine == Engine::Claude {
-        super::transcript::claude_leaf(&home, &session_id)
+        // Read from the transcript's end, off the async workers.
+        let (home, session) = (home.clone(), session_id.clone());
+        tokio::task::spawn_blocking(move || super::transcript::claude_leaf(&home, &session))
+            .await
+            .ok()
+            .flatten()
     } else if engine == Engine::Codex && driver == Driver::CodexApp {
         super::rewind::codex_last_turn(agent_id, &session_id)
     } else {

@@ -2230,7 +2230,7 @@ pub(crate) fn read_back(
 /// A log's lines from its end backwards, newest first, read in growing
 /// chunks only as far back as they are asked for. Lines come back raw: the
 /// caller parses only those it keeps.
-struct BackLines {
+pub(crate) struct BackLines {
     file: Option<std::fs::File>,
     /// Where the bytes not yet read end (they start at 0).
     pos: u64,
@@ -2240,7 +2240,7 @@ struct BackLines {
 }
 
 impl BackLines {
-    fn open(path: &Path) -> Result<Self, CommandError> {
+    pub(crate) fn open(path: &Path) -> Result<Self, CommandError> {
         let file = match std::fs::File::open(path) {
             Ok(f) => Some(f),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
@@ -2263,7 +2263,7 @@ impl BackLines {
 
     /// The next line back, raw, or `None` at the log's start. Empty lines
     /// are skipped.
-    fn next_line(&mut self) -> Result<Option<Vec<u8>>, CommandError> {
+    pub(crate) fn next_line(&mut self) -> Result<Option<Vec<u8>>, CommandError> {
         use std::io::{Read, Seek, SeekFrom};
         loop {
             while matches!(self.buf.last(), Some(b'\n' | b'\r')) {

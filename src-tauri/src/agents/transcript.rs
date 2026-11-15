@@ -322,7 +322,20 @@ pub fn claude_leaf(home: &Path, session: &str) -> Option<String> {
         found.push(kept);
     }
     let path = best(&found)?;
-    leaf_of(&std::fs::read_to_string(path).ok()?)
+    leaf_in(path)
+}
+
+/// [`leaf_of`] for a transcript on disk, read from its end only as far as
+/// the last main-chain entry. Transcripts reach a gigabyte; reading the
+/// whole file for its last id spiked that much memory on every turn.
+pub fn leaf_in(path: &Path) -> Option<String> {
+    let mut lines = super::store::BackLines::open(path).ok()?;
+    while let Some(line) = lines.next_line().ok()? {
+        if let Some(id) = leaf_of(&String::from_utf8_lossy(&line)) {
+            return Some(id);
+        }
+    }
+    None
 }
 
 /// The id of the last main-chain entry in a Claude Code transcript (lines
@@ -358,6 +371,23 @@ mod tests {
         ]
         .join("\n");
         assert_eq!(leaf_of(&t).as_deref(), Some("x1"));
+        // From the file's end, across read chunks: the same answer.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.jsonl");
+        let pad = format!(
+            "{{\"type\":\"user\",\"uuid\":\"old\",\"x\":\"{}\"}}\n",
+            "y".repeat(200_000)
+        );
+        std::fs::write(&path, format!("{pad}{t}\n")).unwrap();
+        assert_eq!(leaf_in(&path).as_deref(), Some("x1"));
+        // Only sidechains and noise after the first entry: it walks back to it.
+        std::fs::write(
+            &path,
+            format!("{pad}{}\n\n", r#"{"uuid":"s","isSidechain":true}"#),
+        )
+        .unwrap();
+        assert_eq!(leaf_in(&path).as_deref(), Some("old"));
+        assert_eq!(leaf_in(&dir.path().join("none.jsonl")), None);
         assert_eq!(leaf_of(r#"{"type":"mode"}"#), None);
     }
 
