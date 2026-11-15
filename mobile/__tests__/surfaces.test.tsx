@@ -160,12 +160,12 @@ describe('every request card', () => {
   };
   const message = { ...msg('m1', 1), kind: 'approval', approval } as AgentMessage;
 
-  it('approval: ⋯ · Deny · Allow, the neutral Allow last', async () => {
+  it('approval: ⋯ · Deny · Allow, the neutral Allow last, Always allow its own line', async () => {
     const view = await render(
       <ApprovalCard message={message} approval={approval} agent={agent()} onError={() => {}} />
     );
     await act(() => jest.advanceTimersByTime(ARM_MS + 50));
-    expect(answers()).toEqual(['More answers', 'Deny', 'Allow']);
+    expect(answers()).toEqual(['More answers', 'Deny', 'Allow', 'Always allow npm test…']);
     expect(isNeutralAnswer('Allow')).toBe(true);
     expect(isNeutralAnswer('Deny')).toBe(false);
     // Idle with it open: "It paused here for you" is the note, before the answers.
