@@ -91,6 +91,11 @@
   padding-bottom: var(--spacing-md);
 }
 
+/* The line between the page and the chat: drag it to give either more room. */
+.agent-page__resize {
+  width: 100%;
+}
+
 /* The versions: a popover off "Updated …", so the page doesn't move. */
 .agent-page__history-menu {
   width: min(380px, calc(100vw - var(--spacing-2xl))); /* css-ok: a popover's width */

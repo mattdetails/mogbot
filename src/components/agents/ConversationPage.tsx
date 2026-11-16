@@ -22,7 +22,8 @@
  * @module components/agents/ConversationPage
  */
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PanelResizeHandle } from '../primitives/PanelResizeHandle';
 import { Dropdown } from '../primitives/Dropdown';
 import { ChevronIcon, HistoryIcon, PinIcon } from '@/components/icons';
 import { Button } from '../primitives/Button';
@@ -83,6 +84,29 @@ function writeFolded(id: string, folded: boolean) {
   }
 }
 
+const HEIGHT_KEY = 'agents.page.height:';
+/** The shortest a dragged page gets, and the most of the window it may take. */
+export const PAGE_MIN_HEIGHT = 80;
+const PAGE_MAX_SHARE = 0.75;
+
+/** The height the user dragged this page to, or null: the default cap. */
+function readHeight(id: string): number | null {
+  try {
+    const n = Number(window.localStorage.getItem(HEIGHT_KEY + id));
+    return Number.isFinite(n) && n >= PAGE_MIN_HEIGHT ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeHeight(id: string, height: number) {
+  try {
+    window.localStorage.setItem(HEIGHT_KEY + id, String(Math.round(height)));
+  } catch {
+    // A private window: the height just isn't remembered.
+  }
+}
+
 /** Re-render once a minute, so "3 min ago" stays true. */
 function useMinute(): number {
   const [now, setNow] = useState(() => Date.now());
@@ -121,6 +145,20 @@ export const ConversationPage = memo(function ConversationPage({ agent, conversa
 function PagePanel({ agent, page }: { agent: Agent; page: Page }) {
   const id = `${agent.id}#${page.conversation}`;
   const [folded, setFolded] = useState(() => readFolded(id));
+  // The line between the page and the chat drags (#8); remembered per page.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(() => readHeight(id));
+  const maxHeight = () => Math.max(PAGE_MIN_HEIGHT, window.innerHeight * PAGE_MAX_SHARE);
+  const clampHeight = (h: number) => Math.min(maxHeight(), Math.max(PAGE_MIN_HEIGHT, h));
+  const resizeTo = (clientY: number) => {
+    const top = bodyRef.current?.getBoundingClientRect().top ?? 0;
+    setHeight(clampHeight(clientY - top));
+  };
+  const resizeBy = (delta: number) =>
+    setHeight((h) => clampHeight((h ?? bodyRef.current?.offsetHeight ?? 0) + delta));
+  useEffect(() => {
+    if (height !== null) writeHeight(id, height);
+  }, [height, id]);
   const [history, setHistory] = useState(false);
   // An older version opened, for the version the page was on then: a new
   // version arriving shows the page as it is now.
@@ -257,7 +295,11 @@ function PagePanel({ agent, page }: { agent: Agent; page: Page }) {
         />
       </div>
       {!folded && (
-        <div className="agent-page__body">
+        <div
+          ref={bodyRef}
+          className="agent-page__body"
+          style={height !== null ? { height, maxHeight: 'none' } : undefined}
+        >
           {older && (
             <p className="agent-page__older">
               {pageOlderLine(older, now)}{' '}
@@ -276,6 +318,18 @@ function PagePanel({ agent, page }: { agent: Agent; page: Page }) {
             </p>
           )}
         </div>
+      )}
+      {!folded && (
+        <PanelResizeHandle
+          orientation="horizontal"
+          className="agent-page__resize"
+          label="Resize the page"
+          value={Math.round(height ?? bodyRef.current?.offsetHeight ?? 0)}
+          min={PAGE_MIN_HEIGHT}
+          max={Math.round(maxHeight())}
+          onResize={resizeTo}
+          onResizeBy={resizeBy}
+        />
       )}
     </section>
   );
