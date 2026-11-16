@@ -1184,7 +1184,11 @@ fn only_the_browsers_own_reads_name_its_controls() {
 /// rest of that same send goes through.
 #[test]
 fn one_send_asks_once_and_opening_a_composer_never_asks() {
-    for opener in ["button \"Start a post\"", "button \"Create post\"", "button \"Write a comment\""] {
+    for opener in [
+        "button \"Start a post\"",
+        "button \"Create post\"",
+        "button \"Write a comment\"",
+    ] {
         assert!(final_submit(opener, Level::GoHard).is_none(), "{opener}");
     }
     assert!(final_submit("button \"Post\"", Level::GoHard).is_some());
@@ -1198,7 +1202,8 @@ fn one_send_asks_once_and_opening_a_composer_never_asks() {
         "textbox \"Text editor for creating content\" [ref_1]\nbutton \"Post\" [ref_16]\nbutton \"Confirm\" [ref_2]\nbutton \"Schedule\" [ref_21]",
     );
     p.tabs.insert(5, "https://www.linkedin.com/feed/".into());
-    p.typed.push("working from my phone more and more lately".into());
+    p.typed
+        .push("working from my phone more and more lately".into());
     with_pages(|pages| pages.insert(a.id.clone(), p.clone()));
     let click = |r: &str| json!({ "action": "left_click", "ref": r, "tabId": 5 });
     let tool = t("computer");
@@ -1216,4 +1221,18 @@ fn one_send_asks_once_and_opening_a_composer_never_asks() {
     b.id = "same-send-other".into();
     with_pages(|pages| pages.insert(b.id.clone(), p.clone()));
     assert!(!same_send_allowed(&b, &tool, &click("ref_21")));
+}
+
+/// Julian, 2026-11-16: an agent working on X in his Chrome hit X's chat
+/// passcode and got an agents'-browser sign-in. The app knows which browser
+/// it was in from its own page memory.
+#[test]
+fn the_app_knows_a_site_is_open_in_the_users_chrome() {
+    let id = "in-chrome-test";
+    let mut p = Page::default();
+    p.tabs.insert(3, "https://x.com/messages/compose".into());
+    with_pages(|pages| pages.insert(user_chrome_key(id), p));
+    assert!(in_users_chrome_on(id, "x.com"));
+    assert!(!in_users_chrome_on(id, "linkedin.com"));
+    assert!(!in_users_chrome_on("someone-else", "x.com"));
 }

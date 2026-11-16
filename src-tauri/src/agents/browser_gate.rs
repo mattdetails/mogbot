@@ -484,6 +484,25 @@ fn host_matches(host: &str, site: &str) -> bool {
     !s.is_empty() && (h == s || h.ends_with(&format!(".{s}")))
 }
 
+/// Whether the agent has `site` open in the user's own Chrome (our
+/// extension's tabs, or Claude in Chrome's): the browser it is working in
+/// there. A sign-in, passcode or step on that site belongs in that same
+/// Chrome, never the agents' browser where it isn't signed in (Julian,
+/// 2026-11-16: an X passcode in his Chrome raised an agents'-browser
+/// sign-in).
+pub fn in_users_chrome_on(agent_id: &str, site: &str) -> bool {
+    [user_chrome_key(agent_id), agent_id.to_string()]
+        .iter()
+        .map(|k| page_of(k))
+        .any(|p| {
+            p.tabs
+                .values()
+                .chain(p.url.iter())
+                .filter_map(|u| host_of(u))
+                .any(|h| host_matches(&h, site))
+        })
+}
+
 /// The host of a web URL (`http`/`https` only).
 pub fn host_of(url: &str) -> Option<String> {
     let u = url::Url::parse(url.trim()).ok()?;

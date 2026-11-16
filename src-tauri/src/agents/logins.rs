@@ -636,8 +636,23 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
     let site_of = known.and_then(|s| s.site).or(unknown_site.as_deref());
     // The agents' own browser first: either engine, and the person signs in
     // from the phone or here, never with a per-site Allow at the Mac.
-    let agents_browser =
-        site_of.is_some() && crate::agent_browser::available() && !agent.reach.browser_off;
+    // Working on this site in the user's own Chrome: the step is finished
+    // there, never in the agents' browser (signed out there).
+    let in_users_chrome =
+        site_of.is_some_and(|s| super::browser_gate::in_users_chrome_on(&agent.id, s));
+    let agents_browser = site_of.is_some()
+        && !in_users_chrome
+        && crate::agent_browser::available()
+        && !agent.reach.browser_off;
+    if let Some(site) = site_of.filter(|_| in_users_chrome) {
+        options.push(LoginOption {
+            id: "browser".into(),
+            method: Method::Browser,
+            label: "Done in my Chrome".into(),
+            detail: format!("{name} was working on {site} in your own Chrome on this Mac. Finish the step there (its tab is open), then tap this and it carries on in that same Chrome."),
+            connection_id: None,
+        });
+    }
     if let Some(site) = site_of.filter(|_| agents_browser) {
         options.push(LoginOption {
             id: AGENTS_BROWSER_OPTION.into(),
@@ -647,7 +662,7 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
             connection_id: None,
         });
     }
-    if let Some(site) = site_of {
+    if let Some(site) = site_of.filter(|_| !in_users_chrome) {
         if claude {
             let helper = if browser_helper_installed() {
                 ""
@@ -2920,6 +2935,37 @@ mod tests {
             why: "Screen candidates".into(),
             quiet: false,
         }
+    }
+
+    /// Julian, 2026-11-16: working on X in his own Chrome, the agent hit
+    /// X's chat passcode and the card offered the agents' browser, where X
+    /// isn't signed in. Working there, the card says to finish in his Chrome.
+    #[test]
+    fn a_card_for_a_site_open_in_the_users_chrome_stays_in_that_chrome() {
+        with_root(|| {
+            let a = agent("Visa", Engine::Claude);
+            let mut p = super::super::browser_gate::Page::default();
+            p.tabs.insert(1, "https://x.com/messages".into());
+            super::super::browser_gate::note_user_chrome_page(&a.id, |page| *page = p);
+            let card = build(&a, &ask("x", &[])).unwrap();
+            assert!(card
+                .options
+                .iter()
+                .all(|o| o.method != Method::AgentBrowser));
+            let mine = card
+                .options
+                .iter()
+                .find(|o| o.method == Method::Browser)
+                .unwrap();
+            assert_eq!(mine.label, "Done in my Chrome");
+            assert_eq!(
+                card.options
+                    .iter()
+                    .filter(|o| o.method == Method::Browser)
+                    .count(),
+                1
+            );
+        });
     }
 
     #[test]
