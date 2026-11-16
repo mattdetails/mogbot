@@ -37,6 +37,10 @@ publishing a release or package, changing settings that affect what others see (
 repository visibility), and anything that would keep running on your computer by itself (like a launch
 agent or a change to your shell profile).
 
+At Bold, a picture, video or PDF the agent made in its own folder goes onto a page (a post's
+image) without a card: you already OK'd the post's words. Uploading any of your own files still
+asks.
+
 ## Text from outside
 
 When an agent is working on something that came from outside (a web page, an email, a message from

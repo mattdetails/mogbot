@@ -881,6 +881,55 @@ fn uploads_secret(input: &Value) -> bool {
     })
 }
 
+/// Pictures, videos and PDFs an upload may carry at "Go hard" when they are
+/// the agent's own.
+const OWN_MEDIA: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "heic", "mp4", "mov", "m4v", "webm", "pdf",
+];
+
+/// Every file an upload names is a picture, video or PDF inside the agent's
+/// own home (where it makes a post's image), judged where a link lands. "Go
+/// hard" uploads those without a card: one OK on the post's words covers
+/// the post, and asking again for its picture was a card per post (Social
+/// Posts, 12 posts, 2026-11-16). Anything else (the user's own files, a
+/// file that isn't media, no path at all) still asks.
+fn own_media(agent_id: &str, input: &Value) -> bool {
+    use std::path::{Component, Path, PathBuf};
+    let Ok(home) = super::store::agent_home(agent_id) else {
+        return false;
+    };
+    let real = |p: &Path| -> Option<PathBuf> {
+        if let Ok(c) = p.canonicalize() {
+            return Some(c);
+        }
+        // Not on disk (yet): only a plain absolute path, never `..`.
+        (p.is_absolute() && !p.components().any(|c| c == Component::ParentDir))
+            .then(|| p.to_path_buf())
+    };
+    let Some(home) = real(&home) else {
+        return false;
+    };
+    let mut paths = Vec::new();
+    for key in ["paths", "path", "filePath", "file"] {
+        match input.get(key) {
+            Some(Value::String(s)) => paths.push(s.clone()),
+            Some(Value::Array(a)) => {
+                paths.extend(a.iter().filter_map(Value::as_str).map(str::to_string))
+            }
+            _ => {}
+        }
+    }
+    !paths.is_empty()
+        && paths.iter().all(|p| {
+            let path = Path::new(p);
+            let media = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| OWN_MEDIA.contains(&e.to_ascii_lowercase().as_str()));
+            media && real(path).is_some_and(|r| r.starts_with(&home) && r != home)
+        })
+}
+
 /// A text box or option, not a button: `textbox "Message"`, `combobox …`.
 fn is_field(label: &str) -> bool {
     let lower = label.trim_start().to_ascii_lowercase();
@@ -961,7 +1010,10 @@ fn decide(level: Level, agent: &Agent, name: &str, input: &Value, page: &Page) -
     if level.goes_hard() {
         match name {
             "file_upload" | "upload_image" => {
-                return free(level == Level::FullSend && !uploads_secret(input))
+                return free(
+                    !uploads_secret(input)
+                        && (level == Level::FullSend || own_media(&agent.id, input)),
+                )
             }
             "javascript_tool" => {
                 let url = url_for(page, input);

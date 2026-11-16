@@ -1236,3 +1236,47 @@ fn the_app_knows_a_site_is_open_in_the_users_chrome() {
     assert!(!in_users_chrome_on(id, "linkedin.com"));
     assert!(!in_users_chrome_on("someone-else", "x.com"));
 }
+
+#[test]
+fn bold_uploads_the_agents_own_pictures_and_asks_for_anything_else() {
+    let home = crate::agents::store::agent_home("ops").unwrap();
+    let own = |f: &str| home.join(f).to_string_lossy().into_owned();
+    let up = |level, paths: Vec<String>| {
+        at(
+            level,
+            "file_upload",
+            json!({"paths": paths, "ref": "ref_2"}),
+        )
+    };
+    // Its own post picture and video: no card at Bold.
+    assert_eq!(
+        up(Level::GoHard, vec![own("scheduled/w47/1-mon16-nate.png")]),
+        Gate::Allow
+    );
+    assert_eq!(up(Level::GoHard, vec![own("clip.MP4")]), Gate::Allow);
+    // The user's own files, a non-picture, a way out of its folder, a key: ask.
+    assert_eq!(
+        up(
+            Level::GoHard,
+            vec!["/Users/fictional/Desktop/post1.png".into()]
+        ),
+        Gate::Ask
+    );
+    assert_eq!(up(Level::GoHard, vec![own("notes/memory.md")]), Gate::Ask);
+    assert_eq!(up(Level::GoHard, vec![own("../other/x.png")]), Gate::Ask);
+    assert_eq!(up(Level::GoHard, vec![own(".ssh/id.png")]), Gate::Ask);
+    // One stranger in the list asks for the lot; no path at all asks.
+    assert_eq!(
+        up(
+            Level::GoHard,
+            vec![own("a.png"), "/Users/fictional/b.png".into()]
+        ),
+        Gate::Ask
+    );
+    assert_eq!(
+        at(Level::GoHard, "upload_image", json!({"imageId": "s1"})),
+        Gate::Ask
+    );
+    // Below Bold, uploads always ask.
+    assert_eq!(up(Level::Judgement, vec![own("a.png")]), Gate::Ask);
+}

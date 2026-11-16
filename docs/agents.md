@@ -1718,7 +1718,10 @@ below; it asks only for:
   repeats the server's name (`slack_post_message`). So `post_message`,
   `createPost`, `send_email` and `publishPost` ask, while `capturePost`,
   `upsertSocialPosts` and `listPosts` run ("post" there names posts). Code
-  hosts' and databases' writes ask too; uploads in the browser
+  hosts' and databases' writes ask too; uploads in the browser, except a
+  picture, video or PDF inside the agent's own home (`browser_gate::own_media`:
+  the post's words already had their OK, and a card per picture was twelve
+  extra cards for twelve posts)
 - a network request with a secret in its address, query or headers
   (`agents/egress.rs`, below): `curl` (and its `-u` / `-b` /
   `--oauth2-bearer`), `wget`, `http`, `gh api`, a `git` remote with a
