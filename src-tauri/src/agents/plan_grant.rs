@@ -40,10 +40,15 @@ use super::store::{self, MessageKind};
 
 pub const TOOL: &str = "ask_plan";
 
-pub const DESCRIPTION: &str = "Before outward actions you already know you'll do (sending, posting, issues and comments, deploys including production, pushes, pull requests), list them all here once. The user answers one card \"Do these under your name?\" (or already said yes in chat to the plan you just listed). Once allowed, each listed action runs without another card for 60 minutes, for you and any agent you hand it to with message_agent. Never for paying, credentials, sudo or deleting.";
+pub const DESCRIPTION: &str = "Before outward actions you already know you'll do (sending, posting, issues and comments, deploys including production, pushes, pull requests), list them all here once. The user answers one card \"Do these under your name?\" (or already said yes in chat to the plan you just listed). Once allowed, each listed action runs without another card for an hour from the OK or its last use (8 hours at most), for you and any agent you hand it to with message_agent. Never for paying, credentials, sudo or deleting.";
 
-/// How long a plan the user allowed stays good.
+/// How long a plan the user allowed stays good, from the OK and again from
+/// each action it covers: a batch of twelve posts outlasted one fixed hour
+/// (Social Posts, 2026-11-16) and every action after it asked again.
 pub const LIFETIME_MS: i64 = 60 * 60 * 1000;
+
+/// However busy it is, a plan ends this long after the user's OK.
+pub const LONGEST_MS: i64 = 8 * 60 * 60 * 1000;
 
 /// How long the user's typed yes stays an answer to the plan before it.
 const CHAT_YES_MS: i64 = 15 * 60 * 1000;
@@ -163,6 +168,8 @@ struct Grant {
     /// Calls already made under it: the same call again (a retry) is covered.
     made: Vec<(String, Value)>,
     expires_at: i64,
+    /// When the user allowed it: it never outlives [`LONGEST_MS`] from here.
+    granted_at: i64,
 }
 
 static GRANTS: LazyLock<Mutex<Vec<Grant>>> = LazyLock::new(|| Mutex::new(Vec::new()));
@@ -189,6 +196,7 @@ pub fn grant(agent_id: &str, plan: &Plan, now: i64) {
                 .collect(),
             made: Vec::new(),
             expires_at: now + LIFETIME_MS,
+            granted_at: now,
         });
     });
 }
@@ -474,7 +482,10 @@ pub async fn call(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value
             runner::new_message(
                 &caller.id,
                 MessageKind::Note,
-                format!("Your yes covers, for an hour:\n{}", numbered(&plan)),
+                format!(
+                    "Your yes covers, for an hour after the last of them:\n{}",
+                    numbered(&plan)
+                ),
             ),
         );
         return text(format!("The user already said yes to this in chat. {GO}"));
@@ -656,10 +667,20 @@ fn find(
     None
 }
 
-fn commit(grants: &mut [Grant], picked: &[(usize, usize)], made: (String, Value)) -> Vec<String> {
+fn commit(
+    grants: &mut [Grant],
+    picked: &[(usize, usize)],
+    made: (String, Value),
+    now: i64,
+) -> Vec<String> {
     let mut lines = Vec::new();
     for &(gi, si) in picked {
         let g = &mut grants[gi];
+        // In use: good for another hour, never past the longest.
+        g.expires_at = g
+            .expires_at
+            .max(now + LIFETIME_MS)
+            .min(g.granted_at + LONGEST_MS);
         let slot = &mut g.slots[si];
         lines.push(slot.action.summary.clone());
         slot.used = true;
@@ -751,7 +772,7 @@ fn cover_in(grants: &mut [Grant], tool: &str, input: &Value, turn: &Turn) -> Opt
                 super::autoallow::auto(turn.level, false, tool, input, turn.ctx).is_some()
             }
         });
-        return allowed.then(|| commit(grants, &picked, made));
+        return allowed.then(|| commit(grants, &picked, made, turn.now));
     }
     let call = if tool.starts_with(super::browser_gate::SERVER)
         || super::browser_gate::is_own_browser(tool)
@@ -778,7 +799,7 @@ fn cover_in(grants: &mut [Grant], tool: &str, input: &Value, turn: &Turn) -> Opt
         turn.now,
         texts.as_ref(),
     )?;
-    Some(commit(grants, &[slot], made))
+    Some(commit(grants, &[slot], made, turn.now))
 }
 
 fn browser_kind(verb: &str) -> Option<Kind> {

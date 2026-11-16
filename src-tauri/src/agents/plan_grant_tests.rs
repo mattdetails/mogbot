@@ -771,3 +771,42 @@ fn a_plan_closing_issues_with_notes_covers_each_close() {
         "gh issue close 32 {r} -c \"Fixed. A question on the phone lists its real options.\" && \\\ngh issue close 33 {r} -c \"Fixed. Slow thumbnail captures no longer count as errors.\""
     )), "chained");
 }
+
+#[test]
+fn a_plan_in_use_lasts_an_hour_past_its_last_action_and_never_past_eight() {
+    let m = mac();
+    let id = "plan-test-in-use";
+    grant(id, &owners_plan(), NOW);
+    let issue = bash("gh issue create --title x --body y");
+    let min = 60_000;
+    // Used at 50 minutes: still good at 100, past the first hour.
+    assert!(covers_at(
+        id,
+        Level::GoHard,
+        &m,
+        "Bash",
+        &issue,
+        NOW + 50 * min
+    ));
+    assert!(holds(id, NOW + 100 * min));
+    // Kept busy (a retry is covered), it still ends 8 hours after the OK.
+    let mut t = NOW + 100 * min;
+    while t < NOW + LONGEST_MS {
+        assert!(covers_at(id, Level::GoHard, &m, "Bash", &issue, t));
+        t += 40 * min;
+    }
+    assert!(!holds(id, NOW + LONGEST_MS + 1));
+    // Left alone, it ends an hour after its last action.
+    let idle = "plan-test-idle";
+    grant(idle, &owners_plan(), NOW);
+    assert!(covers_at(
+        idle,
+        Level::GoHard,
+        &m,
+        "Bash",
+        &issue,
+        NOW + 10 * min
+    ));
+    assert!(holds(idle, NOW + 69 * min));
+    assert!(!holds(idle, NOW + 71 * min));
+}
