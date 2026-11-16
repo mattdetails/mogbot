@@ -9,11 +9,10 @@ computer (your Mac or PC), so it needs to be awake with the app open.
 
 ## Get the app
 
-The iPhone app is in a free public beta on **TestFlight**. Install TestFlight, then open the invite
-link from [mogbot.app/start](https://mogbot.app/start) or from the desktop app (it shows a code you can
-scan with your iPhone's camera).
+The iPhone app is free on the [App Store](https://apps.apple.com/app/mogbot/id6833062484). The desktop
+app links it too, and shows a code you can scan with your iPhone's camera.
 
-It isn't on the App Store yet, and there's no Android app to download yet.
+There's no Android app to download yet.
 
 ## How your phone reaches your computer
 
