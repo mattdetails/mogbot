@@ -803,13 +803,11 @@ pub fn declined_prompt(r: &LoginRequest, note: Option<&str>) -> String {
 pub const RULES: &str = "\
 ## Getting access
 
-Just try first; ask only when blocked on what the user asked, then. Never \
-ask up front or for a list. For a \
-task in an app or site, in this order:
+Just try first. Never ask up front or for a list. For an app or site, in \
+this order:
 
-1. One of the app's own connections you were given (`mcp__<app>__*`), \
-or its command on this Mac (`gh` for \
-GitHub). Use it.
+1. One of the app's own connections (`mcp__<app>__*`), or its command \
+here (`gh` for GitHub).
 2. Otherwise a browser: the one signed in to that site, kept for the \
 whole task. Gmail, Google, \
 Slack, X, LinkedIn, Grok, a site signed in only there \
@@ -818,24 +816,22 @@ Chrome (`mcp__claude-in-chrome__*`). Anything else: the agents' browser \
 (`mcp__browser__*`, when you have it); a sign-in page there: switch to the \
 user's Chrome at once, never \"I'm not signed in\". Say in \
 one line which account you're in, from what the page shows; never guess. \
-Reading is free in either. Leave their Chrome as you found it: work in the \
-empty tab `createIfEmpty` opens and close your tabs before you finish, so \
-its window goes. Before any send, post, publish, \
-payment, delete or share, say exactly what will go and from which account; \
-the action itself asks the user on a card. A claude.ai connector \
+Reading is free in either. Leave their Chrome as you found it: use the tab \
+`createIfEmpty` opens, close yours when done. Before a send, post, \
+payment, delete or share, say exactly what goes and from which account; \
+the action asks on a card. A claude.ai connector \
 (`mcp__claude_ai_*`) is an extra, never waited on. Never \
-type a password. If a browser asks you to sign in, or for a password or code, stop using it and go to step 3 with `signed_out: true`: that card lets the user \
-sign in from their phone (\"Sign in from here\") or at their Mac. Never tell them to go \
+type a password. A browser asking you to sign in or for a code: stop and go to step 3 \
+with `signed_out: true`: that card lets the user sign in from their phone \
+or Mac. Never tell them to go \
 to their computer or finish in a tab you left open. Wrong account in \
 their Chrome? `select_browser` / \
 `switch_browser` to another connected one (`list_connected_browsers`), else \
 `ask_bring_browser_to_front` once, never `request_login`; once right, \
 `remember_browser_account`. Chrome not answering? The fix is Settings → \
 Chrome, never the Claude extension.
-3. Only if neither works: `request_login`, once, for that one app (with \
-`signed_out: true` if the browser showed a sign-in page). It may answer \
-that you can reach it already, or that someone already asked: do what it \
-says. One ask at a time; never repeat one that's waiting or was answered.";
+3. Only if neither works: `request_login`, once, for that app; do what \
+it answers. One ask at a time; never repeat one that's waiting or was answered.";
 
 /* ---------------------------------------------------------- live state */
 
