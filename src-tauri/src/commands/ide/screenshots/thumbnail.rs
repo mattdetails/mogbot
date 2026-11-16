@@ -462,7 +462,7 @@ pub async fn capture_project_thumbnail(
             // On timeout the killed browser can leave it half-written — the
             // stale sweep above mops those up on later captures.
             let _ = std::fs::remove_dir_all(&profile_dir);
-            let out = result?;
+            let out = browser_timeout_expected(result)?;
 
             // Success is "the screenshot file exists", not "the exit code was
             // 0": headless Chromium on Windows can write the PNG and still
@@ -715,9 +715,43 @@ pub async fn upload_project_thumbnail(
     Ok(format!("data:image/png;base64,{base64_data}"))
 }
 
+/// A headless browser that didn't finish in time is a slow page or a busy
+/// Mac, not a bug: said plainly and kept out of bug reports (issue #33).
+/// Every other result passes through unchanged.
+fn browser_timeout_expected<T>(result: Result<T, CommandError>) -> Result<T, CommandError> {
+    match result {
+        Err(CommandError::Timeout { secs, .. }) => Err(CommandError::expected(format!(
+            "The page didn't finish loading for its thumbnail within {secs}s. It's tried again on the next capture."
+        ))),
+        other => other,
+    }
+}
+
 #[cfg(test)]
 mod browser_stderr_tests {
     use super::*;
+
+    #[test]
+    fn a_browser_timeout_is_expected_and_other_errors_pass_through() {
+        let timed_out: Result<(), CommandError> = Err(CommandError::Timeout {
+            cmd: "headless browser thumbnail".into(),
+            secs: 60,
+        });
+        let e = browser_timeout_expected(timed_out).unwrap_err();
+        assert!(matches!(e, CommandError::Expected { .. }), "{e:?}");
+        assert!(e.to_string().contains("60s"));
+        let other: Result<(), CommandError> = Err(CommandError::Other {
+            message: "boom".into(),
+        });
+        assert!(matches!(
+            browser_timeout_expected(other).unwrap_err(),
+            CommandError::Other { .. }
+        ));
+        assert_eq!(
+            browser_timeout_expected(Ok::<u8, CommandError>(3)).unwrap(),
+            3
+        );
+    }
 
     #[test]
     fn crashpad_only_stderr_is_treated_as_empty() {

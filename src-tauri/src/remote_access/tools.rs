@@ -956,7 +956,8 @@ pub(crate) fn pick_tab(
         .iter()
         .enumerate()
         .filter(|(_, s)| is_agent_tab(s) && s.alive)
-        .max_by_key(|(_, s)| s.last_output_ms)
+        // The tab used last: typed into, not merely repainted (#29).
+        .max_by_key(|(_, s)| s.last_used_ms())
         .map(|(i, s)| (i + 1, s.clone()))
         .ok_or_else(|| "No agent is running in this project. Use start_agent to begin one.".into())
 }
@@ -993,7 +994,7 @@ fn tab_line(n: usize, s: &SessionSummary) -> String {
     let state = if !s.alive {
         "ended".to_string()
     } else if !is_agent_tab(s) {
-        format!("plain terminal, last output {}", ago(s.last_output_ms))
+        format!("plain terminal, last used {}", ago(s.last_used_ms()))
     } else {
         match tab_state(s).map(|(state, _)| state) {
             Some(AgentState::Working { activity }) => match activity {
@@ -1005,8 +1006,8 @@ fn tab_line(n: usize, s: &SessionSummary) -> String {
             }
             Some(AgentState::Finished) => {
                 format!(
-                    "finished, ready for a message (last output {})",
-                    ago(s.last_output_ms)
+                    "finished, ready for a message (last used {})",
+                    ago(s.last_used_ms())
                 )
             }
             Some(AgentState::Exited) | None => "ended".into(),
@@ -3395,6 +3396,7 @@ mod tests {
             alive,
             opened_at_ms: 0,
             last_output_ms: last,
+            last_input_ms: last,
         }
     }
 

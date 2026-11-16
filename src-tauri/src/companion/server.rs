@@ -602,10 +602,16 @@ pub(crate) const REQUEST_DEADLINE: Duration = Duration::from_secs(20);
 /// a long dictation: its own deadline, still under the phone's 30 s.
 pub(crate) const DICTATION_DEADLINE: Duration = Duration::from_secs(27);
 
+/// `preview.screenshot` may wait for the dev server to settle and the
+/// preview to open (issue #30): its own deadline, still under the phone's
+/// 30 s, so a slow capture isn't cut off at 20 s and reported as busy.
+pub(crate) const SCREENSHOT_DEADLINE: Duration = Duration::from_secs(27);
+
 /// How long `method` is worked on before it's answered as busy.
 pub(crate) fn deadline_for(method: &str) -> Duration {
     match method {
         "dictation.transcribe" => DICTATION_DEADLINE,
+        "preview.screenshot" => SCREENSHOT_DEADLINE,
         _ => REQUEST_DEADLINE,
     }
 }
