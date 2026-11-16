@@ -1595,7 +1595,7 @@ async fn read_computer_name() {
     if COMPUTER_NAME.get().is_some() {
         return;
     }
-    let mut cmd = tokio::process::Command::new("/usr/sbin/scutil");
+    let mut cmd = crate::utils::create_tokio_command("/usr/sbin/scutil");
     cmd.args(["--get", "ComputerName"]);
     let name = crate::external_command::run_with_timeout(cmd, "scutil", 5)
         .await
@@ -1631,7 +1631,7 @@ async fn claude_info() -> ClaudeInfo {
             version: None,
         },
         Some(bin) => {
-            let mut cmd = tokio::process::Command::new(bin);
+            let mut cmd = crate::utils::create_tokio_command(bin);
             cmd.arg("--version");
             let version = crate::external_command::run_with_timeout(cmd, "claude --version", 10)
                 .await

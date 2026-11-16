@@ -1702,7 +1702,7 @@ pub fn workspace_disconnect_service(id: String, service: String) -> Result<(), C
         ConnectService::Opencode => &["auth", "logout"],
         ConnectService::Claude => &["auth", "logout"],
     };
-    let mut command = std::process::Command::new(&binary);
+    let mut command = crate::utils::create_command(&binary);
     command.args(logout_args);
     command.env("PATH", get_extended_path());
     let mut env = get_env_vars_for_account(&id);

@@ -302,7 +302,7 @@ pub(super) async fn version_is_at_least(binary: &Path, since: (u64, u64)) -> boo
             return version_at_least(text, since);
         }
     }
-    let mut cmd = tokio::process::Command::new(binary);
+    let mut cmd = crate::utils::create_tokio_command(binary);
     cmd.arg("--version")
         .env("PATH", crate::utils::get_extended_path());
     let Ok(out) = crate::external_command::run_with_timeout(cmd, "codex --version", 10).await
@@ -546,7 +546,7 @@ pub async fn capabilities(
         .collect();
     let mut tools: Vec<&str> = ours.iter().map(String::as_str).collect();
     tools.extend(["Bash", "Edit", "WebSearch"]);
-    let mut cmd = tokio::process::Command::new(binary);
+    let mut cmd = crate::utils::create_tokio_command(binary);
     cmd.args(["mcp", "list", "--json"])
         .env("PATH", crate::utils::get_extended_path());
     let servers = crate::external_command::run_with_timeout(cmd, "codex mcp list", 15)

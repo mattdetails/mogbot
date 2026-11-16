@@ -344,7 +344,7 @@ mod tests {
 pub fn screen_locked() -> bool {
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("/usr/sbin/ioreg")
+        crate::utils::create_command("/usr/sbin/ioreg")
             .args(["-n", "Root", "-d1", "-a"])
             .output()
             .ok()

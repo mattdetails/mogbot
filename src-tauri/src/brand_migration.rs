@@ -133,7 +133,7 @@ fn previous_app_running(old: &Names) -> bool {
     // SAFETY: getuid has no preconditions and cannot fail.
     let uid = unsafe { libc::getuid() }.to_string();
     names.iter().any(|name| {
-        std::process::Command::new("/usr/bin/pgrep")
+        crate::utils::create_command("/usr/bin/pgrep")
             .args(["-x", "-U", &uid, name])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())

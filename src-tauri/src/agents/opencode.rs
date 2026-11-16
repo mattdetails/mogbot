@@ -234,7 +234,7 @@ pub async fn refresh(binary: &Path) -> Vec<Model> {
         }
     }
     let run = |args: &'static [&'static str]| {
-        let mut cmd = tokio::process::Command::new(binary);
+        let mut cmd = crate::utils::create_tokio_command(binary);
         cmd.args(args)
             .env("PATH", crate::utils::get_extended_path())
             .env("OPENCODE_DISABLE_PROJECT_CONFIG", "1")

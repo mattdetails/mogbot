@@ -839,7 +839,7 @@ async fn clone_dependencies(anchor: &Path, dest: &Path) -> bool {
         }
         // Copy-on-write only: APFS's clonefile on a Mac (`cp -c`), a reflink
         // elsewhere (btrfs, XFS; on ext4 it fails and nothing is copied).
-        let mut cmd = tokio::process::Command::new("/bin/cp");
+        let mut cmd = crate::utils::create_tokio_command("/bin/cp");
         if cfg!(target_os = "macos") {
             cmd.arg("-c");
         } else {

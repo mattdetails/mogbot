@@ -512,7 +512,7 @@ pub(in crate::agents) async fn stop_orphan(pid: u32, session: &str) {
     if cfg!(windows) {
         return;
     }
-    let mut ps = tokio::process::Command::new("ps");
+    let mut ps = crate::utils::create_tokio_command("ps");
     ps.args(["-o", "command=", "-p", &pid.to_string()]);
     let ours = crate::external_command::run_with_timeout(ps, "ps", 5)
         .await

@@ -128,7 +128,7 @@ async fn schema_lists_everything(binary: &Path) -> Option<bool> {
         std::process::id(),
         super::store::new_id()
     ));
-    let mut cmd = tokio::process::Command::new(binary);
+    let mut cmd = crate::utils::create_tokio_command(binary);
     cmd.args(["app-server", "generate-json-schema", "--out"])
         .arg(&out)
         .env("PATH", crate::utils::get_extended_path());

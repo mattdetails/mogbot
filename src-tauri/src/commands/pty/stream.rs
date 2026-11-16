@@ -190,7 +190,7 @@ pub async fn kill_port(port: u32) -> Result<(), CommandError> {
         let lsof_result = tokio::time::timeout(
             tokio::time::Duration::from_secs(3),
             tokio::task::spawn_blocking(move || {
-                std::process::Command::new("lsof")
+                crate::utils::create_command("lsof")
                     .args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-t"])
                     .output()
             }),

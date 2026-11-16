@@ -2799,7 +2799,7 @@ async fn scaffold(name: &str, template: &NewProjectTemplate) -> Result<std::path
 async fn npm_install(project: &str) -> Result<(), String> {
     let npm = crate::commands::claude::find_binary_by_name("npm")
         .ok_or("npm isn't installed on the computer.")?;
-    let mut cmd = tokio::process::Command::new(npm);
+    let mut cmd = crate::utils::create_tokio_command(npm);
     cmd.arg("install")
         .current_dir(project)
         .env("PATH", crate::utils::get_extended_path())

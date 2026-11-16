@@ -49,9 +49,6 @@ pub mod webview_scripts;
 
 use tauri::Manager;
 
-#[cfg(unix)]
-use std::process::Command;
-
 /// Stop this app's own agent CLIs, and the orphans a crashed run left.
 /// Run when the last window goes.
 fn cleanup_agent_processes() {
@@ -59,7 +56,7 @@ fn cleanup_agent_processes() {
     {
         let pid = std::process::id();
         for ag in agent::ALL_AGENTS {
-            let _ = Command::new("pkill")
+            let _ = crate::utils::create_command("pkill")
                 .args(["-P", &pid.to_string(), ag.process_name])
                 .output();
         }
@@ -85,11 +82,13 @@ fn reap_orphaned_agent_processes() {
                 "#,
                 ag.process_name
             );
-            let _ = Command::new("sh").args(["-c", &kill_script]).output();
+            let _ = crate::utils::create_command("sh")
+                .args(["-c", &kill_script])
+                .output();
         }
 
         // Also kill orphaned node processes running next-server (from dev server)
-        let _ = Command::new("sh")
+        let _ = crate::utils::create_command("sh")
             .args([
                 "-c",
                 r#"

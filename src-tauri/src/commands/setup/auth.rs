@@ -181,7 +181,7 @@ async fn download_release_artifact(url: &str, dest: &std::path::Path) -> Result<
     let dest_str = dest
         .to_str()
         .ok_or_else(|| "Invalid UTF-8 in destination path".to_string())?;
-    let download = tokio::process::Command::new("curl")
+    let download = crate::utils::create_tokio_command("curl")
         .args(["-L", "--fail", "-o", dest_str, url])
         .output()
         .await
@@ -250,7 +250,7 @@ async fn install_version_platform(
     let extract_str = extract_dir
         .to_str()
         .ok_or_else(|| "Invalid UTF-8 in extract dir path".to_string())?;
-    let extract = tokio::process::Command::new("tar")
+    let extract = crate::utils::create_tokio_command("tar")
         .args(["xzf", tar_str, "-C", extract_str])
         .output()
         .await
@@ -318,7 +318,7 @@ async fn install_version_platform(
 
     // Extract using PowerShell
     let extract_dir = temp_dir.join("extracted");
-    let extract = tokio::process::Command::new("powershell")
+    let extract = crate::utils::create_tokio_command("powershell")
         .args([
             "-NoProfile",
             "-Command",
@@ -343,7 +343,7 @@ async fn install_version_platform(
 
     // Run the NSIS installer silently — it will close the current app,
     // install the new version, and relaunch automatically
-    let install = tokio::process::Command::new(&setup_exe)
+    let install = crate::utils::create_tokio_command(&setup_exe)
         .args(["/S", "--update"])
         .spawn()
         .map_err(|e| format!("Cannot run installer: {e}"))?;

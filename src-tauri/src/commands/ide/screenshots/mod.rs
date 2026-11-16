@@ -76,7 +76,7 @@ use std::process::Command;
 
 /// Build a command for a Node-ecosystem tool (`npm` / `npx` / `node`) with the
 /// extended PATH. Resolves the binary via `find_executable` first — on Windows
-/// npm and npx ship as `.cmd` shims, which `Command::new("npm")` can never
+/// npm and npx ship as `.cmd` shims, which `crate::utils::create_command("npm")` can never
 /// launch (Rust's PATH search only appends `.exe`). Falls back to the bare
 /// name if resolution fails. Mirrors `mobile.rs::npx_command()`.
 pub(super) fn node_tool_command(bin: &str) -> Command {

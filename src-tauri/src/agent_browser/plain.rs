@@ -20,7 +20,7 @@
 //!   finds the new cookies.
 
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
@@ -67,7 +67,7 @@ impl Plain {
         if let Some(last) = args.last_mut() {
             *last = format!("--app={url}");
         }
-        let child = Command::new(&chrome)
+        let child = crate::utils::create_command(&chrome)
             .args(&args)
             .stdin(Stdio::null())
             .stdout(Stdio::null())

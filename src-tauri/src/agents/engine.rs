@@ -194,7 +194,7 @@ pub async fn signed_in_here(engine: Engine) -> bool {
             static PROBE: crate::joined::Joined<bool> = crate::joined::Joined::new();
             PROBE
                 .run(|| async move {
-                    let mut cmd = tokio::process::Command::new(binary);
+                    let mut cmd = crate::utils::create_tokio_command(binary);
                     cmd.args(["login", "status"])
                         .env("PATH", crate::utils::get_extended_path());
                     crate::external_command::run_with_timeout(cmd, "codex login status", 15)

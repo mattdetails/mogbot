@@ -420,7 +420,7 @@ pub async fn capture(app: &AppHandle) -> Result<Option<String>, CommandError> {
     if let Some(w) = window(app) {
         let _ = w.hide();
     }
-    let mut cmd = tokio::process::Command::new("/usr/sbin/screencapture");
+    let mut cmd = crate::utils::create_tokio_command("/usr/sbin/screencapture");
     // -i: interactive (drag, or Space for a window); -o: no window shadow; -x: no sound.
     cmd.args(["-i", "-o", "-x"]).arg(&path);
     let result = crate::external_command::run_with_timeout(cmd, "screencapture -i", 300).await;
