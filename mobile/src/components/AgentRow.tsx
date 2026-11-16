@@ -128,7 +128,9 @@ export const AgentRow = memo(function AgentRow({
             ))
           ) : (
             <Link.MenuAction disabled onPress={() => {}}>
-              {live ? 'Nothing to change from this phone' : `Not connected to ${comp.your} right now.`}
+              {live
+                ? 'Nothing to change from this phone'
+                : `Not connected to ${comp.your} right now.`}
             </Link.MenuAction>
           )}
         </Link.Menu>
@@ -401,19 +403,24 @@ function RowBody({
             </View>
             <View style={[styles.nameLine, under && styles.wrapLine]}>
               {pill && <StatusPill tone={pill.tone} label={pill.label} />}
-              <T
-                variant="small"
-                numberOfLines={stacked ? 3 : under ? 2 : 1}
-                maxFontSizeMultiplier={NAME_SCALE}
-                color={unread ? colors.textStrong : colors.textSecondary}
-                // Stacked, or what it's asking you: the words go under the pill,
-                // across the row, not in what's left beside it.
-                style={under ? styles.underPill : { flex: 1 }}
-              >
-                {driving && <T color={colors.accentSuccess}>Live · </T>}
-                {/* Working: the steadied step, so step → "Thinking" → step doesn't flicker. */}
-                {pill ? pill.rest : `${head}${tail}`}
-              </T>
+              {/* Nothing beside or under the pill: no empty line either (on
+                  iOS it kept a line's height and lifted the name and pill
+                  above the key's middle). */}
+              {(!pill || !!pill.rest || driving) && (
+                <T
+                  variant="small"
+                  numberOfLines={stacked ? 3 : under ? 2 : 1}
+                  maxFontSizeMultiplier={NAME_SCALE}
+                  color={unread ? colors.textStrong : colors.textSecondary}
+                  // Stacked, or what it's asking you: the words go under the pill,
+                  // across the row, not in what's left beside it.
+                  style={under ? styles.underPill : { flex: 1 }}
+                >
+                  {driving && <T color={colors.accentSuccess}>Live · </T>}
+                  {/* Working: the steadied step, so step → "Thinking" → step doesn't flicker. */}
+                  {pill ? pill.rest : `${head}${tail}`}
+                </T>
+              )}
               {/*
             Waiting on you is said once, in the row's words ("Needs your OK",
             or that it waits on your Mac) under the Needs you header: no dot

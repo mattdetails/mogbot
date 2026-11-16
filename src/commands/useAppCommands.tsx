@@ -8,7 +8,7 @@ import { useThemeCommands } from './useThemeCommands';
 import { useSettingsPageCommands } from './useSettingsPageCommands';
 import { useAccountCommands } from './useAccountCommands';
 import type { PaletteCtx } from './types';
-import { useOpenModal } from '../contexts/ModalContext';
+import { useModal, useOpenModal } from '../contexts/ModalContext';
 import { getDashboardProjects, type DashboardProject, type Project } from '../lib/project';
 import { sessionRegistry } from '../lib/sessionRegistry';
 import { UPDATES_ENABLED } from '../lib/updater';
@@ -184,7 +184,10 @@ export function useAppCommands({
   );
 
   // Full ~/ShipStudio project listing, sorted by last_opened (desc) by the
-  // backend. Refetched when pinnedPaths changes (proxy for pin/create/import).
+  // backend. Refetched when pinnedPaths changes (proxy for pin/create/import)
+  // and each time the palette opens: a first fetch that failed or ran before
+  // the projects were there left every unpinned project unfindable (#28).
+  const paletteOpen = useModal('commandPalette').isOpen;
   const [allProjects, setAllProjects] = useState<DashboardProject[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -198,7 +201,7 @@ export function useAppCommands({
     return () => {
       cancelled = true;
     };
-  }, [pinnedPaths.length]);
+  }, [pinnedPaths.length, paletteOpen]);
 
   // ── Project switch commands — visible in both Home and Project contexts.
   // Order:

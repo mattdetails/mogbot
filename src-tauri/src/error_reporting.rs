@@ -1145,6 +1145,23 @@ pub fn get_automatic_report_status() -> Result<AutomaticReportStatus, crate::err
 
 #[cfg(test)]
 mod tests {
+    /// CTO review 2026-11-14: a CommandError or `tracing::error!` carrying a
+    /// credential went out as written, and reports become public issues.
+    #[test]
+    fn reports_leave_without_the_credentials_in_them() {
+        let leak = "push failed: https://x-access-token:ghp_abcdefghijklmnop1234@github.com/o/r.git Bearer abc123def";
+        let body = super::build_body(leak, Some(leak), "rust", Some(leak));
+        for field in [&body["message"], &body["stack"], &body["fingerprint"]] {
+            let text = field.as_str().unwrap();
+            assert!(!text.contains("ghp_"), "{text}");
+            assert!(!text.contains("abc123def"), "{text}");
+            assert!(text.contains("github.com/o/r.git"), "{text}");
+        }
+        let user = super::user_report_body("Keys", "my key sk-ant-api03-AAAAAAAAAAAAAAAA leaked");
+        let details = user["context"]["details"].as_str().unwrap();
+        assert!(!details.contains("sk-ant-"), "{details}");
+    }
+
     #[test]
     fn a_user_report_is_scrubbed_capped_and_marked_as_theirs() {
         let home = dirs::home_dir().unwrap().to_string_lossy().to_string();

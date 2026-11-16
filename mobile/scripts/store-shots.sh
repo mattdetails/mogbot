@@ -91,6 +91,9 @@ shoot_device() {
   done
   xcrun simctl status_bar "$udid" clear
   xcrun simctl ui "$udid" appearance light
+  # A simulator left running crashes PosterBoard (its lock screen) over and
+  # over, each one a "quit unexpectedly" pop-up on the Mac.
+  xcrun simctl shutdown "$udid" 2>/dev/null || true
 }
 
 # Once first, so its certificate exists before the simulators trust it.

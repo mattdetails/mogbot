@@ -144,3 +144,13 @@ Test project skeletons live in `~/ShipStudio/test-expo-app`, `test-react-native-
 3. Backend-owned serve-sim lifecycle (registry + window-close cleanup) + `RESERVED_PORTS`-based ports.
 4. Verify sim-shutdown-on-close fires in the live app.
 5. Then: Android via scrcpy.
+
+## Android mirror bridge: who may connect (2026-11-14)
+
+The Android bridge (`commands/mobile.rs`, loopback ports from 3200) streams the
+device's screen out and takes taps, keys and scrcpy control in. A WebSocket
+skips CORS, so any web page could open it. The handshake now needs the
+bridge's own random token as `?t=` (handed to the webview only, in
+`MirrorInfo.ws_url`) and an Origin that is the app's (`tauri://localhost`,
+`http(s)://tauri.localhost`) or loopback (dev server, harness); anything else
+gets 403 before a device is touched (`bridge_handshake_ok`).

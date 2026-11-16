@@ -293,6 +293,7 @@ pub async fn agents_send(
     client_id: Option<String>,
     revises: Option<String>,
     conversation: Option<String>,
+    written_at: Option<i64>,
 ) -> Result<store::AgentMessage, CommandError> {
     send_in(
         app,
@@ -304,6 +305,7 @@ pub async fn agents_send(
         revises,
         true,
         conversation,
+        written_at,
     )
     .await
 }
@@ -333,6 +335,7 @@ pub(crate) async fn send_as(
         revises,
         typed,
         None,
+        None,
     )
     .await
 }
@@ -351,6 +354,7 @@ pub(crate) async fn send_in(
     revises: Option<String>,
     typed: bool,
     conversation: Option<String>,
+    written_at: Option<i64>,
 ) -> Result<store::AgentMessage, CommandError> {
     let text = text.trim().to_string();
     let said = text.clone();
@@ -469,8 +473,15 @@ pub(crate) async fn send_in(
         .await
         .unwrap_or(false)
     };
-    let typed_yes =
-        typed && says_yes && message.attachments.is_empty() && message.revises.is_none();
+    // A yes answers what was open when it was written, and only while it's
+    // fresh: a message held, queued or restored from a phone's outbox later
+    // must never allow a card that arrived after it (CTO review 2026-11-14).
+    let written = written_at.unwrap_or_else(store::now_ms);
+    let typed_yes = typed
+        && says_yes
+        && message.attachments.is_empty()
+        && message.revises.is_none()
+        && agents::typed_answer::fresh(written, store::now_ms());
     let message = runner::record(&app, message)?;
     // "Approve it", typed by the user into a chat with one open card: that
     // card is allowed as their answer (`typed_answer`). Only this, the user's
@@ -478,7 +489,7 @@ pub(crate) async fn send_in(
     if typed_yes {
         // Only a card in this conversation: a yes typed in one is never an
         // answer to a request made in another.
-        let open = cards_in(&agent_id, &conversation);
+        let open = cards_in(&agent_id, &conversation, written);
         // No card to answer: the yes may be to a plan the agent's last reply
         // listed, which `ask_plan` then grants without a card (`plan_grant`).
         if open.is_empty() {
@@ -551,11 +562,14 @@ pub(crate) fn unseen_block_answer(log: &[store::AgentMessage], text: &str) -> bo
 }
 
 /// The cards waiting on the user in one of the agent's conversations.
-fn cards_in(agent_id: &str, conversation: &str) -> Vec<store::Approval> {
+fn cards_in(agent_id: &str, conversation: &str, written: i64) -> Vec<store::Approval> {
     store::pending_card_messages(agent_id)
         .unwrap_or_default()
         .into_iter()
         .filter(|m| conversations::of(m) == conversation)
+        // Asked after the yes was written: not what it answers. A few
+        // seconds' grace for a phone clock behind the Mac's.
+        .filter(|m| m.ts <= written + agents::typed_answer::CLOCK_GRACE_MS)
         .filter_map(|m| m.approval)
         .collect()
 }

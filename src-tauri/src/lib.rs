@@ -39,6 +39,7 @@ pub mod remote_access;
 // (docs/design/own-browser-layer.md).
 pub mod state;
 pub mod static_server;
+mod stray_browsers;
 pub mod types;
 pub mod user_chrome;
 pub mod utils;
@@ -345,6 +346,7 @@ pub fn run() {
             // The phone server and the agent bridge, asked every 10 s from a
             // thread of their own: a hang is logged loudly, never silent.
             watchdog::spawn();
+            stray_browsers::spawn();
             // Agents' check-ins and routines: one tick a minute, only while open.
             agents::schedule::spawn(_app.handle().clone());
             // "When…" routines: their checks, on their own minute tick.
@@ -374,6 +376,20 @@ pub fn run() {
                 if let Err(e) = remote_access::power::set_keep_awake_asked(true, false) {
                     tracing::error!("[Power] Could not keep the Mac awake at launch: {}", e);
                 }
+            }
+
+            // "Keep the screen on while agents work": held only while a turn
+            // runs, checked every 5 s (a Chrome Allow window waits ~60 s).
+            if remote_access::power::screen_on_available() {
+                remote_access::power::set_screen_on_asked(
+                    commands::setup::read_app_state().keep_screen_on == Some(true),
+                );
+                tauri::async_runtime::spawn(async {
+                    loop {
+                        remote_access::power::screen_tick(agents::runner::busy_count());
+                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    }
+                });
             }
 
             // Dev-server approvals: owner-only, whatever an older build left.

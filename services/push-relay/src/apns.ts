@@ -1,6 +1,13 @@
 /** Apple Push Notification service, with token (JWT) auth from the `.p8` key. */
 
-import { collapseKey, pemToDer, signJwt, TITLES, type Outcome } from './alert';
+import {
+  collapseKey,
+  FETCH_TIMEOUT_MS,
+  pemToDer,
+  signJwt,
+  TITLES,
+  type Outcome,
+} from './alert';
 import type { Env } from './env';
 import type { SendBody } from './schema';
 import type { DeviceRow } from './store';
@@ -71,6 +78,7 @@ export async function sendApns(
     device.environment === 'development' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
   const response = await fetch(`https://${host}/3/device/${device.token}`, {
     method: 'POST',
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     headers: {
       authorization: `bearer ${await providerToken(env, now)}`,
       'apns-topic': env.APNS_TOPIC,

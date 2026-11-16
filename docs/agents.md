@@ -1534,8 +1534,8 @@ left end and "Just does it" at the right:
 | Stop | Stored id | Its line under the slider |
 | --- | --- | --- |
 | **Careful** | `often` | Reads and looks around; asks before bigger changes. |
-| **Steady** (the default) | `judgement` | Reads and edits; asks before running changes or anything leaving this Mac. |
-| **Bold** | `go_hard` | Does local work on this Mac; asks before anything leaves it. |
+| **Steady** (the default before 1.0.14; still where an older install that never moved the slider runs) | `judgement` | Reads and edits; asks before running changes or anything leaving this Mac. |
+| **Bold** (a new install starts here, `independence::NEW_INSTALL`) | `go_hard` | Does local work on this Mac; asks before anything leaves it. |
 | **Unleashed** | `full_send` | Sends, posts and pushes too; only stops for money, logins, deleting for good or going live. |
 
 Under it, at every stop: "Always asks before spending money, using your
@@ -2256,7 +2256,10 @@ instead of only saying OK. Rust decides, not the prompt:
   a note the app queues (`runner::From::App`: late Allow, declined login) and a
   message the app writes from a button ("Say hi") carry no typed words, so an
   admin answering for another agent can't either. `quote` must be whole words
-  of what they typed.
+  of what they typed, must say it's for good ("always", "from now on", "every
+  time", "without asking"…; `FOR_GOOD`), and for scope "team" must name the
+  team ("the team", "everyone", "all agents"; `TEAM_WORDS`): "yes do those"
+  is a yes to the card, not a rule.
 - **Only a card they saw.** The rule is the `always` scope a card in this
   chat offered, found by tool name, command, host or label. Nothing broader.
 - **Never the floor** (`go_hard::floor`): Bold's ask list for commands and
@@ -5382,8 +5385,9 @@ MCP servers) stays per account, but its servers are brought over (below).
 Code 2.1.319, read in its own code and observed on this Mac 2026-11-08):
 
 - **MCP servers.** Before each turn on an added account, This Mac's
-  user-scope `mcpServers` are merged into the account's `.claude.json`
-  (`sync_servers`): only that key, atomic 0600 write, the account's own
+  user-scope `mcpServers`, and each project's (`projects["<path>"].mcpServers`,
+  such as the preview server registered for one project), are merged into
+  the account's `.claude.json` (`sync_servers`): only those keys, atomic 0600 write, the account's own
   servers kept, a server This Mac dropped removed only if the sync put it
   there (`.synced-mcp-servers.json` beside it). Nothing else of the file is
   touched; no login is copied. The servers' OAuth tokens live in Claude
@@ -5417,10 +5421,14 @@ Code 2.1.319, read in its own code and observed on this Mac 2026-11-08):
   browser. Nothing for the owner to do.
 - **claude.ai connectors** belong to each claude.ai account and can't be
   copied. When a switched turn's engine lists what it has, `lost_line`
-  compares it with the last turn's and posts one Note: "Gmail isn't on in
-  claude.ai for Personal: turn it on at claude.ai/settings/connectors while
-  signed in as Personal; agents use them in your Chrome meanwhile." (or "or
-  connect them here" without the browser). The access chain already falls
+  compares it with the last turn's and posts one Note. What the account
+  lists as needing a sign-in is said as that ("On Personal, Figma needs a
+  one-time sign-in…"), never as a claude.ai connector; the rest: "Gmail isn't
+  reachable on Personal. If it's a claude.ai connector, turn it on at
+  claude.ai/settings/connectors while signed in as Personal; agents use them
+  in your Chrome meanwhile." (or "or connect them here" without the browser).
+  The capabilities list can't tell a claude.ai connector from another
+  server, so the line doesn't claim which it is. The access chain already falls
   back to a connection here or the user's Chrome for that service, since
   the connector is no longer in the agent's capabilities.
 - **Not verified:** a real `claude auth login` into an added account's
@@ -7669,8 +7677,12 @@ at 8 levels and 200,000 entries.
 **Settings → Agents → Disk space** (`AgentsDiskSettings`, ⌘K "Disk space used
 by agents…") is hidden while disk is fine and no home is 1 GB or more.
 Otherwise it shows free space when low, and each home of 1 GB or more: its
-size, how much of it is in regenerable folders, and **Free up space**, which
-runs the same prune with no age limit (refused while the agent is working). Its
+size, how much of it is safe to free, and **Free up space**, which
+runs the same prune with no age limit (refused while the agent is working),
+and also removes the app's kept conversation copies (`.session`) that an
+account folder still holds in full: nothing is lost, the next turn keeps a
+copy again. A Claude Code conversation past 100 MB starts a new one with a
+recap of the chat and one quiet line (`transcript::LONG_TRANSCRIPT`). Its
 line then says what it did ("Freed 37 GB."), and how many it left because git
 doesn't ignore them. Sizes are on-disk blocks, measured on demand and kept for 5
 minutes.

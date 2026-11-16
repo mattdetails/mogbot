@@ -266,6 +266,13 @@ fn pages_read_from_the_end_carry_their_answers() {
 
         let full = messages(&a.id, usize::MAX).unwrap();
         assert_eq!(full.len(), 2000);
+        // Filtered from the end, without holding the log: the same messages,
+        // the same order, the same answers applied.
+        let cards = messages_where(&a.id, &|m| m.approval.is_some()).unwrap();
+        let want: Vec<&AgentMessage> = full.iter().filter(|m| m.approval.is_some()).collect();
+        assert_eq!(cards.len(), want.len());
+        assert!(cards.iter().zip(&want).all(|(a, b)| a.id == b.id
+            && a.approval.as_ref().map(|c| c.status) == b.approval.as_ref().map(|c| c.status)));
         let ids = |v: &[AgentMessage]| v.iter().map(|m| m.id.clone()).collect::<Vec<_>>();
         let status = |v: &[AgentMessage], rid: &str| {
             v.iter()
@@ -1214,11 +1221,16 @@ fn models_are_the_cli_aliases_only() {
 }
 
 #[test]
-fn efforts_are_the_three_both_engines_take() {
+fn efforts_are_the_five_levels_and_codex_gets_its_highest_for_max() {
     assert_eq!(normalize_effort("").unwrap(), None);
     assert_eq!(normalize_effort(" High ").unwrap().as_deref(), Some("high"));
     assert_eq!(normalize_effort("low").unwrap().as_deref(), Some("low"));
-    for refused in ["max", "minimal", "--model", "high\"; x=1"] {
+    assert_eq!(normalize_effort("XHigh").unwrap().as_deref(), Some("xhigh"));
+    assert_eq!(normalize_effort("max").unwrap().as_deref(), Some("max"));
+    assert_eq!(codex_effort("max"), "xhigh");
+    assert_eq!(codex_effort("xhigh"), "xhigh");
+    assert_eq!(codex_effort("low"), "low");
+    for refused in ["minimal", "ultra", "--model", "high\"; x=1"] {
         assert!(normalize_effort(refused).is_err(), "{refused}");
     }
 }

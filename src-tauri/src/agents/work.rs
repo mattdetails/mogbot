@@ -167,6 +167,14 @@ pub struct LiveCall {
     pub busy: Option<bool>,
     /// "Stop this step" can find its process.
     pub can_stop: bool,
+    /// A Claude in Chrome call: one that runs long may be held by Chrome's
+    /// own per-site Allow window on this Mac, which no card of ours shows.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub chrome: bool,
+    /// A Claude in Chrome call while this Mac's screen is locked: Chrome
+    /// can't show its Allow window until someone unlocks it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
 }
 
 /// A turn's timeline. Live (on the status) while it runs, `endedAt` once over.
@@ -1653,6 +1661,42 @@ struct Running {
     /// When its process was first found gone while the call hadn't come back.
     gone_since: Option<i64>,
     busy: Option<bool>,
+    /// A Claude in Chrome call ([`claude_in_chrome`]).
+    chrome: bool,
+    /// A call that waits on someone else by design (a helper, a session):
+    /// quiet isn't stuck ([`waits_on_others`]).
+    waits: bool,
+}
+
+/// The app's tools that sit until another agent or a session answers. Their
+/// silence is the wait, not a stall (issue #31).
+fn waits_on_others(tool: &str) -> bool {
+    ["session_wait", "session_progress", "wait_for_agent"]
+        .iter()
+        .any(|t| tool == *t || tool.ends_with(&format!("__{t}")))
+}
+
+/// A Claude in Chrome tool, under its own name or the name an added account
+/// reaches it by. Our own extension (`user_chrome`) has no Allow window.
+fn claude_in_chrome(tool: &str) -> bool {
+    tool.starts_with(super::browser_gate::SERVER)
+        || tool.starts_with(&format!("mcp__{}__", super::account_reach::CHROME_SERVER))
+}
+
+/// [`super::chrome_health::screen_locked`], read at most every 15 s: the
+/// status is built on every step, and `ioreg` is a process.
+fn locked_now() -> bool {
+    static SEEN: std::sync::Mutex<Option<(i64, bool)>> = std::sync::Mutex::new(None);
+    let now = store::now_ms();
+    let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((at, locked)) = *seen {
+        if now - at < 15_000 {
+            return locked;
+        }
+    }
+    let locked = super::chrome_health::screen_locked();
+    *seen = Some((now, locked));
+    locked
 }
 
 #[derive(Default)]
@@ -1661,6 +1705,8 @@ struct Live {
     calls: HashMap<String, Call>,
     /// Approval cards the turn raised, by request id: their step and title.
     cards: HashMap<String, (u32, String)>,
+    /// Those not answered yet: the turn waits on the user, not stuck (#31).
+    open_cards: HashSet<String>,
     files: HashSet<String>,
     /// The newest message the turn left that a timeline can hang under.
     anchor: Option<AgentMessage>,
@@ -1845,6 +1891,8 @@ impl Live {
             started_at: now,
             slow: action.slow,
             needle: action.command.as_deref().and_then(needle),
+            chrome: claude_in_chrome(&action.tool),
+            waits: waits_on_others(&action.tool),
             ..Running::default()
         });
         self.running = Some(id);
@@ -1942,8 +1990,20 @@ impl Live {
                     Some(StepOutcome::Declined),
                 )
             }
-            ApprovalStatus::Pending | ApprovalStatus::Expired => return,
+            ApprovalStatus::Pending => return,
+            ApprovalStatus::Expired => {
+                self.open_cards.remove(request_id);
+                return;
+            }
         };
+        // The wait for the user ends here: the clock for "No progress"
+        // starts again now, not from before the card (#31).
+        self.open_cards.remove(request_id);
+        let now = store::now_ms();
+        self.last_progress = self.last_progress.max(now);
+        self.last_sign = self.last_sign.max(now);
+        self.quiet_since = None;
+        self.dirty = true;
         let label = clean(&label);
         if let Some(step) = self.step_mut(n) {
             step.label = label;
@@ -1977,6 +2037,7 @@ impl Live {
                         ..WorkStep::blank()
                     });
                     self.cards.insert(approval.request_id.clone(), (n, title));
+                    self.open_cards.insert(approval.request_id.clone());
                     self.running = None;
                     self.doing = None;
                     self.current = None;
@@ -2250,6 +2311,8 @@ pub fn live(agent_id: &str) -> Option<TurnWork> {
                     streams: streams && command,
                     busy: r.busy,
                     can_stop: command && r.needle.is_some(),
+                    chrome: r.chrome,
+                    locked: r.chrome && locked_now(),
                 }
             }),
             last_sign_at: Some(live.last_sign),

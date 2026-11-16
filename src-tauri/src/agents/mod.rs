@@ -335,6 +335,10 @@ pub fn ensure_main() -> Result<store::Agent, CommandError> {
     });
     match created {
         Ok(agent) => {
+            // The first Chief means a new install: it starts at Bold.
+            if let Err(e) = independence::start_new_install(store::now_ms()) {
+                tracing::warn!("[Agents] Couldn't set a new install's independence: {e}");
+            }
             greet(&agent.id);
             admin::mark_noted(&agent.id);
             Ok(agent)

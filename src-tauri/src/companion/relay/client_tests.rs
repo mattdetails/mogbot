@@ -401,6 +401,10 @@ async fn a_phone_reaches_the_mac_through_the_relay_end_to_end() {
     let welcome = phone.next().await;
     assert_eq!(welcome["t"], "welcome", "{welcome}");
     assert_eq!(welcome["deviceId"], record.id.as_str());
+    // Welcomed: the Mac tells the relay, which then never evicts this
+    // channel to make room for strangers (CTO review 2026-11-14).
+    let authed = relay.heard("authed").await;
+    assert!(authed["ch"].as_u64().is_some(), "{authed}");
     until("the phone connected", || c.is_connected(&record.id)).await;
     assert_eq!(
         c.registry.get(&record.id).unwrap().last_route,

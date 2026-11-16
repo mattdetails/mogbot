@@ -317,7 +317,7 @@ impl Conversation {
     pub fn with_effort(mut self, effort: Option<&str>) -> Self {
         self.effort = effort
             .filter(|e| super::store::EFFORTS.contains(e))
-            .map(str::to_string);
+            .map(|e| super::store::codex_effort(e).to_string());
         self
     }
 

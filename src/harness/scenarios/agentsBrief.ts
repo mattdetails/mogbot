@@ -84,4 +84,17 @@ export const agentsBriefScenarios: Scenario[] = [
       agents_morning_brief: BRIEF_SETTINGS,
     },
   },
+  {
+    id: 'settings-agents-this-mac',
+    title: 'Settings — On this Mac: keep awake, keep the screen on',
+    looksRightWhen:
+      'The “On this Mac” card: “Keep this Mac awake”, then “Keep the screen on while agents work” saying Chrome can’t ask for its Allow on a locked screen and that it locks as usual when idle, on one line, its switch off, rows evenly spaced, nothing cut off.',
+    command: 'settings.page.agents',
+    requires: 'section[aria-labelledby="agents-settings-mac"]',
+    clipSelector: 'section[aria-labelledby="agents-settings-mac"]',
+    commands: {
+      agents_overview: overview(TEAM),
+      agents_morning_brief: BRIEF_SETTINGS,
+    },
+  },
 ];

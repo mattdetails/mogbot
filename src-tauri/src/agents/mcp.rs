@@ -268,7 +268,7 @@ const TOOLS: &[Tool] = &[
     },
     Tool {
         name: "update_agent",
-        description: "Change an agent's name, role, instructions, project, engine, model, effort, routines' model, notifications or look. Instructions replace the old ones; its memory is kept. `project` takes a name or path from project_list, or \"none\" to unbind it. `engine` (`claude`, `codex` or `opencode`) switches what it runs on from its next turn: a new session, handed the recent conversation; its model goes back to the engine's default unless `model` comes with it. `model` (Claude Code: opus, sonnet, haiku, which the app calls Smartest, Balanced and Fastest and which you may pass by those words; Codex or OpenCode: one it lists), `effort` (low, medium, high) and `routine_model` (\"auto\", \"same\" as its chats, or a model) take \"default\" for the engine's own and apply from its next message with no card: \"put Research on the smartest model\", \"have Finance think harder\". Tell the user in the app's words, the model's name second: \"Research now uses Smartest (Opus)\", never just \"opus\"; \"model\" alone means little to most people, so say \"the AI it thinks with\" when they seem unsure. `muted: true` stops its notifications (\"stop pinging me about Social\"); unread and the badge still count it. `learn_skills` (\"automatically\", \"ask me\" or \"off\") is whether it saves how it did a hard task as a skill. `account` is its Runs on: one of its engine's accounts by the name usage_overview lists (\"run Finance only on Work\"), or \"any\" to run on whichever has room; no card. Its key: `colorway`, `icon` (the legend) and `key` (the keyboard key, one letter or digit, that jumps to it; unique on the team) change how it looks (\"make Hiring teal with the people icon\", \"put Finance on F\"); give only what changes. A look applies at once, with no card: it isn't a setting. What an agent may do (apps, projects, browser, independence) is propose_settings_change.",
+        description: "Change an agent's name, role, instructions, project, engine, model, effort, routines' model, notifications or look. Instructions replace the old ones; its memory is kept. `project` takes a name or path from project_list, or \"none\" to unbind it. `engine` (`claude`, `codex` or `opencode`) switches what it runs on from its next turn: a new session, handed the recent conversation; its model goes back to the engine's default unless `model` comes with it. `model` (Claude Code: opus, sonnet, haiku, which the app calls Smartest, Balanced and Fastest and which you may pass by those words; Codex or OpenCode: one it lists), `effort` (low, medium, high, xhigh as \"Extra high\", max; Codex takes max as its highest) and `routine_model` (\"auto\", \"same\" as its chats, or a model) take \"default\" for the engine's own and apply from its next message with no card: \"put Research on the smartest model\", \"have Finance think harder\". Tell the user in the app's words, the model's name second: \"Research now uses Smartest (Opus)\", never just \"opus\"; \"model\" alone means little to most people, so say \"the AI it thinks with\" when they seem unsure. `muted: true` stops its notifications (\"stop pinging me about Social\"); unread and the badge still count it. `learn_skills` (\"automatically\", \"ask me\" or \"off\") is whether it saves how it did a hard task as a skill. `account` is its Runs on: one of its engine's accounts by the name usage_overview lists (\"run Finance only on Work\"), or \"any\" to run on whichever has room; no card. Its key: `colorway`, `icon` (the legend) and `key` (the keyboard key, one letter or digit, that jumps to it; unique on the team) change how it looks (\"make Hiring teal with the people icon\", \"put Finance on F\"); give only what changes. A look applies at once, with no card: it isn't a setting. What an agent may do (apps, projects, browser, independence) is propose_settings_change.",
         main_only: true,
         schema: || json!({
             "type": "object",
@@ -280,7 +280,7 @@ const TOOLS: &[Tool] = &[
                 "project": { "type": "string" },
                 "engine": { "type": "string", "enum": ["claude", "codex", "opencode"] },
                 "model": { "type": "string" },
-                "effort": { "type": "string", "enum": ["low", "medium", "high", "default"] },
+                "effort": { "type": "string", "enum": ["low", "medium", "high", "xhigh", "max", "default"] },
                 "routine_model": { "type": "string" },
                 "muted": { "type": "boolean" },
                 "learn_skills": { "type": "string", "enum": ["automatically", "ask me", "off"] },
@@ -2382,7 +2382,16 @@ async fn update_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> V
         } else {
             format!("Change {}?", agent.name)
         };
-        let answer = ask_user(app, caller, title, widens.join("\n"), None).await;
+        // The plain line says what changes; the details show the lines (#14).
+        let summary = widens.join("; ");
+        let mut detail = widens.join("\n");
+        if let (Some(new), Some(old)) = (arg(args, "instructions"), current.as_deref()) {
+            let diff = instructions_diff(old, new);
+            if !old.trim().is_empty() && !diff.is_empty() {
+                detail = format!("{detail}\n\n{diff}");
+            }
+        }
+        let answer = ask(app, caller, title, Some(summary), detail, None).await;
         if let Some(refused) = refused_reply(&answer, "change it") {
             return error(refused);
         }
@@ -2478,10 +2487,58 @@ pub(super) fn update_widens(
     }
     if let Some(i) = instructions {
         if i.trim() != current.unwrap_or_default().trim() {
-            lines.push(format!("New instructions: {}", short_line(i)));
+            lines.push(instructions_line(current.unwrap_or_default(), i));
         }
     }
     lines
+}
+
+/// The lines of `new` that `old` doesn't have (added), and the reverse
+/// (removed), in order; blank lines don't count.
+fn line_changes<'a>(old: &'a str, new: &'a str) -> (Vec<&'a str>, Vec<&'a str>) {
+    let keep = |t: &str| !t.trim().is_empty();
+    let olds: Vec<&str> = old.lines().map(str::trim_end).filter(|l| keep(l)).collect();
+    let news: Vec<&str> = new.lines().map(str::trim_end).filter(|l| keep(l)).collect();
+    let added = news.iter().copied().filter(|l| !olds.contains(l)).collect();
+    let removed = olds.iter().copied().filter(|l| !news.contains(l)).collect();
+    (added, removed)
+}
+
+/// "Instructions: adds 2 lines, removes 1", or the whole text when it had
+/// none: what a card says it changes, not the first words of the new text
+/// (issue #14).
+fn instructions_line(old: &str, new: &str) -> String {
+    if old.trim().is_empty() {
+        return format!("New instructions: {}", short_line(new));
+    }
+    let (added, removed) = line_changes(old, new);
+    let count = |n: usize, verb: &str| match n {
+        0 => None,
+        1 => Some(format!("{verb} 1 line")),
+        n => Some(format!("{verb} {n} lines")),
+    };
+    let said: Vec<String> = [count(added.len(), "adds"), count(removed.len(), "removes")]
+        .into_iter()
+        .flatten()
+        .collect();
+    if said.is_empty() {
+        "Instructions: reworded".to_string()
+    } else {
+        format!("Instructions: {}", said.join(", "))
+    }
+}
+
+/// The instructions' change line by line, for the card's details: `+` added,
+/// `-` removed, each line capped.
+pub(super) fn instructions_diff(old: &str, new: &str) -> String {
+    let (added, removed) = line_changes(old, new);
+    let cap = |l: &str| short_line(l);
+    removed
+        .into_iter()
+        .map(|l| format!("- {}", cap(l)))
+        .chain(added.into_iter().map(|l| format!("+ {}", cap(l))))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Whether those lines (`update_widens`, plus a Runs on change) need a card:
@@ -3399,13 +3456,77 @@ pub fn describe_request(tool: &str, input: &Value) -> (String, String) {
             ("Read a claude.ai artifact".into(), field("url"))
         }
         other => {
-            let mut detail = serde_json::to_string_pretty(input).unwrap_or_default();
-            if detail.chars().count() > 600 {
-                detail = detail.chars().take(600).collect::<String>() + "…";
+            let mut detail = plain_fields(input)
+                .unwrap_or_else(|| serde_json::to_string_pretty(input).unwrap_or_default());
+            if detail.chars().count() > 1200 {
+                detail = detail.chars().take(1200).collect::<String>() + "…";
             }
             (mcp_title(other), detail)
         }
     }
+}
+
+/// An app call's arguments as lines anyone can read ("To: dana@acme.com",
+/// "Subject: Thursday"), not JSON (Cade, 2026-11-14: "the cards read like
+/// code"). Every value is shown as sent: text verbatim (a long or multi-line
+/// one under its name), numbers and yes/no as written, a list of words
+/// joined, anything nested as compact JSON. Empty fields are left out.
+/// `None` when the input isn't a set of named fields.
+pub(super) fn plain_fields(input: &Value) -> Option<String> {
+    let fields = input.as_object()?;
+    // Who and what first, the long text last, as a message reads.
+    let rank = |key: &str| {
+        let k = key.to_ascii_lowercase();
+        const FIRST: [&str; 8] = [
+            "to",
+            "recipients",
+            "channel",
+            "from",
+            "cc",
+            "bcc",
+            "subject",
+            "title",
+        ];
+        const LAST: [&str; 6] = ["body", "text", "content", "message", "html", "description"];
+        FIRST
+            .iter()
+            .position(|f| *f == k)
+            .map(|i| i as i32 - 100)
+            .or_else(|| LAST.iter().position(|f| *f == k).map(|i| 100 + i as i32))
+            .unwrap_or(0)
+    };
+    let mut ordered: Vec<(&String, &Value)> = fields.iter().collect();
+    ordered.sort_by_key(|(k, _)| rank(k));
+    let mut lines = Vec::new();
+    for (key, value) in ordered {
+        let shown = match value {
+            Value::Null => continue,
+            Value::String(s) if s.trim().is_empty() => continue,
+            Value::Array(a) if a.is_empty() => continue,
+            Value::Object(o) if o.is_empty() => continue,
+            Value::String(s) => s.clone(),
+            Value::Bool(b) => (if *b { "yes" } else { "no" }).to_string(),
+            Value::Number(n) => n.to_string(),
+            Value::Array(a) if a.iter().all(Value::is_string) => a
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(", "),
+            other => serde_json::to_string(other).unwrap_or_default(),
+        };
+        let words = split_words(key).join(" ");
+        let mut name = words.chars();
+        let name = match name.next() {
+            Some(first) => first.to_uppercase().chain(name).collect::<String>(),
+            None => continue,
+        };
+        if shown.contains('\n') || shown.chars().count() > 60 {
+            lines.push(format!("{name}:\n{shown}"));
+        } else {
+            lines.push(format!("{name}: {shown}"));
+        }
+    }
+    (!lines.is_empty()).then(|| lines.join("\n"))
 }
 
 /// `mcp__gmail__send_email` → "Send an email · Gmail": a verb phrase from the
@@ -4809,6 +4930,32 @@ mod tests {
             describe_request("Bash", &json!({ "command": "git push origin main" }));
         assert_eq!(title, "Run a command");
         assert_eq!(detail, "git push origin main");
+    }
+
+    #[test]
+    fn an_app_calls_detail_reads_as_plain_lines_with_every_value_as_sent() {
+        let (_, detail) = describe_request(
+            "mcp__claude_ai_Gmail__send_email",
+            &json!({
+                "to": ["dana@acme.com", "ops@acme.com"],
+                "subject": "Thursday",
+                "body": "Hi Dana,\n40 bags works.",
+                "cc": "",
+                "isDraft": false,
+                "maxResults": 5,
+                "labels": [],
+                "thread": { "id": "t1" },
+                "replyTo": null
+            }),
+        );
+        assert_eq!(
+            detail,
+            "To: dana@acme.com, ops@acme.com\nSubject: Thursday\nIs draft: no\nMax results: 5\nThread: {\"id\":\"t1\"}\nBody:\nHi Dana,\n40 bags works."
+        );
+        assert!(!detail.contains('{') || detail.contains("Thread: {"));
+        // Not a set of named fields: as it was.
+        assert_eq!(plain_fields(&json!("x")), None);
+        assert_eq!(plain_fields(&json!({})), None);
     }
 
     #[test]

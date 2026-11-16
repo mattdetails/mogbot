@@ -170,7 +170,15 @@ pub fn pulse(agent_id: &str, now: i64, rows: Option<&[ProcRow]>, root: Option<u3
                 });
             }
         }
-        if live.quiet_since.is_none() && stalled(now, live.last_progress, slow) {
+        // Waiting on the user's card or on a helper is quiet by design:
+        // never "No progress" (#31). Its clock restarts when the wait ends.
+        let waiting = !live.open_cards.is_empty() || live.current.as_ref().is_some_and(|c| c.waits);
+        if waiting {
+            live.last_progress = live.last_progress.max(now);
+            if live.quiet_since.take().is_some() {
+                out.changed = true;
+            }
+        } else if live.quiet_since.is_none() && stalled(now, live.last_progress, slow) {
             live.quiet_since = Some(live.last_progress);
             out.changed = true;
         }

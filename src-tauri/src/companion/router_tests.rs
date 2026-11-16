@@ -2170,4 +2170,16 @@ fn dictation_has_its_own_longer_deadline_under_the_phones() {
     assert!(deadline_for("dictation.transcribe") > REQUEST_DEADLINE);
     assert!(deadline_for("dictation.transcribe") < std::time::Duration::from_secs(30));
     assert_eq!(deadline_for("agents.overview"), REQUEST_DEADLINE);
+    // A preview screenshot may wait on the dev server (issue #30).
+    assert!(deadline_for("preview.screenshot") > REQUEST_DEADLINE);
+    assert!(deadline_for("preview.screenshot") < std::time::Duration::from_secs(30));
+}
+
+/// CTO review 2026-11-14: text typed into a session (maybe a password at a
+/// terminal prompt) went into the audit log.
+#[test]
+fn session_input_is_audited_by_length_only() {
+    let line = audit_detail("sessions.send", &json!({ "text": "hunter2-secret" }));
+    assert_eq!(line, "typed 14 chars");
+    assert!(!line.contains("hunter2"));
 }

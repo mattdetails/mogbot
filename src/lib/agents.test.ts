@@ -849,6 +849,16 @@ describe('describeScope', () => {
       'still ask'
     );
   });
+
+  it('an app’s reads say that its sends still ask', () => {
+    const text = describeScope(
+      { kind: 'app_reads', value: 'claude_ai_Gmail', label: 'reading your Gmail' },
+      'Inbox'
+    );
+    expect(text).toBe(
+      'Inbox can go on reading your Gmail without asking. Sending, changing or deleting anything there still asks every time. Revoke it in Edit agent → Permissions.'
+    );
+  });
 });
 
 describe('scheduleWhenPhrase', () => {

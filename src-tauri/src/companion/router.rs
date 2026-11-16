@@ -233,6 +233,8 @@ pub struct SendExtras {
     /// The conversation it was sent in; `None` from an older phone (the one
     /// the user is in).
     pub conversation: Option<String>,
+    /// When the user wrote it (ms); `None` from an older phone.
+    pub written_at: Option<i64>,
 }
 
 /// What `rooms.send` carries besides the room and the text.
@@ -1742,6 +1744,10 @@ struct SendParams {
     revises: Option<String>,
     #[serde(default)]
     conversation: Option<String>,
+    /// When the user wrote it, by the phone's clock (ms): a typed yes
+    /// answers only a card that was open then (`agents_send`).
+    #[serde(default)]
+    written_at: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -1839,7 +1845,10 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
     let field = |k: &str| params.get(k).and_then(Value::as_str).unwrap_or("");
     let preview = crate::remote_access::preview;
     match method {
-        "agents.send" | "sessions.send" => preview(field("text")),
+        "agents.send" => preview(field("text")),
+        // Typed into a session's terminal: it may be a password at a prompt,
+        // so only how long it was (CTO review 2026-11-14).
+        "sessions.send" => format!("typed {} chars", field("text").chars().count()),
         "rooms.send" => preview(&format!("in a room: {}", field("text"))),
         "rooms.focus" => field("roomId").to_string(),
         "sessions.key" => format!("pressed {}", field("key")),
@@ -2347,6 +2356,7 @@ async fn run(
                         client_id: Some(client_id),
                         revises: p.revises.filter(|r| !r.trim().is_empty()),
                         conversation: p.conversation.filter(|c| !c.trim().is_empty()),
+                        written_at: p.written_at,
                     };
                     let sent = b.send(&p.agent_id, text, extras).await?;
                     c.blobs.consume(&blob_ids);
@@ -2388,8 +2398,9 @@ async fn run(
         "rooms.focus" => {
             let p: RoomFocusParams = parse(params)?;
             if p.room_id.is_some() {
-                // A chat open on the phone: dictation may come, so Whisper loads now.
-                crate::voice::warm_up();
+                // A chat open on the phone: dictation may come, so Whisper
+                // loads now, for someone who dictates.
+                crate::voice::warm_up_for_chat();
             }
             b.room_focus(&caller.label, p.room_id).await?;
             Ok(Value::Null)
@@ -2480,8 +2491,9 @@ async fn run(
         "agents.focus" => {
             let p: FocusParams = parse(params)?;
             if p.agent_id.is_some() {
-                // A chat open on the phone: dictation may come, so Whisper loads now.
-                crate::voice::warm_up();
+                // A chat open on the phone: dictation may come, so Whisper
+                // loads now, for someone who dictates.
+                crate::voice::warm_up_for_chat();
             }
             c.set_showing(&caller.label, p.agent_id.clone());
             b.focus(&caller.label, p.agent_id).await?;

@@ -314,6 +314,27 @@ describe('timeline', () => {
     expect(days[0].kind === 'day' && days[0].label).toMatch(/^Today /);
   });
 
+  it('still says it is working under a draft once a tool runs after the text (#26)', () => {
+    const list = [msg('a', now - 60_000, { kind: 'user' })];
+    const running = agent({
+      status: {
+        state: 'working',
+        activity: 'Running tests',
+        since: now,
+        work: { startedAt: now, steps: [], fileCount: 0, current: { label: 'Running tests' } },
+      },
+    } as never);
+    const items = chatItems(running, list, [], { id: 'd', text: 'Let me check' }, now);
+    // Newest first: the working row under the draft.
+    expect(items[0]).toMatchObject({ kind: 'working' });
+    expect(items[1]).toMatchObject({ kind: 'draft' });
+    // Still writing (no tool running): the draft alone.
+    const writing = agent({ status: { state: 'working', activity: null, since: now } });
+    expect(chatItems(writing, list, [], { id: 'd', text: 'Let me' }, now)[0]).toMatchObject({
+      kind: 'draft',
+    });
+  });
+
   it('hands the list the same message rows while only the draft or the status changes', () => {
     const list = [msg('a', now - 120_000, { kind: 'user' }), msg('b', now - 60_000)];
     const first = chatItems(agent(), list, [], { id: 'd', text: 'Dep' }, now);

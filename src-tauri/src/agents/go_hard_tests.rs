@@ -287,6 +287,33 @@ fn reading_a_claude_ai_artifact_runs_and_publishing_one_asks() {
     ));
 }
 
+/// CTO review 2026-11-14: `o.method='POST'; fetch(u,o)` slipped past the
+/// pattern for `method: 'post'`.
+#[test]
+fn a_fetch_whose_method_isnt_a_literal_get_asks() {
+    let js = |code: &str| {
+        script_sends(
+            &json!({ "action": "javascript_exec", "text": code }),
+            crate::agents::independence::Level::GoHard,
+        )
+    };
+    for code in [
+        "const o = {}; o.method = 'POST'; fetch('/api/post', o)",
+        "const m = 'P' + 'OST'; fetch('/api', { method: m })",
+        "const o = {}; o['method'] = 'PUT'; fetch('/x', o)",
+        "fetch(new Request('/x', { method: verb }))",
+    ] {
+        assert!(js(code), "asks: {code}");
+    }
+    for code in [
+        "fetch('/api/items').then(r => r.json())",
+        "fetch('/api/items', { method: 'GET' }).then(r => r.json())",
+        "fetch('/api/items', { method: \"HEAD\" })",
+    ] {
+        assert!(!js(code), "runs: {code}");
+    }
+}
+
 #[test]
 fn browser_scripts_that_read_or_click_run_and_ones_that_send_ask() {
     let js = |code: &str| {

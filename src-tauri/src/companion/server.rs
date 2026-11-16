@@ -132,6 +132,16 @@ pub(crate) fn json_response(value: &impl serde::Serialize) -> Response<Body> {
     res
 }
 
+/// The key a pairing attempt's backoff counts under: relayed attempts
+/// together (`relay:*`), others by their own source.
+fn pair_source(peer: &Peer) -> String {
+    if peer.relay {
+        "relay:*".into()
+    } else {
+        peer.source.clone()
+    }
+}
+
 /// Where a request came from, as far as the server can tell.
 #[derive(Default)]
 pub struct Peer {
@@ -402,11 +412,15 @@ async fn pair(c: Arc<Companion>, req: Request<Incoming>, peer: &Peer) -> Respons
     }
     let device = super::clean_pair_device(&request.device);
     let actor = actor_for(&device.name);
+    // Code guesses back off per source. A relay channel is a new source each
+    // time a phone reconnects, so relayed guesses share one key: otherwise a
+    // fresh channel reset the backoff (CTO review 2026-11-14).
+    let guess_source = pair_source(&peer);
     let rx = match c.pairing.claim(
         &request.code,
         device.clone(),
         request.public_key.clone(),
-        &peer.source,
+        &guess_source,
         peer.login.clone(),
         now_ms(),
     ) {
@@ -444,10 +458,9 @@ async fn pair(c: Arc<Companion>, req: Request<Incoming>, peer: &Peer) -> Respons
             peer.login.clone(),
         ) {
             Ok((record, token, replaced)) => {
-                for id in replaced {
-                    // Revoked as the desk asked: its files and push go too.
-                    c.blobs.forget_device(&id);
-                    c.hub.signal(HubItem::Revoked { device_id: id });
+                for d in &replaced {
+                    // Revoked as the desk asked: the same clean-up as Remove.
+                    c.revoked(d, "replaced by a new pairing");
                 }
                 let server_id = c.registry.server_id();
                 let hosts = serve_hosts(&c);
@@ -589,10 +602,16 @@ pub(crate) const REQUEST_DEADLINE: Duration = Duration::from_secs(20);
 /// a long dictation: its own deadline, still under the phone's 30 s.
 pub(crate) const DICTATION_DEADLINE: Duration = Duration::from_secs(27);
 
+/// `preview.screenshot` may wait for the dev server to settle and the
+/// preview to open (issue #30): its own deadline, still under the phone's
+/// 30 s, so a slow capture isn't cut off at 20 s and reported as busy.
+pub(crate) const SCREENSHOT_DEADLINE: Duration = Duration::from_secs(27);
+
 /// How long `method` is worked on before it's answered as busy.
 pub(crate) fn deadline_for(method: &str) -> Duration {
     match method {
         "dictation.transcribe" => DICTATION_DEADLINE,
+        "preview.screenshot" => SCREENSHOT_DEADLINE,
         _ => REQUEST_DEADLINE,
     }
 }

@@ -35,6 +35,12 @@ describe('pushLine', () => {
     expect(pushLine('unavailable', true)?.value).toBe('Not on this computer');
     expect(pushLine('pending', true)?.value).toBe('Connecting');
   });
+
+  it('says to update the Mac when its app is too old to take a token (#25)', () => {
+    const line = pushLine('mac_outdated', true);
+    expect(line?.value).toMatch(/^Update /);
+    expect(line?.footer).toMatch(/only while this app is open/);
+  });
 });
 
 describe('push on Android', () => {

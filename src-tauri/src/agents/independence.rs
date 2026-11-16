@@ -222,6 +222,26 @@ pub fn level() -> Level {
         .unwrap_or_default()
 }
 
+/// What a new install starts at (Cade's feedback, 2026-11-14: at Steady a
+/// first-time user answered a card for every read and gave up). Bold still
+/// asks before pushing, sending, publishing, paying, deleting and
+/// credentials (`go_hard`). Written once, when the Chief is first made, and
+/// only if nothing was ever saved: an existing install that never touched the
+/// slider stays at Steady, the level it has always run at.
+pub const NEW_INSTALL: Level = Level::GoHard;
+
+/// Start a brand-new install at [`NEW_INSTALL`], unless a level is saved.
+pub fn start_new_install(now: i64) -> Result<bool, CommandError> {
+    {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        if path()?.exists() {
+            return Ok(false);
+        }
+    }
+    set_level(NEW_INSTALL, now)?;
+    Ok(true)
+}
+
 pub fn set_level(level: Level, now: i64) -> Result<(), CommandError> {
     let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let json =

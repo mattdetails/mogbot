@@ -472,7 +472,11 @@ pub fn prepare(
     roots: &[PathBuf],
     draft: Draft,
 ) -> Result<AgentMessage, String> {
-    let log = super::store::messages(agent_id, usize::MAX).map_err(|e| e.to_string())?;
+    // What a revision is looked for in: results and the user's own messages.
+    let log = super::store::messages_where(agent_id, &|m| {
+        m.result.is_some() || m.kind == MessageKind::User
+    })
+    .map_err(|e| e.to_string())?;
     let revising = revision_target(&log, draft.revises.as_deref())?;
     if let (Some(before), None) = (&revising, &draft.changes) {
         return Err(format!(

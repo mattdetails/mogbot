@@ -626,3 +626,72 @@ fn with_exact_text_on_a_plan_covers_only_the_words_it_listed() {
     .unwrap();
     assert_eq!(parsed.actions[0].text.as_deref(), Some("Thanks!"));
 }
+
+#[test]
+fn a_listed_push_covers_it_spelled_as_a_refspec() {
+    // Seen 2026-11-13: a listed push to main still asked as `<sha>:refs/heads/main`.
+    let m = mac();
+    for (i, push) in [
+        "git push origin 05698a999:refs/heads/main",
+        "git push origin HEAD:main",
+        "git push origin HEAD:refs/heads/mogbot/foundation",
+    ]
+    .iter()
+    .enumerate()
+    {
+        for level in [Level::GoHard, Level::FullSend] {
+            let id = format!("plan-test-refspec-{i}-{level:?}");
+            grant(
+                &id,
+                &Plan {
+                    actions: vec![action(
+                        Kind::Push,
+                        "julian-fictional/shippy",
+                        "Push to main",
+                    )],
+                    why: None,
+                },
+                NOW,
+            );
+            assert!(covers(&id, level, &m, push), "{push} at {level:?}");
+        }
+    }
+}
+
+#[test]
+fn one_push_of_two_listed_branches_is_covered() {
+    // Seen 2026-11-13: "push to main and foundation" listed, then one command
+    // pushing both refspecs, asked twice.
+    let m = mac();
+    let cmd = "git push origin efec19593:refs/heads/main efec19593:refs/heads/mogbot/foundation";
+    for (n, actions) in [
+        (
+            1,
+            vec![action(
+                Kind::Push,
+                "julian-fictional/shippy",
+                "Push to main and foundation",
+            )],
+        ),
+        (
+            2,
+            vec![
+                action(Kind::Push, "julian-fictional/shippy", "Push to main"),
+                action(Kind::Push, "julian-fictional/shippy", "Push to foundation"),
+            ],
+        ),
+    ] {
+        for level in [Level::GoHard, Level::FullSend] {
+            let id = format!("plan-test-two-{n}-{level:?}");
+            grant(
+                &id,
+                &Plan {
+                    actions: actions.clone(),
+                    why: None,
+                },
+                NOW,
+            );
+            assert!(covers(&id, level, &m, cmd), "{n} listed at {level:?}");
+        }
+    }
+}

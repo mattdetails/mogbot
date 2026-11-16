@@ -7,13 +7,13 @@
 import type { Conversations } from '@shipstudio/companion-protocol';
 import type {
   LinkState,
-  PushStatus,
   RefusedFrame,
   TeamSetupView,
   WelcomeFrame,
 } from '@shipstudio/companion-protocol';
 import { create } from 'zustand';
 import type { ComposerDraft } from './drafts';
+import type { PhonePush } from './push';
 import type { Credentials } from './pairing';
 import { emptySync, type SyncState } from './sync';
 import type { TextSize } from './theme';
@@ -46,7 +46,7 @@ export interface AppState extends SyncState {
   /** iOS Increase Contrast / Android high-contrast text. */
   highContrast: boolean;
   /** Push, as the Mac last answered `devices.setPush`; null until it has. */
-  push: PushStatus | null;
+  push: PhonePush | null;
   /** "Setting up your team", as the Mac last answered it; null when there's none. */
   teamSetup: TeamSetupView | null;
   /** Each agent's conversations, as the Mac last answered (`agents.conversations`). */

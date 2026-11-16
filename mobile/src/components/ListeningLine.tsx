@@ -1,8 +1,10 @@
 /**
  * The dictation row's middle, between × and Stop/Send: no words show while
  * you talk, only "● 0:42" and your voice as a wave beside it, on the row
- * itself (nothing above the composer, no second line in it). The moment the
- * mic isn't hearing you, the wave gives way to "Can't hear you · check the
+ * itself (nothing above the composer, no second line in it). Before your
+ * voice first reaches it, the line says "Listening…" in the quiet colour
+ * (the mic may still be starting); then the clock. When the mic really
+ * isn't hearing you (8 s of nothing once it runs), the wave gives way to "Can't hear you · check the
  * mic" in the warning colour. Stopped, while the computer writes the words
  * out: "Tidying…" alone, once. The rule is the desk's (companion-protocol,
  * listening.ts). A tap is Stop and edit.
@@ -21,10 +23,12 @@ export interface ListeningMeter {
   startedAt: number;
   lastVoiceAt: number | null;
   lastWordsAt: number | null;
+  /** The mic's first level: before it, the mic is still starting, never "can't hear you". */
+  readyAt: number | null;
 }
 
 export function newListeningMeter(now = Date.now()): ListeningMeter {
-  return { startedAt: now, lastVoiceAt: null, lastWordsAt: null };
+  return { startedAt: now, lastVoiceAt: null, lastWordsAt: null, readyAt: null };
 }
 
 const TICK_MS = 250;
@@ -62,10 +66,19 @@ export function ListeningLine({
       clearInterval(t);
     };
   }, [tidying, meter]);
-  // The phone's own recogniser always runs, so words are expected.
-  const warning = tidying ? null : hearingLine(hearing({ now, ...m, wordsExpected: true }), null);
+  // The phone's own recogniser always runs, so words are expected. Silence
+  // counts only once the mic is running (its first level), never while it starts.
+  const warning = tidying
+    ? null
+    : hearingLine(
+        hearing({ now, ...m, startedAt: m.readyAt ?? now, wordsExpected: true }),
+        null
+      );
   const ink = warning ? colors.accentWarning : colors.textMuted;
-  const words = tidying ? 'Tidying…' : (warning ?? elapsedLabel(now - m.startedAt));
+  // Until it hears your voice: "Listening…", calm. Then the clock.
+  const words = tidying
+    ? 'Tidying…'
+    : (warning ?? (m.lastVoiceAt === null ? 'Listening…' : elapsedLabel(now - m.startedAt)));
   return (
     <Pressable
       onPress={onPress}

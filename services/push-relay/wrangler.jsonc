@@ -8,6 +8,8 @@
   // No Workers Logs: the relay prints nothing about who or what, and keeps
   // no request logs of its own.
   "observability": { "enabled": false },
+  // Daily upkeep: spent rate counters are pruned (src/index.ts `scheduled`).
+  "triggers": { "crons": ["17 4 * * *"] },
   "vars": {
     // The official phone app's bundle id (brand.json companion.bundleId).
     "APNS_TOPIC": "io.native.mogbot.companion"

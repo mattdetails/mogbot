@@ -133,6 +133,10 @@ export interface LiveCall {
   busy?: boolean;
   /** "Stop this step" can find its process. */
   canStop: boolean;
+  /** A Claude in Chrome call: one running long may be held by Chrome's own Allow window on the Mac. */
+  chrome?: boolean;
+  /** A Claude in Chrome call while the Mac's screen is locked: its Allow window can't show. */
+  locked?: boolean;
 }
 
 /** `agents::work::StepOutcome`. */
@@ -425,8 +429,8 @@ export type AgentEngine = 'claude' | 'codex' | 'opencode';
 /** Mirrors `Engine::PLANS`: the engines whose accounts are kept here. */
 export const ENGINES_WITH_ACCOUNTS: readonly AgentEngine[] = ['claude', 'codex'];
 
-/** Mirrors `store::EFFORTS`: the levels both engines take. */
-export type AgentEffort = 'low' | 'medium' | 'high';
+/** Mirrors `store::EFFORTS` (Codex gets its highest for `max`). */
+export type AgentEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 /**
  * How hard an agent thinks, said plainly: Claude Code's `--effort`, Codex's
@@ -439,6 +443,8 @@ export const EFFORT_CHOICES: readonly { value: AgentEffort | ''; label: string }
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
+  { value: 'xhigh', label: 'Extra high' },
+  { value: 'max', label: 'Max' },
 ];
 
 /** Mirrors `engine::ModelChoice`: a model as the engine lists it. */
@@ -577,7 +583,7 @@ export interface Capabilities {
 
 /** What "Always allow" covers; mirrors `permissions::Scope`. */
 export interface PermissionScope {
-  kind: 'command_prefix' | 'command' | 'domain' | 'tool';
+  kind: 'command_prefix' | 'command' | 'domain' | 'tool' | 'app_reads';
   value: string;
   /** The value in words: "npm test", "example.com", "Send an email · Gmail". */
   label: string;
@@ -596,10 +602,13 @@ export const SCOPE_KIND_LABEL: Record<PermissionScope['kind'], string> = {
   command: 'Exactly',
   domain: 'Web pages on',
   tool: '',
+  app_reads: '',
 };
 
 /** The tooltip on "Always allow": exactly what will stop asking. */
 export function describeScope(scope: PermissionScope, agentName: string): string {
+  if (scope.kind === 'app_reads')
+    return `${agentName} can go on ${scope.label} without asking. Sending, changing or deleting anything there still asks every time. Revoke it in Edit agent → Permissions.`;
   const what =
     scope.kind === 'command_prefix'
       ? `Any command starting with “${scope.label}”`
@@ -1042,7 +1051,7 @@ export interface UpdateAgentInput {
   model?: string;
   /** '' automatic, 'same' (its own model), or one of its engine's models. */
   routineModel?: string;
-  /** `low` / `medium` / `high`, or '' for the engine's default. */
+  /** `low` / `medium` / `high` / `xhigh` / `max`, or '' for the engine's default. */
   effort?: AgentEffort | '';
   /** A project path from `list_projects`, or '' to unbind it. */
   project?: string;
@@ -1386,7 +1395,9 @@ export const sendAgentMessage = (
   /** "Ask for changes": the id of the result this message revises. */
   revises?: string,
   /** The conversation on screen; absent, the one the user is in on the Mac. */
-  conversation?: string
+  conversation?: string,
+  /** When the user wrote it (ms): a typed yes answers only a card open then. */
+  writtenAt: number = Date.now()
 ) =>
   invoke<AgentMessage>('agents_send', {
     agentId,
@@ -1395,6 +1406,7 @@ export const sendAgentMessage = (
     mentions: mentions.length ? mentions : undefined,
     revises,
     conversation,
+    writtenAt,
   });
 export const inspectFiles = (paths: string[]) =>
   invoke<FileInfo[]>('agents_inspect_files', { paths });

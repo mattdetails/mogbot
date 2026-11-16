@@ -1,7 +1,7 @@
 /**
  * Disk space for agents: mirrors `src-tauri/src/agents/disk.rs`. Free space
  * on this Mac, each large agent home, and "Free up space" (regenerable
- * dependency and build folders only).
+ * dependency and build folders, and spare conversation copies, only).
  *
  * @module lib/agentsDisk
  */
@@ -53,7 +53,7 @@ export function formatBytes(bytes: number): string {
 export function homeLine(h: AgentHomeSize): string {
   const total = `Its folder uses ${formatBytes(h.bytes)}`;
   if (h.regenerableBytes < 1e8) return `${total}.`;
-  return `${total}, ${formatBytes(h.regenerableBytes)} of it in dependency and build folders.`;
+  return `${total}, ${formatBytes(h.regenerableBytes)} of it safe to free.`;
 }
 
 /** What "Free up space" did, in one line. */

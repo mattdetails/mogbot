@@ -16,7 +16,7 @@ import * as Clipboard from 'expo-clipboard';
 import { columnAlign } from '@shipstudio/companion-protocol';
 import { Lexer, type Token, type Tokens } from 'marked';
 import { createContext, memo, useContext, useMemo, useState, type ReactNode } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { type LayoutChangeEvent, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { haptic } from '../lib/haptics';
 import { splitMentions } from '../lib/rooms';
 import { makeStyles, useColors } from '../lib/appearance';
@@ -33,6 +33,7 @@ import {
   PRESSED,
 } from '../lib/theme';
 import { SideScroll } from './SideScroll';
+import { stacksAt } from '../lib/overflow';
 import { T } from './ui';
 import { useComputer } from '../lib/computer';
 
@@ -360,6 +361,7 @@ function Table({ table }: { table: Tokens.Table }) {
   const styles = useStyles();
   const colors = useColors();
   const surface = useContext(MarkdownSurface) ?? colors.surfaceApp;
+  const [available, setAvailable] = useState(0);
   // Columns sized from their longest cell, so every row lines up.
   const widths = table.header.map((h, c) => {
     const longest = Math.max(h.text.length, ...table.rows.map((r) => r[c]?.text.length ?? 0));
@@ -397,19 +399,51 @@ function Table({ table }: { table: Tokens.Table }) {
       ))}
     </View>
   );
-  return (
-    <SideScroll
-      indicator={false}
-      testID="table-scroll"
-      fade={surface}
-      style={styles.tableScroll}
-      contentContainerStyle={styles.tableFill}
-    >
-      <View style={styles.table}>
-        {row(table.header, true, -1)}
-        {table.rows.map((r, i) => row(r, false, i))}
+  const measure = (e: LayoutChangeEvent) => setAvailable(Math.floor(e.nativeEvent.layout.width));
+  if (stacksAt(widths, available)) {
+    return (
+      <View onLayout={measure} testID="table-stacked" style={styles.stack}>
+        {table.rows.map((r, i) => (
+          <View key={i} style={[styles.stackRow, i > 0 && styles.stackDivided]}>
+            <Text maxFontSizeMultiplier={READ_MAX_SCALE} style={[styles.cell, styles.strong]}>
+              {inline(r[0]?.tokens ?? [], styles)}
+            </Text>
+            {table.header.slice(1).map((h, c) => (
+              <View key={c} style={styles.stackPair}>
+                <Text
+                  maxFontSizeMultiplier={READ_MAX_SCALE}
+                  style={[styles.cell, styles.stackLabel]}
+                >
+                  {inline(h.tokens, styles)}
+                </Text>
+                <Text
+                  maxFontSizeMultiplier={READ_MAX_SCALE}
+                  style={[styles.cell, styles.stackValue]}
+                >
+                  {r[c + 1]?.tokens.length ? inline(r[c + 1].tokens, styles) : '–'}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ))}
       </View>
-    </SideScroll>
+    );
+  }
+  return (
+    <View onLayout={measure} testID="table-frame">
+      <SideScroll
+        indicator={false}
+        testID="table-scroll"
+        fade={surface}
+        style={styles.tableScroll}
+        contentContainerStyle={styles.tableFill}
+      >
+        <View style={styles.table}>
+          {row(table.header, true, -1)}
+          {table.rows.map((r, i) => row(r, false, i))}
+        </View>
+      </SideScroll>
+    </View>
   );
 }
 
@@ -521,6 +555,19 @@ const useStyles = makeStyles((colors) => ({
     color: colors.textPrimary,
   },
   tableScroll: { flexGrow: 0 },
+  stack: {
+    borderRadius: radius.inner,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderDefault,
+  },
+  stackRow: { paddingHorizontal: space.md, paddingVertical: space.sm, gap: space['2xs'] },
+  stackDivided: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderDefault,
+  },
+  stackPair: { flexDirection: 'row', gap: space.sm },
+  stackLabel: { width: '38%', flexShrink: 0, color: colors.textSecondary },
+  stackValue: { flex: 1, minWidth: 0 },
   tableFill: { minWidth: '100%' },
   table: {
     flexGrow: 1,

@@ -122,6 +122,10 @@ struct Session {
     /// Unix ms of the last byte read from the PTY. "Quiet for a while" is the
     /// only honest signal a remote caller has that an agent finished a turn.
     last_output_ms: std::sync::atomic::AtomicU64,
+    /// Unix ms of the last time someone typed into it (0: never). Output
+    /// can't say which tab was used last: a full-screen agent repaints on
+    /// resize, focus and reattach, so every tab looks just as fresh (#29).
+    last_input_ms: std::sync::atomic::AtomicU64,
 }
 
 /// Open-time facts about a session that never change afterwards.
@@ -766,6 +770,7 @@ pub async fn open_session(
         },
         size: Mutex::new((rows, cols)),
         last_output_ms: std::sync::atomic::AtomicU64::new(now_ms()),
+        last_input_ms: std::sync::atomic::AtomicU64::new(0),
     });
 
     REGISTRY
@@ -921,7 +926,17 @@ pub fn pty_session_write(session_id: String, data: Vec<u8>) -> Result<(), Comman
             CommandError::from(format!("write: {e}"))
         }
     })?;
+    if is_typing(&data) {
+        session.last_input_ms.store(now_ms(), Ordering::Relaxed);
+    }
     Ok(())
+}
+
+/// Whether a write is someone using the tab, not the terminal reporting
+/// focus (`ESC [ I` / `ESC [ O`, sent on every tab switch to a program that
+/// asked for focus events).
+fn is_typing(data: &[u8]) -> bool {
+    !data.is_empty() && data != b"\x1b[I" && data != b"\x1b[O"
 }
 
 /// Does a failed `master.resize()` mean the PTY is already being torn down
@@ -1162,6 +1177,15 @@ pub struct SessionSummary {
     pub alive: bool,
     pub opened_at_ms: u64,
     pub last_output_ms: u64,
+    /// When someone last typed into it (0: never).
+    pub last_input_ms: u64,
+}
+
+impl SessionSummary {
+    /// When it was last used: last typed into, else opened.
+    pub fn last_used_ms(&self) -> u64 {
+        self.last_input_ms.max(self.opened_at_ms)
+    }
 }
 
 /// The sessions opened for `project_path`, oldest first.
@@ -1178,6 +1202,7 @@ pub fn sessions_for_project(project_path: &str) -> Vec<SessionSummary> {
             alive: s.alive.load(Ordering::Relaxed),
             opened_at_ms: s.meta.opened_at_ms,
             last_output_ms: s.last_output_ms.load(Ordering::Relaxed),
+            last_input_ms: s.last_input_ms.load(Ordering::Relaxed),
         })
         .collect();
     sessions.sort_by_key(|s| s.opened_at_ms);
@@ -1216,6 +1241,29 @@ pub fn session_snapshot(session_id: &str) -> Option<SessionSnapshot> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn focus_reports_are_not_typing() {
+        assert!(is_typing(b"hello"));
+        assert!(is_typing(b"\r"));
+        assert!(!is_typing(b"\x1b[I"));
+        assert!(!is_typing(b"\x1b[O"));
+        assert!(!is_typing(b""));
+    }
+
+    #[test]
+    fn last_used_is_typed_else_opened() {
+        let s = |opened, input| SessionSummary {
+            session_id: "s".into(),
+            agent_id: None,
+            alive: true,
+            opened_at_ms: opened,
+            last_output_ms: 999_999,
+            last_input_ms: input,
+        };
+        assert_eq!(s(100, 0).last_used_ms(), 100);
+        assert_eq!(s(100, 500).last_used_ms(), 500);
+    }
     use super::*;
 
     /// Issue #1074: a respawn under the same session id must never start
@@ -1255,6 +1303,7 @@ mod tests {
                 meta: SessionMeta::default(),
                 size: Mutex::new((24, 80)),
                 last_output_ms: std::sync::atomic::AtomicU64::new(0),
+                last_input_ms: std::sync::atomic::AtomicU64::new(0),
             });
             REGISTRY
                 .lock()
@@ -1385,6 +1434,7 @@ mod tests {
                 meta: SessionMeta::default(),
                 size: Mutex::new((24, 80)),
                 last_output_ms: std::sync::atomic::AtomicU64::new(0),
+                last_input_ms: std::sync::atomic::AtomicU64::new(0),
             })
         }
 

@@ -421,3 +421,29 @@ fn a_candidate_holding_a_repo_or_a_fresh_file_is_kept() {
         .collect();
     assert_eq!(rel, vec!["a/node_modules"]);
 }
+
+/// The app's kept conversation copy counts toward Free up space only while
+/// an account folder holds it in full, and removing it frees its bytes.
+#[test]
+fn a_kept_conversation_copy_an_account_still_holds_is_freed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (root, home) = (tmp.path().join("acct"), tmp.path().join("home"));
+    let s = "11111111-2222-3333-4444-555555555555";
+    let engine = root.join("projects").join("-x");
+    std::fs::create_dir_all(&engine).unwrap();
+    std::fs::File::create(engine.join(format!("{s}.jsonl")))
+        .unwrap()
+        .set_len(8192)
+        .unwrap();
+    let kept = home.join(super::super::transcript::DIR);
+    std::fs::create_dir_all(&kept).unwrap();
+    std::fs::write(kept.join(format!("{s}.jsonl")), vec![b'x'; 4096]).unwrap();
+    let roots = vec![root.clone()];
+    assert_eq!(measure_in(&home, &roots).1, 4096);
+    // No account copy: it's the only one, so it isn't offered.
+    assert_eq!(measure_in(&home, &[tmp.path().join("none")]).1, 0);
+    let mut freed = Freed::default();
+    drop_redundant_copies(&home, &roots, &mut freed);
+    assert_eq!((freed.bytes, freed.removed), (4096, 1));
+    assert!(!kept.join(format!("{s}.jsonl")).exists());
+}

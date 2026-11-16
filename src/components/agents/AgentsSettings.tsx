@@ -105,6 +105,18 @@ export function AgentsPage({ onImport }: { onImport: () => void }) {
                 />
               </Row>
             )}
+            {stayOn.keepScreenOnAvailable && (
+              <Row
+                label="Keep the screen on while agents work"
+                description="Chrome can't ask for its Allow on a locked screen. Locks as usual when idle."
+              >
+                <Toggle
+                  on={stayOn.keepScreenOn ?? false}
+                  label="Keep the screen on while agents work"
+                  onChange={(on) => void change({ keepScreenOn: on })}
+                />
+              </Row>
+            )}
             {stayOn.keepRunningAvailable !== false && (
               <Row
                 label="Keep running when closed"

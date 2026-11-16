@@ -1,0 +1,40 @@
+# Everything needs the owner's review. The lines below repeat it for the
+# paths where a change moves the security model, so a broader rule added
+# later can't quietly take them over (the last matching line wins).
+* @julian-galluzzo
+
+# CI, release and repo settings
+/.github/ @julian-galluzzo
+/scripts/release*.sh @julian-galluzzo
+/scripts/release-*.mjs @julian-galluzzo
+/scripts/latest-json-add-platforms.mjs @julian-galluzzo
+
+# What the app may do, and its identity
+/src-tauri/capabilities/ @julian-galluzzo
+/src-tauri/tauri.conf.json @julian-galluzzo
+/brand.json @julian-galluzzo
+
+# Approvals: the broker, the levels and what they allow
+/src-tauri/src/agents/broker.rs @julian-galluzzo
+/src-tauri/src/agents/answer_gate*.rs @julian-galluzzo
+/src-tauri/src/agents/mcp.rs @julian-galluzzo
+/src-tauri/src/agents/policy*.rs @julian-galluzzo
+/src-tauri/src/agents/autoallow*.rs @julian-galluzzo
+/src-tauri/src/agents/go_hard*.rs @julian-galluzzo
+/src-tauri/src/agents/full_send*.rs @julian-galluzzo
+/src-tauri/src/agents/plan_grant*.rs @julian-galluzzo
+/src-tauri/src/agents/admin*.rs @julian-galluzzo
+/src-tauri/src/agents/remember*.rs @julian-galluzzo
+/src-tauri/src/agents/egress*.rs @julian-galluzzo
+/src-tauri/src/agents/exposure*.rs @julian-galluzzo
+/src-tauri/src/agents/browser_gate*.rs @julian-galluzzo
+/src-tauri/src/agents/permissions*.rs @julian-galluzzo
+/src-tauri/src/agents/outward*.rs @julian-galluzzo
+
+# The phone link: pairing, identity, the companion server and the relay
+/src-tauri/src/companion/ @julian-galluzzo
+/services/relay/ @julian-galluzzo
+/services/push-relay/ @julian-galluzzo
+/packages/companion-protocol/ @julian-galluzzo
+/mobile/src/lib/identity.ts @julian-galluzzo
+/mobile/src/lib/relayCrypto.ts @julian-galluzzo

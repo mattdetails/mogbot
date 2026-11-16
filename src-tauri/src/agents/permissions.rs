@@ -24,6 +24,11 @@ pub enum RuleKind {
     Domain,
     /// Every call to this one tool: a connector tool, or web search.
     Tool,
+    /// Every read through one connected app (`value` is its server key, as
+    /// in `mcp__<value>__…`): "Always let it read your Gmail". A tool counts
+    /// as a read only by its name (`connections::reads_only`); anything else,
+    /// a send above all, still asks every time.
+    AppReads,
 }
 
 /// What a card offers to always allow. Becomes a [`Rule`] when chosen.
@@ -135,6 +140,43 @@ pub(super) fn plain_words(command: &str) -> Option<Vec<&str>> {
     Some(command.split_whitespace().collect())
 }
 
+/// Flags that make an otherwise harmless command run a program or write
+/// where it's told: `git fetch --upload-pack=./evil.sh .` under a saved
+/// `git fetch` rule. An always-allow prefix never stretches over them; the
+/// call asks as it would without the rule.
+const CODE_FLAGS: &[&str] = &[
+    "--upload-pack",
+    "--receive-pack",
+    "--exec",
+    "--exec-path",
+    "--output",
+    "--config",
+    "--git-dir",
+    "--work-tree",
+    "--template",
+    "--ext-diff",
+    "--textconv",
+];
+
+/// Short flags with the same reach: `-c` (git config), `-u` (`clone -u`,
+/// its upload-pack).
+const CODE_SHORT: &[&str] = &["-c", "-u"];
+
+fn runs_code(word: &str) -> bool {
+    let flag = word.split_once('=').map_or(word, |(f, _)| f);
+    if flag.starts_with("--") {
+        // Git takes any unambiguous abbreviation of a long option
+        // (`--upload-p=`), so a prefix of one of these counts too (CTO
+        // follow-up, 2026-11-14).
+        return flag.len() > 3 && CODE_FLAGS.iter().any(|f| f.starts_with(flag));
+    }
+    // `-c`, `-u`, or glued to its value (`-ccore.sshCommand=…`, `-u./x`).
+    CODE_SHORT.contains(&flag)
+        || CODE_SHORT
+            .iter()
+            .any(|f| flag.starts_with(f) && flag.len() > 2)
+}
+
 /// A word that names a subcommand rather than a flag, path or assignment.
 fn is_subcommand(word: &str) -> bool {
     !word.starts_with('-')
@@ -196,6 +238,13 @@ fn is_browser_tool(tool: &str) -> bool {
     tool.starts_with(super::browser_gate::SERVER) || super::browser_gate::is_own_browser(tool)
 }
 
+/// The app a connector tool reads from, when its name says it only reads
+/// (`mcp__claude_ai_Gmail__search_threads` → `claude_ai_Gmail`).
+fn app_read(tool: &str) -> Option<&str> {
+    let (server, name) = tool.strip_prefix("mcp__")?.split_once("__")?;
+    (!server.is_empty() && super::connections::reads_only(name)).then_some(server)
+}
+
 /// What a card for this call may offer to always allow, if anything.
 pub fn suggest(tool: &str, input: &Value) -> Option<Scope> {
     let field = |k: &str| input.get(k).and_then(Value::as_str).unwrap_or("");
@@ -213,6 +262,15 @@ pub fn suggest(tool: &str, input: &Value) -> Option<Scope> {
             label: "web searches".to_string(),
             said: None,
         }),
+        _ if is_scopable_tool(tool) && app_read(tool).is_some() => {
+            let server = app_read(tool)?;
+            Some(Scope {
+                kind: RuleKind::AppReads,
+                value: server.to_string(),
+                label: format!("reading your {}", super::mcp::service_name(server)),
+                said: None,
+            })
+        }
         _ if is_scopable_tool(tool) => Some(Scope {
             kind: RuleKind::Tool,
             value: tool.to_string(),
@@ -239,7 +297,11 @@ impl Scope {
                 // A one-word prefix can't come from `suggest`; don't honour one
                 // that was written into the registry by hand.
                 match self.kind {
-                    RuleKind::CommandPrefix => rule.len() >= 2 && words.starts_with(&rule),
+                    RuleKind::CommandPrefix => {
+                        rule.len() >= 2
+                            && words.starts_with(&rule)
+                            && !words[rule.len()..].iter().any(|w| runs_code(w))
+                    }
                     _ => words == rule,
                 }
             }
@@ -247,6 +309,7 @@ impl Scope {
                 tool == "WebFetch" && host_of(field("url")).is_some_and(|h| h == self.value)
             }
             RuleKind::Tool => tool == self.value && is_scopable_tool(tool),
+            RuleKind::AppReads => is_scopable_tool(tool) && app_read(tool) == Some(&self.value),
         }
     }
 }
@@ -338,6 +401,35 @@ mod tests {
         assert!(!rule.matches("Write", &bash("npm test")));
     }
 
+    /// CTO review 2026-11-14: approving `git fetch origin` saved `git fetch`,
+    /// which then let `git fetch --upload-pack=./evil.sh .` run unasked.
+    #[test]
+    fn a_prefix_never_covers_flags_that_run_code() {
+        let rule = suggest("Bash", &bash("git fetch origin")).unwrap();
+        assert!(allows(&rule, "git fetch origin"));
+        assert!(allows(&rule, "git fetch --prune origin"));
+        for command in [
+            "git fetch --upload-pack=./evil.sh .",
+            "git fetch --upload-pack ./evil.sh .",
+            "git fetch origin --receive-pack=x",
+            "git fetch --exec=x origin",
+            "git fetch -c core.sshCommand=x origin",
+            "git fetch -ccore.sshCommand=x origin",
+            "git fetch --config=core.sshCommand=x origin",
+            "git fetch --git-dir=/tmp/x origin",
+            "git fetch origin --output=/etc/x",
+            "git fetch --upload-p=./evil.sh .",
+            "git fetch --upl ./evil.sh .",
+            "git fetch -u ./evil.sh origin",
+            "git fetch --template=/tmp/t origin",
+            "git fetch --ext-diff origin",
+            "git fetch --textconv origin",
+            "git fetch --exec-path=/tmp origin",
+        ] {
+            assert!(!allows(&rule, command), "{command:?} must ask");
+        }
+    }
+
     #[test]
     fn exact_commands_match_only_themselves() {
         let rule = suggest("Bash", &bash("rm -rf build")).unwrap();
@@ -398,6 +490,41 @@ mod tests {
         assert_eq!(rule.label, "Send an email · Gmail");
         assert!(rule.matches("mcp__gmail__send_email", &json!({ "to": "b" })));
         assert!(!rule.matches("mcp__gmail__delete_email", &json!({})));
+    }
+
+    #[test]
+    fn a_read_offers_every_read_of_that_app_and_never_its_sends() {
+        let rule = suggest("mcp__claude_ai_Gmail__search_threads", &json!({ "q": "x" })).unwrap();
+        assert_eq!(rule.kind, RuleKind::AppReads);
+        assert_eq!(rule.value, "claude_ai_Gmail");
+        assert_eq!(rule.label, "reading your Gmail");
+        assert!(rule.matches("mcp__claude_ai_Gmail__get_thread", &json!({})));
+        assert!(rule.matches("mcp__claude_ai_Gmail__list_labels", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail__send_email", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail__create_draft", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail__delete_thread", &json!({})));
+        // Another app's reads, a lookalike server, the browser: never.
+        assert!(!rule.matches("mcp__claude_ai_Slack__search_messages", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail2__get_thread", &json!({})));
+        assert!(!rule.matches("mcp__claude_ai_Gmail", &json!({})));
+        let chrome = Scope {
+            kind: RuleKind::AppReads,
+            value: "claude-in-chrome".into(),
+            label: "Chrome".into(),
+            said: None,
+        };
+        assert!(!chrome.matches("mcp__claude-in-chrome__get_page_text", &json!({})));
+        assert_eq!(
+            suggest("mcp__claude-in-chrome__get_page_text", &json!({})),
+            None
+        );
+        // A send still offers only itself.
+        assert_eq!(
+            suggest("mcp__claude_ai_Gmail__send_email", &json!({}))
+                .unwrap()
+                .kind,
+            RuleKind::Tool
+        );
     }
 
     #[test]

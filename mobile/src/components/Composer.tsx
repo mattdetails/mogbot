@@ -302,6 +302,7 @@ export function Composer({
   const onLevel = useCallback(
     (l: number) => {
       level.set(l);
+      heard.current.readyAt ??= Date.now();
       if (l >= VOICE_LEVEL) heard.current.lastVoiceAt = Date.now();
     },
     [level]
@@ -1453,7 +1454,9 @@ export function ComposerField({
         {card ? null : children}
       </View>
       {card ? (
-        <View style={field.cardRow}>
+        // With no words above (dictating), the row needs the top inset the
+        // words gave it, or its buttons sit on the card's top edge, off centre.
+        <View style={[field.cardRow, dictation?.bare ? field.cardRowAlone : null]}>
           {leading}
           {chip}
           {/* Listening, the waveform fills the middle; otherwise the buttons go right. */}
@@ -1664,6 +1667,7 @@ const useFieldStyles = makeStyles((colors) => ({
   // The card: the words keep the input's type and top; at the right as wide as at the left.
   cardInput: { paddingRight: composer.padLeft, paddingBottom: space.sm },
   cardRow: { flexDirection: 'row', alignItems: 'flex-end', paddingLeft: composer.inset },
+  cardRowAlone: { paddingTop: composer.inset },
   spacer: { flex: 1 },
   top: { paddingTop: space.sm },
   chip: {

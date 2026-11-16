@@ -82,9 +82,58 @@ fn the_users_words_and_a_card_they_saw_make_a_rule() {
 
 fn plan_for_team() -> Plan {
     let log = in_chat(vec![card("r1", UPSERT, posts())]);
-    let mut a = args(UPSERT, "always allowed to do those");
+    let mut a = args(UPSERT, "the team is always allowed to do those");
     a["scope"] = json!("team");
-    plan(Some(SAID), &a, &log, Some(&ctx())).unwrap()
+    plan(Some(SAID_TEAM), &a, &log, Some(&ctx())).unwrap()
+}
+
+const SAID_TEAM: &str = "yes, the team is always allowed to do those";
+
+/// CTO review 2026-11-14: any four letters of the user's message passed as
+/// the quote, and the agent alone chose "team".
+#[test]
+fn the_quote_must_say_it_is_for_good_and_name_the_team_for_the_team() {
+    let log = in_chat(vec![card("r1", UPSERT, posts())]);
+    let said = "yes do those, the team can handle it";
+    assert_eq!(
+        plan(
+            Some(said),
+            &args(UPSERT, "yes do those"),
+            &log,
+            Some(&ctx())
+        ),
+        Err(NOT_FOR_GOOD.to_string())
+    );
+    for ok in [
+        "you can do those from now on",
+        "do those without asking",
+        "don't ask me again for those, every time is fine",
+    ] {
+        assert!(
+            plan(Some(ok), &args(UPSERT, ok), &log, Some(&ctx())).is_ok(),
+            "{ok:?}"
+        );
+    }
+    // Negated, or only about the next one: a yes to this card, not a rule.
+    for no in [
+        "not always, but do those now",
+        "you don't always have to ask for those",
+        "do those next time too",
+    ] {
+        assert_eq!(
+            plan(Some(no), &args(UPSERT, no), &log, Some(&ctx())),
+            Err(NOT_FOR_GOOD.to_string()),
+            "{no:?}"
+        );
+    }
+    // For good, but nothing names the team: not for the team.
+    let mut a = args(UPSERT, "ur always allowed to do those");
+    a["scope"] = json!("team");
+    assert_eq!(
+        plan(Some(SAID), &a, &log, Some(&ctx())),
+        Err(NOT_TEAM_WORDS.to_string())
+    );
+    assert!(plan_for_team().team);
 }
 
 #[test]

@@ -61,7 +61,7 @@ describe('AgentsDiskSettings', () => {
       )
     ).toBeTruthy();
     expect(
-      screen.getByText('Its folder uses 39 GB, 37 GB of it in dependency and build folders.')
+      screen.getByText('Its folder uses 39 GB, 37 GB of it safe to free.')
     ).toBeTruthy();
     expect(screen.getByText('Its folder uses 1.4 GB.')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /Free up space/ })).toHaveLength(1);

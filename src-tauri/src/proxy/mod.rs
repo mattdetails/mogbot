@@ -672,6 +672,16 @@ async fn handle_request(
     req: Request<Incoming>,
     target_port: u16,
 ) -> Result<Response<ProxyBody>, hyper::Error> {
+    // DNS rebinding: a page on attacker.example re-pointed at 127.0.0.1
+    // arrives with its own name in Host. The proxy rewrites Host for the dev
+    // server, which would defeat the dev server's own check (Vite's
+    // allowedHosts), so it checks first (CTO review 2026-11-14).
+    if !loopback_host(&req) {
+        return Ok(Response::builder()
+            .status(StatusCode::FORBIDDEN)
+            .body(full_body(Bytes::from_static(b"Not a local address.")))
+            .unwrap());
+    }
     let is_websocket = is_upgrade_request(&req);
 
     if is_websocket {
@@ -696,6 +706,30 @@ async fn handle_request(
                 .unwrap())
         }
     }
+}
+
+/// Whether the request names this Mac's loopback in Host (any port), as the
+/// webview and the app's own tools do. No Host at all (HTTP/1.0) is let
+/// through: a browser always sends one.
+fn loopback_host<B>(req: &Request<B>) -> bool {
+    let Some(host) = req.headers().get(hyper::header::HOST) else {
+        return true;
+    };
+    let Ok(host) = host.to_str() else {
+        return false;
+    };
+    let name = if let Some(rest) = host.strip_prefix('[') {
+        rest.split(']')
+            .next()
+            .map(|h| format!("[{h}]"))
+            .unwrap_or_default()
+    } else {
+        host.split(':').next().unwrap_or("").to_string()
+    };
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "127.0.0.1" | "localhost" | "[::1]"
+    )
 }
 
 /// Check if a request is a WebSocket upgrade request.
@@ -2228,6 +2262,38 @@ mod e2e_tests {
         assert!(lower.contains("cache-control: no-store"), "{resp}");
         assert!(!lower.contains("etag"), "{resp}");
         assert!(!lower.contains("max-age"), "{resp}");
+    }
+
+    /// CTO review 2026-11-14: DNS rebinding reached the dev server because
+    /// the proxy rewrote any Host to localhost.
+    #[test]
+    fn only_a_loopback_host_is_proxied() {
+        let with = |h: &str| {
+            hyper::Request::builder()
+                .header("host", h)
+                .body(())
+                .unwrap()
+        };
+        for ok in [
+            "localhost:5173",
+            "127.0.0.1:61000",
+            "[::1]:61000",
+            "LOCALHOST",
+            "localhost",
+        ] {
+            assert!(crate::proxy::loopback_host(&with(ok)), "{ok}");
+        }
+        for bad in [
+            "attacker.example:61000",
+            "attacker.example",
+            "127.0.0.1.nip.io:80",
+            "10.0.0.2:61000",
+        ] {
+            assert!(!crate::proxy::loopback_host(&with(bad)), "{bad}");
+        }
+        assert!(crate::proxy::loopback_host(
+            &hyper::Request::builder().body(()).unwrap()
+        ));
     }
 
     #[tokio::test]

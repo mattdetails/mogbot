@@ -247,7 +247,8 @@ describe('the connection', () => {
   it('carries a sign-in only when a secret could go, said in its own words', () => {
     expect(signinRouteProblem(null, { kind: 'tailscale' })).toBeNull();
     expect(signinRouteProblem('x', null)).toMatch(/isn’t connected/);
-    expect(signinRouteProblem('x', { kind: 'lan' })).toMatch(/only works over Tailscale/);
+    expect(signinRouteProblem('x', { kind: 'lan' })).toMatch(/^Finish this one on/);
+    expect(signinRouteProblem('x', { kind: 'relay' })).not.toMatch(/Tailscale/);
     expect(signinRouteProblem('x', { kind: 'tailscale' })).toMatch(/hasn’t proved/);
   });
 });

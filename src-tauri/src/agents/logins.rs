@@ -630,12 +630,15 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
                     .then(|| format!("There's no connector for {title} here."))
             });
     }
+    // The site to sign in on: a known service's, or the ask itself when it
+    // names a website nothing here knows ("walmart.com", issue #38).
+    let unknown_site = known.is_none().then(|| website(&ask.service)).flatten();
+    let site_of = known.and_then(|s| s.site).or(unknown_site.as_deref());
     // The agents' own browser first: either engine, and the person signs in
     // from the phone or here, never with a per-site Allow at the Mac.
-    let agents_browser = known.and_then(|s| s.site).is_some()
-        && crate::agent_browser::available()
-        && !agent.reach.browser_off;
-    if let Some(site) = known.and_then(|s| s.site).filter(|_| agents_browser) {
+    let agents_browser =
+        site_of.is_some() && crate::agent_browser::available() && !agent.reach.browser_off;
+    if let Some(site) = site_of.filter(|_| agents_browser) {
         options.push(LoginOption {
             id: AGENTS_BROWSER_OPTION.into(),
             method: Method::AgentBrowser,
@@ -644,7 +647,7 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
             connection_id: None,
         });
     }
-    if let Some(site) = known.and_then(|s| s.site) {
+    if let Some(site) = site_of {
         if claude {
             let helper = if browser_helper_installed() {
                 ""
@@ -680,10 +683,23 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
     }
     // A key only where a raw API key is a real way in, or for a service
     // nothing else here knows.
-    let key_label = known
-        .and_then(|s| s.key)
-        .map(str::to_string)
-        .or_else(|| known.is_none().then(|| "API key".to_string()));
+    // A website nothing here knows is signed in to in a browser; a key only
+    // when the ask says it needs one.
+    let asks_for_key = {
+        let why = ask.why.to_ascii_lowercase();
+        [
+            "api key",
+            "api token",
+            "access token",
+            "token",
+            "secret key",
+        ]
+        .iter()
+        .any(|w| why.contains(w))
+    };
+    let key_label = known.and_then(|s| s.key).map(str::to_string).or_else(|| {
+        (known.is_none() && (unknown_site.is_none() || asks_for_key)).then(|| "API key".to_string())
+    });
     let key = match key_label {
         Some(label) => {
             let slug = secrets::slug(&format!(
@@ -2026,6 +2042,31 @@ pub(crate) fn record_card(
 }
 
 /// The card in the log without the app (tests): its request id.
+/// `service` as a website's host when it reads like one ("walmart.com",
+/// "https://www.walmart.com/account"), else `None`.
+pub(super) fn website(service: &str) -> Option<String> {
+    let t = service.trim().to_ascii_lowercase();
+    let t = t
+        .strip_prefix("https://")
+        .or_else(|| t.strip_prefix("http://"))
+        .unwrap_or(&t);
+    let host = t.split(['/', '?', '#']).next().unwrap_or("");
+    let host = host.strip_prefix("www.").unwrap_or(host);
+    let labels: Vec<&str> = host.split('.').collect();
+    let ok = labels.len() >= 2
+        && labels.iter().all(|l| {
+            !l.is_empty()
+                && l.len() <= 63
+                && l.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+                && !l.starts_with('-')
+                && !l.ends_with('-')
+        })
+        && labels
+            .last()
+            .is_some_and(|tld| tld.len() >= 2 && tld.chars().all(|c| c.is_ascii_alphabetic()));
+    ok.then(|| host.to_string())
+}
+
 #[cfg(test)]
 pub(crate) fn store_card(agent: &Agent, r: LoginRequest) -> Result<String, CommandError> {
     let m = card_message(agent, r);
@@ -2987,6 +3028,24 @@ mod tests {
             );
             assert!(unknown.no_connector.is_some());
 
+            // A website nothing here knows: a browser sign-in, no key (#38).
+            let walmart = build(&recruiter, &ask("walmart.com", &[])).unwrap();
+            assert_eq!(
+                walmart.options.iter().map(|o| o.method).collect::<Vec<_>>(),
+                vec![Method::AgentBrowser, Method::Browser]
+            );
+            assert!(walmart.key.is_none());
+            // Unless the agent says it needs a key.
+            let keyed = build(
+                &recruiter,
+                &Ask {
+                    why: "Its API token, to pull orders".into(),
+                    ..ask("walmart.com", &[])
+                },
+            )
+            .unwrap();
+            assert!(keyed.key.is_some());
+
             assert!(build(
                 &recruiter,
                 &Ask {
@@ -2996,6 +3055,29 @@ mod tests {
             )
             .is_err());
         });
+    }
+
+    #[test]
+    fn a_service_that_reads_like_a_website_is_one() {
+        assert_eq!(website("walmart.com").as_deref(), Some("walmart.com"));
+        assert_eq!(
+            website("https://www.Walmart.com/account?x=1").as_deref(),
+            Some("walmart.com")
+        );
+        assert_eq!(
+            website("shop.example.co.uk").as_deref(),
+            Some("shop.example.co.uk")
+        );
+        for not in [
+            "Acme OS recruiting tools",
+            "stripe",
+            "v1.2",
+            "a..com",
+            "-a.com",
+            "",
+        ] {
+            assert_eq!(website(not), None, "{not}");
+        }
     }
 
     #[test]

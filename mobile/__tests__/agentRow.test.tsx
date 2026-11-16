@@ -167,6 +167,30 @@ describe('AgentRow', () => {
     await fireEvent.press(screen.getByRole('button', { name: /^Chief of Staff\./ }));
     expect(mockNavigate).toHaveBeenCalledTimes(1);
   });
+  // Seen 2026-11-14 on the iPhone: a row waiting on you whose ask the phone
+  // hadn't loaded kept an empty line under the pill, so the name and pill
+  // sat above the key's middle. Nothing to say: only the pill.
+  it('a lone "Needs your OK" leaves no empty line beside or under it', async () => {
+    const asks = agent({
+      id: 'social',
+      name: 'Social Posts',
+      unread: 0,
+      status: { state: 'waiting', since: null, activity: null },
+    });
+    await render(<AgentRow agent={asks} caps={full} live onAction={jest.fn()} />);
+    expect(screen.getByText('Needs your OK')).toBeTruthy();
+    type Node = { type: string; children: (Node | string)[] | null };
+    const blank: Node[] = [];
+    const walk = (n: Node | Node[] | string | null) => {
+      if (!n || typeof n === 'string') return;
+      if (Array.isArray(n)) return n.forEach(walk);
+      const kids = n.children ?? [];
+      if (n.type === 'Text' && kids.every((k) => typeof k === 'string' && !k.trim())) blank.push(n);
+      kids.forEach(walk);
+    };
+    walk(screen.toJSON() as unknown as Node);
+    expect(blank).toHaveLength(0);
+  });
 });
 
 describe('Home’s list', () => {

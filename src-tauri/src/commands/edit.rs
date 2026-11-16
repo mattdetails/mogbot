@@ -4783,12 +4783,12 @@ const items = [];
 
     #[test]
     fn text_run_reads_plain_leaf_text() {
-        let src = "<h1 className=\"hero\">Welcome to Trase</h1>";
+        let src = "<h1 className=\"hero\">Welcome to Acme</h1>";
         let ts = text_after_class(src).unwrap();
-        assert_eq!(ts.value, "Welcome to Trase");
+        assert_eq!(ts.value, "Welcome to Acme");
         assert_eq!(ts.line, 1);
         // Edits the trimmed run only.
-        assert_eq!(&src[ts.value_start..ts.value_end], "Welcome to Trase");
+        assert_eq!(&src[ts.value_start..ts.value_end], "Welcome to Acme");
     }
 
     #[test]
@@ -4888,9 +4888,9 @@ const items = [];
     #[test]
     fn text_run_keeps_br_line_breaks() {
         // A multi-line heading with <br /> is editable; the br is part of the value.
-        let src = "<h1 className=\"hero\">Elite AI Performance.<br />Powered By Trase.</h1>";
+        let src = "<h1 className=\"hero\">Elite AI Performance.<br />Powered By Acme.</h1>";
         let ts = text_after_class(src).unwrap();
-        assert_eq!(ts.value, "Elite AI Performance.<br />Powered By Trase.");
+        assert_eq!(ts.value, "Elite AI Performance.<br />Powered By Acme.");
         // A non-inline element is still mixed content.
         assert!(text_after_class("<h1 className=\"a\">Hi <div>there</div></h1>").is_none());
         // <break> must not be mistaken for <br>.

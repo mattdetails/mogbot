@@ -47,6 +47,7 @@
  */
 
 import { requireOptionalNativeModule } from 'expo';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import type { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
@@ -647,6 +648,9 @@ export function tidyReducer(s: TidyState, e: TidyEvent): TidyStep {
  * when the session ends; `sendWhenReady` is Send then, `tidying` and `undo`
  * what the field shows meanwhile and after.
  */
+/** The keep-awake tag dictation holds while it listens. */
+export const KEEP_AWAKE_TAG = 'dictation';
+
 export function useDictation({
   getDraft,
   setDraft,
@@ -698,6 +702,16 @@ export function useDictation({
   /** The kept audio's file, once the recognizer has finished writing it. */
   const recording = useRef<string | null>(null);
   const lastVoiceAt = useRef(0);
+  // The screen stays on while it listens: an auto-lock mid-sentence ended
+  // the session and lost the words (issue #35). Normal auto-lock after.
+  const listening = state.phase !== 'idle';
+  useEffect(() => {
+    if (!listening) return;
+    void activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+    return () => {
+      void deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+    };
+  }, [listening]);
   const startedRef = useRef(0);
   const latest = useRef({ setDraft, getDraft, onLevel, now, improve, discard });
   useEffect(() => {

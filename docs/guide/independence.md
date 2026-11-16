@@ -9,8 +9,8 @@ from "Asks a lot" to "Just does it".
 | Stop | What it does on its own |
 | --- | --- |
 | **Careful** | Reads and looks around; asks before bigger changes. |
-| **Steady** (the default) | Reads and edits; asks before running changes or anything leaving your computer. |
-| **Bold** | Does local work on your computer; asks before anything leaves it. |
+| **Steady** | Reads and edits; asks before running changes or anything leaving your computer. |
+| **Bold** (where a new install starts) | Does local work on your computer; asks before anything leaves it. |
 | **Unleashed** | Sends, posts and pushes too; only stops for money, logins, deleting for good or going live. |
 
 ## Setting it
@@ -52,7 +52,12 @@ and opening its chat takes you to the card, in whichever of its conversations it
 far back it is. **Review** on the "needs your OK" bar does the same.
 
 - **Allow** or **Deny**. Some cards also offer **Always allow** for that kind of thing (for
-  example, web searches).
+  example, web searches). When an agent reads one of your apps (searching your Gmail, say), it
+  offers **Always allow reading your Gmail**: every read of that app stops asking, while sending,
+  changing or deleting anything there still asks each time. On the phone it sits on its own line
+  under Allow.
+- A card for one of your apps lists what it will send as plain lines (To, Subject, then the
+  text), each value exactly as it goes, never as code.
 - Answer from the computer, the phone, or by typing "yes" or "approve it" in the chat when there's
   exactly one card open.
 - A card can be answered once. If you answer on the phone and the computer at the same moment, only the

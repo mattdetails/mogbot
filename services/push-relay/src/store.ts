@@ -140,12 +140,21 @@ export async function hit(
   const win = Math.floor(now / windowMs);
   const row = await db
     .prepare(
-      `INSERT INTO rate (key, win, count) VALUES (?1, ?2, 1)
+      `INSERT INTO rate (key, win, count, at) VALUES (?1, ?2, 1, ?3)
        ON CONFLICT (key) DO UPDATE SET
-         count = CASE WHEN win = ?2 THEN count + 1 ELSE 1 END, win = ?2
+         count = CASE WHEN win = ?2 THEN count + 1 ELSE 1 END, win = ?2, at = ?3
        RETURNING count`
     )
-    .bind(key, win)
+    .bind(key, win, now)
     .first<{ count: number }>();
   return (row?.count ?? 1) <= limit;
+}
+
+/** Counters untouched this long are spent: every window is shorter. */
+export const RATE_KEEP_MS = 2 * 24 * 60 * 60 * 1000;
+
+/** Drop spent rate counters (the daily cron). Returns how many went. */
+export async function pruneRate(db: D1Database, now: number): Promise<number> {
+  const r = await db.prepare('DELETE FROM rate WHERE at < ?1').bind(now - RATE_KEEP_MS).run();
+  return r.meta.changes ?? 0;
 }

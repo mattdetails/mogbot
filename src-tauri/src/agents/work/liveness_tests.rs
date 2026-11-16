@@ -369,3 +369,23 @@ fn check_on_it_says_what_it_found() {
         "It isn't working on anything right now."
     );
 }
+
+#[test]
+fn waiting_on_a_helper_is_never_no_progress() {
+    let a = agent("helper-wait");
+    begin(&a, 0);
+    let mut wait =
+        super::super::describe_tool("mcp__app__session_wait", Some(&json!({ "session": "s1" })))
+            .expect("session_wait is described");
+    wait.id = Some("w1".into());
+    on_action(&a, wait, 0);
+    // Ten quiet minutes waiting on the session: still not stalled.
+    let p = pulse(&a, 10 * 60 * 1000, None, None);
+    assert!(!p.changed);
+    assert_eq!(live(&a).unwrap().quiet_since, None);
+    // An ordinary command afterwards stalls as usual, counted from the wait's end.
+    on_action(&a, bash("c2", "git fetch origin"), 10 * 60 * 1000);
+    assert!(!pulse(&a, 10 * 60 * 1000 + STALL_MS - 1, None, None).changed);
+    assert!(pulse(&a, 10 * 60 * 1000 + STALL_MS, None, None).changed);
+    LIVE.lock().unwrap().remove(&a);
+}
