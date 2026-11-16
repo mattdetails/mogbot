@@ -108,7 +108,7 @@ export function AgentsPage({ onImport }: { onImport: () => void }) {
             {stayOn.keepScreenOnAvailable && (
               <Row
                 label="Keep the screen on while agents work"
-                description={`Off, the screen can lock mid-task and Chrome can't ask for its Allow. Locks as usual once agents are idle.`}
+                description="Chrome can't ask for its Allow on a locked screen. Locks as usual when idle."
               >
                 <Toggle
                   on={stayOn.keepScreenOn ?? false}

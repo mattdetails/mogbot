@@ -534,8 +534,7 @@ fn spawn_screen_holder() -> Result<Holder, CommandError> {
         .name("screen-on".into())
         .spawn(move || {
             // SAFETY: plain Win32 call with flag constants.
-            let ok =
-                unsafe { SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED) } != 0;
+            let ok = unsafe { SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED) } != 0;
             let _ = started.send(ok);
             if ok {
                 let _ = stopped.recv();
