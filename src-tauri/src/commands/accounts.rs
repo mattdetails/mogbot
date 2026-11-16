@@ -270,6 +270,42 @@ pub async fn claude_folder_auth_status(account_id: &str) -> Option<(bool, Option
 /// it keeps for the config folder: an injected token, or a secure-storage
 /// folder that isn't this one. Removed from every process run as an
 /// isolated account's own sign-in.
+/// The script Claude Code's sign-in opens its page with (`$BROWSER`): a
+/// new Chrome window on an empty profile of its own, so the user picks the
+/// account to add there and their own browser's sign-ins are left alone.
+/// Without Chrome, the default browser, as before.
+/// `None` off macOS (the page opens as before).
+fn fresh_window_browser() -> Option<std::path::PathBuf> {
+    if !cfg!(target_os = "macos") {
+        return None;
+    }
+    let dir = crate::brand::app_support_dir().join("bin");
+    let path = dir.join("sign-in-window.sh");
+    let profile = std::env::temp_dir().join(format!("{}-sign-in", crate::brand::SLUG));
+    let script = format!(
+        r#"#!/bin/sh
+# Opens an account's sign-in page in a window with no sign-ins (written by the app).
+url="$1"
+rm -rf '{profile}'
+if [ -d "/Applications/Google Chrome.app" ] || [ -d "$HOME/Applications/Google Chrome.app" ]; then
+  exec open -na "Google Chrome" --args --user-data-dir='{profile}' --no-first-run --no-default-browser-check --new-window "$url"
+fi
+exec open "$url"
+"#,
+        profile = profile.display()
+    );
+    std::fs::create_dir_all(&dir).ok()?;
+    if std::fs::read_to_string(&path).ok().as_deref() != Some(script.as_str()) {
+        std::fs::write(&path, &script).ok()?;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).ok()?;
+    }
+    Some(path)
+}
+
 pub const CLAUDE_LOGIN_OVERRIDES: &[&str] =
     &["CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_SECURESTORAGE_CONFIG_DIR"];
 
@@ -1480,6 +1516,14 @@ pub fn workspace_connect_start(
         for var in CLAUDE_LOGIN_OVERRIDES {
             env.remove(*var);
             cmd.env_remove(var);
+        }
+        // Its sign-in page in a fresh browser window with no sign-ins: in
+        // the user's own browser, claude.ai answered as whoever was signed
+        // in there, so an "added" account came back as the one they already
+        // had, and switching accounts there signed the other out (Julian,
+        // 2026-11-16). Claude Code opens the page with `$BROWSER`.
+        if let Some(helper) = fresh_window_browser() {
+            cmd.env("BROWSER", helper);
         }
     }
     for (k, v) in env {
