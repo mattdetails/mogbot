@@ -833,7 +833,8 @@ mod tests {
             "your pick and why",
             "the agent that owns it",
             "`project_list` and pick; never ask the user",
-            "Gmail, Google, Slack, X, LinkedIn and Grok",
+            "the one signed in to that site, kept for the",
+            "Slack, X, LinkedIn, Grok, a site signed in only there",
             "never \"I'm not signed in\"",
         ] {
             assert!(plain.contains(needed), "missing: {needed}");
