@@ -128,7 +128,7 @@ pub const TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         name: "attach_image",
-        description: "Attach a picture from this Mac to the page, as pasting it would: into a post or message composer (by ref; it's clicked first) or wherever the cursor is. `path`: a PNG, JPEG, GIF or WebP in your own folder or a project, at most 20 MB. Asks the user first, like any upload.",
+        description: "Attach a picture from this Mac to the page. With a ref (the composer, the site's upload button or its drop area) it goes in as a file, the way the site's own upload takes it, else it's pasted there; with no ref it's pasted wherever the cursor is. `path`: a PNG, JPEG, GIF or WebP in your own folder or a project, at most 20 MB. Asks the user first, like any upload.",
         schema: || json!({ "type": "object", "properties": { "path": { "type": "string", "description": "Full path to the image." }, "ref": { "type": "string" }, "tab": tab_prop() }, "required": ["path"] }),
     },
     ToolDef {
@@ -547,6 +547,21 @@ fn browsers_text(agent: &str) -> String {
         .join("\n")
 }
 
+/// The picture's type, from its extension (`attachable` allows only these).
+fn image_mime(path: &std::path::Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        _ => "image/png",
+    }
+}
+
 /// Pictures an agent may attach: an image file, inside its own folder or
 /// the projects folder, at most 20 MB. Anything else is refused.
 pub fn attachable(agent: &str, raw: &str) -> Result<std::path::PathBuf, String> {
@@ -815,9 +830,35 @@ pub fn run(agent: &str, label: &str, name: &str, args: &Value) -> Result<Vec<Val
             let tab = tab_for(agent, &conn, tab_arg(args))?;
             to_front(&conn, agent, &tab)?;
             let p = page(&conn, agent, &tab);
-            if let Some(r) = args.get("ref").and_then(Value::as_str) {
-                let node = ref_of(agent, tab.tab_id, r)?;
-                let (x, y) = p.center_of(node.backend_node_id)?;
+            let node = match args.get("ref").and_then(Value::as_str) {
+                Some(r) => Some(ref_of(agent, tab.tab_id, r)?.backend_node_id),
+                None => None,
+            };
+            // First as a file, the way the site's own upload takes it
+            // (LinkedIn ignores a pasted picture); then as a paste. An
+            // extension from before this refuses the file route.
+            let mut old_extension = false;
+            if let Some(n) = node {
+                let bytes =
+                    std::fs::read(&path).map_err(|e| format!("Couldn't read the picture: {e}"))?;
+                let name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "picture.png".into());
+                match p.attach_file(n, &bytes, &name, image_mime(&path), true) {
+                    Ok(crate::agent_browser::page::Attached::Input)
+                    | Ok(crate::agent_browser::page::Attached::Dropped) => {
+                        p.settle(Duration::from_secs(3));
+                        clear_refs(agent, tab.tab_id);
+                        return Ok(vec![text(
+                            "Attached as a file. Read the page or take a screenshot to check the picture shows before you post.",
+                        )]);
+                    }
+                    Ok(crate::agent_browser::page::Attached::Nothing) => {}
+                    Err(e) if e.starts_with("The extension refused") => old_extension = true,
+                    Err(e) => return Err(e),
+                }
+                let (x, y) = p.center_of(n)?;
                 click(&p, x, y)?;
             }
             let kept = crate::user_chrome::clipboard::put_image(&path)?;
@@ -827,9 +868,13 @@ pub fn run(agent: &str, label: &str, name: &str, args: &Value) -> Result<Vec<Val
             pasted?;
             p.settle(Duration::from_secs(3));
             clear_refs(agent, tab.tab_id);
-            Ok(vec![text(
-                "Attached. Read the page or take a screenshot to check the picture shows before you post.",
-            )])
+            Ok(vec![text(if old_extension {
+                "Pasted. Read the page or take a screenshot to check the picture shows before you post. If it doesn't, this site needs a newer Mogbot for Chrome (Chrome updates it from the Web Store)."
+            } else if node.is_some() {
+                "Pasted (nothing on the page took it as a file). Read the page or take a screenshot to check the picture shows before you post."
+            } else {
+                "Pasted. Read the page or take a screenshot to check the picture shows before you post. If it doesn't, try again with the ref of the site's upload button or drop area."
+            })])
         }
         "press" => {
             let k = args.get("key").and_then(Value::as_str).unwrap_or("");
