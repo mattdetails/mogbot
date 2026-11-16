@@ -810,3 +810,54 @@ fn a_plan_in_use_lasts_an_hour_past_its_last_action_and_never_past_eight() {
     assert!(holds(idle, NOW + 69 * min));
     assert!(!holds(idle, NOW + 71 * min));
 }
+
+#[test]
+fn a_posts_listed_words_cover_every_step_of_it_on_its_site() {
+    // Social Posts, 16 Nov: one LinkedIn post scheduled for 19 Nov.
+    let words = "I'm on two Claude Max plans and it feels almost impossible to hit the limit now\n\nMost nights my agents keep going after I log off";
+    let mut a = action(Kind::Post, "linkedin.com", "Schedule the Max plans post");
+    a.text = Some(words.into());
+    let id = "plan-test-typed";
+    grant(
+        id,
+        &Plan {
+            actions: vec![a],
+            why: None,
+        },
+        NOW,
+    );
+    let typed = vec![
+        words.to_string(),
+        "11/19/2026".to_string(),
+        "11:00 AM".to_string(),
+    ];
+    // The clock, an unlabelled button, Confirm, Schedule: all of them.
+    for _ in 0..4 {
+        assert!(covers_typed(id, "www.linkedin.com", &typed, NOW + 60_000));
+    }
+    // Not other words, not another site, not someone else.
+    let other = vec!["Something else".to_string(), "11/19/2026".to_string()];
+    assert!(!covers_typed(id, "www.linkedin.com", &other, NOW + 60_000));
+    assert!(!covers_typed(id, "x.com", &typed, NOW + 60_000));
+    assert!(!covers_typed(
+        "someone-else",
+        "www.linkedin.com",
+        &typed,
+        NOW + 60_000
+    ));
+    // Only dates and times typed: nothing the user OK'd.
+    let only_time = vec!["11:00 AM".to_string()];
+    assert!(!covers_typed(
+        id,
+        "www.linkedin.com",
+        &only_time,
+        NOW + 60_000
+    ));
+    // Not past the plan's end.
+    assert!(!covers_typed(
+        id,
+        "www.linkedin.com",
+        &typed,
+        NOW + LONGEST_MS + 1
+    ));
+}

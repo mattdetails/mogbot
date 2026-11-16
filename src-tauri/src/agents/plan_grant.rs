@@ -282,6 +282,42 @@ pub fn drop_holder(agent_id: &str) {
 
 /// Whether `agent_id` holds any grant (tests).
 #[cfg(test)]
+/// A live plan this agent holds lists a post, send or comment on `host`
+/// whose `text` is exactly what's typed on the page: every step of that
+/// send there (the clock, Confirm, Schedule, an unlabelled button) is
+/// covered, not only the one click a label names. The user OK'd those words
+/// for that site; a step can't send anything else. Keeps the plan alive.
+pub fn covers_typed(agent_id: &str, host: &str, typed: &[String], now: i64) -> bool {
+    use Kind::*;
+    let texts = super::outward::Texts {
+        pieces: typed.to_vec(),
+        unread: Vec::new(),
+    };
+    with_grants(|grants| {
+        for g in grants.iter_mut() {
+            if g.expires_at <= now || !g.holders.iter().any(|h| h == agent_id) {
+                continue;
+            }
+            let hit = g.slots.iter().any(|s| {
+                matches!(s.action.kind, Post | Send | Comment | Request)
+                    && target_ok(&s.action.target, &[host.to_string()])
+                    && s.action
+                        .text
+                        .as_deref()
+                        .is_some_and(|x| super::outward::approved_covers(x, &texts))
+            });
+            if hit {
+                g.expires_at = g
+                    .expires_at
+                    .max(now + LIFETIME_MS)
+                    .min(g.granted_at + LONGEST_MS);
+                return true;
+            }
+        }
+        false
+    })
+}
+
 pub fn holds_any(agent_id: &str) -> bool {
     with_grants(|g| g.iter().any(|x| x.holders.iter().any(|h| h == agent_id)))
 }

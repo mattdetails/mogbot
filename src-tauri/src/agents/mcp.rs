@@ -4137,8 +4137,19 @@ fn under_plan(
         exact,
         typed: super::browser_gate::typed_for(&caller.id, tool, input),
     };
-    let Some(lines) = super::plan_grant::cover(tool, input, &turn) else {
-        return false;
+    let lines = match super::plan_grant::cover(tool, input, &turn) {
+        Some(lines) => lines,
+        // Any step of a send whose exact words the plan lists, on its site:
+        // the clock, Confirm, an unlabelled button (one OK per post).
+        None => match &turn.browser {
+            Some((_, host))
+                if !turn.typed.is_empty()
+                    && super::plan_grant::covers_typed(&caller.id, host, &turn.typed, now) =>
+            {
+                vec!["a step of a post you approved".to_string()]
+            }
+            _ => return false,
+        },
     };
     for line in lines {
         let line = format!("{} · {line}", super::plan_grant::LINE);
