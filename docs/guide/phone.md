@@ -83,3 +83,9 @@ alert goes away once you've handled it on either device.
 
 Approvals always come through, even during quiet hours. Other alerts are held during quiet hours
 and summed up in one when they end.
+
+If the app on your computer is too old to wake the phone, the phone's Settings says **Update your
+Mac** (or computer): until you do, notifications arrive only while the phone app is open.
+
+While you dictate on the phone, its screen stays on, so it can't lock mid-sentence and lose your
+words. It locks as usual once you stop.
