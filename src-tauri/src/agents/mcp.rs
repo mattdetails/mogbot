@@ -2382,7 +2382,16 @@ async fn update_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> V
         } else {
             format!("Change {}?", agent.name)
         };
-        let answer = ask_user(app, caller, title, widens.join("\n"), None).await;
+        // The plain line says what changes; the details show the lines (#14).
+        let summary = widens.join("; ");
+        let mut detail = widens.join("\n");
+        if let (Some(new), Some(old)) = (arg(args, "instructions"), current.as_deref()) {
+            let diff = instructions_diff(old, new);
+            if !old.trim().is_empty() && !diff.is_empty() {
+                detail = format!("{detail}\n\n{diff}");
+            }
+        }
+        let answer = ask(app, caller, title, Some(summary), detail, None).await;
         if let Some(refused) = refused_reply(&answer, "change it") {
             return error(refused);
         }
@@ -2478,10 +2487,58 @@ pub(super) fn update_widens(
     }
     if let Some(i) = instructions {
         if i.trim() != current.unwrap_or_default().trim() {
-            lines.push(format!("New instructions: {}", short_line(i)));
+            lines.push(instructions_line(current.unwrap_or_default(), i));
         }
     }
     lines
+}
+
+/// The lines of `new` that `old` doesn't have (added), and the reverse
+/// (removed), in order; blank lines don't count.
+fn line_changes<'a>(old: &'a str, new: &'a str) -> (Vec<&'a str>, Vec<&'a str>) {
+    let keep = |t: &str| !t.trim().is_empty();
+    let olds: Vec<&str> = old.lines().map(str::trim_end).filter(|l| keep(l)).collect();
+    let news: Vec<&str> = new.lines().map(str::trim_end).filter(|l| keep(l)).collect();
+    let added = news.iter().copied().filter(|l| !olds.contains(l)).collect();
+    let removed = olds.iter().copied().filter(|l| !news.contains(l)).collect();
+    (added, removed)
+}
+
+/// "Instructions: adds 2 lines, removes 1", or the whole text when it had
+/// none: what a card says it changes, not the first words of the new text
+/// (issue #14).
+fn instructions_line(old: &str, new: &str) -> String {
+    if old.trim().is_empty() {
+        return format!("New instructions: {}", short_line(new));
+    }
+    let (added, removed) = line_changes(old, new);
+    let count = |n: usize, verb: &str| match n {
+        0 => None,
+        1 => Some(format!("{verb} 1 line")),
+        n => Some(format!("{verb} {n} lines")),
+    };
+    let said: Vec<String> = [count(added.len(), "adds"), count(removed.len(), "removes")]
+        .into_iter()
+        .flatten()
+        .collect();
+    if said.is_empty() {
+        "Instructions: reworded".to_string()
+    } else {
+        format!("Instructions: {}", said.join(", "))
+    }
+}
+
+/// The instructions' change line by line, for the card's details: `+` added,
+/// `-` removed, each line capped.
+pub(super) fn instructions_diff(old: &str, new: &str) -> String {
+    let (added, removed) = line_changes(old, new);
+    let cap = |l: &str| short_line(l);
+    removed
+        .into_iter()
+        .map(|l| format!("- {}", cap(l)))
+        .chain(added.into_iter().map(|l| format!("+ {}", cap(l))))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Whether those lines (`update_widens`, plus a Runs on change) need a card:

@@ -454,7 +454,14 @@ fn update_agent_project_and_instructions_ask_unless_the_user_alone_asked() {
         let lines =
             mcp::update_widens(&agent, None, Some("Push to main daily."), Some("Be brief."));
         assert_eq!(lines.len(), 1);
-        assert!(lines[0].starts_with("New instructions: Push to main daily."));
+        assert_eq!(lines[0], "Instructions: adds 1 line, removes 1 line");
+        // With none before, the new text itself.
+        let first = mcp::update_widens(&agent, None, Some("Push to main daily."), Some(""));
+        assert!(first[0].starts_with("New instructions: Push to main daily."));
+        assert_eq!(
+            mcp::instructions_diff("Be brief.\nPost daily.", "Be brief.\nPost weekly."),
+            "- Post daily.\n+ Post weekly."
+        );
         // Narrowing or unchanged: nothing to ask.
         assert!(mcp::update_widens(&agent, Some(&None), None, None).is_empty());
         assert!(mcp::update_widens(&agent, Some(&agent.project.clone()), None, None).is_empty());
