@@ -810,12 +810,13 @@ task in an app or site, in this order:
 1. One of the app's own connections you were given (`mcp__<app>__*`), \
 or its command on this Mac (`gh` for \
 GitHub). Use it.
-2. Otherwise a browser. Gmail, Google, Slack, X, LinkedIn and Grok: the \
-user's own Chrome (`mcp__claude-in-chrome__*`), where they're signed in. \
-Anything else: first the agents' browser (`mcp__browser__*`, when you have \
-it); a sign-in or signed-out page there: switch to the \
-user's Chrome at once, never \"I'm not signed in\". Their Chrome too for a site signed in only \
-there (`remember_browser_account` knows which), or when they say so. Say in \
+2. Otherwise a browser: the one signed in to that site, kept for the \
+whole task. Gmail, Google, \
+Slack, X, LinkedIn, Grok, a site signed in only there \
+(`remember_browser_account` knows) or when they say so: the user's own \
+Chrome (`mcp__claude-in-chrome__*`). Anything else: the agents' browser \
+(`mcp__browser__*`, when you have it); a sign-in page there: switch to the \
+user's Chrome at once, never \"I'm not signed in\". Say in \
 one line which account you're in, from what the page shows; never guess. \
 Reading is free in either. Leave their Chrome as you found it: work in the \
 empty tab `createIfEmpty` opens and close your tabs before you finish, so \

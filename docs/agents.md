@@ -3011,7 +3011,12 @@ their own, and the person signs in to it from the phone.
   server (`mcp::decide_agents_browser`). "Bold" doesn't auto-allow a step
   the browser gate said asks (this also closed that gap for Claude in
   Chrome's send clicks).
-- **Which browser** (`access_chain`): the agents' browser first; the user's
+- **Which browser** (`access_chain`): the one already signed in to the site,
+  kept for the whole task (agents hopped from the agents' browser to the
+  user's Chrome mid-task, opening two windows for one job); a site the agent
+  already has open in the user's Chrome stays there (`in_users_chrome_on`),
+  sign-in cards included ("Done in my Chrome"). Otherwise the agents' browser
+  for most sites; the user's
   own Chrome (Claude in Chrome) for Gmail, Google Calendar, Drive, Slack, X,
   LinkedIn and Grok (`users_chrome_first`: Google refuses a sign-in in a
   driven browser, and signed out, mail.google.com lands on Google's product
