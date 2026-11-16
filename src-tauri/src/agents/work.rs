@@ -1663,6 +1663,17 @@ struct Running {
     busy: Option<bool>,
     /// A Claude in Chrome call ([`claude_in_chrome`]).
     chrome: bool,
+    /// A call that waits on someone else by design (a helper, a session):
+    /// quiet isn't stuck ([`waits_on_others`]).
+    waits: bool,
+}
+
+/// The app's tools that sit until another agent or a session answers. Their
+/// silence is the wait, not a stall (issue #31).
+fn waits_on_others(tool: &str) -> bool {
+    ["session_wait", "session_progress", "wait_for_agent"]
+        .iter()
+        .any(|t| tool == *t || tool.ends_with(&format!("__{t}")))
 }
 
 /// A Claude in Chrome tool, under its own name or the name an added account
@@ -1694,6 +1705,8 @@ struct Live {
     calls: HashMap<String, Call>,
     /// Approval cards the turn raised, by request id: their step and title.
     cards: HashMap<String, (u32, String)>,
+    /// Those not answered yet: the turn waits on the user, not stuck (#31).
+    open_cards: HashSet<String>,
     files: HashSet<String>,
     /// The newest message the turn left that a timeline can hang under.
     anchor: Option<AgentMessage>,
@@ -1879,6 +1892,7 @@ impl Live {
             slow: action.slow,
             needle: action.command.as_deref().and_then(needle),
             chrome: claude_in_chrome(&action.tool),
+            waits: waits_on_others(&action.tool),
             ..Running::default()
         });
         self.running = Some(id);
@@ -1976,8 +1990,20 @@ impl Live {
                     Some(StepOutcome::Declined),
                 )
             }
-            ApprovalStatus::Pending | ApprovalStatus::Expired => return,
+            ApprovalStatus::Pending => return,
+            ApprovalStatus::Expired => {
+                self.open_cards.remove(request_id);
+                return;
+            }
         };
+        // The wait for the user ends here: the clock for "No progress"
+        // starts again now, not from before the card (#31).
+        self.open_cards.remove(request_id);
+        let now = store::now_ms();
+        self.last_progress = self.last_progress.max(now);
+        self.last_sign = self.last_sign.max(now);
+        self.quiet_since = None;
+        self.dirty = true;
         let label = clean(&label);
         if let Some(step) = self.step_mut(n) {
             step.label = label;
@@ -2011,6 +2037,7 @@ impl Live {
                         ..WorkStep::blank()
                     });
                     self.cards.insert(approval.request_id.clone(), (n, title));
+                    self.open_cards.insert(approval.request_id.clone());
                     self.running = None;
                     self.doing = None;
                     self.current = None;
