@@ -324,6 +324,10 @@ interface UserBubbleProps extends Arrival {
    * and offers to interrupt that turn to send it now.
    */
   queued?: boolean;
+  /** Queued, and already handed to the turn in progress: it reads it at its next step. */
+  handed?: boolean;
+  /** Read by the turn in progress, mid-turn. */
+  heard?: boolean;
   onInterrupt?: () => void;
   /** You're driving the agent's session: it waits for the hand-back, and nothing interrupts. */
   driven?: boolean;
@@ -350,6 +354,8 @@ export const UserBubble = memo(function UserBubble({
   onRetry,
   colorwayOf,
   queued,
+  handed,
+  heard,
   onInterrupt,
   driven,
   sending,
@@ -454,7 +460,17 @@ export const UserBubble = memo(function UserBubble({
           Waiting, sends when you hand {agent.name} back
         </div>
       )}
-      {queued && !failed && !driven && (
+      {heard && !failed && (
+        <div className="agent-chat__queued" role="status">
+          Read
+        </div>
+      )}
+      {queued && handed && !failed && !driven && (
+        <div className="agent-chat__queued" role="status">
+          Sent, {agent.name} reads it at its next step
+        </div>
+      )}
+      {queued && !handed && !failed && !driven && (
         <div className="agent-chat__queued" role="status">
           Queued, sends when {agent.name} finishes
           <span aria-hidden>·</span>

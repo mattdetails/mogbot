@@ -138,6 +138,8 @@ import {
   newestPeerGroups,
   interruptAgent,
   isQueued,
+  isHanded,
+  isHeard,
   retryExtras,
   retrySourceFor,
   continuesFrom,
@@ -1038,13 +1040,19 @@ export const AgentChat = memo(function AgentChat({
   const turnState = agent.status.state;
   const turnSince = agent.status.since;
   const takeoverSince = agent.takeover?.since;
+  // Your messages the turn took mid-turn: joined, so a new status with the
+  // same ids doesn't rebuild everything that reads the turn.
+  const handedKey = agent.status.work?.handed?.join('\n') ?? '';
+  const heardKey = agent.status.work?.heard?.join('\n') ?? '';
   const turn = useMemo(
     () =>
       ({
         status: { state: turnState, since: turnSince },
         takeover: takeoverSince === undefined ? undefined : { since: takeoverSince },
+        handed: handedKey ? handedKey.split('\n') : undefined,
+        heard: heardKey ? heardKey.split('\n') : undefined,
       }) satisfies AgentTurn,
-    [turnState, turnSince, takeoverSince]
+    [turnState, turnSince, takeoverSince, handedKey, heardKey]
   );
   const drivingId = useMemo(() => drivingBriefId(items, turn), [items, turn]);
   // Retry belongs to the newest failure only, and only if nothing was said
@@ -1816,6 +1824,8 @@ export const AgentChat = memo(function AgentChat({
                 tidying={m.id === HELD_ID}
                 onRetry={retry}
                 queued={m.id === queuedId}
+                handed={m.id === queuedId && isHanded(m, turn)}
+                heard={isHeard(m, turn)}
                 onInterrupt={interruptNow}
                 driven={driven}
                 colorwayOf={colorwayOf}
@@ -1951,6 +1961,7 @@ export const AgentChat = memo(function AgentChat({
       sending,
       retry,
       queuedId,
+      turn,
       interruptNow,
       driven,
       colorwayOf,

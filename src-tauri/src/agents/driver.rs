@@ -237,6 +237,15 @@ impl Conversation {
         }
     }
 
+    /// The user's message for the turn in progress, where the engine takes
+    /// one mid-turn (Codex's `turn/steer`); `None` otherwise.
+    pub fn steer(&self, text: &str) -> Option<serde_json::Value> {
+        match self {
+            Conversation::Codex(c) => c.steer(text),
+            Conversation::OpenCode(_) => None,
+        }
+    }
+
     pub fn over(&self) -> bool {
         match self {
             Conversation::Codex(c) => c.over(),

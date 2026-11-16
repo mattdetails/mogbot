@@ -350,6 +350,8 @@ pub fn live_work() -> crate::agents::work::TurnWork {
     TurnWork {
         started_at: 1_762_290_000_000,
         ended_at: None,
+        handed: Vec::new(),
+        heard: Vec::new(),
         step_count: 3,
         steps: vec![
             WorkStep {

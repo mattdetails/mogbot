@@ -321,6 +321,25 @@ impl Conversation {
         self
     }
 
+    /// The user's message for the turn in progress (`runner::steer`): Codex
+    /// reads it at its next step. `None` before the turn has started or once
+    /// it is over: it waits for the next turn instead.
+    pub fn steer(&self, text: &str) -> Option<Value> {
+        let (thread, turn) = (self.thread.as_ref()?, self.turn.as_ref()?);
+        (!self.over && !self.compact).then(|| {
+            json!({
+                "jsonrpc": "2.0",
+                "id": format!("steer-{}", super::store::new_id()),
+                "method": "turn/steer",
+                "params": {
+                    "threadId": thread,
+                    "expectedTurnId": turn,
+                    "input": [{ "type": "text", "text": text }],
+                },
+            })
+        })
+    }
+
     /// The turn in progress, to interrupt.
     pub fn interrupt(&self) -> Option<Value> {
         let (thread, turn) = (self.thread.as_ref()?, self.turn.as_ref()?);

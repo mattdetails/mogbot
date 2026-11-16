@@ -116,6 +116,8 @@ use panic::*;
 mod session_env;
 pub use session_env::*;
 
+mod steer;
+
 pub const EVENT_MESSAGE: &str = "agents://message";
 pub const EVENT_STATUS: &str = "agents://status";
 pub const EVENT_REGISTRY: &str = "agents://registry";

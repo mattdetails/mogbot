@@ -176,6 +176,10 @@ export interface TurnWork {
    * Macs omit it.
    */
   project?: string;
+  /** While it runs: your messages handed to it that it hasn't read yet; it reads them at its next step. */
+  handed?: string[];
+  /** While it runs: your messages it read mid-turn, part of this turn rather than queued. */
+  heard?: string[];
   /** While it runs: it has a tab open in its own browser (the agents' Chrome) right now. */
   ownBrowser?: boolean;
   /**
@@ -2393,14 +2397,29 @@ export function sortAgents(agents: Agent[]): Agent[] {
 export interface AgentTurn {
   status: Pick<AgentStatus, 'state' | 'since'>;
   takeover?: Pick<AgentTakeover, 'since'>;
+  /** Your messages the turn in progress was handed and read (`TurnWork.handed`, `heard`). */
+  handed?: readonly string[];
+  heard?: readonly string[];
 }
 
 export function isQueued(message: AgentMessage, agent: AgentTurn): boolean {
   if (message.kind !== 'user') return false;
+  // Read mid-turn: part of the turn in progress, not waiting for the next.
+  if (agent.heard?.includes(message.id)) return false;
   // While you drive it, what you send in the chat waits for the hand-back.
   if (agent.takeover) return message.ts > agent.takeover.since;
   const { state, since } = agent.status;
   return state !== 'idle' && since != null && message.ts > since;
+}
+
+/** Queued, but already handed to the turn in progress: it reads it at its next step. */
+export function isHanded(message: AgentMessage, agent: AgentTurn): boolean {
+  return !!agent.handed?.includes(message.id);
+}
+
+/** Read by the turn in progress, mid-turn. */
+export function isHeard(message: AgentMessage, agent: AgentTurn): boolean {
+  return !!agent.heard?.includes(message.id);
 }
 
 /** Waiting on you: mid-turn on a card, or paused with one still open. */
