@@ -675,6 +675,10 @@ pub fn for_project(
     same: impl Fn(&str, &str) -> bool,
 ) -> Result<Conversations, CommandError> {
     let agent = store::get(agent_id)?;
+    // The Chief works for the whole team: it is never bound to a project.
+    if agent.is_main {
+        return list(agent_id);
+    }
     if per_project(&agent) {
         let listed = list(agent_id)?;
         if let Some(c) = listed
