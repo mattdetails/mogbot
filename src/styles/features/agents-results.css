@@ -697,6 +697,9 @@
   background: var(--surface-recessed);
   border-top: var(--border-width-default) solid var(--border-subtle);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  /* It is a section, not a card: none of a card's ring, inner edge or drop
+     shadow, which stacked three more lines on its one hairline. */
+  box-shadow: none;
 }
 
 /* Its title is a section of the result, not a second card's heading. */
