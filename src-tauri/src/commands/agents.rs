@@ -2822,6 +2822,14 @@ pub async fn agents_set_defaults(
     Ok(view)
 }
 
+/// The model a project terminal opens on (Settings → Agents' choice for its
+/// engine); `None` is the engine's own.
+#[tauri::command]
+#[tracing::instrument]
+pub async fn agents_terminal_model(agent_id: String) -> Result<Option<String>, CommandError> {
+    blocking(move || Ok(agents::defaults::terminal_model(&agent_id))).await
+}
+
 /// The user's own switch (the agent editor, the phone): "Admin — can manage
 /// and approve for other agents". No agent tool reaches it. Takes effect from
 /// the agent's next call; its chat gets a line saying so.

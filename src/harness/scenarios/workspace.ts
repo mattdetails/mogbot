@@ -190,6 +190,7 @@ export const workspaceCommands: CommandMap = {
   get_terminal_state: { tabs: [], active_tab_index: 0 },
   get_shell_path: '/bin/zsh',
   get_system_env: {},
+  agents_terminal_model: null,
 
   // ---- preview -----------------------------------------------------------
   check_browser_availability: [

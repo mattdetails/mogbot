@@ -15,6 +15,7 @@
  * @module lib/agentSpawn
  */
 
+import { invoke } from '@tauri-apps/api/core';
 import { homeDir } from '@tauri-apps/api/path';
 import { getShellPath, getSystemEnv } from './project';
 import { isWindows, needsCmdExeWrapper, resolveCliPath, type ResolvedCli } from './setup';
@@ -38,6 +39,23 @@ export interface AgentSpawn {
   command: string;
   args: string[];
   env: Record<string, string>;
+}
+
+/** Each CLI's model flag (Codex takes `-m`). */
+const MODEL_FLAG: Record<string, string> = {
+  'claude-code': '--model',
+  codex: '-m',
+  opencode: '--model',
+};
+
+async function terminalModel(agentId: string): Promise<string | null> {
+  if (!(agentId in MODEL_FLAG)) return null;
+  try {
+    return (await invoke<string | null>('agents_terminal_model', { agentId })) ?? null;
+  } catch (err) {
+    logger.warn('[agentSpawn] No model for the terminal', { agent: agentId, error: String(err) });
+    return null;
+  }
 }
 
 export async function buildAgentSpawn({
@@ -92,6 +110,11 @@ export async function buildAgentSpawn({
   if (agent.id === 'claude-code' && sessionName) {
     agentArgs.push(resume ? '--resume' : '--session-id', sessionName);
   }
+
+  // The model chosen for this engine in Settings → Agents (the Mac checks it
+  // is one the engine lists). Best effort: no answer is the engine's own.
+  const model = await terminalModel(agent.id);
+  if (model) agentArgs.push(MODEL_FLAG[agent.id] ?? '--model', model);
 
   if (autoAccept && agent.autoAcceptFlag) {
     agentArgs.push(agent.autoAcceptFlag);

@@ -43,7 +43,7 @@ where
 }
 
 impl Saved {
-    fn model(&self, engine: Engine) -> Option<&str> {
+    pub(crate) fn model(&self, engine: Engine) -> Option<&str> {
         match engine {
             Engine::Claude => self.claude_model.as_deref(),
             Engine::Codex => self.codex_model.as_deref(),
@@ -249,6 +249,36 @@ pub async fn set(change: Change) -> Result<View, CommandError> {
     Ok(view().await)
 }
 
+/// The model a project terminal for `terminal_id` (`claude-code`, `codex`,
+/// `opencode`) opens on: the one chosen for that engine in Settings → Agents,
+/// or `None` for the engine's own (also for a model the engine no longer
+/// lists, and for any other terminal). It becomes an argument, so only a
+/// plain model name gets through.
+pub fn terminal_model(terminal_id: &str) -> Option<String> {
+    let engine = match terminal_id {
+        "claude-code" => Engine::Claude,
+        "codex" => Engine::Codex,
+        "opencode" => Engine::OpenCode,
+        _ => return None,
+    };
+    model_for_terminal(&saved(), engine, &engine::models(engine))
+}
+
+fn model_for_terminal(
+    saved: &Saved,
+    engine: Engine,
+    offered: &[engine::ModelChoice],
+) -> Option<String> {
+    let model = saved.model(engine)?.trim();
+    let plain = !model.is_empty()
+        && !model.starts_with('-')
+        && !model.chars().any(|c| c.is_whitespace() || c.is_control());
+    // An empty list is one not read yet (OpenCode before its first look):
+    // the saved name was checked when it was chosen.
+    let still_offered = offered.is_empty() || offered.iter().any(|m| m.value == model);
+    (plain && still_offered).then(|| model.to_string())
+}
+
 /// Once, for a Mac whose agents' engine was chosen before it reached the
 /// terminals: Projects' terminals take that engine when they were still on
 /// the fallback (unset, or Claude Code from onboarding). Returns the terminal
@@ -281,6 +311,41 @@ mod tests {
             default_agent_id: terminal.map(str::to_string),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn a_terminal_opens_on_the_chosen_model_while_its_engine_offers_it() {
+        let saved = Saved {
+            codex_model: Some("gpt-b".into()),
+            opencode_model: Some("--yolo".into()),
+            ..Default::default()
+        };
+        let offered = |names: &[&str]| -> Vec<ModelChoice> {
+            names
+                .iter()
+                .map(|n| ModelChoice {
+                    value: n.to_string(),
+                    label: n.to_string(),
+                })
+                .collect()
+        };
+        assert_eq!(
+            model_for_terminal(&saved, Engine::Codex, &offered(&["gpt-a", "gpt-b"])).as_deref(),
+            Some("gpt-b")
+        );
+        assert_eq!(
+            model_for_terminal(&saved, Engine::Codex, &offered(&["gpt-a"])),
+            None
+        );
+        assert_eq!(
+            model_for_terminal(&saved, Engine::Codex, &[]).as_deref(),
+            Some("gpt-b")
+        );
+        assert_eq!(
+            model_for_terminal(&saved, Engine::Claude, &offered(&["opus"])),
+            None
+        );
+        assert_eq!(model_for_terminal(&saved, Engine::OpenCode, &[]), None);
     }
 
     #[test]

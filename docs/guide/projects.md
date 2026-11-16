@@ -33,8 +33,8 @@ Codex, OpenCode or a plain terminal, with **Open <project> this way next time**.
 agent or a terminal in the sidebar switches between them.
 
 - **Sessions:** Claude Code, Codex or OpenCode working in the project, in tabs or side by side.
-  Sessions stay running when you switch between projects. A new session opens on the engine your
-  agents run on (Settings → Agents); changing it there changes it here too.
+  Sessions stay running when you switch between projects. A new session opens on the engine and model your
+  agents run on (Settings → Agents); changing them there changes them here too.
 - **Live preview:** your site as it runs, with device sizes, zoom and full screen. **Every
   breakpoint** shows every device size at once, each page in full. When the dev server returns an
   error, the preview shows it with **Copy error** and **Send to agent**. Send to agent asks first,

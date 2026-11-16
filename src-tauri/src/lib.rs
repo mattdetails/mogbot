@@ -708,6 +708,7 @@ pub fn run() {
             commands::agents::agents_quit_check,
             commands::agents::agents_keep_running_in_background,
             commands::agents::agents_set_defaults,
+            commands::agents::agents_terminal_model,
             commands::agents::agents_independence,
             commands::agents::agents_set_independence,
             commands::agents::agents_set_import_choice,
