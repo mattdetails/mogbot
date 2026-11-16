@@ -1385,7 +1385,8 @@ pub async fn prepare_in(
     }
     let open = store::list()?
         .iter()
-        .filter(|a| a.copy.as_ref().is_some_and(|c| c.project == project))
+        .flat_map(|a| super::conversations::copies(a).into_iter().map(|c| c.project.clone()).collect::<Vec<_>>())
+        .filter(|p| *p == project)
         .count();
     let name = super::project::folder_name(&project).to_string();
     if open >= MAX_COPIES_PER_PROJECT {
@@ -1662,8 +1663,11 @@ pub async fn abandon(copy: TaskCopy) {
 /// The agent holding the copy at `path`, if one does: `(id, name, project)`.
 pub fn holder_of(path: &str) -> Option<(String, String, String)> {
     store::list().ok()?.into_iter().find_map(|a| {
-        let copy = a.copy.as_ref()?;
-        same_path(&copy.path, path).then(|| (a.id.clone(), a.name.clone(), copy.project.clone()))
+        let copy = super::conversations::copies(&a)
+            .into_iter()
+            .find(|c| same_path(&c.path, path))?
+            .clone();
+        Some((a.id.clone(), a.name.clone(), copy.project))
     })
 }
 
@@ -1672,17 +1676,22 @@ pub fn holder_of(path: &str) -> Option<(String, String, String)> {
 pub fn forget(agent_id: &str, path: &str) {
     // Paths compared outside the registry lock (canonicalising reads the
     // disk); the update drops only the copy that was compared.
-    let Some(held) = store::get(agent_id)
-        .ok()
-        .and_then(|a| a.copy)
-        .map(|c| c.path)
-        .filter(|held| same_path(held, path))
-    else {
+    let Some(held) = store::get(agent_id).ok().and_then(|a| {
+        super::conversations::copies(&a)
+            .into_iter()
+            .map(|c| c.path.clone())
+            .find(|held| same_path(held, path))
+    }) else {
         return;
     };
     store::update(agent_id, |a| {
         if a.copy.as_ref().is_some_and(|c| c.path == held) {
             a.copy = None;
+        }
+        for parked in &mut a.conversations.parked {
+            if parked.copy.as_ref().is_some_and(|c| c.path == held) {
+                parked.copy = None;
+            }
         }
     })
     .or_log("a copy the workspace removed");
@@ -1703,15 +1712,32 @@ pub async fn sweep() {
             }
             projects.push(copy.project.clone());
         }
-        if let Some(p) = &agent.project {
-            projects.push(p.clone());
+        for parked in agent.conversations.parked.iter().filter_map(|p| p.copy.as_ref()) {
+            if !Path::new(&parked.path).is_dir() {
+                let gone = parked.path.clone();
+                store::update(&agent.id, |a| {
+                    for p in &mut a.conversations.parked {
+                        if p.copy.as_ref().is_some_and(|c| c.path == gone) {
+                            p.copy = None;
+                        }
+                    }
+                })
+                .or_log("a parked copy whose folder is gone");
+            }
+            projects.push(parked.project.clone());
         }
+        projects.extend(super::conversations::projects(agent));
     }
     projects.sort();
     projects.dedup();
     let held: Vec<String> = agents
         .iter()
-        .filter_map(|a| a.copy.as_ref().map(|c| c.path.clone()))
+        .flat_map(|a| {
+            super::conversations::copies(a)
+                .into_iter()
+                .map(|c| c.path.clone())
+                .collect::<Vec<_>>()
+        })
         .collect();
     for project in projects {
         let dir = Path::new(&project);
@@ -1746,7 +1772,7 @@ pub async fn sweep() {
     }
 }
 
-fn same_path(a: &str, b: &str) -> bool {
+pub(crate) fn same_path(a: &str, b: &str) -> bool {
     let canon = |p: &str| dunce::canonicalize(p).unwrap_or_else(|_| PathBuf::from(p));
     canon(a) == canon(b)
 }

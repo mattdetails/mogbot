@@ -1240,8 +1240,8 @@ pub async fn agents_delete(app: AppHandle, agent_id: String) -> Result<(), Comma
     let removed = takeover::delete_agent(&app, &agent_id).await?;
     // Its copy's folder goes once pending work is committed on its branch;
     // a branch with work on it stays.
-    if let Some(copy) = removed.copy {
-        tauri::async_runtime::spawn(agents::task::abandon(copy));
+    for copy in conversations::copies(&removed) {
+        tauri::async_runtime::spawn(agents::task::abandon(copy.clone()));
     }
     emit_registry(&app);
     notify::refresh_badge(&app);
@@ -1350,6 +1350,32 @@ pub async fn agents_conversation_new(
     let id = agent_id.clone();
     let list = blocking(move || conversations::create(&id)).await?;
     let _ = app.emit(runner::EVENT_CONVERSATIONS, &agent_id);
+    Ok(list)
+}
+
+/// The user opened this agent in a project's Session panel: its
+/// conversation there, made current (bound, or working on several projects;
+/// `conversations::for_project`).
+#[tauri::command]
+#[tracing::instrument(skip(app))]
+pub async fn agents_conversation_for_project(
+    app: AppHandle,
+    agent_id: String,
+    project_path: String,
+) -> Result<conversations::Conversations, CommandError> {
+    let known = crate::commands::projects::list_projects()
+        .await?
+        .into_iter()
+        .map(|p| p.path)
+        .find(|p| agents::task::same_path(p, &project_path))
+        .ok_or_else(|| CommandError::expected("That project isn't in your projects."))?;
+    let id = agent_id.clone();
+    let list = blocking(move || {
+        conversations::for_project(&id, &known, agents::task::same_path)
+    })
+    .await?;
+    let _ = app.emit(runner::EVENT_CONVERSATIONS, &agent_id);
+    emit_registry(&app);
     Ok(list)
 }
 
