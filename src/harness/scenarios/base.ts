@@ -279,6 +279,7 @@ export const baseCommands: CommandMap = {
   // Every agent has its one conversation until it's given another.
   agents_conversations: onlyFirst,
   agents_conversation_select: onlyFirst,
+  agents_conversation_for_project: onlyFirst,
   // No conversation has a living page until an agent pins one (`agents/page.rs`).
   agents_page: null,
   // The palette sweep now starts in Agents, where ⌘K → Apps opens this.
