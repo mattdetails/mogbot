@@ -584,9 +584,9 @@ export interface SchedulePreview {
 
 export type AgentEngine = 'claude' | 'codex' | 'opencode';
 
-/** Mirrors `store::EFFORTS`: the levels both engines take. */
-export type AgentEffort = 'low' | 'medium' | 'high';
-export const AGENT_EFFORTS: readonly AgentEffort[] = ['low', 'medium', 'high'];
+/** Mirrors `store::EFFORTS` (Codex gets its highest for `max`). */
+export type AgentEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export const AGENT_EFFORTS: readonly AgentEffort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 export interface ModelChoice {
   value: string;
@@ -1779,7 +1779,7 @@ export interface UpdateAgentInput {
   engine?: AgentEngine;
   model?: string;
   routineModel?: string;
-  /** `low` / `medium` / `high`, or '' for the engine's default. */
+  /** `low` / `medium` / `high` / `xhigh` / `max`, or '' for the engine's default. */
   effort?: AgentEffort | '';
   project?: string;
   workDirectly?: boolean;

@@ -429,8 +429,8 @@ export type AgentEngine = 'claude' | 'codex' | 'opencode';
 /** Mirrors `Engine::PLANS`: the engines whose accounts are kept here. */
 export const ENGINES_WITH_ACCOUNTS: readonly AgentEngine[] = ['claude', 'codex'];
 
-/** Mirrors `store::EFFORTS`: the levels both engines take. */
-export type AgentEffort = 'low' | 'medium' | 'high';
+/** Mirrors `store::EFFORTS` (Codex gets its highest for `max`). */
+export type AgentEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 /**
  * How hard an agent thinks, said plainly: Claude Code's `--effort`, Codex's
@@ -443,6 +443,8 @@ export const EFFORT_CHOICES: readonly { value: AgentEffort | ''; label: string }
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
+  { value: 'xhigh', label: 'Extra high' },
+  { value: 'max', label: 'Max' },
 ];
 
 /** Mirrors `engine::ModelChoice`: a model as the engine lists it. */
@@ -1049,7 +1051,7 @@ export interface UpdateAgentInput {
   model?: string;
   /** '' automatic, 'same' (its own model), or one of its engine's models. */
   routineModel?: string;
-  /** `low` / `medium` / `high`, or '' for the engine's default. */
+  /** `low` / `medium` / `high` / `xhigh` / `max`, or '' for the engine's default. */
   effort?: AgentEffort | '';
   /** A project path from `list_projects`, or '' to unbind it. */
   project?: string;

@@ -1210,8 +1210,18 @@ pub fn normalize_routine_model(
 /// takes them (it also has `xhigh` and `max`), and so does Codex's reasoning
 /// effort (`model_reasoning_effort`, the app-server's `effort` on
 /// `turn/start`; some models also offer `minimal` or `xhigh`). Only the
-/// three both say, so a level survives a move between engines.
-pub const EFFORTS: [&str; 3] = ["low", "medium", "high"];
+/// three both say, plus Claude Code's `xhigh` and `max` (#19): Codex takes
+/// `xhigh` and gets it for `max` too ([`codex_effort`]), so a level still
+/// survives a move between engines.
+pub const EFFORTS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
+
+/// The level Codex is sent: it has no `max`, so `max` asks its highest.
+pub fn codex_effort(effort: &str) -> &str {
+    match effort {
+        "max" => "xhigh",
+        other => other,
+    }
+}
 
 /// An effort setting from the UI: empty is the engine's default; anything
 /// else must be one of [`EFFORTS`]. It becomes an argument, so nothing else
@@ -1224,7 +1234,7 @@ pub fn normalize_effort(effort: &str) -> Result<Option<String>, CommandError> {
     if !EFFORTS.contains(&effort.as_str()) {
         return Err(super::err_invalid(
             "effort",
-            "Pick Low, Medium, High or Default.",
+            "Pick Low, Medium, High, Extra high, Max or Default.",
         ));
     }
     Ok(Some(effort))

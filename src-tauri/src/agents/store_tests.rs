@@ -1221,11 +1221,16 @@ fn models_are_the_cli_aliases_only() {
 }
 
 #[test]
-fn efforts_are_the_three_both_engines_take() {
+fn efforts_are_the_five_levels_and_codex_gets_its_highest_for_max() {
     assert_eq!(normalize_effort("").unwrap(), None);
     assert_eq!(normalize_effort(" High ").unwrap().as_deref(), Some("high"));
     assert_eq!(normalize_effort("low").unwrap().as_deref(), Some("low"));
-    for refused in ["max", "minimal", "--model", "high\"; x=1"] {
+    assert_eq!(normalize_effort("XHigh").unwrap().as_deref(), Some("xhigh"));
+    assert_eq!(normalize_effort("max").unwrap().as_deref(), Some("max"));
+    assert_eq!(codex_effort("max"), "xhigh");
+    assert_eq!(codex_effort("xhigh"), "xhigh");
+    assert_eq!(codex_effort("low"), "low");
+    for refused in ["minimal", "ultra", "--model", "high\"; x=1"] {
         assert!(normalize_effort(refused).is_err(), "{refused}");
     }
 }
