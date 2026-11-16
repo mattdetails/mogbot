@@ -196,7 +196,18 @@ pub fn run() {
         });
 
     // Hydrate the default agent cache from persisted AppState
-    let app_state = commands::setup::read_app_state();
+    let mut app_state = commands::setup::read_app_state();
+    // Projects' terminals follow the agents' engine chosen before they did.
+    if app_state.terminal_follows_agents.is_none() {
+        match commands::setup::update_app_state(agents::defaults::terminal_follow_once) {
+            Ok(Some(id)) => {
+                tracing::info!("Projects' terminals now open on {id}, the agents' engine");
+                app_state.default_agent_id = Some(id);
+            }
+            Ok(None) => {}
+            Err(e) => tracing::warn!("Couldn't match the terminals to the agents' engine: {e}"),
+        }
+    }
     agent::init_default_agent(app_state.default_agent_id.as_deref());
 
     // Initialize PostHog analytics (generates device_id on first launch)

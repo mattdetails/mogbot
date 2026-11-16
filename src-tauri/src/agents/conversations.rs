@@ -151,7 +151,13 @@ pub fn copies(agent: &Agent) -> Vec<&super::task::TaskCopy> {
     agent
         .copy
         .iter()
-        .chain(agent.conversations.parked.iter().filter_map(|p| p.copy.as_ref()))
+        .chain(
+            agent
+                .conversations
+                .parked
+                .iter()
+                .filter_map(|p| p.copy.as_ref()),
+        )
         .collect()
 }
 

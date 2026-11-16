@@ -299,7 +299,11 @@ export interface Agent {
    * The conversation its session (and a turn in progress) belongs to
    * (`conversations.rs`); absent, the first. Omitted while it only ever used the first.
    */
-  conversations?: { loaded?: string };
+  conversations?: {
+    loaded?: string;
+    /** An agent on several projects: each conversation's project (id → path). */
+    projects?: Record<string, string>;
+  };
 }
 
 /**

@@ -1385,7 +1385,12 @@ pub async fn prepare_in(
     }
     let open = store::list()?
         .iter()
-        .flat_map(|a| super::conversations::copies(a).into_iter().map(|c| c.project.clone()).collect::<Vec<_>>())
+        .flat_map(|a| {
+            super::conversations::copies(a)
+                .into_iter()
+                .map(|c| c.project.clone())
+                .collect::<Vec<_>>()
+        })
         .filter(|p| *p == project)
         .count();
     let name = super::project::folder_name(&project).to_string();
@@ -1712,7 +1717,12 @@ pub async fn sweep() {
             }
             projects.push(copy.project.clone());
         }
-        for parked in agent.conversations.parked.iter().filter_map(|p| p.copy.as_ref()) {
+        for parked in agent
+            .conversations
+            .parked
+            .iter()
+            .filter_map(|p| p.copy.as_ref())
+        {
             if !Path::new(&parked.path).is_dir() {
                 let gone = parked.path.clone();
                 store::update(&agent.id, |a| {

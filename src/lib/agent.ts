@@ -143,6 +143,11 @@ export function initDefaultAgent(agentId: string | null): void {
   defaultAgentId = agentId;
 }
 
+/** A project terminal's tab id for an agents' engine (`Engine::terminal_id`). */
+export function terminalIdOf(engine: 'claude' | 'codex' | 'opencode'): string {
+  return engine === 'claude' ? CLAUDE_CODE.id : engine;
+}
+
 /**
  * Get the cached default agent ID (falls back to Claude Code if unset).
  */

@@ -1370,10 +1370,8 @@ pub async fn agents_conversation_for_project(
         .find(|p| agents::task::same_path(p, &project_path))
         .ok_or_else(|| CommandError::expected("That project isn't in your projects."))?;
     let id = agent_id.clone();
-    let list = blocking(move || {
-        conversations::for_project(&id, &known, agents::task::same_path)
-    })
-    .await?;
+    let list =
+        blocking(move || conversations::for_project(&id, &known, agents::task::same_path)).await?;
     let _ = app.emit(runner::EVENT_CONVERSATIONS, &agent_id);
     emit_registry(&app);
     Ok(list)

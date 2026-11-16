@@ -567,7 +567,10 @@ fn a_second_project_gets_its_own_conversation_and_the_old_ones_stay_put() {
         assert!(per_project(&a2));
         assert_eq!(project_of(&a2, FIRST), Some("/p/one"));
         assert_eq!(project_of(&a2, &two), Some("/p/two"));
-        assert_eq!(projects(&a2), vec!["/p/one".to_string(), "/p/two".to_string()]);
+        assert_eq!(
+            projects(&a2),
+            vec!["/p/one".to_string(), "/p/two".to_string()]
+        );
         // Nothing moves until a turn loads it.
         assert_eq!(a2.project.as_deref(), Some("/p/one"));
         let view = listed.items.iter().find(|c| c.id == two).unwrap();
@@ -600,7 +603,10 @@ fn a_second_project_gets_its_own_conversation_and_the_old_ones_stay_put() {
         assert_eq!(for_project(&a.id, "/p/two", eq).unwrap().current, two);
         // A new conversation started in the second works there too.
         let made = create(&a.id).unwrap().current;
-        assert_eq!(project_of(&store::get(&a.id).unwrap(), &made), Some("/p/two"));
+        assert_eq!(
+            project_of(&store::get(&a.id).unwrap(), &made),
+            Some("/p/two")
+        );
     });
 }
 

@@ -55,6 +55,16 @@ impl Engine {
         }
     }
 
+    /// The project terminal's tab id for this engine (`agent::AgentConfig::id`,
+    /// `AppState::default_agent_id`).
+    pub fn terminal_id(self) -> &'static str {
+        match self {
+            Engine::Claude => "claude-code",
+            Engine::Codex => "codex",
+            Engine::OpenCode => "opencode",
+        }
+    }
+
     fn binary_name(self) -> &'static str {
         match self {
             Engine::Claude => "claude",

@@ -27,12 +27,14 @@ import {
   type Agent,
   type AgentMessage,
   type AgentStatus,
+  type AgentEngine,
   type EngineInfo,
   type NewAgentDefaults,
   type AgentIndependence,
   type ImportChoice,
 } from './agents';
 import { asCommandError, formatCommandError } from './errors';
+import { initDefaultAgent, terminalIdOf } from './agent';
 import { logger } from './logger';
 import { getRoomMessages, getRooms, roomIdOf, roomKey, ROOMS_EVENT, type Room } from './agentRooms';
 import {
@@ -119,6 +121,18 @@ export function getAgentsSnapshot(): AgentsState {
 let refreshStarted = 0;
 let refreshLanded = 0;
 
+// The agents' engine, as last read. When it changes (Settings, the phone, the
+// Chief) Projects' terminals open on it too; the Mac saved that already
+// (`defaults::set`), this is the desk's cached copy. The first read only
+// notes it: launch read the terminals' own default.
+let seenEngine: string | null | undefined;
+function followEngine(engine: AgentEngine | null) {
+  if (seenEngine !== undefined && engine && engine !== seenEngine) {
+    initDefaultAgent(terminalIdOf(engine));
+  }
+  seenEngine = engine;
+}
+
 export async function refreshAgents(): Promise<void> {
   const mine = ++refreshStarted;
   try {
@@ -126,6 +140,7 @@ export async function refreshAgents(): Promise<void> {
     if (mine < refreshLanded) return;
     refreshLanded = mine;
     setClockHour24(overview.hour24);
+    followEngine(overview.defaults?.engine ?? null);
     emit({
       ...state,
       agents: keepUnchanged(state.agents, readableAgents(overview.agents)),
@@ -858,6 +873,7 @@ export function __resetAgentsStore() {
   stop();
   refreshStarted = 0;
   refreshLanded = 0;
+  seenEngine = undefined;
   state = {
     agents: [],
     engineReady: true,
