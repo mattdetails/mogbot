@@ -23,6 +23,7 @@ import { Button, Dot, Icon, T } from '../../components/ui';
 import { useAccent } from '../../lib/accent';
 import { formatAgo } from '../../lib/agents';
 import { questionContext } from '../../lib/diff';
+import { pairedComputer } from '../../lib/computer';
 import {
   noticesOf,
   readTaskScreen,
@@ -349,7 +350,15 @@ export default function Session() {
               value={text}
               onChangeText={setText}
               editable={!question}
-              placeholder={question ? 'Answer the question above first' : 'Message this task'}
+              // A question with no options to tap can't be answered here:
+              // say where it can, never a dead end (#32).
+              placeholder={
+                !question
+                  ? 'Message this task'
+                  : question.options?.length
+                    ? 'Answer the question above first'
+                    : `Answer this one on ${pairedComputer().your}`
+              }
               label="Message this task"
             >
               <RoundButton
@@ -379,9 +388,7 @@ export default function Session() {
 /** Steps shown in full in a run; older ones fold into a count (the terminal has them all). */
 const STEPS_SHOWN = 5;
 
-type Block =
-  | { kind: 'steps'; steps: string[] }
-  | Exclude<TaskPart, { kind: 'step' }>;
+type Block = { kind: 'steps'; steps: string[] } | Exclude<TaskPart, { kind: 'step' }>;
 
 /** Runs of steps together, everything else as it came. */
 function blocksOf(parts: TaskPart[]): Block[] {
@@ -470,7 +477,11 @@ function TaskConversation({
             return <Markdown key={i} text={block.text} />;
           case 'notice':
             return (
-              <View key={i} style={styles.notice} accessibilityLabel={`From its screen: ${block.text}`}>
+              <View
+                key={i}
+                style={styles.notice}
+                accessibilityLabel={`From its screen: ${block.text}`}
+              >
                 <Icon
                   name="exclamationmark.triangle"
                   size={iconSize.inline}

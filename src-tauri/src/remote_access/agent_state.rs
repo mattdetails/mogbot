@@ -241,7 +241,10 @@ fn unnumbered_menu(lines: &[String]) -> Option<(String, Vec<String>)> {
         let lower = lines[i].to_lowercase();
         lower.contains("enter to confirm") || lower.contains("enter to select")
     })?;
-    let lower_bound = footer.saturating_sub(10);
+    // Claude Code's question screen (AskUserQuestion) gives each option a
+    // description line or two: the highlighted one can sit well above the
+    // footer (#32).
+    let lower_bound = footer.saturating_sub(24);
     let h = (lower_bound..footer).rev().find(|&i| {
         let t = lines[i].trim_start();
         t.starts_with(POINTERS) && !t.trim_start_matches(POINTERS).trim().is_empty()
@@ -255,14 +258,32 @@ fn unnumbered_menu(lines: &[String]) -> Option<(String, Vec<String>)> {
     while last + 1 < footer && is_item(&lines[last + 1]) {
         last += 1;
     }
-    let options = (first..=last)
+    let label_of = |i: usize| {
+        lines[i]
+            .trim()
+            .trim_start_matches(POINTERS)
+            .trim()
+            .to_string()
+    };
+    // Numbered options with description lines under them: only the numbered
+    // lines are choices, or each description became an option and the
+    // arrows counted wrong (#32).
+    let numbered: Vec<usize> = (first..=last)
+        .filter(|&i| starts_numbered(&label_of(i)))
+        .collect();
+    let rows: Vec<usize> = if numbered.len() >= 2 && numbered.contains(&h) {
+        numbered
+    } else {
+        (first..=last).collect()
+    };
+    let options = rows
+        .into_iter()
         .map(|i| {
-            let t = lines[i].trim();
-            let label = t.trim_start_matches(POINTERS).trim();
+            let label = label_of(i);
             if i == h {
                 format!("{label}{HIGHLIGHTED}")
             } else {
-                label.to_string()
+                label
             }
         })
         .collect();
@@ -282,6 +303,12 @@ fn unnumbered_menu(lines: &[String]) -> Option<(String, Vec<String>)> {
             .unwrap_or_else(|| "Choose an option".to_string())
     };
     Some((question, options))
+}
+
+/// "1. Yes", "12. Other": a menu item's own number.
+fn starts_numbered(label: &str) -> bool {
+    let digits = label.chars().take_while(char::is_ascii_digit).count();
+    digits > 0 && label[digits..].starts_with(". ")
 }
 
 /// What the agent was asked to act on, for a decision: the tool call or
@@ -444,6 +471,46 @@ pub fn latest_reply(lines: &[String], sent: Option<&str>, max: usize) -> Vec<Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Claude Code's question screen: numbered options, each with
+    /// description lines, the highlighted one far above the footer (#32).
+    #[test]
+    fn a_question_with_described_options_lists_only_the_numbered_ones() {
+        let screen = lines(&[
+            "────────────",
+            " ☐ Framework",
+            "",
+            "Which framework should we use for the new site?",
+            "",
+            "❯ 1. Next.js",
+            "     The React framework, with routing and server rendering built in,",
+            "     and the most examples to copy from.",
+            "  2. Astro",
+            "     Content-first sites that ship almost no JavaScript, good for",
+            "     marketing pages and blogs.",
+            "  3. SvelteKit",
+            "     Svelte's app framework, small bundles and a gentle learning",
+            "     curve.",
+            "  4. Type something.",
+            "",
+            "Enter to select · ↑/↓ to navigate · Esc to cancel",
+        ]);
+        match classify(&screen, true, 6_000) {
+            AgentState::NeedsDecision { question, options } => {
+                assert_eq!(question, "Which framework should we use for the new site?");
+                assert_eq!(
+                    options,
+                    vec![
+                        "1. Next.js (highlighted — enter picks it)".to_string(),
+                        "2. Astro".to_string(),
+                        "3. SvelteKit".to_string(),
+                        "4. Type something.".to_string(),
+                    ]
+                );
+            }
+            other => panic!("{other:?}"),
+        }
+    }
 
     fn lines(v: &[&str]) -> Vec<String> {
         v.iter().map(|s| s.to_string()).collect()
