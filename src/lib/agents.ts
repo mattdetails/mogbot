@@ -282,7 +282,14 @@ export interface Agent {
    * conversation its session fields (and a turn in progress) belong to;
    * absent, the first. Omitted while it has only ever used the first.
    */
-  conversations?: { loaded?: string };
+  conversations?: {
+    loaded?: string;
+    /**
+     * An agent on several projects: each conversation's project
+     * (conversation id → path). Absent: its one `project`, or none.
+     */
+    projects?: Record<string, string>;
+  };
 }
 
 /** Mirrors `takeover::View`: you're driving the agent's own session by hand. */
