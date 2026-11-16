@@ -1177,3 +1177,43 @@ fn only_the_browsers_own_reads_name_its_controls() {
     assert!(!p.refs.contains_key("ref_43"));
     forget("ops-poison");
 }
+
+/// Julian, 2026-11-16: a scheduled LinkedIn post asked for "Start a post",
+/// then again for Post, Confirm and Schedule, each with the same words.
+/// Opening a composer isn't a send, and once the words were allowed the
+/// rest of that same send goes through.
+#[test]
+fn one_send_asks_once_and_opening_a_composer_never_asks() {
+    for opener in ["button \"Start a post\"", "button \"Create post\"", "button \"Write a comment\""] {
+        assert!(final_submit(opener, Level::GoHard).is_none(), "{opener}");
+    }
+    assert!(final_submit("button \"Post\"", Level::GoHard).is_some());
+    assert!(final_submit("button \"Schedule\"", Level::GoHard).is_some());
+
+    let mut a = agent();
+    a.id = "same-send-test".into();
+    let mut p = Page::default();
+    on_answer(
+        &mut p,
+        "textbox \"Text editor for creating content\" [ref_1]\nbutton \"Post\" [ref_16]\nbutton \"Confirm\" [ref_2]\nbutton \"Schedule\" [ref_21]",
+    );
+    p.tabs.insert(5, "https://www.linkedin.com/feed/".into());
+    p.typed.push("working from my phone more and more lately".into());
+    with_pages(|pages| pages.insert(a.id.clone(), p.clone()));
+    let click = |r: &str| json!({ "action": "left_click", "ref": r, "tabId": 5 });
+    let tool = t("computer");
+    assert!(!same_send_allowed(&a, &tool, &click("ref_2")));
+    note_allowed_send(&a, &tool, &click("ref_16"));
+    assert!(same_send_allowed(&a, &tool, &click("ref_2")));
+    assert!(same_send_allowed(&a, &tool, &click("ref_21")));
+    // Other words typed: a new send, it asks again.
+    with_pages(|pages| {
+        pages.get_mut(&a.id).unwrap().typed = vec!["a different post".into()];
+    });
+    assert!(!same_send_allowed(&a, &tool, &click("ref_21")));
+    // Another agent never rides on it.
+    let mut b = agent();
+    b.id = "same-send-other".into();
+    with_pages(|pages| pages.insert(b.id.clone(), p.clone()));
+    assert!(!same_send_allowed(&b, &tool, &click("ref_21")));
+}

@@ -3820,7 +3820,10 @@ async fn agents_browser_card(
         exact_text_block(caller, tool, input),
     );
     match ask(app, caller, title, summary, detail, Some((tool, input))).await {
-        Answer::Allowed => Decision::Allow,
+        Answer::Allowed => {
+            super::browser_gate::note_allowed_send(caller, tool, input);
+            Decision::Allow
+        }
         Answer::Denied(note) => Decision::Deny(denied(note)),
         Answer::NotYet => Decision::Deny(NOT_YET.to_string()),
     }
@@ -4044,6 +4047,8 @@ async fn decide_inner(
         Answer::Allowed => {
             // A new package it installs asks once per project (`installs`).
             super::installs::remember_allowed(caller, tool, input);
+            // The next steps of a send just allowed don't ask again.
+            super::browser_gate::note_allowed_send(caller, tool, input);
             Decision::Allow
         }
         Answer::Denied(note) => Decision::Deny(denied(note)),

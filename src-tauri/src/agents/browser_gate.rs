@@ -231,6 +231,12 @@ const NOT_ACTIONS: &[&str] = &[
     "all",
     "copy",
     "save",
+    // Openers: "Start a post", "Create post", "Write a comment" open a
+    // composer; the button inside it sends (Julian, 2026-11-16).
+    "start",
+    "create",
+    "write",
+    "compose",
 ];
 
 /// [`SENDS`] that, at "Go hard", are steps on the way rather than the final
@@ -1061,7 +1067,8 @@ pub fn gate(agent: &Agent, tool: &str, input: &Value, outside: bool) -> Gate {
             outside,
             &page_of(&agents_key(&agent.id)),
         );
-        return held_for_exact_text(g, agent, tool, input);
+        let g = held_for_exact_text(g, agent, tool, input);
+        return unless_same_send(g, agent, tool, input);
     }
     if let Some(name) = tool.strip_prefix(USER_CHROME_SERVER) {
         // The user's own Chrome, through the app's extension: the same
@@ -1081,6 +1088,7 @@ pub fn gate(agent: &Agent, tool: &str, input: &Value, outside: bool) -> Gate {
             &page,
         );
         let g = held_for_exact_text(g, agent, tool, input);
+        let g = unless_same_send(g, agent, tool, input);
         let (n, i) = agents_equivalent(name, input);
         if g == Gate::Ask
             && only_unlabelled_enter(level, agent, super::outward::required(agent), &n, &i, &page)
@@ -1102,6 +1110,7 @@ pub fn gate(agent: &Agent, tool: &str, input: &Value, outside: bool) -> Gate {
     let page = page_of(&agent.id);
     let g = gate_with(team_enabled(), level, agent, tool, input, outside, &page);
     let g = held_for_exact_text(g, agent, tool, input);
+    let g = unless_same_send(g, agent, tool, input);
     let name = tool.strip_prefix(SERVER).unwrap_or(tool);
     if g == Gate::Ask
         && only_unlabelled_enter(
@@ -1179,6 +1188,77 @@ fn first_try(agent_id: &str, input: &Value) -> bool {
         seen.clear();
     }
     seen.insert(key)
+}
+
+/// Sends the user allowed on a card, by agent: (agent, host, the words
+/// typed on the page, when). Posting is several clicks (Post, Confirm,
+/// Schedule) of one send: once its exact words were allowed, the next steps
+/// of that same send on that site go through instead of asking again for
+/// the same words (Julian, 2026-11-16: three cards per scheduled post).
+static ALLOWED_SENDS: Mutex<Vec<(String, String, String, i64)>> = Mutex::new(Vec::new());
+
+/// How long an allowed send's later steps go through.
+const SAME_SEND_MS: i64 = 15 * 60 * 1000;
+
+/// The page, tool name and input a browser call acts on, for any browser.
+fn call_on(agent_id: &str, tool: &str, input: &Value) -> Option<(Page, String, Value)> {
+    own_call(agent_id, tool, input).or_else(|| {
+        let name = tool.strip_prefix(SERVER)?;
+        Some((page_of(agent_id), name.to_string(), input.clone()))
+    })
+}
+
+/// The site and the words of a send step: `None` unless it is a step that
+/// goes out under the user's name with words typed on a known site, and
+/// nothing "Full send" still asks for (money, deleting for good, uploads,
+/// scripts).
+fn send_of(agent: &Agent, tool: &str, input: &Value) -> Option<(String, String)> {
+    let (page, name, input) = call_on(&agent.id, tool, input)?;
+    if matches!(
+        name.as_str(),
+        "javascript_tool" | "file_upload" | "upload_image" | "browser_batch"
+    ) || page.typed.is_empty()
+        || !outward_step_on(agent, &name, &input, &page)
+        || decide(Level::FullSend, agent, &name, &input, &page) != Gate::Allow
+    {
+        return None;
+    }
+    let host = url_for(&page, &input).and_then(|u| host_of(&u))?;
+    Some((host, super::outward::norm(&page.typed.join("\n"))))
+}
+
+/// The user allowed this browser step on a card: later steps of the same
+/// send (same site, same words) won't ask again for a while.
+pub fn note_allowed_send(agent: &Agent, tool: &str, input: &Value) {
+    let Some((host, words)) = send_of(agent, tool, input) else {
+        return;
+    };
+    let now = super::store::now_ms();
+    let mut sends = ALLOWED_SENDS.lock().unwrap_or_else(|e| e.into_inner());
+    sends.retain(|(_, _, _, at)| now - at < SAME_SEND_MS);
+    sends.push((agent.id.clone(), host, words, now));
+}
+
+/// Whether this step continues a send the user already allowed.
+fn same_send_allowed(agent: &Agent, tool: &str, input: &Value) -> bool {
+    let Some((host, words)) = send_of(agent, tool, input) else {
+        return false;
+    };
+    let now = super::store::now_ms();
+    ALLOWED_SENDS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .any(|(a, h, w, at)| *a == agent.id && *h == host && *w == words && now - at < SAME_SEND_MS)
+}
+
+/// A card the gate would raise for the next step of a send already allowed.
+fn unless_same_send(g: Gate, agent: &Agent, tool: &str, input: &Value) -> Gate {
+    if g == Gate::Ask && same_send_allowed(agent, tool, input) {
+        Gate::Allow
+    } else {
+        g
+    }
 }
 
 /// With "nothing goes out under my name unless I OK the exact text" on
