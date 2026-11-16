@@ -247,6 +247,8 @@ function connect(c: Credentials) {
     if (!roomsOffered(welcome)) setApp({ rooms: null });
     if (!canCall('agents.teamSetup', welcome)) setApp({ teamSetup: null });
     if (canCall('devices.setPush', welcome)) void syncPush();
+    // A Mac too old to take a token: say so in Settings, not nothing (#25).
+    else setApp({ push: 'mac_outdated' });
     if (canCall('system.reportCrashes', welcome) && getApp().prefs.errorReports) {
       void sendCrashes((crashes) =>
         call('system.reportCrashes', {
@@ -618,8 +620,7 @@ export async function send(
   if (offline) return;
   // When it was written, kept across retries and restarts: the Mac lets a
   // typed yes answer only a card that was open then, and only while fresh.
-  const writtenAt =
-    getApp().pending[agentId]?.find((p) => p.clientId === id)?.ts ?? Date.now();
+  const writtenAt = getApp().pending[agentId]?.find((p) => p.clientId === id)?.ts ?? Date.now();
   let message: AgentMessage;
   try {
     message = await call('agents.send', {
