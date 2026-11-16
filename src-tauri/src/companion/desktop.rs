@@ -1983,7 +1983,7 @@ async fn publish_watch(c: Arc<Companion>) -> Result<String, CommandError> {
     }
     let tailscale::TailscaleState::Connected { dns_name, .. } = tailscale::status().await else {
         return Err(CommandError::expected(
-            "Tailscale isn't connected on the Mac, so the site can't be shown on the phone.",
+            "Finish this one on your Mac: the page can't be shown on your phone over this connection yet.",
         ));
     };
     let listener = TcpListener::bind("127.0.0.1:0")
