@@ -136,8 +136,11 @@ export default function Session() {
 
   const name = useTaskName(id);
   const title = [project, name === 'Task' && tab ? tab : name].filter(Boolean).join(' · ');
-  const sendable = !!text.trim() && connected && !data?.session.question;
   const question = data?.session.question;
+  // A question with a "Type something." option takes your own words: the
+  // Mac types them into that row (Tom's report: the composer was locked).
+  const ownWords = !!question?.options?.some((o) => OWN_WORDS.test(o.label.trim()));
+  const sendable = !!text.trim() && connected && (!question || ownWords);
   // What it's asking about (an edit's diff, a command), read off its screen.
   const context = question && data ? questionContext(data.screen, question) : [];
   // The screen read as a conversation, from what the Mac says it sent (never
@@ -349,13 +352,15 @@ export default function Session() {
             <ComposerField
               value={text}
               onChangeText={setText}
-              editable={!question}
+              editable={!question || ownWords}
               // A question with no options to tap can't be answered here:
               // say where it can, never a dead end (#32).
               placeholder={
                 !question
                   ? 'Message this task'
-                  : question.options?.length
+                  : ownWords
+                    ? 'Or type your own answer'
+                    : question.options?.length
                     ? 'Answer the question above first'
                     : `Answer this one on ${pairedComputer().your}`
               }
@@ -384,6 +389,9 @@ export default function Session() {
     </View>
   );
 }
+
+/** Claude Code's option for an answer in your own words. */
+const OWN_WORDS = /^(\d{1,2}\.\s*)?(type something|other)\.?$/i;
 
 /** Steps shown in full in a run; older ones fold into a count (the terminal has them all). */
 const STEPS_SHOWN = 5;

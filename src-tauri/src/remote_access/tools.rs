@@ -1705,6 +1705,48 @@ pub(crate) fn pick_option(session_id: &str, i: usize) -> Result<(), String> {
     press_keys(session_id, &keys)
 }
 
+/// The option of a question that takes your own words: Claude Code's
+/// question screen ends on "Type something." (older builds: "Other").
+pub(crate) fn own_words_option(options: &[String]) -> Option<usize> {
+    options.iter().position(|o| {
+        let label = o.trim_end_matches(agent_state::HIGHLIGHTED).trim();
+        let label = label
+            .split_once(". ")
+            .filter(|(n, _)| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+            .map_or(label, |(_, rest)| rest)
+            .trim()
+            .trim_end_matches('.')
+            .to_lowercase();
+        label == "type something" || label == "other"
+    })
+}
+
+/// Answer the question tab `session_id` shows in your own words: arrow to its
+/// "Type something." row, type `text` there, then Enter (Tom's report: on the
+/// phone the composer was locked and "Type something" couldn't be used).
+/// Read off the screen at the moment of typing; a question without such a
+/// row is refused. Blocking: call it off the async runtime.
+pub(crate) fn answer_in_own_words(session_id: &str, text: &str) -> Result<(), String> {
+    let (_, options) = asking(session_id).ok_or("Not sent: it isn’t asking anything right now.")?;
+    let i = own_words_option(&options)
+        .ok_or("Not sent: this question has no option for your own words. Pick one above.")?;
+    let h = options
+        .iter()
+        .position(|o| o.ends_with(agent_state::HIGHLIGHTED))
+        .ok_or("Not sent: that question changed. Look again.")?;
+    let arrow = if i >= h { "down" } else { "up" };
+    press_keys(session_id, &vec![arrow.to_string(); i.abs_diff(h)])?;
+    std::thread::sleep(Duration::from_millis(200));
+    // One line: a newline would submit part of it.
+    let line: String = text
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    write(session_id, line.trim().as_bytes())?;
+    std::thread::sleep(Duration::from_millis(300));
+    press_keys(session_id, &["enter".to_string()])
+}
+
 /// The question tab `session_id` is showing, if any.
 fn asking(session_id: &str) -> Option<(String, Vec<String>)> {
     let snap = pty_session::session_snapshot(session_id)?;
@@ -3301,6 +3343,43 @@ pub(crate) fn session_screen(projects: &[String], session_id: &str) -> Result<Sc
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Tom's screen (Claude Code's question tabs, Polish): the "Type
+    /// something." row is found, so the phone's words can answer it.
+    #[test]
+    fn a_question_screen_offers_its_type_something_row_for_your_own_words() {
+        let screen: Vec<String> = [
+            "←  ☐ LP telefon  ☐ Stare LP  ☐ Adres bety  ✔ Submit  →",
+            "",
+            "│ Landing /lp/inwestowanie-dominikana na telefonie: która wersja",
+            "│ ofert (jedna pod drugą) jeszcze nie zapadł i do tego",
+            "│ wdrażam?",
+            "",
+            "❯ 1. Wersja B - lista",
+            "     Wszystkie 9 ofert jedna pod drugą, jak na tablecie.",
+            "  2. Wersja A - slider",
+            "     Jedna karta na ekranie, licznik „1 z 9” i strzałki.",
+            "  3. Na razie żadnej",
+            "     Zostawiam obecny telefon bez zmian (poza zasadami).",
+            "  4. Type something.",
+            "  ────────────────────────────────────────────",
+            "  5. Chat about this",
+            "",
+            "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let (question, options) = agent_state::awaiting_choice_detail(&screen).unwrap();
+        assert!(question.ends_with("wdrażam?"), "{question}");
+        assert_eq!(own_words_option(&options), Some(3), "{options:?}");
+        assert!(options[0].ends_with(agent_state::HIGHLIGHTED));
+        assert_eq!(own_words_option(&["1. Yes".into(), "2. No".into()]), None);
+        assert_eq!(
+            own_words_option(&["1. Yes".into(), "2. Other".into()]),
+            Some(1)
+        );
+    }
 
     #[test]
     fn a_blank_project_needs_no_project_tools() {

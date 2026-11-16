@@ -1329,6 +1329,21 @@ impl Backend for DesktopBackend {
             .map_err(CommandError::expected)?;
         match deliver(&project, session_id, text).await {
             Ok((_, tab, _)) => Ok(tab.session_id),
+            // A question with a "Type something." row: the words answer it.
+            Err(Undelivered::Asking { options, .. })
+                if session_id.is_some()
+                    && crate::remote_access::tools::own_words_option(&options).is_some() =>
+            {
+                let id = session_id.unwrap_or_default().to_string();
+                let (id2, words) = (id.clone(), text.to_string());
+                tokio::task::spawn_blocking(move || {
+                    crate::remote_access::tools::answer_in_own_words(&id2, &words)
+                })
+                .await
+                .map_err(|e| CommandError::expected(e.to_string()))?
+                .map_err(CommandError::expected)?;
+                Ok(id)
+            }
             Err(Undelivered::Asking { question, .. }) => Err(CommandError::expected(format!(
                 "Not sent: it’s waiting for your answer to “{question}”. Answer that first, then send."
             ))),
