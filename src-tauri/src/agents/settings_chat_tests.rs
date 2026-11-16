@@ -475,7 +475,7 @@ fn model_and_effort_come_in_the_users_words_and_go_back_to_default() {
             .routine_model,
         Some(None)
     );
-    assert!(run_settings(Engine::Claude, &json!({ "effort": "max" })).is_err());
+    assert!(run_settings(Engine::Claude, &json!({ "effort": "ultra" })).is_err());
 }
 
 #[test]
