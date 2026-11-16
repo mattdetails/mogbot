@@ -29,7 +29,7 @@
     "templateApi": null,
     "starterRepoBase": "https://github.com/ship-studio",
     "companionSource": null,
-    "appStore": null,
+    "appStore": "https://apps.apple.com/app/mogbot/id6833062484",
     "testFlight": "https://testflight.apple.com/join/fsm64m5E",
     "pushRelay": "https://mogbot-push-relay.mogbot-relay.workers.dev",
     "relay": "wss://mogbot-relay.mogbot-relay.workers.dev",

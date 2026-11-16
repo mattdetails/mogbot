@@ -12,6 +12,7 @@ import {
   upsertMessage,
 } from './agentsStore';
 import type { AgentMessage } from './agents';
+import { getDefaultAgentId, initDefaultAgent } from './agent';
 
 const reply = (id: string, text: string): AgentMessage => ({
   id,
@@ -185,5 +186,35 @@ describe('overlapping overview reads', () => {
     calls[0].reject('gone');
     await first;
     expect(getAgentsSnapshot().error).toBeNull();
+  });
+});
+
+describe("Projects' terminals follow the agents' engine", () => {
+  afterEach(() => {
+    __resetAgentsStore();
+    initDefaultAgent(null);
+  });
+
+  const withEngine = (engine: string | null) => ({
+    agents: [],
+    engineReady: true,
+    engines: [],
+    defaults: { engine, models: {}, startsOn: engine ?? 'claude', model: null },
+  });
+
+  it('the first read leaves launch’s choice; a change to Codex moves new terminals there', async () => {
+    let engine: string | null = 'claude';
+    mockIPC((cmd) => (cmd === 'agents_overview' ? withEngine(engine) : null));
+    initDefaultAgent('cursor');
+    await refreshAgents();
+    expect(getDefaultAgentId()).toBe('cursor');
+    await refreshAgents();
+    expect(getDefaultAgentId()).toBe('cursor');
+    engine = 'codex';
+    await refreshAgents();
+    expect(getDefaultAgentId()).toBe('codex');
+    engine = 'claude';
+    await refreshAgents();
+    expect(getDefaultAgentId()).toBe('claude-code');
   });
 });

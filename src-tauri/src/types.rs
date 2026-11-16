@@ -940,6 +940,10 @@ pub struct AppState {
         deserialize_with = "crate::agents::defaults::lenient"
     )]
     pub agent_defaults: Option<crate::agents::defaults::Saved>,
+    /// Projects' terminals follow the agents' engine (`agents::defaults`):
+    /// set once the one-time catch-up ran or the engine was chosen since.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terminal_follows_agents: Option<bool>,
     /// A preview that stops by itself goes back to the agent that owns it
     /// (`agents::preview_fix`). `None` is on.
     #[serde(skip_serializing_if = "Option::is_none")]

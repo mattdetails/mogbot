@@ -86,7 +86,7 @@ pub fn parse_sleep_disabled(output: &str) -> Option<bool> {
 }
 
 async fn pmset(args: &[&str]) -> Option<String> {
-    let mut cmd = tokio::process::Command::new("/usr/bin/pmset");
+    let mut cmd = crate::utils::create_tokio_command("/usr/bin/pmset");
     cmd.args(args);
     let output = crate::external_command::run_with_timeout(cmd, "pmset", 5)
         .await
@@ -236,7 +236,7 @@ pub async fn set_lid_closed_mode(enabled: bool) -> Result<(), CommandError> {
     let script = format!(
         "do shell script \"/usr/bin/pmset -a disablesleep {value}\" with administrator privileges"
     );
-    let mut cmd = tokio::process::Command::new("/usr/bin/osascript");
+    let mut cmd = crate::utils::create_tokio_command("/usr/bin/osascript");
     cmd.args(["-e", &script]);
     // Long timeout: a person is typing a password.
     let output = crate::external_command::run_with_timeout(cmd, "osascript pmset", 180).await?;
@@ -351,7 +351,7 @@ fn spawn_holder() -> Result<Holder, CommandError> {
     })?;
     // The lock lasts while `tail` runs, and `tail --pid` ends when we do, so
     // a crash can't leave the machine unable to sleep. The display may sleep.
-    let child = std::process::Command::new(bin)
+    let child = crate::utils::create_command(bin)
         .args([
             "--what=idle:sleep",
             &format!("--who={}", crate::brand::NAME),

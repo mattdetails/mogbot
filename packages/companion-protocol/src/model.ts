@@ -187,6 +187,10 @@ export interface TurnWork {
    * Macs omit it.
    */
   project?: string;
+  /** While it runs: your messages handed to it that it hasn't read yet; it reads them at its next step. */
+  handed?: string[];
+  /** While it runs: your messages it read mid-turn, part of this turn rather than queued. */
+  heard?: string[];
   /** While it runs: it has a tab open in its own browser (the agents' Chrome) right now. */
   ownBrowser?: boolean;
   /**
@@ -299,7 +303,11 @@ export interface Agent {
    * The conversation its session (and a turn in progress) belongs to
    * (`conversations.rs`); absent, the first. Omitted while it only ever used the first.
    */
-  conversations?: { loaded?: string };
+  conversations?: {
+    loaded?: string;
+    /** An agent on several projects: each conversation's project (id → path). */
+    projects?: Record<string, string>;
+  };
 }
 
 /**

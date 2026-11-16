@@ -59,11 +59,21 @@ export function maybeSameAccountNote(engine: AgentEngine, name: string, other: s
 
 /** Before the sign-in opens the browser. */
 export function browserWarning(engine: AgentEngine): string {
+  // Claude's sign-in opens in a fresh window with no one signed in
+  // (`fresh_window_browser`): nothing to sign out of, nothing signed out.
+  if (engine === 'claude')
+    return 'The sign-in opens in a new window where no one is signed in. Sign in there with the account you want to add; your own browser stays signed in as it is.';
   return `Your browser will sign in as whoever is logged into ${SITE[engine]} — sign out there first, or use a private window or another browser profile, to add a different account.`;
 }
 
 /** The how, step by step, under the warning. */
 export function browserSteps(engine: AgentEngine): string[] {
+  if (engine === 'claude')
+    return [
+      'Press Continue: a new browser window opens on Claude’s sign-in page.',
+      'Sign in there with the account you want to add, not one already in your list.',
+      'If it shows a code, it goes in the box that follows.',
+    ];
   return [
     `Open ${SITE[engine]} in the browser and check whose account it shows.`,
     'If it’s an account already in your list, sign out there, or use a private window or the browser profile where you’re signed in as the other account.',
@@ -75,6 +85,8 @@ export function browserSteps(engine: AgentEngine): string[] {
 
 /** Right after a sign-in that turned out to be an account already here. */
 export function addedSameAccount(engine: AgentEngine, other: string): string {
+  if (engine === 'claude')
+    return `That’s the same Claude account as ${other}, so it adds no extra room. Try again and, in the new window, sign in with your other account.`;
   return `That’s the same ${ACCOUNT_KIND[engine]} account as ${other}, so it adds no extra room. Sign out of ${SITE[engine]} in your browser, or use a private window, then try again.`;
 }
 

@@ -16,15 +16,19 @@ import { Spinner } from '../primitives/Spinner';
 import { focusAgent, markAgentUnread, updateAgent, type Agent } from '../../lib/agents';
 import { agentIn, readChat, startConversation, useAgentsList } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
+import { conversationForProject } from '../../lib/agentConversations';
 import { useOptionalToast } from '../../contexts/ToastContext';
 import { requestAgentsIntent } from '../../commands/useAgentsCommands';
 
 export function SessionAgentChat({
   agentId,
+  projectPath,
   onGoAgents,
   onGone,
 }: {
   agentId: string;
+  /** The project whose Session panel it's in: its conversation there opens (`conversationForProject`). */
+  projectPath?: string;
   /** Leave for Agents (the intent says which chat opens there). */
   onGoAgents?: () => void;
   /** The agent no longer exists: go back to the terminals. */
@@ -45,6 +49,16 @@ export function SessionAgentChat({
   useEffect(() => {
     if (loaded && !agent) onGone();
   }, [loaded, agent, onGone]);
+
+  // Its conversation in this project (bound here now, or a new one for an
+  // agent that works on another project too). The Chief stays the team's.
+  const isMain = agent?.isMain ?? true;
+  useEffect(() => {
+    if (!projectPath || !loaded || isMain) return;
+    void conversationForProject(agentId, projectPath).catch((e: unknown) =>
+      showToast(formatCommandError(asCommandError(e)), 'error')
+    );
+  }, [agentId, projectPath, loaded, isMain, showToast]);
 
   const inAgents = useCallback(
     (id: string = agentId) => {

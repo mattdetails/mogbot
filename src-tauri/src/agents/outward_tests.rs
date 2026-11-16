@@ -273,3 +273,35 @@ fn a_variable_changed_after_it_is_set_is_not_read() {
     );
     assert!(approved_covers("Shipped the Kite fix", &t), "{t:?}");
 }
+
+#[test]
+fn a_schedulers_date_and_time_are_not_words_going_out() {
+    for v in [
+        "11/19/2026",
+        "2026-11-19",
+        "11:00 AM",
+        "3:00 PM",
+        "15:30",
+        "Nov 19, 2026",
+        "11am",
+        "Thu, Nov 19",
+    ] {
+        assert!(is_schedule_value(v), "{v}");
+    }
+    for v in [
+        "42",
+        "Thu",
+        "",
+        "Meet at 11:00 AM",
+        "wire $500",
+        "11/19/2026 send it",
+    ] {
+        assert!(!is_schedule_value(v), "{v}");
+    }
+    let t = Texts {
+        pieces: vec!["Ship it".into(), "11/19/2026".into(), "11:00 AM".into()],
+        unread: vec![],
+    };
+    assert!(approved_covers("Ship it", &t));
+    assert!(!approved_covers("Ship", &t));
+}

@@ -54,6 +54,7 @@ import {
 import { useSignIn } from '../../hooks/useAccount';
 import { TAILSCALE_DOWNLOAD_URL } from '../../lib/remoteAccess';
 import {
+  GET_ON_APP_STORE,
   GET_ON_TESTFLIGHT,
   PHONE_APP_ON_ANDROID,
   PHONE_APP_STORE_URL,
@@ -549,26 +550,29 @@ function useStepView(p: {
   switch (step) {
     case 'phoneGetApp': {
       const store = PHONE_APP_STORE_URL;
-      const testFlight = store ? null : PHONE_APP_TESTFLIGHT_URL;
-      if (testFlight) {
-        // The beta: the link is the way, so it is the big button, and its
-        // code is beside it, since the phone's camera opens it straight from
-        // this screen. Only the person knows when it's installed.
+      const link = store ?? PHONE_APP_TESTFLIGHT_URL;
+      if (link) {
+        // The App Store, else the beta: the link is the way, so it is the big
+        // button, and its code is beside it, since the phone's camera opens it
+        // straight from this screen. Only the person knows when it's installed.
+        const where = store ? 'the App Store' : 'TestFlight';
         return {
           title: GET_PHONE_APP_TITLE,
           // People took this code for the pairing code: it says plainly what it is
           // (the download) and what it isn't, and those who have the app skip it.
-          lede: 'Don’t have it yet? Point your iPhone’s camera at this code to download the free beta from TestFlight.',
+          lede: store
+            ? 'Don’t have it yet? Point your iPhone’s camera at this code to get it free on the App Store.'
+            : 'Don’t have it yet? Point your iPhone’s camera at this code to download the free beta from TestFlight.',
           children: (
             <LinkQr
-              url={testFlight}
-              label="Download link for the phone app on TestFlight"
+              url={link}
+              label={`Download link for the phone app on ${where}`}
               caption={DOWNLOAD_NOT_PAIRING}
             />
           ),
           primary: (
-            <Primary external onClick={() => void openUrl(testFlight)}>
-              {GET_ON_TESTFLIGHT}
+            <Primary external onClick={() => void openUrl(link)}>
+              {store ? GET_ON_APP_STORE : GET_ON_TESTFLIGHT}
             </Primary>
           ),
           secondary: (
@@ -588,26 +592,12 @@ function useStepView(p: {
       }
       return {
         title: GET_PHONE_APP_TITLE,
-        lede: store
-          ? 'It’s free on the App Store. Install it on your iPhone.'
-          : 'On your iPhone, open the TestFlight invite you were sent and install it.',
-        children: (store || p.onInstall) && (
+        lede: 'On your iPhone, open the TestFlight invite you were sent and install it.',
+        children: p.onInstall && (
           <div className="flow-links">
-            {store && (
-              <Button
-                variant="secondary"
-                rightIcon={<ExternalLinkIcon size={12} />}
-                onClick={() => void openUrl(store)}
-                data-app-store
-              >
-                Open the App Store
-              </Button>
-            )}
-            {!store && p.onInstall && (
-              <Button variant="secondary" onClick={p.onInstall} data-install-open>
-                Build it on {THIS_COMPUTER}…
-              </Button>
-            )}
+            <Button variant="secondary" onClick={p.onInstall} data-install-open>
+              Build it on {THIS_COMPUTER}…
+            </Button>
           </div>
         ),
         primary: <Primary onClick={() => go(afterGetApp())}>{HAVE_PHONE_APP}</Primary>,

@@ -1569,8 +1569,8 @@ pub fn purge_expired() {
         super::connections::forget_agent(&agent.id);
         super::work::forget_agent(&agent.id);
         super::wallet::forget_agent(&agent.id);
-        if let Some(copy) = agent.copy.clone() {
-            tauri::async_runtime::spawn(super::task::abandon(copy));
+        for copy in super::conversations::copies(&agent) {
+            tauri::async_runtime::spawn(super::task::abandon(copy.clone()));
         }
     }
 }

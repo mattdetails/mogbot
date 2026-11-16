@@ -2168,7 +2168,7 @@ pub fn teardown_mobile_previews_for_window_sync(window_label: &str) {
         // cold start would block window close for hundreds of ms.
         kill_process_on_port_sync(session.serve_sim_port);
         if session.booted_by_us {
-            let _ = std::process::Command::new("xcrun")
+            let _ = crate::utils::create_command("xcrun")
                 .args(["simctl", "shutdown", &session.udid])
                 .env("PATH", get_extended_path())
                 .output();

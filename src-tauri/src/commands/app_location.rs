@@ -140,7 +140,7 @@ pub async fn move_to_applications(app: AppHandle) -> Result<String, CommandError
     let staging = dest_dir.join(format!(".{}.moving", name.to_string_lossy()));
     let _ = std::fs::remove_dir_all(&staging);
 
-    let out = std::process::Command::new("/usr/bin/ditto")
+    let out = crate::utils::create_command("/usr/bin/ditto")
         .arg(&bundle)
         .arg(&staging)
         .output()
@@ -179,7 +179,7 @@ pub async fn move_to_applications(app: AppHandle) -> Result<String, CommandError
         .map_err(|e| CommandError::expected(format!("Couldn't put the app in place ({e}).")))?;
 
     tracing::info!(to = %dest.display(), "moved the app into Applications; reopening");
-    std::process::Command::new("/usr/bin/open")
+    crate::utils::create_command("/usr/bin/open")
         .arg("-n")
         .arg(&dest)
         .spawn()

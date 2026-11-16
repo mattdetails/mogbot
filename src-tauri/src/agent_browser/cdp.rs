@@ -21,7 +21,7 @@ use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::Child;
 #[cfg(unix)]
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -82,7 +82,7 @@ impl Browser {
         let (to_chrome_r, to_chrome_w) = pipe()?;
         let (from_chrome_r, from_chrome_w) = pipe()?;
 
-        let mut cmd = Command::new(chrome);
+        let mut cmd = crate::utils::create_command(chrome);
         cmd.args(args)
             .stdin(Stdio::null())
             .stdout(Stdio::null())

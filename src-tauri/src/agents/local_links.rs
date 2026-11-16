@@ -256,7 +256,7 @@ pub fn folder_for(cwd: &str, folders: &[Known]) -> Option<Known> {
 /// What listens on `port` on this Mac, as (pid, its working folder).
 #[cfg(unix)]
 async fn listener(port: u16) -> Option<(u32, String)> {
-    let mut cmd = tokio::process::Command::new("lsof");
+    let mut cmd = crate::utils::create_tokio_command("lsof");
     cmd.args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-t"]);
     let out = crate::external_command::run_with_timeout(cmd, "lsof listen", 5)
         .await
@@ -279,7 +279,7 @@ async fn listener(_port: u16) -> Option<(u32, String)> {
 /// A process's working folder (`lsof -d cwd`).
 #[cfg(unix)]
 pub async fn cwd_of(pid: u32) -> Option<String> {
-    let mut cmd = tokio::process::Command::new("lsof");
+    let mut cmd = crate::utils::create_tokio_command("lsof");
     cmd.args(["-a", "-p", &pid.to_string(), "-d", "cwd", "-Fn"]);
     let out = crate::external_command::run_with_timeout(cmd, "lsof cwd", 5)
         .await

@@ -350,6 +350,8 @@ pub fn live_work() -> crate::agents::work::TurnWork {
     TurnWork {
         started_at: 1_762_290_000_000,
         ended_at: None,
+        handed: Vec::new(),
+        heard: Vec::new(),
         step_count: 3,
         steps: vec![
             WorkStep {
@@ -697,6 +699,7 @@ impl Stub {
                 id: id.clone(),
                 title: title.clone(),
                 named: i == 1,
+                project: None,
                 created_at: 1_762_200_000_000 + i as i64 * 1000,
                 last_activity_at: 1_762_290_000_000 + i as i64 * 1000,
                 preview: (i > 0 || n == 1).then(|| "On it".to_string()),

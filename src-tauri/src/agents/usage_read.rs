@@ -200,7 +200,7 @@ pub fn parse_claude_credentials(raw: &str) -> Option<ClaudeLogin> {
 /// with it, so it is trusted to read it back without asking). The value comes
 /// back on a pipe; nothing is logged.
 async fn security_read(service: &str, account: &str) -> Option<String> {
-    let mut cmd = tokio::process::Command::new("/usr/bin/security");
+    let mut cmd = crate::utils::create_tokio_command("/usr/bin/security");
     cmd.args(["find-generic-password", "-a", account, "-s", service, "-w"])
         .stdin(std::process::Stdio::null());
     let out = crate::external_command::run_with_timeout(cmd, "security (Claude sign-in)", 10)
@@ -508,7 +508,7 @@ pub fn codex_answer(line: &str, now: i64) -> Option<Answer> {
 /// Ask `binary`'s app-server, as `account`, for its rate limits.
 pub async fn read_codex(binary: &Path, account: &Account, now: i64) -> Answer {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-    let mut cmd = tokio::process::Command::new(binary);
+    let mut cmd = crate::utils::create_tokio_command(binary);
     cmd.arg("app-server")
         .env("PATH", crate::utils::get_extended_path())
         .envs(wallet::env_for(account))

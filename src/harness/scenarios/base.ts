@@ -279,6 +279,7 @@ export const baseCommands: CommandMap = {
   // Every agent has its one conversation until it's given another.
   agents_conversations: onlyFirst,
   agents_conversation_select: onlyFirst,
+  agents_conversation_for_project: onlyFirst,
   // No conversation has a living page until an agent pins one (`agents/page.rs`).
   agents_page: null,
   // The palette sweep now starts in Agents, where ⌘K → Apps opens this.
@@ -669,6 +670,7 @@ export const baseCommands: CommandMap = {
   // and friends open from the dashboard as well as from inside a project, and
   // a fixture that only exists in one context white-screens the other.
   get_shell_path: '/bin/zsh',
+  agents_terminal_model: null,
   resolve_cli_path: { path: '/opt/homebrew/bin/gh', dir: '/opt/homebrew/bin' },
   // ---- feature surfaces ---------------------------------------------------
   // Empty collections are a real backend answer ("nothing configured yet"),

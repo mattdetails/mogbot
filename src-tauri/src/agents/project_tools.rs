@@ -420,7 +420,7 @@ async fn run_install(
 ) -> Result<String, String> {
     let bin = crate::commands::claude::find_binary_by_name(pm)
         .ok_or_else(|| format!("{pm} isn't installed on this Mac."))?;
-    let mut cmd = tokio::process::Command::new(bin);
+    let mut cmd = crate::utils::create_tokio_command(bin);
     cmd.args(&args)
         .current_dir(&path)
         .env("PATH", crate::utils::get_extended_path())

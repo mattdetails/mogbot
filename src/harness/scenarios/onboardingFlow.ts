@@ -429,7 +429,7 @@ function optionalParts(): Scenario[] {
       'onboarding-phone-app',
       'phoneGetApp',
       '4a. Get the app',
-      '"Get Mogbot on your phone", one line ("Don\u2019t have it yet?" then point the camera to download the TestFlight beta), the QR code with a muted line under it saying it only downloads the app and isn\u2019t the pairing code, a big "Get it on TestFlight ↗", an outlined "I already have the app", Skip for now. No tick.',
+      '"Get Mogbot on your phone", one line ("Don\u2019t have it yet?" then point the camera to get it free on the App Store), the QR code with a muted line under it saying it only downloads the app and isn\u2019t the pairing code, a big "Get it on the App Store ↗", an outlined "I already have the app", Skip for now. No tick.',
       phone()
     ),
     flow(

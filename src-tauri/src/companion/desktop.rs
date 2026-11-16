@@ -1329,6 +1329,21 @@ impl Backend for DesktopBackend {
             .map_err(CommandError::expected)?;
         match deliver(&project, session_id, text).await {
             Ok((_, tab, _)) => Ok(tab.session_id),
+            // A question with a "Type something." row: the words answer it.
+            Err(Undelivered::Asking { options, .. })
+                if session_id.is_some()
+                    && crate::remote_access::tools::own_words_option(&options).is_some() =>
+            {
+                let id = session_id.unwrap_or_default().to_string();
+                let (id2, words) = (id.clone(), text.to_string());
+                tokio::task::spawn_blocking(move || {
+                    crate::remote_access::tools::answer_in_own_words(&id2, &words)
+                })
+                .await
+                .map_err(|e| CommandError::expected(e.to_string()))?
+                .map_err(CommandError::expected)?;
+                Ok(id)
+            }
             Err(Undelivered::Asking { question, .. }) => Err(CommandError::expected(format!(
                 "Not sent: it’s waiting for your answer to “{question}”. Answer that first, then send."
             ))),
@@ -1580,7 +1595,7 @@ async fn read_computer_name() {
     if COMPUTER_NAME.get().is_some() {
         return;
     }
-    let mut cmd = tokio::process::Command::new("/usr/sbin/scutil");
+    let mut cmd = crate::utils::create_tokio_command("/usr/sbin/scutil");
     cmd.args(["--get", "ComputerName"]);
     let name = crate::external_command::run_with_timeout(cmd, "scutil", 5)
         .await
@@ -1616,7 +1631,7 @@ async fn claude_info() -> ClaudeInfo {
             version: None,
         },
         Some(bin) => {
-            let mut cmd = tokio::process::Command::new(bin);
+            let mut cmd = crate::utils::create_tokio_command(bin);
             cmd.arg("--version");
             let version = crate::external_command::run_with_timeout(cmd, "claude --version", 10)
                 .await

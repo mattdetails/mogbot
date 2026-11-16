@@ -38,6 +38,8 @@ export interface ConversationView {
   rewinds?: Rewind[];
   /** A fork: where it came from. */
   forkedFrom?: ForkedFrom;
+  /** The project it works in, for an agent on several projects. */
+  project?: string;
 }
 
 /** `agents_conversations` / `agents.conversations`. */

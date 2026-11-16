@@ -314,7 +314,7 @@ bad
     #[test]
     fn kills_a_backgrounded_grandchild_too() {
         // sh → (setsid-like) background sleep; the sleep must die with the tree.
-        let mut cmd = std::process::Command::new("sh");
+        let mut cmd = crate::utils::create_command("sh");
         cmd.args(["-c", "sleep 300 & echo $!; wait"])
             .stdout(std::process::Stdio::piped());
         std::os::unix::process::CommandExt::process_group(&mut cmd, 0);

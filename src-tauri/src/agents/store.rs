@@ -870,9 +870,17 @@ pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), CommandError
     tmp.push(format!(".{}.{}.tmp", std::process::id(), new_id()));
     let tmp = PathBuf::from(tmp);
     // On disk before the rename: a power cut after it must not leave an
-    // empty file in place of the old one.
+    // empty file in place of the old one. Flushed through a handle that can
+    // write: on Windows, flushing a read-only one is "Access is denied (os
+    // error 5)", which failed every write here (no Chief, no new agents;
+    // Mark Thurman, 2026-11-16).
     let written = write_private(&tmp, bytes)
-        .and_then(|()| std::fs::File::open(&tmp)?.sync_all())
+        .and_then(|()| {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(&tmp)?
+                .sync_all()
+        })
         .and_then(|()| std::fs::rename(&tmp, path));
     if written.is_err() {
         let _ = std::fs::remove_file(&tmp);

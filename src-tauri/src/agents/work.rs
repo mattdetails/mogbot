@@ -214,6 +214,14 @@ pub struct TurnWork {
     /// (`agents::workplace`), so the Projects sidebar can show it there.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project: Option<String>,
+    /// Live only: messages of yours handed to the turn in progress that its
+    /// engine hasn't read yet; it reads them at its next step (`runner::steer`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub handed: Vec<String>,
+    /// Live only: messages of yours the turn in progress has read since it
+    /// began: they're part of this turn, not queued for the next.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub heard: Vec<String>,
     /// Live only: the agent has a tab open in its own browser (the agents'
     /// Chrome) right now, so the desk can offer to watch it.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -2295,6 +2303,8 @@ pub fn live(agent_id: &str) -> Option<TurnWork> {
                 .collect(),
             files: Vec::new(),
             file_count: live.work.file_count,
+            handed: Vec::new(),
+            heard: Vec::new(),
             doing: live.running.as_ref().and(live.doing.clone()),
             current: live.current.as_ref().map(|r| {
                 let command = r.kind == Some(StepKind::Command);

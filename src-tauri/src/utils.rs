@@ -7,7 +7,7 @@ use std::sync::{Mutex, RwLock};
 use std::time::Instant;
 
 /// Creates a `Command` that won't spawn a visible console window on Windows.
-/// On non-Windows platforms, this is identical to `Command::new()`.
+/// On non-Windows platforms, this is identical to `create_command()`.
 pub fn create_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
     #[allow(unused_mut)]
     let mut cmd = Command::new(program);
@@ -16,6 +16,17 @@ pub fn create_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
+    cmd
+}
+
+/// [`create_command`] for tokio: no console window flashes up on Windows
+/// for anything the app runs in the background (Mark Thurman saw cmd
+/// windows appear and vanish while the app was open, 2026-11-16).
+pub fn create_tokio_command<S: AsRef<std::ffi::OsStr>>(program: S) -> tokio::process::Command {
+    #[allow(unused_mut)]
+    let mut cmd = tokio::process::Command::new(program);
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     cmd
 }
 
@@ -496,7 +507,7 @@ pub fn usable_git() -> Option<std::path::PathBuf> {
 /// that can't prompt for them.
 #[cfg(target_os = "macos")]
 pub fn mac_developer_tools_installed() -> bool {
-    Command::new("/usr/bin/xcode-select")
+    create_command("/usr/bin/xcode-select")
         .arg("-p")
         .stdin(std::process::Stdio::null())
         .output()

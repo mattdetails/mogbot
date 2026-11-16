@@ -494,7 +494,7 @@ pub fn app_for(service: &str, apps: &[String]) -> Option<String> {
 }
 
 async fn cli_account(bin: &str, args: &[&str]) -> Option<String> {
-    let mut cmd = tokio::process::Command::new(bin);
+    let mut cmd = crate::utils::create_tokio_command(bin);
     cmd.args(args)
         .env("PATH", crate::utils::get_extended_path());
     let out = crate::external_command::run_with_timeout(cmd, bin, 15)

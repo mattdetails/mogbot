@@ -12,8 +12,9 @@ describe('the same account twice', () => {
   });
 
   it('warns before the browser signs in as whoever is logged in there', () => {
-    expect(browserWarning('claude')).toContain('whoever is logged into claude.ai');
-    expect(browserWarning('claude')).toContain('private window');
+    // Claude's opens in a new window with no one signed in: nothing to sign out of.
+    expect(browserWarning('claude')).toContain('new window where no one is signed in');
+    expect(browserWarning('claude')).not.toContain('sign out');
     expect(browserWarning('codex')).toContain('chatgpt.com');
     expect(addedSameAccount('claude', 'This Mac')).toMatch(
       /^That’s the same Claude account as This Mac, so it adds no extra room\./

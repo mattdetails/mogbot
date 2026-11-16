@@ -1718,7 +1718,10 @@ below; it asks only for:
   repeats the server's name (`slack_post_message`). So `post_message`,
   `createPost`, `send_email` and `publishPost` ask, while `capturePost`,
   `upsertSocialPosts` and `listPosts` run ("post" there names posts). Code
-  hosts' and databases' writes ask too; uploads in the browser
+  hosts' and databases' writes ask too; uploads in the browser, except a
+  picture, video or PDF inside the agent's own home (`browser_gate::own_media`:
+  the post's words already had their OK, and a card per picture was twelve
+  extra cards for twelve posts)
 - a network request with a secret in its address, query or headers
   (`agents/egress.rs`, below): `curl` (and its `-u` / `-b` /
   `--oauth2-bearer`), `wget`, `http`, `gh api`, a `git` remote with a
@@ -2081,13 +2084,14 @@ above). When the user's own typed yes had no card to answer
 without a card if that turn answers the yes alone (no other agent's request or
 app note batched with it: `runner::users_message_alone`, else the card asks)
 and every action's target is named in that reply ("Your yes
-covers, for an hour: …"). Allow makes a **plan grant** (in memory; a restart
+covers, for an hour after the last of them: …"). Allow makes a **plan grant** (in memory; a restart
 forgets it): each action matched on its kind (push, pull request, merge, issue,
 comment, release, deploy, publish, post, send, request, github) **and** its
 target (`owner/repo` from the checkout's remotes or `-R`, the folder or
 `.vercel/project.json` name, a deployment host named after the project, a
-connector's `owner`/`repo`/`channel`/`project`, a browser page's host), for 60
-minutes, each listed action once (the same call again, a retry, still
+connector's `owner`/`repo`/`channel`/`project`, a browser page's host), for an
+hour from the OK and again from each covered action, never past 8 hours
+(`LONGEST_MS`; a 12-post batch outlived a fixed hour), each listed action once (the same call again, a retry, still
 passes). `message_agent` carries the grant to the agent it hands work to, and
 on down the chain (never from a turn answering outside text). Each covered
 call runs without a card and leaves "Under your OK · <summary>" in "What it
@@ -3011,7 +3015,12 @@ their own, and the person signs in to it from the phone.
   server (`mcp::decide_agents_browser`). "Bold" doesn't auto-allow a step
   the browser gate said asks (this also closed that gap for Claude in
   Chrome's send clicks).
-- **Which browser** (`access_chain`): the agents' browser first; the user's
+- **Which browser** (`access_chain`): the one already signed in to the site,
+  kept for the whole task (agents hopped from the agents' browser to the
+  user's Chrome mid-task, opening two windows for one job); a site the agent
+  already has open in the user's Chrome stays there (`in_users_chrome_on`),
+  sign-in cards included ("Done in my Chrome"). Otherwise the agents' browser
+  for most sites; the user's
   own Chrome (Claude in Chrome) for Gmail, Google Calendar, Drive, Slack, X,
   LinkedIn and Grok (`users_chrome_first`: Google refuses a sign-in in a
   driven browser, and signed out, mail.google.com lands on Google's product

@@ -335,6 +335,8 @@ fn an_unbound_agents_command_line_is_unchanged() {
     );
     let expected: Vec<String> = [
         "--print",
+        "--input-format",
+        "stream-json",
         "--output-format",
         "stream-json",
         "--verbose",

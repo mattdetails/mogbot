@@ -49,9 +49,6 @@ pub mod webview_scripts;
 
 use tauri::Manager;
 
-#[cfg(unix)]
-use std::process::Command;
-
 /// Stop this app's own agent CLIs, and the orphans a crashed run left.
 /// Run when the last window goes.
 fn cleanup_agent_processes() {
@@ -59,7 +56,7 @@ fn cleanup_agent_processes() {
     {
         let pid = std::process::id();
         for ag in agent::ALL_AGENTS {
-            let _ = Command::new("pkill")
+            let _ = crate::utils::create_command("pkill")
                 .args(["-P", &pid.to_string(), ag.process_name])
                 .output();
         }
@@ -85,11 +82,13 @@ fn reap_orphaned_agent_processes() {
                 "#,
                 ag.process_name
             );
-            let _ = Command::new("sh").args(["-c", &kill_script]).output();
+            let _ = crate::utils::create_command("sh")
+                .args(["-c", &kill_script])
+                .output();
         }
 
         // Also kill orphaned node processes running next-server (from dev server)
-        let _ = Command::new("sh")
+        let _ = crate::utils::create_command("sh")
             .args([
                 "-c",
                 r#"
@@ -197,7 +196,18 @@ pub fn run() {
         });
 
     // Hydrate the default agent cache from persisted AppState
-    let app_state = commands::setup::read_app_state();
+    let mut app_state = commands::setup::read_app_state();
+    // Projects' terminals follow the agents' engine chosen before they did.
+    if app_state.terminal_follows_agents.is_none() {
+        match commands::setup::update_app_state(agents::defaults::terminal_follow_once) {
+            Ok(Some(id)) => {
+                tracing::info!("Projects' terminals now open on {id}, the agents' engine");
+                app_state.default_agent_id = Some(id);
+            }
+            Ok(None) => {}
+            Err(e) => tracing::warn!("Couldn't match the terminals to the agents' engine: {e}"),
+        }
+    }
     agent::init_default_agent(app_state.default_agent_id.as_deref());
 
     // Initialize PostHog analytics (generates device_id on first launch)
@@ -698,6 +708,7 @@ pub fn run() {
             commands::agents::agents_quit_check,
             commands::agents::agents_keep_running_in_background,
             commands::agents::agents_set_defaults,
+            commands::agents::agents_terminal_model,
             commands::agents::agents_independence,
             commands::agents::agents_set_independence,
             commands::agents::agents_set_import_choice,
@@ -765,6 +776,7 @@ pub fn run() {
             commands::agents::agents_conversations,
             commands::agents::agents_conversation_new,
             commands::agents::agents_conversation_select,
+            commands::agents::agents_conversation_for_project,
             commands::agents::agents_conversation_rename,
             commands::agents::agents_conversation_rewind,
             commands::agents::agents_conversation_fork,

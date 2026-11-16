@@ -36,7 +36,7 @@ interface TerminalProps {
   terminalRefsMap: MutableRefObject<Map<string, TerminalHandle | null>>;
   maxTerminalTabs: number;
   setActiveTerminalTab: (id: number) => void;
-  addTerminalTab: () => void;
+  addTerminalTab: (agentId?: string) => void;
   closeTerminalTab: (id: number) => void;
   focusActiveTerminal: () => void;
   switchTabAgent: (tabId: number, agentId: string) => void;

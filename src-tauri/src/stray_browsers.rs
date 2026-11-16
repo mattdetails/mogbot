@@ -139,7 +139,7 @@ fn marker() -> String {
 
 /// One look now; stops what [`plan`] says. Returns how many it stopped.
 pub fn sweep() -> usize {
-    let Ok(out) = std::process::Command::new("ps")
+    let Ok(out) = crate::utils::create_command("ps")
         .args(["-axww", "-o", "pid=,ppid=,etime=,command="])
         .output()
     else {
@@ -156,7 +156,7 @@ pub fn sweep() -> usize {
     );
     *known = Some(keep);
     for pid in &stop {
-        let _ = std::process::Command::new("kill")
+        let _ = crate::utils::create_command("kill")
             .arg(pid.to_string())
             .status();
     }

@@ -5,7 +5,7 @@
  * owns the terminal pane's layout, split-pane rendering, and footer actions.
  */
 
-import type { CSSProperties, MutableRefObject } from 'react';
+import type { CSSProperties, MutableRefObject, ReactNode } from 'react';
 import { getAgentById, type AgentConfig } from '../../lib/agent';
 import { sessionRegistry } from '../../lib/sessionRegistry';
 import { kbd } from '../../lib/shortcuts';
@@ -32,6 +32,7 @@ import {
 } from '@/components/icons';
 import { ToolbarDropdown } from './ToolbarDropdown';
 import { SessionAgentChat } from './SessionAgentChat';
+import { PICK_AGENT } from '../../lib/sessionAgentChat';
 import { TerminalSplitDividers } from './TerminalSplitDividers';
 import { TerminalSplitHeaders } from './TerminalSplitHeaders';
 
@@ -111,6 +112,8 @@ export interface WorkspaceTerminalPaneProps {
   chatAgentId?: string | null;
   /** Back to the terminals. */
   onCloseChat?: () => void;
+  /** Shown instead of a chat when `chatAgentId` is `PICK_AGENT`: who should work here. */
+  picker?: ReactNode;
   /** Leave for Agents, from the chat. */
   onGoAgents?: () => void;
 }
@@ -174,7 +177,9 @@ export function WorkspaceTerminalPane(props: WorkspaceTerminalPaneProps) {
     chatAgentId,
     onCloseChat,
     onGoAgents,
+    picker,
   } = props;
+  const picking = chatAgentId === PICK_AGENT;
   const chatting = Boolean(chatAgentId);
 
   // The rail: which slot this panel's placeholder belongs in, and where to
@@ -353,11 +358,15 @@ export function WorkspaceTerminalPane(props: WorkspaceTerminalPaneProps) {
                 );
               })
             )}
-            {chatAgentId && onCloseChat && (
+            {picking && picker && (
+              <div className="terminal-tab-content active project-pick-slot">{picker}</div>
+            )}
+            {chatAgentId && !picking && onCloseChat && (
               <div className="terminal-tab-content active session-agent-chat-slot">
                 <SessionAgentChat
                   key={chatAgentId}
                   agentId={chatAgentId}
+                  projectPath={currentProject.path}
                   onGoAgents={onGoAgents}
                   onGone={onCloseChat}
                 />

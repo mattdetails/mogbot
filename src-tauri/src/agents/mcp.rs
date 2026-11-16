@@ -3821,7 +3821,10 @@ async fn agents_browser_card(
         exact_text_block(caller, tool, input),
     );
     match ask(app, caller, title, summary, detail, Some((tool, input))).await {
-        Answer::Allowed => Decision::Allow,
+        Answer::Allowed => {
+            super::browser_gate::note_allowed_send(caller, tool, input);
+            Decision::Allow
+        }
         Answer::Denied(note) => Decision::Deny(denied(note)),
         Answer::NotYet => Decision::Deny(NOT_YET.to_string()),
     }
@@ -4045,6 +4048,8 @@ async fn decide_inner(
         Answer::Allowed => {
             // A new package it installs asks once per project (`installs`).
             super::installs::remember_allowed(caller, tool, input);
+            // The next steps of a send just allowed don't ask again.
+            super::browser_gate::note_allowed_send(caller, tool, input);
             Decision::Allow
         }
         Answer::Denied(note) => Decision::Deny(denied(note)),
@@ -4133,8 +4138,19 @@ fn under_plan(
         exact,
         typed: super::browser_gate::typed_for(&caller.id, tool, input),
     };
-    let Some(lines) = super::plan_grant::cover(tool, input, &turn) else {
-        return false;
+    let lines = match super::plan_grant::cover(tool, input, &turn) {
+        Some(lines) => lines,
+        // Any step of a send whose exact words the plan lists, on its site:
+        // the clock, Confirm, an unlabelled button (one OK per post).
+        None => match &turn.browser {
+            Some((_, host))
+                if !turn.typed.is_empty()
+                    && super::plan_grant::covers_typed(&caller.id, host, &turn.typed, now) =>
+            {
+                vec!["a step of a post you approved".to_string()]
+            }
+            _ => return false,
+        },
     };
     for line in lines {
         let line = format!("{} · {line}", super::plan_grant::LINE);

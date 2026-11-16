@@ -26,7 +26,7 @@ import { type LayoutChangeEvent, Pressable, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { arriving } from './Arrive';
 import { useRouter } from 'expo-router';
-import { engineName, failureLine, folderName, formatClock } from '../lib/agents';
+import { engineName, failureLine, folderName, formatClock, isHanded, isHeard } from '../lib/agents';
 import { drivenWait } from '../lib/bars';
 import { haptic } from '../lib/haptics';
 import {
@@ -200,7 +200,14 @@ export const MessageRow = memo(function MessageRow({
             <T variant="caption" color={colors.textSecondary} style={styles.meta}>
               {agent.takeover
                 ? `Queued · ${drivenWait(agent.name)}`
-                : `Queued · ${agent.name} reads it when it’s done with this one`}
+                : isHanded(message, agent)
+                  ? `Sent · ${agent.name} reads it at its next step`
+                  : `Queued · ${agent.name} reads it when it’s done with this one`}
+            </T>
+          )}
+          {!queued && isHeard(message, agent) && (
+            <T variant="caption" color={colors.textSecondary} style={styles.meta}>
+              Read
             </T>
           )}
         </View>

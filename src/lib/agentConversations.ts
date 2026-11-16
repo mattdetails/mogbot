@@ -68,6 +68,13 @@ export const newConversation = (agentId: string) =>
   invoke<Conversations>('agents_conversation_new', { agentId });
 export const selectConversation = (agentId: string, conversationId: string) =>
   invoke<Conversations>('agents_conversation_select', { agentId, conversationId });
+/**
+ * Open the agent in a project (its Session panel): its conversation there is
+ * made current. Unbound, it's bound there; bound elsewhere, it starts working
+ * on both, a conversation per project (`conversations::for_project`).
+ */
+export const conversationForProject = (agentId: string, projectPath: string) =>
+  invoke<Conversations>('agents_conversation_for_project', { agentId, projectPath });
 export const renameConversation = (agentId: string, conversationId: string, title: string) =>
   invoke<Conversations>('agents_conversation_rename', { agentId, conversationId, title });
 /**

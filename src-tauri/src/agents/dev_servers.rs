@@ -233,7 +233,7 @@ pub fn root_of(rows: &[ProcRow], pid: u32, ours: &HashSet<u32>) -> u32 {
 
 #[cfg(unix)]
 async fn group_members(pgid: u32) -> Vec<u32> {
-    let mut cmd = tokio::process::Command::new("ps");
+    let mut cmd = crate::utils::create_tokio_command("ps");
     cmd.args(["-axo", "pid=,pgid="]);
     match crate::external_command::run_with_timeout(cmd, "ps groups", 5).await {
         Ok(out) => parse_group(&String::from_utf8_lossy(&out.stdout), pgid),
@@ -251,7 +251,7 @@ async fn listening(pids: &[u32]) -> Vec<(u32, u16)> {
         .map(u32::to_string)
         .collect::<Vec<_>>()
         .join(",");
-    let mut cmd = tokio::process::Command::new("lsof");
+    let mut cmd = crate::utils::create_tokio_command("lsof");
     cmd.args(["-nP", "-a", "-iTCP", "-sTCP:LISTEN", "-p", &list, "-Fpn"]);
     // lsof exits 1 when nothing matched; its output is still what it found.
     match crate::external_command::run_with_timeout(cmd, "lsof listeners", 5).await {

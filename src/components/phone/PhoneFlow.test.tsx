@@ -37,7 +37,7 @@ import {
 } from './PhoneFlow';
 import { isPassedOver, nextStep, prevStep } from '../../lib/onboardingFlow';
 import { SCAN_LINE } from '../../../packages/companion-protocol/src/pairWords';
-import { PHONE_APP_TESTFLIGHT_URL } from '../../lib/phoneApp';
+import { PHONE_APP_STORE_URL } from '../../lib/phoneApp';
 import { overrideRelayForHarness } from '../../lib/brand';
 import { readPhoneRoute, savePhoneRoute } from '../../lib/account';
 
@@ -96,14 +96,14 @@ describe('PhoneFlow', () => {
     expect(go).toHaveBeenCalledWith('phoneMacTailscale');
   });
 
-  it('offers TestFlight as the big button with a code of its link', async () => {
+  it('offers the App Store as the big button with a code of its link', async () => {
     show('phoneGetApp');
-    fireEvent.click(screen.getByRole('button', { name: /Get it on TestFlight/ }));
-    expect(openUrl).toHaveBeenCalledWith(PHONE_APP_TESTFLIGHT_URL);
+    fireEvent.click(screen.getByRole('button', { name: /Get it on the App Store/ }));
+    expect(openUrl).toHaveBeenCalledWith(PHONE_APP_STORE_URL);
     expect(
-      await screen.findByRole('img', { name: 'Download link for the phone app on TestFlight' })
+      await screen.findByRole('img', { name: 'Download link for the phone app on the App Store' })
     ).toBeInTheDocument();
-    expect(getLinkQr).toHaveBeenCalledWith(PHONE_APP_TESTFLIGHT_URL);
+    expect(getLinkQr).toHaveBeenCalledWith(PHONE_APP_STORE_URL);
   });
 
   it('ticks Tailscale on this Mac from its own status, with the account', async () => {

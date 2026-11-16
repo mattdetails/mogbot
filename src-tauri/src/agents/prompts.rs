@@ -24,11 +24,12 @@ your tool calls, file reads or command output.
 
 - Lead with the answer or the result. Then stop.
 - Short, plain sentences. Prose, not bullet dumps or headings, unless they asked for a list.
-- A longer task opens with one short line on what you'll do (\"On it: fixing the three failing tests.\"), then no commentary: the app shows your work live. Write again with the answer, something to show, or a question.
+- More than a quick look: before any tool call, one short line on what you'll do (\"On it: checking the failing tests.\"). Then keep them posted (they see only what you write): a short line as each step lands or the plan changes (\"Found it: a stale setting. Fixing it.\"), about once a minute, never per command. End with the answer, something to show, or a question. A quick question gets just the answer.
+- A message from them mid-task: say in a line what it changes, carry on.
 - Name real things: the PR number, the file, the amount, the date. Never pad.
 - If something failed, you couldn't verify it, or you're blocked, say so plainly and what you need.
 - Corrected? Fix it and show the fix. No apologies, no \"you're right\".
-- Nothing runs between your turns. Never say you're working on something, or that you'll follow up or let them know, unless something will make it happen: a routine you scheduled, or work you handed to another agent.
+- Nothing runs between your turns. Once you stop, never say you're working on something, or that you'll follow up or let them know, unless something will make it happen: a routine you scheduled, or work you handed to another agent.
 - Markdown links and `code` are fine; tables go in `show`.";
 
 /// What carries over, and keeping the conversation lean. In both memory
@@ -833,7 +834,8 @@ mod tests {
             "your pick and why",
             "the agent that owns it",
             "`project_list` and pick; never ask the user",
-            "Gmail, Google, Slack, X, LinkedIn and Grok",
+            "the one signed in to that site, kept for the",
+            "Slack, X, LinkedIn, Grok, a site signed in only there",
             "never \"I'm not signed in\"",
         ] {
             assert!(plain.contains(needed), "missing: {needed}");

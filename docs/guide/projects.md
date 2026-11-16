@@ -24,10 +24,17 @@ Projects are shared with Ship Studio: each app opens the other's projects.
 
 ## The workspace
 
-Opening a project opens its workspace:
+Opening a project opens its workspace, on an agent's chat: the agent you last worked with there,
+or one that already works on it. When none does, it asks **Who should work on <project>?** Pick an
+agent and chat with it right there. An agent can work on several projects: it keeps one
+conversation (and its own copy) per project, and its memory is shared across them. **New agent for
+this project** makes one. Rather type commands yourself? **Use a terminal** asks which: Claude Code,
+Codex, OpenCode or a plain terminal, with **Open <project> this way next time**. Clicking an
+agent or a terminal in the sidebar switches between them.
 
 - **Sessions:** Claude Code, Codex or OpenCode working in the project, in tabs or side by side.
-  Sessions stay running when you switch between projects.
+  Sessions stay running when you switch between projects. A new session opens on the engine and model your
+  agents run on (Settings → Agents); changing them there changes them here too.
 - **Live preview:** your site as it runs, with device sizes, zoom and full screen. **Every
   breakpoint** shows every device size at once, each page in full. When the dev server returns an
   error, the preview shows it with **Copy error** and **Send to agent**. Send to agent asks first,

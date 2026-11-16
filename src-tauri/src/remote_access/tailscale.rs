@@ -110,7 +110,7 @@ pub enum TailscaleState {
 /// `tauri dev`) it tries to start a second GUI, prints "The Tailscale GUI
 /// failed to start" and exits zero. `TAILSCALE_BE_CLI` forces the CLI.
 fn cli_command(bin: std::path::PathBuf) -> tokio::process::Command {
-    let mut cmd = tokio::process::Command::new(bin);
+    let mut cmd = crate::utils::create_tokio_command(bin);
     cmd.env("TAILSCALE_BE_CLI", "1");
     // A console program spawned from a GUI app opens a console window on
     // Windows unless told not to.
