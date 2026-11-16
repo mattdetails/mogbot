@@ -695,3 +695,79 @@ fn one_push_of_two_listed_branches_is_covered() {
         }
     }
 }
+
+/// Seen 2026-11-16: an allowed plan closing issues, each with its note, still
+/// asked for some closes (quotes, an apostrophe, ⌘ in the note) and for five
+/// closes chained with `&&`.
+#[test]
+fn a_plan_closing_issues_with_notes_covers_each_close() {
+    let m = mac();
+    let notes = [
+        (
+            "1",
+            "Fixed. Agents write about you as \"they\" or by name now.",
+        ),
+        (
+            "22",
+            "Fixed. \"Needs your OK\" only shows when there's a card.",
+        ),
+        ("25", "Fixed. The phone now says when your Mac is too old."),
+        ("28", "Fixed. ⌘K finds every project by name."),
+        (
+            "32",
+            "Fixed. A question on the phone lists its real options.",
+        ),
+        (
+            "33",
+            "Fixed. Slow thumbnail captures no longer count as errors.",
+        ),
+    ];
+    let actions = notes
+        .iter()
+        .map(|(n, text)| PlanAction {
+            text: Some(text.to_string()),
+            ..action(
+                Kind::Issue,
+                &format!("julian-fictional/shippy#{n}"),
+                "Close with a note",
+            )
+        })
+        .collect();
+    let at = |id: &str, command: &str| {
+        let turn = Turn {
+            holder: id,
+            ctx: &m.ctx,
+            level: Level::GoHard,
+            exposed: false,
+            browser: None,
+            now: NOW,
+            exact: true,
+            typed: Vec::new(),
+        };
+        cover("Bash", &bash(command), &turn).is_some()
+    };
+    let id = "plan-test-close-notes";
+    grant(id, &Plan { actions, why: None }, NOW);
+    let r = "-R julian-fictional/shippy";
+    assert!(at(id, &format!("gh issue close 1 {r} -c 'Fixed. Agents write about you as \"they\" or by name now.'")), "quotes");
+    assert!(at(id, &format!("gh issue close 22 {r} -c 'Fixed. \"Needs your OK\" only shows when there'\"'\"'s a card.'")), "apostrophe");
+    assert!(
+        at(
+            id,
+            &format!(
+                "gh issue close 25 {r} -c 'Fixed. The phone now says when your Mac is too old.'"
+            )
+        ),
+        "plain"
+    );
+    assert!(
+        at(
+            id,
+            &format!("gh issue close 28 {r} -c 'Fixed. ⌘K finds every project by name.'")
+        ),
+        "cmd key"
+    );
+    assert!(at(id, &format!(
+        "gh issue close 32 {r} -c \"Fixed. A question on the phone lists its real options.\" && \\\ngh issue close 33 {r} -c \"Fixed. Slow thumbnail captures no longer count as errors.\""
+    )), "chained");
+}

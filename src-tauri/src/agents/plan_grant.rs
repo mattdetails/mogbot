@@ -559,7 +559,22 @@ fn norm(s: &str) -> String {
     if let Some(rest) = t.strip_prefix("github.com/") {
         t = rest.to_string();
     }
-    let t = t.trim_end_matches('/');
+    // An issue or pull request on a repo ("owner/repo#25",
+    // "owner/repo/issues/25"): the repo is the place (seen 2026-11-16).
+    let mut t = t.trim_end_matches('/');
+    let numbered = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit());
+    if let Some((repo, n)) = t.rsplit_once('#') {
+        if !repo.is_empty() && numbered(n) {
+            t = repo;
+        }
+    }
+    for kind in ["/issues/", "/pull/", "/pulls/"] {
+        if let Some((repo, n)) = t.rsplit_once(kind) {
+            if numbered(n) {
+                t = repo;
+            }
+        }
+    }
     let t = t.strip_suffix(".git").unwrap_or(t);
     t.trim_start_matches('#').to_string()
 }
