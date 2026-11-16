@@ -1520,6 +1520,34 @@ const QUEUED_CHAT = [
   msg('user', 'Also check the footer links once that’s done.', 0.5, { agentId: 'acme' }),
 ];
 
+/** Mid-turn: one message of yours it already read, then one handed to it, not read yet (`runner::steer`). */
+const STEERED_CHAT = [
+  msg('user', 'Fix the pricing cards on mobile.', 1.5, { agentId: 'acme' }),
+  msg('agent', 'On it: checking the pricing grid at phone widths first.', 1.4, { agentId: 'acme' }),
+  msg('user', 'Do the tablet layout first, the client is demoing on an iPad.', 1, {
+    agentId: 'acme',
+    id: 'steer-heard',
+  }),
+  msg('agent', 'Tablet first, then. The cards now stack at 768px; on to mobile.', 0.6, {
+    agentId: 'acme',
+  }),
+  msg('user', 'Also check the footer links once that’s done.', 0.2, {
+    agentId: 'acme',
+    id: 'steer-handed',
+  }),
+];
+const steeredStatus = {
+  ...status('working', 'Editing PricingTable.tsx'),
+  work: {
+    startedAt: now - 2 * MIN,
+    stepCount: 4,
+    steps: [],
+    fileCount: 1,
+    handed: ['steer-handed'],
+    heard: ['steer-heard'],
+  },
+};
+
 /**
  * Start fresh. Acme Site's conversation as its engine last reported it: the
  * latest request carried 174k of a 200k window (87%, past the 85% nudge).
@@ -3942,6 +3970,21 @@ export const agentsScenarios: Scenario[] = [
       agents_overview: acmeWith({ status: status('working', 'Editing PricingTable.tsx') }),
       agents_messages: (args: Record<string, unknown>) =>
         args.agentId === 'acme' ? QUEUED_CHAT : messagesFor(args),
+      agents_interrupt: true,
+    },
+  },
+  {
+    id: 'agents-message-handed',
+    title: 'Agents — messages you send while it works go into its turn',
+    looksRightWhen:
+      'Acme Site is Working. Your “Do the tablet layout first…” sits in the conversation with a quiet “Read” under it, and its reply follows. Then the working dots with “Editing PricingTable.tsx”, and under them your newest message with “Sent, Acme Site reads it at its next step” (no Interrupt link: it will be read without stopping).',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-chat__queued',
+    steps: [{ click: '[data-agent-id="acme"]' }],
+    commands: {
+      agents_overview: acmeWith({ status: steeredStatus }),
+      agents_messages: (args: Record<string, unknown>) =>
+        args.agentId === 'acme' ? STEERED_CHAT : messagesFor(args),
       agents_interrupt: true,
     },
   },
