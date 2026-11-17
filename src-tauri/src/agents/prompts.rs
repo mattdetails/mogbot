@@ -834,9 +834,9 @@ mod tests {
             "your pick and why",
             "the agent that owns it",
             "`project_list` and pick; never ask the user",
-            "the one signed in to that site, kept for the",
-            "Slack, X, LinkedIn, Grok, a site signed in only there",
-            "never \"I'm not signed in\"",
+            "Otherwise the user's own Chrome",
+            "for every site, kept for the whole task",
+            "Only with no",
         ] {
             assert!(plain.contains(needed), "missing: {needed}");
         }
