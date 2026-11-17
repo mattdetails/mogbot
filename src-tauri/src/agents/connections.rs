@@ -762,6 +762,13 @@ fn toml(s: &str) -> String {
 /// When it doesn't, the reason is logged at info
 /// (`agent_browser::log_unavailable`).
 pub fn agents_browser_for_turn(agent: &store::Agent, outside: bool) -> bool {
+    // The user's own Chrome is where they're signed in, and the one browser
+    // that works for them: with it, a turn never gets the agents' browser.
+    // Observed (Julian, 2026-11-17): people couldn't sign in to X in the
+    // agents' browser that popped open, and nothing useful ever came of it.
+    if super::browser::for_turn(agent, outside) {
+        return false;
+    }
     let available = crate::agent_browser::available();
     let policy = available && super::policy::effective(agent).browser;
     let why = agents_browser_refusal(available, policy, agent, outside);
