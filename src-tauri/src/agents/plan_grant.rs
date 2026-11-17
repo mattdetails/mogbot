@@ -280,8 +280,6 @@ pub fn drop_holder(agent_id: &str) {
     })
 }
 
-/// Whether `agent_id` holds any grant (tests).
-#[cfg(test)]
 /// A live plan this agent holds lists a post, send or comment on `host`
 /// whose `text` is exactly what's typed on the page: every step of that
 /// send there (the clock, Confirm, Schedule, an unlabelled button) is
@@ -318,6 +316,8 @@ pub fn covers_typed(agent_id: &str, host: &str, typed: &[String], now: i64) -> b
     })
 }
 
+/// Whether `agent_id` holds any grant (tests).
+#[cfg(test)]
 pub fn holds_any(agent_id: &str) -> bool {
     with_grants(|g| g.iter().any(|x| x.holders.iter().any(|h| h == agent_id)))
 }
