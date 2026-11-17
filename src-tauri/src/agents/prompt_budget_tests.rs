@@ -8,10 +8,11 @@ use super::*;
 /// A plain agent on Claude Code: 12,054 characters when this was set
 /// (3,827 tokens as Claude Code counted it); 12,697 with the agents' browser
 /// in "Getting access", after trimming elsewhere; 13,477 after the Chief
-/// review (Codex 14,062, the Chief 17,175).
-const PLAIN_BUDGET: usize = 13_500;
+/// review (Codex 14,062, the Chief 17,175); 13,589 with the opening "On it"
+/// line (#36) and the security batch's lines.
+const PLAIN_BUDGET: usize = 13_700;
 /// The same agent on Codex (its sandbox section): 13,262.
-const CODEX_BUDGET: usize = 14_100;
+const CODEX_BUDGET: usize = 14_300;
 /// The Chief of Staff, with no team yet: 16,646.
 const CHIEF_BUDGET: usize = 17_500;
 
@@ -29,7 +30,14 @@ fn agent(id: &str, name: &str, main: bool, engine: Engine) -> store::Agent {
 fn prompt_of(a: &store::Agent) -> String {
     let home = tempfile::tempdir().unwrap();
     let layout = super::super::project::layout(a, home.path(), vec![]);
-    let p = system_prompt_for(a, home.path(), &layout);
+    // The home folder's path is the machine's, not the app's: its length
+    // differs by OS (Windows temp paths run longer), so it is measured as a
+    // fixed stand-in.
+    // So is the secret store's name ("Windows Credential Manager" is 14
+    // characters longer than "the Keychain").
+    let p = system_prompt_for(a, home.path(), &layout)
+        .replace(&*home.path().to_string_lossy(), "/home/agent")
+        .replace(crate::keychain::store_name!(), "the Keychain");
     // `DUMP_PROMPTS=<dir>` writes each one out, to count its tokens.
     if let Ok(dir) = std::env::var("DUMP_PROMPTS") {
         std::fs::write(format!("{dir}/{}.txt", a.id), &p).unwrap();

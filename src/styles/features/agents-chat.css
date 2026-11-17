@@ -1078,3 +1078,36 @@
 
 /* The working line (AgentWorkingIndicator) lives with the timeline it
    opens, in agents-work.css. */
+
+/* A message sent before its words were written out: your voice as bars,
+   breathing softly, until the words take its place. */
+.agent-bubble__wave {
+  display: inline-flex;
+  gap: var(--spacing-3xs);
+  align-items: center;
+  height: var(--size-control-compact);
+}
+
+.agent-bubble__wave > span {
+  width: 2px; /* css-ok: one bar */
+  height: calc(var(--bar) * 100%);
+  background: currentColor;
+  border-radius: var(--radius-pill);
+  animation: agents-voice-breathe 1.6s ease-in-out infinite; /* css-ok: breathing loop */
+}
+
+.agent-bubble__wave > span:nth-child(even) {
+  animation-delay: -0.8s;
+}
+
+@keyframes agents-voice-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-bubble__wave > span {
+    animation: none;
+  }
+}

@@ -389,6 +389,42 @@ fn an_answer_goes_back_to_the_conversation_that_asked() {
     });
 }
 
+/// Issue #24: a helper answering with `message_agent` (not its final words)
+/// put the answer in whichever conversation the asker had loaded, which is
+/// the one the user was talking in, while the turn it woke ran where it was
+/// asked. The line goes where it was asked, as `give_answer`'s does.
+#[test]
+fn an_answer_sent_with_message_agent_is_shown_where_it_was_asked() {
+    scratch(|| {
+        let asker = agent("Chief");
+        let helper = agent("Helper");
+        let c = create(&asker.id).unwrap().current;
+        store::update(&asker.id, |a| {
+            swap(a, &c);
+        })
+        .unwrap();
+        note_asked(&asker.id, &helper.id);
+        // The user moves the asker on to another conversation.
+        store::update(&asker.id, |a| {
+            swap(a, FIRST);
+        })
+        .unwrap();
+        let (asker, helper) = (
+            store::get(&asker.id).unwrap(),
+            store::get(&helper.id).unwrap(),
+        );
+        let answer = crate::agents::mcp::received_line(&helper, &asker, "Done.", true);
+        assert_eq!(answer.agent_id, asker.id);
+        assert_eq!(answer.conversation.as_deref(), Some(c.as_str()));
+        // Stamping on the way in keeps it there.
+        assert_eq!(of(&stamped(&answer)), c);
+        // A new request isn't an answer: it goes where the target is working.
+        let request = crate::agents::mcp::received_line(&helper, &asker, "Can you?", false);
+        assert_eq!(request.conversation, None);
+        assert_eq!(of(&stamped(&request)), FIRST);
+    });
+}
+
 #[test]
 fn what_was_asked_stays_small() {
     scratch(|| {
@@ -477,5 +513,119 @@ fn an_older_builds_automatic_title_is_tidied_on_read_and_a_typed_one_kept() {
         };
         assert_eq!(title(&c), "I kind of like B with a hint of A");
         assert_eq!(title(FIRST), "can you keep MY name.");
+    });
+}
+
+/* ---------------------------------------------- an agent on several projects */
+
+fn copy_of(project: &str) -> crate::agents::task::TaskCopy {
+    crate::agents::task::TaskCopy {
+        id: format!("copy-{project}"),
+        project: project.into(),
+        path: format!("{project}-copy"),
+        branch: "agent/task".into(),
+        base: "abc".into(),
+        base_branch: Some("main".into()),
+        created_at: 0,
+        deps: false,
+        stuck: None,
+    }
+}
+
+fn eq(a: &str, b: &str) -> bool {
+    a == b
+}
+
+#[test]
+fn opening_an_unbound_agent_in_a_project_binds_it_there() {
+    scratch(|| {
+        let a = agent("Site");
+        let listed = for_project(&a.id, "/p/site", eq).unwrap();
+        let a = store::get(&a.id).unwrap();
+        assert_eq!(a.project.as_deref(), Some("/p/site"));
+        assert!(!per_project(&a));
+        assert_eq!(listed.current, FIRST);
+        // Again: nothing changes.
+        assert_eq!(for_project(&a.id, "/p/site", eq).unwrap().current, FIRST);
+        assert!(!per_project(&store::get(&a.id).unwrap()));
+    });
+}
+
+#[test]
+fn a_second_project_gets_its_own_conversation_and_the_old_ones_stay_put() {
+    scratch(|| {
+        let a = agent("Builder");
+        store::update(&a.id, |a| {
+            a.project = Some("/p/one".into());
+            a.copy = Some(copy_of("/p/one"));
+        })
+        .unwrap();
+        let listed = for_project(&a.id, "/p/two", eq).unwrap();
+        let two = listed.current.clone();
+        assert_ne!(two, FIRST);
+        let a2 = store::get(&a.id).unwrap();
+        assert!(per_project(&a2));
+        assert_eq!(project_of(&a2, FIRST), Some("/p/one"));
+        assert_eq!(project_of(&a2, &two), Some("/p/two"));
+        assert_eq!(
+            projects(&a2),
+            vec!["/p/one".to_string(), "/p/two".to_string()]
+        );
+        // Nothing moves until a turn loads it.
+        assert_eq!(a2.project.as_deref(), Some("/p/one"));
+        let view = listed.items.iter().find(|c| c.id == two).unwrap();
+        assert_eq!(view.project.as_deref(), Some("/p/two"));
+
+        // A turn in the new one: its project, and the old copy parked.
+        store::update(&a.id, |a| {
+            swap(a, &two);
+        })
+        .unwrap();
+        let a3 = store::get(&a.id).unwrap();
+        assert_eq!(a3.project.as_deref(), Some("/p/two"));
+        assert!(a3.copy.is_none());
+        assert_eq!(copies(&a3).len(), 1);
+        assert_eq!(copies(&a3)[0].project, "/p/one");
+
+        // Back: the old copy comes back with its project.
+        store::update(&a.id, |a| {
+            a.copy = Some(copy_of("/p/two"));
+            swap(a, FIRST);
+        })
+        .unwrap();
+        let a4 = store::get(&a.id).unwrap();
+        assert_eq!(a4.project.as_deref(), Some("/p/one"));
+        assert_eq!(a4.copy.as_ref().unwrap().project, "/p/one");
+        assert_eq!(copies(&a4).len(), 2);
+
+        // Opening the first project again finds its conversation.
+        assert_eq!(for_project(&a.id, "/p/one", eq).unwrap().current, FIRST);
+        assert_eq!(for_project(&a.id, "/p/two", eq).unwrap().current, two);
+        // A new conversation started in the second works there too.
+        let made = create(&a.id).unwrap().current;
+        assert_eq!(
+            project_of(&store::get(&a.id).unwrap(), &made),
+            Some("/p/two")
+        );
+    });
+}
+
+#[test]
+fn one_project_swaps_never_touch_the_project_or_copy() {
+    scratch(|| {
+        let a = agent("Solo");
+        store::update(&a.id, |a| {
+            a.project = Some("/p/one".into());
+            a.copy = Some(copy_of("/p/one"));
+        })
+        .unwrap();
+        let other = create(&a.id).unwrap().current;
+        store::update(&a.id, |a| {
+            swap(a, &other);
+        })
+        .unwrap();
+        let a = store::get(&a.id).unwrap();
+        assert_eq!(a.project.as_deref(), Some("/p/one"));
+        assert!(a.copy.is_some());
     });
 }

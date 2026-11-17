@@ -445,3 +445,31 @@ fn the_endpoint_of_gh_api_skips_option_values() {
         "/user"
     );
 }
+
+#[test]
+fn a_commit_then_push_to_main_in_one_command_asks() {
+    // Native Builder's real command (2026-11-14): went through with no card.
+    let dir = tempfile::tempdir().unwrap();
+    let repo = dir.path().join("site");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    std::fs::write(
+        repo.join(".git/HEAD"),
+        "ref: refs/heads/services/architecture\n",
+    )
+    .unwrap();
+    let c = Ctx {
+        cwd: repo.clone(),
+        ..ctx()
+    };
+    let cmd = format!(
+        "cd {} && git add -A src && git commit -qm \"Fix invisible sections after link navigation, and the mobile menu's section links\n\nReveal groups were only observed on the first page load, so any page reached\nthrough ClientRouter kept them at opacity 0 (the technical team page's board\nand steps on a phone).\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\" && git push origin HEAD:main 2>&1 | tail -1",
+        repo.display()
+    );
+    for level in [Level::GoHard, Level::FullSend] {
+        assert!(card_at(level, false, "Bash", &bash(&cmd), &c), "{level:?}");
+        assert!(
+            card_at(level, false, "Bash", &bash("git push origin HEAD:main"), &c),
+            "{level:?} plain"
+        );
+    }
+}

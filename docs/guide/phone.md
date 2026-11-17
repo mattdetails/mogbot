@@ -9,11 +9,10 @@ computer (your Mac or PC), so it needs to be awake with the app open.
 
 ## Get the app
 
-The iPhone app is in a free public beta on **TestFlight**. Install TestFlight, then open the invite
-link from [mogbot.app/start](https://mogbot.app/start) or from the desktop app (it shows a code you can
-scan with your iPhone's camera).
+The iPhone app is free on the [App Store](https://apps.apple.com/app/mogbot/id6833062484). The desktop
+app links it too, and shows a code you can scan with your iPhone's camera.
 
-It isn't on the App Store yet, and there's no Android app to download yet.
+There's no Android app to download yet.
 
 ## How your phone reaches your computer
 
@@ -31,7 +30,9 @@ If both are set up, the phone tries the relay first and falls back to Tailscale.
 answer (Tailscale waking up on the phone, say), the phone tries the other at the same time after a
 few seconds and keeps whichever answers first.
 
-A picture that can't be fetched says "Image not available"; tap it to try again.
+A picture that can't be fetched says "Image not available"; tap it to try again. Opened full
+screen, a picture starts from the thumbnail you tapped, shows a spinner while the full one comes,
+and if it doesn't load says so and keeps trying while it's on screen.
 
 ## Pair your phone
 
@@ -50,6 +51,22 @@ If the phone can't reach your computer, it shows a short checklist of what to lo
 with the app open, Tailscale on with the same account (when you use Tailscale), and the phone
 paired.
 
+Agents work on your computer, not on the phone: closing the app never stops them. A turn that
+runs past half a minute says so under its working line ("Keeps running on your Mac, even with
+this app closed"). Tables too wide for the screen read row by row, each column named beside its
+value.
+
+Chrome asks for its own Allow, in a window on your computer, the first time an agent uses a site
+in your Chrome. The phone can't show or answer that window, so a step in your Chrome that sits for
+20 seconds says "Chrome may be waiting for you to click Allow on your Mac", and the agent's row in
+the list says "Allow in Chrome?". While your Mac's screen is locked Chrome can't show that window at
+all, so the step says your Mac is locked instead and the row says "Unlock your Mac to go on".
+The same lines show on the desk. Two ways to stop this happening: add Mogbot for Chrome (Settings →
+Agents → Let agents use your Chrome), which never shows that window, or turn on **Keep the screen
+on while agents work** (Settings → Agents, off by default), which keeps the screen from sleeping
+and locking while an agent is busy and lets it lock as usual once they're idle. It can't stop a
+lock you ask for, like closing the lid.
+
 ## What the phone can't do
 
 Pushing to git, deleting agents, and a few room settings are done on the computer.
@@ -65,3 +82,9 @@ alert goes away once you've handled it on either device.
 
 Approvals always come through, even during quiet hours. Other alerts are held during quiet hours
 and summed up in one when they end.
+
+If the app on your computer is too old to wake the phone, the phone's Settings says **Update your
+Mac** (or computer): until you do, notifications arrive only while the phone app is open.
+
+While you dictate on the phone, its screen stays on, so it can't lock mid-sentence and lose your
+words. It locks as usual once you stop.

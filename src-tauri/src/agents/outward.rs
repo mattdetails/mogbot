@@ -660,7 +660,18 @@ pub fn approved_covers(approved: &str, t: &Texts) -> bool {
     if a.is_empty() || !t.complete() {
         return false;
     }
-    let pieces: Vec<String> = t.pieces.iter().map(|p| norm(p)).collect();
+    // A date or a time typed in a scheduler's fields is when it goes out,
+    // not words under the user's name (Julian, 2026-11-16: every scheduled
+    // post asked again because "11/19/2026" and "11:00 AM" weren't in it).
+    let pieces: Vec<String> = t
+        .pieces
+        .iter()
+        .map(|p| norm(p))
+        .filter(|p| !is_schedule_value(p))
+        .collect();
+    if pieces.is_empty() {
+        return false;
+    }
     if pieces.len() > 3 {
         return norm(&pieces.join(" ")) == a;
     }
@@ -673,6 +684,50 @@ pub fn approved_covers(approved: &str, t: &Texts) -> bool {
                 .join(" "),
         ) == a
     })
+}
+
+/// Only a date or a time, as typed into a scheduler's field: "11/19/2026",
+/// "2026-11-19", "Nov 19, 2026", "11:00 AM", "15:30". Nothing with other
+/// words in it.
+pub fn is_schedule_value(p: &str) -> bool {
+    let p = p.trim();
+    if p.is_empty() || p.len() > 24 {
+        return false;
+    }
+    const MONTHS: &[&str] = &[
+        "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
+    ];
+    let words: Vec<String> = p
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|w| !w.is_empty())
+        .map(str::to_ascii_lowercase)
+        .collect();
+    // A bare number ("42") could be a reply: a date or time has a separator,
+    // a month or am/pm.
+    let marked = p.contains(['/', '-', ':'])
+        || words.iter().any(|w| {
+            let w = w.trim_end_matches('.');
+            MONTHS.contains(&w) || w.ends_with("am") || w.ends_with("pm")
+        });
+    marked
+        && !words.is_empty()
+        && words.iter().all(|w| {
+            let w = w.trim_end_matches('.');
+            matches!(w, "am" | "pm")
+                || [
+                    "mon", "tue", "tues", "wed", "thu", "thur", "thurs", "fri", "sat", "sun",
+                ]
+                .contains(&w)
+                || MONTHS.contains(&w)
+                || (!w.is_empty()
+                    && w.chars().any(|c| c.is_ascii_digit())
+                    && w.chars().all(|c| c.is_ascii_digit() || "/-:.".contains(c))
+                    || w.strip_suffix("am")
+                        .or_else(|| w.strip_suffix("pm"))
+                        .is_some_and(|n| {
+                            !n.is_empty() && n.chars().all(|c| c.is_ascii_digit() || c == ':')
+                        }))
+        })
 }
 
 fn permutations(v: &mut Vec<usize>, k: usize, ok: &mut dyn FnMut(&[usize]) -> bool) -> bool {

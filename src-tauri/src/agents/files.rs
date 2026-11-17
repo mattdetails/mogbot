@@ -141,25 +141,28 @@ pub struct SharedFile {
 
 /// Everything shared in a conversation, both ways, newest first.
 pub fn list(agent_id: &str) -> Result<Vec<SharedFile>, CommandError> {
-    let mut files: Vec<SharedFile> = store::messages(agent_id, usize::MAX)?
-        .into_iter()
-        // A result card's files ride on the turn's change card when it had one.
-        .filter(|m| matches!(m.kind, MessageKind::User | MessageKind::Agent) || m.result.is_some())
-        .flat_map(|m| {
-            let from = if m.kind == MessageKind::User {
-                Sender::User
-            } else {
-                Sender::Agent
-            };
-            let (id, ts) = (m.id, m.ts);
-            m.attachments.into_iter().map(move |attachment| SharedFile {
-                message_id: id.clone(),
-                ts,
-                from,
-                attachment,
+    let mut files: Vec<SharedFile> =
+        store::messages_where(agent_id, &|m| !m.attachments.is_empty())?
+            .into_iter()
+            // A result card's files ride on the turn's change card when it had one.
+            .filter(|m| {
+                matches!(m.kind, MessageKind::User | MessageKind::Agent) || m.result.is_some()
             })
-        })
-        .collect();
+            .flat_map(|m| {
+                let from = if m.kind == MessageKind::User {
+                    Sender::User
+                } else {
+                    Sender::Agent
+                };
+                let (id, ts) = (m.id, m.ts);
+                m.attachments.into_iter().map(move |attachment| SharedFile {
+                    message_id: id.clone(),
+                    ts,
+                    from,
+                    attachment,
+                })
+            })
+            .collect();
     files.sort_by(|a, b| b.ts.cmp(&a.ts));
     Ok(files)
 }

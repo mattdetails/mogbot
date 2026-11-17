@@ -57,7 +57,6 @@ import Animated, {
   FadeIn,
   FadeInDown,
   FadeOut,
-  LinearTransition,
   ZoomIn,
   ZoomOut,
   interpolate,
@@ -119,9 +118,14 @@ import {
 import {
   endOffset,
   FAR,
+  byFinger,
   FOLLOWING,
   fromEnd,
   holdFor,
+  insetFor,
+  touched,
+  UNTOUCHED,
+  type Touch,
   newestSignature,
   pillFor,
   revealsCard,
@@ -163,14 +167,6 @@ const NATIVE_HEADER_BUTTONS = Platform.OS === 'ios';
 const NO_KEYS: ReadonlySet<string> = new Set();
 /** A card counts as seen once its top is on screen: its title is the question. */
 const VIEWABILITY = { itemVisiblePercentThreshold: 10 };
-
-/**
- * Rows glide to where a growing or collapsing neighbour puts them: nothing
- * jumps. Not on the web (QA only): there the glide is a transform on the
- * cell, which replaces the inverted list's own flip, so every row it moved
- * drew upside down for its 220 ms.
- */
-const glide = Platform.OS === 'web' ? undefined : LinearTransition.duration(220);
 
 /**
  * A pending approval's question, held above a pane too short for the whole
@@ -276,8 +272,7 @@ export function ChatView({
   // The keyboard's lift, as the list's top inset: where the newest end is now.
   const insetTop = useRef(0);
   // A finger on the list, or its fling still running: only that lets go.
-  const dragging = useRef(false);
-  const flinging = useRef(false);
+  const touch = useRef<Touch>(UNTOUCHED);
   const [listHeight, setListHeight] = useState(0);
   // The pin and the list together: the room a card is measured against, the
   // same whether the pin shows or not.
@@ -476,6 +471,8 @@ export function ChatView({
 
   /** To the newest line, wherever the keyboard has put it, and following it again. */
   const toNewest = useCallback((animated = true) => {
+    // This jump stops any fling, and iOS says nothing when a fling is cut short.
+    touch.current = { ...touch.current, flinging: false };
     setFollow(toEnd());
     setFar(false);
     list.current?.scrollToOffset({ offset: endOffset(insetTop.current), animated });
@@ -804,7 +801,9 @@ export function ChatView({
                   inverted
                   data={items}
                   keyExtractor={(i) => i.key}
-                  itemLayoutAnimation={glide}
+                  // No itemLayoutAnimation: on iOS a row's glide left the pictures
+                  // inside it unpainted (result cards drew as blank space, never
+                  // on the web build, where it was always off). docs/mobile.md.
                   onLayout={(e: LayoutChangeEvent) => setListHeight(e.nativeEvent.layout.height)}
                   // Let go to read back: the rows on screen hold still while the
                   // newest grows or arrives below them. Following: none, so the
@@ -861,21 +860,28 @@ export function ChatView({
                   onViewableItemsChanged={onViewable}
                   viewabilityConfig={VIEWABILITY}
                   onScrollBeginDrag={() => {
-                    dragging.current = true;
+                    touch.current = touched(touch.current, 'dragStart');
                   }}
                   onScrollEndDrag={() => {
-                    dragging.current = false;
+                    touch.current = touched(touch.current, 'dragEnd');
                   }}
                   onMomentumScrollBegin={() => {
-                    flinging.current = true;
+                    touch.current = touched(touch.current, 'momentumStart');
                   }}
                   onMomentumScrollEnd={() => {
-                    flinging.current = false;
+                    touch.current = touched(touch.current, 'momentumEnd');
                   }}
                   onScroll={(e) => {
-                    const d = fromEnd(e.nativeEvent.contentOffset.y, insetTop.current);
+                    // The offset and its inset from the same instant (lib/follow).
+                    const inset = insetFor(
+                      e.nativeEvent.contentInset?.top,
+                      insetTop.current,
+                      Platform.OS === 'ios'
+                    );
+                    insetTop.current = inset;
+                    const d = fromEnd(e.nativeEvent.contentOffset.y, inset);
                     distance.current = d;
-                    const byUser = dragging.current || flinging.current;
+                    const byUser = byFinger(touch.current);
                     // Bail-outs keep these from re-rendering on every event.
                     setFollow((now) => scrolled(now, d, newestRef.current, byUser));
                     setFar(d > FAR);

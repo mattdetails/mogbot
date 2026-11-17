@@ -51,3 +51,6 @@ export async function signJwt(
   const signature = await crypto.subtle.sign(algorithm, key, encoder.encode(input));
   return `${input}.${b64url(new Uint8Array(signature))}`;
 }
+
+/** No outgoing request waits longer than this: a stalled APNs or FCM must not hold a send. */
+export const FETCH_TIMEOUT_MS = 5_000;

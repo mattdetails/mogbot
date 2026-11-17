@@ -956,7 +956,8 @@ pub(crate) fn pick_tab(
         .iter()
         .enumerate()
         .filter(|(_, s)| is_agent_tab(s) && s.alive)
-        .max_by_key(|(_, s)| s.last_output_ms)
+        // The tab used last: typed into, not merely repainted (#29).
+        .max_by_key(|(_, s)| s.last_used_ms())
         .map(|(i, s)| (i + 1, s.clone()))
         .ok_or_else(|| "No agent is running in this project. Use start_agent to begin one.".into())
 }
@@ -993,7 +994,7 @@ fn tab_line(n: usize, s: &SessionSummary) -> String {
     let state = if !s.alive {
         "ended".to_string()
     } else if !is_agent_tab(s) {
-        format!("plain terminal, last output {}", ago(s.last_output_ms))
+        format!("plain terminal, last used {}", ago(s.last_used_ms()))
     } else {
         match tab_state(s).map(|(state, _)| state) {
             Some(AgentState::Working { activity }) => match activity {
@@ -1005,8 +1006,8 @@ fn tab_line(n: usize, s: &SessionSummary) -> String {
             }
             Some(AgentState::Finished) => {
                 format!(
-                    "finished, ready for a message (last output {})",
-                    ago(s.last_output_ms)
+                    "finished, ready for a message (last used {})",
+                    ago(s.last_used_ms())
                 )
             }
             Some(AgentState::Exited) | None => "ended".into(),
@@ -1671,6 +1672,79 @@ pub(crate) enum Undelivered {
         key: String,
     },
     Other(String),
+}
+
+/// The key for item `i` of an unnumbered menu ("option:1").
+pub(crate) const OPTION_KEY: &str = "option:";
+
+/// Item `i` of an unnumbered menu, from `OPTION_KEY`.
+pub(crate) fn option_index(key: &str) -> Option<usize> {
+    let n = key.strip_prefix(OPTION_KEY)?;
+    (!n.is_empty() && n.len() <= 2 && n.chars().all(|c| c.is_ascii_digit()))
+        .then(|| n.parse().ok())
+        .flatten()
+}
+
+/// Pick item `i` of the unnumbered menu tab `session_id` shows now (the trust
+/// or Bypass Permissions dialog): arrow from the highlighted item, then Enter.
+/// Read off the screen at the moment of pressing, so a menu that changed
+/// since the phone looked is refused rather than answered wrong.
+pub(crate) fn pick_option(session_id: &str, i: usize) -> Result<(), String> {
+    let (_, options) =
+        asking(session_id).ok_or("Not pressed: it isn’t asking anything right now.")?;
+    let h = options
+        .iter()
+        .position(|o| o.ends_with(agent_state::HIGHLIGHTED))
+        .ok_or("Not pressed: that question changed. Look again.")?;
+    if i >= options.len() {
+        return Err("Not pressed: that question changed. Look again.".into());
+    }
+    let arrow = if i >= h { "down" } else { "up" };
+    let mut keys = vec![arrow.to_string(); i.abs_diff(h)];
+    keys.push("enter".into());
+    press_keys(session_id, &keys)
+}
+
+/// The option of a question that takes your own words: Claude Code's
+/// question screen ends on "Type something." (older builds: "Other").
+pub(crate) fn own_words_option(options: &[String]) -> Option<usize> {
+    options.iter().position(|o| {
+        let label = o.trim_end_matches(agent_state::HIGHLIGHTED).trim();
+        let label = label
+            .split_once(". ")
+            .filter(|(n, _)| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+            .map_or(label, |(_, rest)| rest)
+            .trim()
+            .trim_end_matches('.')
+            .to_lowercase();
+        label == "type something" || label == "other"
+    })
+}
+
+/// Answer the question tab `session_id` shows in your own words: arrow to its
+/// "Type something." row, type `text` there, then Enter (Tom's report: on the
+/// phone the composer was locked and "Type something" couldn't be used).
+/// Read off the screen at the moment of typing; a question without such a
+/// row is refused. Blocking: call it off the async runtime.
+pub(crate) fn answer_in_own_words(session_id: &str, text: &str) -> Result<(), String> {
+    let (_, options) = asking(session_id).ok_or("Not sent: it isn’t asking anything right now.")?;
+    let i = own_words_option(&options)
+        .ok_or("Not sent: this question has no option for your own words. Pick one above.")?;
+    let h = options
+        .iter()
+        .position(|o| o.ends_with(agent_state::HIGHLIGHTED))
+        .ok_or("Not sent: that question changed. Look again.")?;
+    let arrow = if i >= h { "down" } else { "up" };
+    press_keys(session_id, &vec![arrow.to_string(); i.abs_diff(h)])?;
+    std::thread::sleep(Duration::from_millis(200));
+    // One line: a newline would submit part of it.
+    let line: String = text
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    write(session_id, line.trim().as_bytes())?;
+    std::thread::sleep(Duration::from_millis(300));
+    press_keys(session_id, &["enter".to_string()])
 }
 
 /// The question tab `session_id` is showing, if any.
@@ -2725,7 +2799,7 @@ async fn scaffold(name: &str, template: &NewProjectTemplate) -> Result<std::path
 async fn npm_install(project: &str) -> Result<(), String> {
     let npm = crate::commands::claude::find_binary_by_name("npm")
         .ok_or("npm isn't installed on the computer.")?;
-    let mut cmd = tokio::process::Command::new(npm);
+    let mut cmd = crate::utils::create_tokio_command(npm);
     cmd.arg("install")
         .current_dir(project)
         .env("PATH", crate::utils::get_extended_path())
@@ -3110,19 +3184,27 @@ pub(crate) struct SentView {
 /// How many screen lines `session_screen` returns.
 const SCREEN_LINES: usize = 300;
 
-/// "1. Yes" → key "1"; an unnumbered menu's highlighted item → "enter".
-/// Options that can only be reached with the arrow keys get no key the phone
-/// could press, so they're shown but not offered.
+/// "1. Yes" → key "1"; an unnumbered menu's highlighted item → "enter", and
+/// its other items → "option:<i>" (`pick_option` arrows to it, then Enter).
 pub(crate) fn option_views(options: &[String]) -> Vec<OptionView> {
     const MARK: &str = " (highlighted — enter picks it)";
+    let menu = options.iter().any(|o| o.ends_with(MARK));
     options
         .iter()
-        .filter_map(|o| {
+        .enumerate()
+        .filter_map(|(i, o)| {
             if let Some(label) = o.strip_suffix(MARK) {
                 return Some(OptionView {
                     key: "enter".into(),
                     label: label.to_string(),
                     highlighted: true,
+                });
+            }
+            if menu {
+                return Some(OptionView {
+                    key: format!("{OPTION_KEY}{i}"),
+                    label: o.trim().to_string(),
+                    highlighted: false,
                 });
             }
             let (n, label) = o.split_once(". ")?;
@@ -3262,6 +3344,43 @@ pub(crate) fn session_screen(projects: &[String], session_id: &str) -> Result<Sc
 mod tests {
     use super::*;
 
+    /// Tom's screen (Claude Code's question tabs, Polish): the "Type
+    /// something." row is found, so the phone's words can answer it.
+    #[test]
+    fn a_question_screen_offers_its_type_something_row_for_your_own_words() {
+        let screen: Vec<String> = [
+            "←  ☐ LP telefon  ☐ Stare LP  ☐ Adres bety  ✔ Submit  →",
+            "",
+            "│ Landing /lp/inwestowanie-dominikana na telefonie: która wersja",
+            "│ ofert (jedna pod drugą) jeszcze nie zapadł i do tego",
+            "│ wdrażam?",
+            "",
+            "❯ 1. Wersja B - lista",
+            "     Wszystkie 9 ofert jedna pod drugą, jak na tablecie.",
+            "  2. Wersja A - slider",
+            "     Jedna karta na ekranie, licznik „1 z 9” i strzałki.",
+            "  3. Na razie żadnej",
+            "     Zostawiam obecny telefon bez zmian (poza zasadami).",
+            "  4. Type something.",
+            "  ────────────────────────────────────────────",
+            "  5. Chat about this",
+            "",
+            "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let (question, options) = agent_state::awaiting_choice_detail(&screen).unwrap();
+        assert!(question.ends_with("wdrażam?"), "{question}");
+        assert_eq!(own_words_option(&options), Some(3), "{options:?}");
+        assert!(options[0].ends_with(agent_state::HIGHLIGHTED));
+        assert_eq!(own_words_option(&["1. Yes".into(), "2. No".into()]), None);
+        assert_eq!(
+            own_words_option(&["1. Yes".into(), "2. Other".into()]),
+            Some(1)
+        );
+    }
+
     #[test]
     fn a_blank_project_needs_no_project_tools() {
         let blank = NewProjectTemplate {
@@ -3286,24 +3405,47 @@ mod tests {
 
     #[test]
     fn options_become_keys_the_phone_can_press() {
-        let views = option_views(&[
-            "1. Yes".into(),
-            "2. Yes, and don't ask again".into(),
-            "Not numbered".into(),
-            "Trust this folder (highlighted — enter picks it)".into(),
-        ]);
-        let keys: Vec<(&str, &str, bool)> = views
-            .iter()
-            .map(|o| (o.key.as_str(), o.label.as_str(), o.highlighted))
-            .collect();
+        let keys = |options: &[String]| -> Vec<(String, String, bool)> {
+            option_views(options)
+                .into_iter()
+                .map(|o| (o.key, o.label, o.highlighted))
+                .collect()
+        };
+        let own = |k: &str, l: &str, h: bool| (k.to_string(), l.to_string(), h);
         assert_eq!(
-            keys,
+            keys(&[
+                "1. Yes".into(),
+                "2. Yes, and don't ask again".into(),
+                "Not numbered".into(),
+            ]),
             [
-                ("1", "Yes", false),
-                ("2", "Yes, and don't ask again", false),
-                ("enter", "Trust this folder", true),
+                own("1", "Yes", false),
+                own("2", "Yes, and don't ask again", false),
             ]
         );
+        // Claude Code's Bypass Permissions warning: every item is offered, the
+        // ones below the highlight picked by arrowing to them.
+        assert_eq!(
+            keys(&[
+                format!("No, exit{}", agent_state::HIGHLIGHTED),
+                "Yes, I accept".into(),
+            ]),
+            [
+                own("enter", "No, exit", true),
+                own("option:1", "Yes, I accept", false),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_menu_item_key_is_only_a_small_index() {
+        assert_eq!(option_index("option:1"), Some(1));
+        assert_eq!(option_index("option:12"), Some(12));
+        assert_eq!(option_index("option:"), None);
+        assert_eq!(option_index("option:123"), None);
+        assert_eq!(option_index("option:-1"), None);
+        assert_eq!(option_index("1"), None);
+        assert_eq!(key_bytes("option:1"), None);
     }
 
     #[test]
@@ -3333,6 +3475,7 @@ mod tests {
             alive,
             opened_at_ms: 0,
             last_output_ms: last,
+            last_input_ms: last,
         }
     }
 

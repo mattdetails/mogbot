@@ -64,6 +64,12 @@ export interface PendingSend {
   reason?: string;
   /** Written while the Mac couldn't be reached: sent when it answers (outbox.ts). */
   waiting?: boolean;
+  /**
+   * Sent while the computer was still tidying the dictated words: shown in
+   * the chat at once, dimmed with "Tidying…", its words swapped for the
+   * better ones as they land, then sent (Composer's held send).
+   */
+  tidying?: boolean;
   /** Already uploaded; shown from the phone's own copies until the Mac's arrive. */
   attachments?: PendingAttachment[];
   /** Agent ids @mentioned, sent with the text. */
@@ -399,6 +405,22 @@ export function confirmSend(s: SyncState, clientId: string, sent: AgentMessage):
       ? s.chats
       : { ...s.chats, [key]: { ...chat, messages: upsert(chat.messages, message) } },
   };
+}
+
+/** A held send's words changed (the tidy landed), or it's let go: `tidying` false. */
+export function setPendingText(
+  s: SyncState,
+  agentId: string,
+  clientId: string,
+  text: string,
+  tidying: boolean
+): SyncState {
+  const list = (s.pending[agentId] ?? []).map((p) => {
+    if (p.clientId !== clientId) return p;
+    const { tidying: _t, ...rest } = p;
+    return tidying ? { ...rest, text, tidying } : { ...rest, text };
+  });
+  return { ...s, pending: { ...s.pending, [agentId]: list } };
 }
 
 export function setPendingFailed(

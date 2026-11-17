@@ -5,7 +5,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { Cdp, FUNCTIONS, METHODS, vet } from '../extension/src/cdp.js';
+import {
+  ATTACH_CHUNK_FN,
+  ATTACH_FILE_FN,
+  Cdp,
+  FUNCTIONS,
+  METHODS,
+  vet,
+} from '../extension/src/cdp.js';
 import { BACKOFF_MS, Link } from '../extension/src/link.js';
 import { handle } from '../extension/src/ops.js';
 import {
@@ -439,4 +446,40 @@ test('a request answered after its port dropped never goes to the new port', asy
   await tick();
   // The app already told the agent the step may not have happened.
   assert.ok(!second.posted.some((m) => m.t === 'res'), 'the late answer went nowhere');
+});
+
+test('the attach functions take exactly their own arguments', () => {
+  assert.ok(FUNCTIONS.has(ATTACH_CHUNK_FN) && FUNCTIONS.has(ATTACH_FILE_FN));
+  const call = (fn, values) => ({
+    objectId: 'o-1',
+    functionDeclaration: fn,
+    arguments: values.map((value) => ({ value })),
+  });
+  assert.deepEqual(
+    vet('Runtime.callFunctionOn', call(ATTACH_CHUNK_FN, ['a1f', 0, 'iVBORw0K'])).arguments,
+    [{ value: 'a1f' }, { value: 0 }, { value: 'iVBORw0K' }]
+  );
+  vet('Runtime.callFunctionOn', call(ATTACH_FILE_FN, ['a1f', 'post 1.png', 'image/png', 1]));
+  for (const bad of [
+    call(ATTACH_CHUNK_FN, ['a1f', 0, 'not base64!']),
+    call(ATTACH_CHUNK_FN, ['x; alert(1)', 0, 'AAAA']),
+    call(ATTACH_CHUNK_FN, ['a1f', 0, 'A'.repeat(700 * 1024)]),
+    call(ATTACH_CHUNK_FN, ['a1f', 1.5, 'AAAA']),
+    call(ATTACH_CHUNK_FN, ['a1f', 0]),
+    call(ATTACH_FILE_FN, ['a1f', 'x.html', 'text/html', 1]),
+    call(ATTACH_FILE_FN, ['a1f', '', 'image/png', 1]),
+    call(ATTACH_FILE_FN, ['a1f', 'x.png', 'image/png', 2]),
+    {
+      ...call(ATTACH_CHUNK_FN, ['a1f', 0, 'AAAA']),
+      arguments: [{ objectId: 'o' }, { value: 0 }, { value: 'AAAA' }],
+    },
+    // The scroll function still takes numbers only.
+    call([...FUNCTIONS][0], ['a1f', 0]),
+  ]) {
+    assert.throws(
+      () => vet('Runtime.callFunctionOn', bad),
+      (e) => e.code === CODES.notAllowed,
+      JSON.stringify(bad).slice(0, 80)
+    );
+  }
 });

@@ -237,6 +237,15 @@ impl Conversation {
         }
     }
 
+    /// The user's message for the turn in progress, where the engine takes
+    /// one mid-turn (Codex's `turn/steer`); `None` otherwise.
+    pub fn steer(&self, text: &str) -> Option<serde_json::Value> {
+        match self {
+            Conversation::Codex(c) => c.steer(text),
+            Conversation::OpenCode(_) => None,
+        }
+    }
+
     pub fn over(&self) -> bool {
         match self {
             Conversation::Codex(c) => c.over(),
@@ -300,7 +309,10 @@ fn with_effort(driver: Driver, mut args: Vec<String>, effort: Option<&str>) -> V
                 .position(|a| a == "--skip-git-repo-check")
                 .map(|i| i + 1)
                 .unwrap_or(args.len());
-            let value = format!("model_reasoning_effort={}", super::codex::toml(effort));
+            let value = format!(
+                "model_reasoning_effort={}",
+                super::codex::toml(super::store::codex_effort(effort))
+            );
             args.splice(at..at, ["-c".to_string(), value]);
             args
         }
@@ -395,6 +407,13 @@ mod tests {
         assert_eq!(pair(&Driver::ClaudePrint.args(&s), "--effort"), ["high"]);
         let exec = Driver::CodexExec.args(&s);
         assert!(pair(&exec, "-c").contains(&r#"model_reasoning_effort="high""#.to_string()));
+        // Claude Code's top levels pass as they are; Codex has no `max`
+        // and gets its highest (#19).
+        s.effort = Some("max");
+        assert_eq!(pair(&Driver::ClaudePrint.args(&s), "--effort"), ["max"]);
+        assert!(pair(&Driver::CodexExec.args(&s), "-c")
+            .contains(&r#"model_reasoning_effort="xhigh""#.to_string()));
+        s.effort = Some("high");
         // With the other overrides, before the session and the `-` of exec.
         let at = exec
             .iter()

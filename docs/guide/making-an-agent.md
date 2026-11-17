@@ -41,7 +41,8 @@ own voice and three things you can tap to start.
 ## Edit agent
 
 **Edit agent** is one sheet, laid out like Settings. At the top is the agent's key (click it to
-change its colour, icon and shortcut key), its name, and what it runs on. Three tabs sit under
+change its colour, its face or icon, and its shortcut key), its name, and what it runs on. Under
+Colour, **Face** or **Icon** picks which it wears: one of 16 faces, or any of over 2,000 icons. Three tabs sit under
 it: **Agent**, **Memory** and **Usage**.
 
 On **Agent**, the rows are grouped:
@@ -82,12 +83,47 @@ On your own messages you can:
 - **Rewind to here.** What comes after folds away; it isn't deleted. Work the agent already did
   outside the chat (files, sends) isn't undone.
 
+They're in the **…** beside your message (or a right-click on it). While the agent is working,
+Edit and resend and Rewind to here wait, and the menu says so; Fork from here always works.
+
 An agent works on one thing at a time. Messages sent while it's busy wait their turn.
 
 ## Dictation
 
-Click the microphone in the message box and talk; your words appear as you speak and Enter
-finishes. Speech is recognised on your computer. If your default microphone is a Bluetooth headset
+Click the microphone in the message box (or press ⌘⇧D, or hold ⌥Space) and talk. No words show
+while you talk: the box becomes one row, with how long it's been and your voice moving as a wave
+where the words would be. Until your voice reaches it, the row says **Listening…** quietly. If the mic hears nothing for eight seconds once it is running, the row says **Can't hear you · check the mic** and names
+the microphone it's using, so you never talk for minutes into a dead mic; if it hears sound but no
+words for ten seconds (a muted or wrong input), it says that instead. **Enter** (or Send) stops and
+sends; **Esc** cancels. The phone works the same way.
+
+When you stop, your computer writes what you said out with Whisper, a speech model that runs on your
+computer, primed with your agents' and projects' names. Then a quick pass by Claude (Haiku, with no
+tools) fixes only misheard names and punctuation, using the conversation you're in. The row says
+**Tidying…** for a few seconds, then the words appear in the box. Long dictations are written out as
+you go, a piece at a time, so stopping after five minutes only waits for the last bit. Send while it's
+still listening or tidying, on the Mac or the phone, and the message moves up into the chat at once,
+dimmed, with a little wave in it and **Tidying…** under it; it goes by itself once the words are in,
+and the box is free for your next message. If Claude Code isn't set up, you get Whisper's words alone.
+If the words can't be written out, the recording stays on your computer and the box says **Couldn't
+write that out · Try again**.
+
+**Your words.** Settings → Agents → Dictation keeps the names and terms dictation should always get
+right. Add one there, or just fix it: when you change the same dictated word twice before sending
+("mog about" to "Mogbot"), it's added on its own, with Undo. Whisper and the names pass get your
+words and the fixes you've made, on the desk and for the phone's dictation. Remove a word and it isn't
+learned again unless you add it back.
+
+The speech model is a one-time 574 MB download, fetched the first time you dictate. It loads when you start talking (or open a chat on your phone) and stays loaded for 10 minutes after your last dictation, so the better words come quickly. On Windows and
+Linux dictation waits for it ("Getting dictation ready"); on a Mac you get the Mac's own recognition
+meanwhile.
+Your recording never leaves your computer. Only the written words go to the names pass, on your own
+Claude account.
+
+From the phone, the same happens on your computer: the phone sends the recording, and the better
+words come back.
+
+If your default microphone is a Bluetooth headset
 (AirPods and the like), dictation listens through your computer's built-in microphone instead, so your
 headphones keep playing music at full quality rather than switching to call mode.
 

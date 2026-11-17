@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { blockedCopy, dictationVocabulary, joinDictation } from './dictation';
+import {
+  blockedCopy,
+  dictationOffError,
+  dictationVocabulary,
+  joinDictation,
+  learnedWordsLine,
+} from './dictation';
+
+describe('learnedWordsLine', () => {
+  it('names each word it added', () => {
+    expect(learnedWordsLine(['Mogbot'])).toBe('Added “Mogbot” to your words');
+    expect(learnedWordsLine(['Mogbot', 'Lobeva'])).toBe(
+      'Added “Mogbot” and “Lobeva” to your words'
+    );
+  });
+});
 
 describe('joinDictation', () => {
   it('appends spoken text after the draft with one space', () => {
@@ -23,5 +38,15 @@ describe('dictationVocabulary', () => {
     expect(
       dictationVocabulary(['Finance', 'Acme Site'], ['acme-marketing', 'Finance', 'my_app'])
     ).toEqual(['Finance', 'Acme Site', 'acme marketing', 'my app']);
+  });
+});
+
+describe('dictationOffError', () => {
+  it('turns macOS’s switch being off into the blocked line with Settings (#17)', () => {
+    expect(dictationOffError('Siri and Dictation are disabled.')).toBe(true);
+    expect(dictationOffError('The microphone couldn’t start.')).toBe(false);
+    const copy = blockedCopy('dictationOff');
+    expect(copy.message).toMatch(/Dictation is turned off/);
+    expect(copy.settings).toMatch(/^x-apple\.systempreferences:/);
   });
 });

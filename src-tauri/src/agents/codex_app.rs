@@ -128,7 +128,7 @@ async fn schema_lists_everything(binary: &Path) -> Option<bool> {
         std::process::id(),
         super::store::new_id()
     ));
-    let mut cmd = tokio::process::Command::new(binary);
+    let mut cmd = crate::utils::create_tokio_command(binary);
     cmd.args(["app-server", "generate-json-schema", "--out"])
         .arg(&out)
         .env("PATH", crate::utils::get_extended_path());
@@ -317,8 +317,27 @@ impl Conversation {
     pub fn with_effort(mut self, effort: Option<&str>) -> Self {
         self.effort = effort
             .filter(|e| super::store::EFFORTS.contains(e))
-            .map(str::to_string);
+            .map(|e| super::store::codex_effort(e).to_string());
         self
+    }
+
+    /// The user's message for the turn in progress (`runner::steer`): Codex
+    /// reads it at its next step. `None` before the turn has started or once
+    /// it is over: it waits for the next turn instead.
+    pub fn steer(&self, text: &str) -> Option<Value> {
+        let (thread, turn) = (self.thread.as_ref()?, self.turn.as_ref()?);
+        (!self.over && !self.compact).then(|| {
+            json!({
+                "jsonrpc": "2.0",
+                "id": format!("steer-{}", super::store::new_id()),
+                "method": "turn/steer",
+                "params": {
+                    "threadId": thread,
+                    "expectedTurnId": turn,
+                    "input": [{ "type": "text", "text": text }],
+                },
+            })
+        })
     }
 
     /// The turn in progress, to interrupt.

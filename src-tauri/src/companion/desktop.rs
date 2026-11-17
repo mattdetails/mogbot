@@ -213,6 +213,42 @@ async fn watch_projects(c: Arc<Companion>) {
 // The backend: the Agents commands, called as the desk calls them
 // ============================================================================
 
+/// A page of an agent's chat for the phone, and whether older lines exist.
+/// The newest page reaches back to a card still waiting on the user
+/// (`store::oldest_open_card`), as the desk's does: the phone's page is
+/// short, and a card the list says "Needs your OK" for must be in the chat.
+fn phone_page(
+    agent_id: &str,
+    conversation: Option<&str>,
+    limit: usize,
+    before: Option<&str>,
+) -> Result<(Vec<store::AgentMessage>, bool), CommandError> {
+    // How far a page may reach back for a card.
+    const CARD_REACH: usize = 2000;
+    let card = before
+        .is_none()
+        .then(|| store::oldest_open_card(agent_id, conversation))
+        .flatten();
+    let through = card.as_deref().map(|id| (id, CARD_REACH));
+    let read = |n: usize, before: Option<&str>, through| match conversation {
+        Some(c) => store::conversation_page(agent_id, c, n, before, through),
+        None => store::messages_page(agent_id, n, before, through),
+    };
+    // One past the page says whether older messages exist.
+    let mut page = read(limit.saturating_add(1), before, through)?;
+    let reached = card.is_some() && page.first().map(|m| &m.id) == card.as_ref();
+    if reached && page.len() > limit {
+        // Kept whole down to the card; older lines are whatever lies before it.
+        let more = !read(1, Some(&page[0].id), None)?.is_empty();
+        return Ok((page, more));
+    }
+    let more = page.len() > limit;
+    if more {
+        page.drain(..page.len() - limit);
+    }
+    Ok((page, more))
+}
+
 struct DesktopBackend {
     app: AppHandle,
 }
@@ -238,17 +274,9 @@ impl Backend for DesktopBackend {
     ) -> Result<(Vec<Value>, bool), CommandError> {
         let (agent_id, before) = (agent_id.to_string(), before.map(str::to_string));
         let conversation = conversation.map(str::to_string);
-        // One past the page says whether older messages exist.
         let (page, more) = tokio::task::spawn_blocking(move || {
-            let n = limit.saturating_add(1);
-            let mut page = match conversation.as_deref() {
-                Some(c) => store::conversation_page(&agent_id, c, n, before.as_deref(), None)?,
-                None => store::messages_page(&agent_id, n, before.as_deref(), None)?,
-            };
-            let more = page.len() > limit;
-            if more {
-                page.drain(..page.len() - limit);
-            }
+            let (mut page, more) =
+                phone_page(&agent_id, conversation.as_deref(), limit, before.as_deref())?;
             // As the desk shows it, read after the log's lock is let go.
             crate::agents::as_shown(&agent_id, &mut page);
             Ok::<_, CommandError>((page, more))
@@ -264,6 +292,8 @@ impl Backend for DesktopBackend {
         text: String,
         extras: SendExtras,
     ) -> Result<Value, CommandError> {
+        // Dictated on the phone and fixed before sending: learn the fix.
+        crate::voice::words::phone_sent(agent_id, &text);
         let mentions = (!extras.mentions.is_empty()).then_some(extras.mentions);
         let attachments = (!extras.attachments.is_empty()).then(|| {
             extras
@@ -286,6 +316,7 @@ impl Backend for DesktopBackend {
                 extras.client_id,
                 extras.revises,
                 extras.conversation,
+                extras.written_at,
             )
             .await?,
         )
@@ -520,6 +551,7 @@ impl Backend for DesktopBackend {
         text: String,
         send: RoomSend,
     ) -> Result<Value, CommandError> {
+        crate::voice::words::phone_sent(&format!("room:{room_id}"), &text);
         json(
             crate::commands::agent_rooms::agents_room_send(
                 self.app.clone(),
@@ -1297,6 +1329,21 @@ impl Backend for DesktopBackend {
             .map_err(CommandError::expected)?;
         match deliver(&project, session_id, text).await {
             Ok((_, tab, _)) => Ok(tab.session_id),
+            // A question with a "Type something." row: the words answer it.
+            Err(Undelivered::Asking { options, .. })
+                if session_id.is_some()
+                    && crate::remote_access::tools::own_words_option(&options).is_some() =>
+            {
+                let id = session_id.unwrap_or_default().to_string();
+                let (id2, words) = (id.clone(), text.to_string());
+                tokio::task::spawn_blocking(move || {
+                    crate::remote_access::tools::answer_in_own_words(&id2, &words)
+                })
+                .await
+                .map_err(|e| CommandError::expected(e.to_string()))?
+                .map_err(CommandError::expected)?;
+                Ok(id)
+            }
             Err(Undelivered::Asking { question, .. }) => Err(CommandError::expected(format!(
                 "Not sent: it’s waiting for your answer to “{question}”. Answer that first, then send."
             ))),
@@ -1310,6 +1357,15 @@ impl Backend for DesktopBackend {
         let project = project_of_session(&all_projects().await, session_id).ok_or_else(|| {
             CommandError::expected("That session isn't open in the app any more.")
         })?;
+        if let Some(i) = crate::remote_access::tools::option_index(key) {
+            let id = session_id.to_string();
+            return tokio::task::spawn_blocking(move || {
+                crate::remote_access::tools::pick_option(&id, i)
+            })
+            .await
+            .map_err(|e| CommandError::expected(e.to_string()))?
+            .map_err(CommandError::expected);
+        }
         match press(&project, Some(session_id), key) {
             Ok(_) => Ok(()),
             Err(Undelivered::NotAsking { .. }) => Err(CommandError::expected(
@@ -1423,6 +1479,69 @@ impl Backend for DesktopBackend {
         crate::remote_access::companion_audit(actor, tool, detail, ok);
     }
 
+    async fn transcribe(
+        &self,
+        samples_16k: Vec<f32>,
+        agent_id: Option<String>,
+        room_id: Option<String>,
+    ) -> Result<super::dictation::Transcribed, CommandError> {
+        use super::dictation::{self as words, Transcribed};
+        // The model is fetched once, in the background; nothing better this time.
+        if crate::voice::model::ready_path().is_none() {
+            crate::voice::model::ensure(&self.app);
+            return Ok(Transcribed::preparing());
+        }
+        let projects: Vec<String> = crate::commands::projects::list_projects()
+            .await
+            .map(|list| list.into_iter().map(|p| p.name).collect())
+            .unwrap_or_default();
+        // As the desk's: the team's names, and the last lines said where it'll go.
+        let chat = match (&agent_id, &room_id) {
+            (_, Some(room)) => Some(format!("room:{room}")),
+            (Some(agent), None) => Some(agent.clone()),
+            (None, None) => None,
+        };
+        let (names, context) = tokio::task::spawn_blocking(move || {
+            let agents = store::list().unwrap_or_default();
+            let name_of = |id: &str| agents.iter().find(|a| a.id == id).map(|a| a.name.clone());
+            let said = |page: Vec<store::AgentMessage>, who: &dyn Fn(&str) -> Option<String>| {
+                page.into_iter()
+                    .filter_map(|m| match m.kind {
+                        store::MessageKind::User => Some(("Me".to_string(), m.text)),
+                        store::MessageKind::Agent => who(&m.agent_id).map(|n| (n, m.text)),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+            };
+            const PAGE: usize = 40;
+            let lines = match (&agent_id, &room_id) {
+                (_, Some(room)) => crate::agents::rooms::messages_page(room, PAGE, None)
+                    .map(|page| said(page, &name_of))
+                    .unwrap_or_default(),
+                (Some(agent), None) => {
+                    let name = name_of(agent);
+                    store::messages_page(agent, PAGE, None, None)
+                        .map(|page| said(page, &|_: &str| name.clone()))
+                        .unwrap_or_default()
+                }
+                (None, None) => Vec::new(),
+            };
+            let names = words::vocabulary(agents.iter().map(|a| a.name.clone()), projects);
+            (
+                crate::commands::dictation::clean_contextual_strings(names),
+                words::context(&lines),
+            )
+        })
+        .await
+        .map_err(crate::agents::err_other)?;
+        let improved = crate::voice::improve(samples_16k, names, context).await;
+        // What it wrote, so the message the phone sends can teach a fix.
+        if let (Some(chat), Some(i)) = (&chat, &improved) {
+            crate::voice::words::phone_dictated(chat, &i.text);
+        }
+        Ok(Transcribed::from_improved(improved))
+    }
+
     fn changed(&self) {
         let _ = self.app.emit(EVENT_CHANGED, ());
     }
@@ -1476,7 +1595,7 @@ async fn read_computer_name() {
     if COMPUTER_NAME.get().is_some() {
         return;
     }
-    let mut cmd = tokio::process::Command::new("/usr/sbin/scutil");
+    let mut cmd = crate::utils::create_tokio_command("/usr/sbin/scutil");
     cmd.args(["--get", "ComputerName"]);
     let name = crate::external_command::run_with_timeout(cmd, "scutil", 5)
         .await
@@ -1512,7 +1631,7 @@ async fn claude_info() -> ClaudeInfo {
             version: None,
         },
         Some(bin) => {
-            let mut cmd = tokio::process::Command::new(bin);
+            let mut cmd = crate::utils::create_tokio_command(bin);
             cmd.arg("--version");
             let version = crate::external_command::run_with_timeout(cmd, "claude --version", 10)
                 .await
@@ -1879,7 +1998,7 @@ async fn publish_watch(c: Arc<Companion>) -> Result<String, CommandError> {
     }
     let tailscale::TailscaleState::Connected { dns_name, .. } = tailscale::status().await else {
         return Err(CommandError::expected(
-            "Tailscale isn't connected on the Mac, so the site can't be shown on the phone.",
+            "Finish this one on your Mac: the page can't be shown on your phone over this connection yet.",
         ));
     };
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -2234,5 +2353,66 @@ mod relay_route_tests {
             hosts_for(&[], Some("relay.example.com".into())),
             vec!["relay.example.com".to_string()]
         );
+    }
+}
+
+#[cfg(test)]
+mod phone_page_tests {
+    use super::*;
+    use crate::agents::store::MessageKind;
+
+    /// The phone's short page reaches back to a card still waiting (issue
+    /// #22), says truly whether anything is older, and pages on as before.
+    #[test]
+    fn the_phone_page_holds_the_card_its_list_counts() {
+        let _serial = store::tests_lock();
+        let dir = tempfile::tempdir().unwrap();
+        store::set_root_for_tests(Some(dir.path().to_path_buf()));
+        let a = store::create(store::NewAgent {
+            name: "Busy".into(),
+            role: "Does things".into(),
+            instructions: "Be brief.".into(),
+            shape: None,
+            color: None,
+            is_main: false,
+        })
+        .unwrap();
+        let said = |text: &str, ts: i64| {
+            let mut m = runner::new_message(&a.id, MessageKind::Agent, text);
+            m.ts = ts;
+            m.conversation = Some("first".into());
+            m
+        };
+        store::append_message(&said("oldest", 1)).unwrap();
+        let mut card = said("", 2);
+        card.kind = MessageKind::Approval;
+        card.approval = Some(crate::agents::mcp::new_card(
+            store::new_id(),
+            "Run a command".into(),
+            "ls".into(),
+            None,
+        ));
+        store::append_message(&card).unwrap();
+        for i in 0..8 {
+            store::append_message(&said(&format!("line {i}"), 10 + i)).unwrap();
+        }
+        let (page, more) = phone_page(&a.id, Some("first"), 3, None).unwrap();
+        assert_eq!(page.first().map(|m| &m.id), Some(&card.id));
+        assert_eq!(page.len(), 9);
+        assert!(more, "the line before the card is still there");
+        let (older, more) = phone_page(&a.id, Some("first"), 3, Some(&card.id)).unwrap();
+        assert_eq!(older.len(), 1);
+        assert!(!more);
+        // With no card waiting, the page is the newest three as before.
+        store::set_approval_status(
+            &a.id,
+            &card.approval.as_ref().unwrap().request_id,
+            store::ApprovalStatus::Allowed,
+        )
+        .unwrap();
+        let (page, more) = phone_page(&a.id, None, 3, None).unwrap();
+        assert_eq!(page.len(), 3);
+        assert!(more);
+        store::set_root_for_tests(None);
     }
 }

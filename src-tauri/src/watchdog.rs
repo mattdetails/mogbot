@@ -199,7 +199,7 @@ fn sample_threads() -> Option<std::path::PathBuf> {
         "hang-{}.txt",
         chrono::Local::now().format("%Y%m%d-%H%M%S")
     ));
-    let mut child = std::process::Command::new("/usr/bin/sample")
+    let mut child = crate::utils::create_command("/usr/bin/sample")
         .arg(std::process::id().to_string())
         .arg("2")
         .arg("-file")

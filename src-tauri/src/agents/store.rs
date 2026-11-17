@@ -873,7 +873,19 @@ pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), CommandError
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(format!(".{}.{}.tmp", std::process::id(), new_id()));
     let tmp = PathBuf::from(tmp);
-    let written = write_private(&tmp, bytes).and_then(|()| std::fs::rename(&tmp, path));
+    // On disk before the rename: a power cut after it must not leave an
+    // empty file in place of the old one. Flushed through a handle that can
+    // write: on Windows, flushing a read-only one is "Access is denied (os
+    // error 5)", which failed every write here (no Chief, no new agents;
+    // Mark Thurman, 2026-11-16).
+    let written = write_private(&tmp, bytes)
+        .and_then(|()| {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(&tmp)?
+                .sync_all()
+        })
+        .and_then(|()| std::fs::rename(&tmp, path));
     if written.is_err() {
         let _ = std::fs::remove_file(&tmp);
     }
@@ -1210,8 +1222,18 @@ pub fn normalize_routine_model(
 /// takes them (it also has `xhigh` and `max`), and so does Codex's reasoning
 /// effort (`model_reasoning_effort`, the app-server's `effort` on
 /// `turn/start`; some models also offer `minimal` or `xhigh`). Only the
-/// three both say, so a level survives a move between engines.
-pub const EFFORTS: [&str; 3] = ["low", "medium", "high"];
+/// three both say, plus Claude Code's `xhigh` and `max` (#19): Codex takes
+/// `xhigh` and gets it for `max` too ([`codex_effort`]), so a level still
+/// survives a move between engines.
+pub const EFFORTS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
+
+/// The level Codex is sent: it has no `max`, so `max` asks its highest.
+pub fn codex_effort(effort: &str) -> &str {
+    match effort {
+        "max" => "xhigh",
+        other => other,
+    }
+}
 
 /// An effort setting from the UI: empty is the engine's default; anything
 /// else must be one of [`EFFORTS`]. It becomes an argument, so nothing else
@@ -1224,7 +1246,7 @@ pub fn normalize_effort(effort: &str) -> Result<Option<String>, CommandError> {
     if !EFFORTS.contains(&effort.as_str()) {
         return Err(super::err_invalid(
             "effort",
-            "Pick Low, Medium, High or Default.",
+            "Pick Low, Medium, High, Extra high, Max or Default.",
         ));
     }
     Ok(Some(effort))
@@ -2231,7 +2253,7 @@ pub(crate) fn read_back(
 /// A log's lines from its end backwards, newest first, read in growing
 /// chunks only as far back as they are asked for. Lines come back raw: the
 /// caller parses only those it keeps.
-struct BackLines {
+pub(crate) struct BackLines {
     file: Option<std::fs::File>,
     /// Where the bytes not yet read end (they start at 0).
     pos: u64,
@@ -2241,7 +2263,7 @@ struct BackLines {
 }
 
 impl BackLines {
-    fn open(path: &Path) -> Result<Self, CommandError> {
+    pub(crate) fn open(path: &Path) -> Result<Self, CommandError> {
         let file = match std::fs::File::open(path) {
             Ok(f) => Some(f),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
@@ -2264,7 +2286,7 @@ impl BackLines {
 
     /// The next line back, raw, or `None` at the log's start. Empty lines
     /// are skipped.
-    fn next_line(&mut self) -> Result<Option<Vec<u8>>, CommandError> {
+    pub(crate) fn next_line(&mut self) -> Result<Option<Vec<u8>>, CommandError> {
         use std::io::{Read, Seek, SeekFrom};
         loop {
             while matches!(self.buf.last(), Some(b'\n' | b'\r')) {
@@ -2445,6 +2467,21 @@ pub fn messages(agent_id: &str, limit: usize) -> Result<Vec<AgentMessage>, Comma
 /// `through` when that is older, but never more than `cap` in all. A `before`
 /// that isn't in the log yields nothing rather than a page from elsewhere.
 /// Read from the log's end, only as far back as the page needs.
+/// Every message in the log that `keep` takes, oldest first, read from the
+/// end a line at a time: only the kept ones are held, never the whole log
+/// (CTO review 2026-11-14: `messages(id, usize::MAX)` parsed and held it all).
+pub fn messages_where(
+    agent_id: &str,
+    keep: &dyn Fn(&AgentMessage) -> bool,
+) -> Result<Vec<AgentMessage>, CommandError> {
+    let lock = log_lock(agent_id);
+    let _guard = lock.lock().unwrap_or_else(|e| e.into_inner());
+    let path = log_path(agent_id)?;
+    let mut page = page_back_where(&path, usize::MAX, None, None, keep)?;
+    apply_answers(agent_id, &mut page)?;
+    Ok(page)
+}
+
 pub fn messages_page(
     agent_id: &str,
     limit: usize,
@@ -2776,6 +2813,20 @@ pub fn pending_card_messages(agent_id: &str) -> Result<Vec<AgentMessage>, Comman
     let lock = log_lock(agent_id);
     let _guard = lock.lock().unwrap_or_else(|e| e.into_inner());
     pending_cards(agent_id)
+}
+
+/// The oldest card still waiting on the user among one conversation's lines
+/// (every line with `None`): a chat's newest page reaches back to it
+/// (`through`), so a card the row counts as "Needs your OK" is never on a
+/// page the chat hasn't read. A card stays up for days, and a busy chat
+/// buried it under more lines than one page holds (issue #22).
+pub fn oldest_open_card(agent_id: &str, conversation: Option<&str>) -> Option<String> {
+    pending_card_messages(agent_id)
+        .ok()?
+        .into_iter()
+        .filter(|m| conversation.is_none_or(|c| super::conversations::of(m) == c))
+        .min_by_key(|m| m.ts)
+        .map(|m| m.id)
 }
 
 /// The cards still waiting on an answer, oldest first.

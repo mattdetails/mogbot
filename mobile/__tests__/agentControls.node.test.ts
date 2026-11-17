@@ -71,32 +71,33 @@ describe('the chip', () => {
   });
 
   it('a reading from before a model switch doesn’t win over the choice', () => {
-    expect(modelShortName(agent({ model: 'sonnet', context: reading('claude-opus-5-5') }), ENGINES)).toBe(
-      'Sonnet'
-    );
-    expect(modelShortName(agent({ model: 'opus', context: reading('claude-opus-5-5') }), ENGINES)).toBe(
-      'Opus 5.5'
-    );
+    expect(
+      modelShortName(agent({ model: 'sonnet', context: reading('claude-opus-5-5') }), ENGINES)
+    ).toBe('Sonnet');
+    expect(
+      modelShortName(agent({ model: 'opus', context: reading('claude-opus-5-5') }), ENGINES)
+    ).toBe('Opus 5.5');
   });
 
   it('Codex: the name Codex lists the model under', () => {
     expect(modelShortName(agent({ engine: 'codex', model: 'gpt-5-codex' }), ENGINES)).toBe(
       'GPT-5 Codex'
     );
-    expect(modelShortName(agent({ engine: 'codex', context: reading('gpt-5-codex') }), ENGINES)).toBe(
-      'GPT-5 Codex'
-    );
+    expect(
+      modelShortName(agent({ engine: 'codex', context: reading('gpt-5-codex') }), ENGINES)
+    ).toBe('GPT-5 Codex');
     expect(chipLabel(agent({ engine: 'codex' }), ENGINES).main).toBe('Codex');
   });
 
   it('ignores an effort it doesn’t know', () => {
-    expect(chipLabel(agent({ effort: 'max' as never }), ENGINES).effort).toBeNull();
+    expect(chipLabel(agent({ effort: 'ultra' as never }), ENGINES).effort).toBeNull();
+    expect(chipLabel(agent({ effort: 'xhigh' }), ENGINES).effort).toBe('Extra high');
   });
 });
 
 describe('Agent controls', () => {
-  it('offers the engine’s default and the three levels', () => {
-    expect(effortRows().map((r) => r.value)).toEqual(['', 'low', 'medium', 'high']);
+  it('offers the engine’s default and the five levels', () => {
+    expect(effortRows().map((r) => r.value)).toEqual(['', 'low', 'medium', 'high', 'xhigh', 'max']);
   });
 
   it('locks the model and effort while a turn runs or it’s driven', () => {

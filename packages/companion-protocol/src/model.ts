@@ -138,6 +138,10 @@ export interface LiveCall {
   busy?: boolean;
   /** "Stop this step" can find its process. */
   canStop: boolean;
+  /** A Claude in Chrome call: one running long may be held by Chrome's own Allow window on the Mac. */
+  chrome?: boolean;
+  /** A Claude in Chrome call while the Mac's screen is locked: its Allow window can't show. */
+  locked?: boolean;
 }
 
 /** `agents::work::StepOutcome`. */
@@ -183,6 +187,10 @@ export interface TurnWork {
    * Macs omit it.
    */
   project?: string;
+  /** While it runs: your messages handed to it that it hasn't read yet; it reads them at its next step. */
+  handed?: string[];
+  /** While it runs: your messages it read mid-turn, part of this turn rather than queued. */
+  heard?: string[];
   /** While it runs: it has a tab open in its own browser (the agents' Chrome) right now. */
   ownBrowser?: boolean;
   /**
@@ -297,7 +305,11 @@ export interface Agent {
    * The conversation its session (and a turn in progress) belongs to
    * (`conversations.rs`); absent, the first. Omitted while it only ever used the first.
    */
-  conversations?: { loaded?: string };
+  conversations?: {
+    loaded?: string;
+    /** An agent on several projects: each conversation's project (id → path). */
+    projects?: Record<string, string>;
+  };
 }
 
 /**
@@ -582,9 +594,9 @@ export interface SchedulePreview {
 
 export type AgentEngine = 'claude' | 'codex' | 'opencode';
 
-/** Mirrors `store::EFFORTS`: the levels both engines take. */
-export type AgentEffort = 'low' | 'medium' | 'high';
-export const AGENT_EFFORTS: readonly AgentEffort[] = ['low', 'medium', 'high'];
+/** Mirrors `store::EFFORTS` (Codex gets its highest for `max`). */
+export type AgentEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export const AGENT_EFFORTS: readonly AgentEffort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 export interface ModelChoice {
   value: string;
@@ -709,7 +721,7 @@ export interface Capabilities {
 }
 
 export interface PermissionScope {
-  kind: 'command_prefix' | 'command' | 'domain' | 'tool';
+  kind: 'command_prefix' | 'command' | 'domain' | 'tool' | 'app_reads';
   value: string;
   label: string;
   /** The user's own words, when remembered from what they said in chat (`agents/remember.rs`). */
@@ -1796,7 +1808,7 @@ export interface UpdateAgentInput {
   engine?: AgentEngine;
   model?: string;
   routineModel?: string;
-  /** `low` / `medium` / `high`, or '' for the engine's default. */
+  /** `low` / `medium` / `high` / `xhigh` / `max`, or '' for the engine's default. */
   effort?: AgentEffort | '';
   project?: string;
   workDirectly?: boolean;

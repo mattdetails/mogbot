@@ -95,9 +95,11 @@ export function rowPill(
   const state = lineState(agent);
   if (state === 'waiting') {
     const cut = line.indexOf(' · ');
+    // Trimmed: an ask that's only blank space would leave an empty line
+    // under the pill, pushing the row's words above the key's middle.
     return cut < 0
       ? { tone: 'waiting', label: line, rest: '' }
-      : { tone: 'waiting', label: line.slice(0, cut), rest: line.slice(cut + 3) };
+      : { tone: 'waiting', label: line.slice(0, cut), rest: line.slice(cut + 3).trim() };
   }
   const failure = state === 'failed' || state === 'limited' ? failedTurn(agent) : null;
   if (!failure) return null;
@@ -226,12 +228,24 @@ export function lineState(agent: Agent): LineState {
 }
 
 /** A message of yours sent after the turn in progress began: queued for the next one. */
-export function isQueued(message: Pick<AgentMessage, 'kind' | 'ts'>, agent: Agent): boolean {
+export function isQueued(message: Pick<AgentMessage, 'kind' | 'ts' | 'id'>, agent: Agent): boolean {
   if (message.kind !== 'user') return false;
+  // Read mid-turn: part of the turn in progress, not waiting for the next.
+  if (agent.status.work?.heard?.includes(message.id)) return false;
   // Driven on the Mac: what you send waits for the hand-back.
   if (agent.takeover) return message.ts > agent.takeover.since;
   const { state, since } = agent.status;
   return state !== 'idle' && since != null && message.ts > since;
+}
+
+/** Your message, handed to the turn in progress: it reads it at its next step. */
+export function isHanded(message: Pick<AgentMessage, 'id'>, agent: Agent): boolean {
+  return !!agent.status.work?.handed?.includes(message.id);
+}
+
+/** Your message, read by the turn in progress mid-turn. */
+export function isHeard(message: Pick<AgentMessage, 'id'>, agent: Agent): boolean {
+  return !!agent.status.work?.heard?.includes(message.id);
 }
 
 /** "Chief of Staff" → "CS", "Agent 3" → "A3", "Finance" → "FI". */
@@ -275,6 +289,10 @@ export function distinctInitials(name: string, names: string[]): string {
  * end by saying where it can be taken back (not needed beside Revoke itself).
  */
 export function describeScope(scope: PermissionScope, agentName: string, revocable = true): string {
+  if (scope.kind === 'app_reads') {
+    const revoke = revocable ? ` Revoke it any time from ${agentName}’s sheet.` : '';
+    return `${agentName} can go on ${scope.label} without asking. Sending, changing or deleting anything there still asks every time.${revoke}`;
+  }
   const what =
     scope.kind === 'command_prefix'
       ? `Any command starting with “${scope.label}”`

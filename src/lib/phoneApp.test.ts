@@ -9,6 +9,7 @@ import {
   phoneOfferNote,
   PHONE_APP_NOT_OUT,
   PHONE_APP_ROUTE,
+  PHONE_APP_STORE_URL,
   PHONE_APP_TESTFLIGHT_URL,
 } from './phoneApp';
 
@@ -25,9 +26,10 @@ describe('phoneAppRouteFor', () => {
     expect(phoneAppRouteFor(null, null, false)).toBe('none');
   });
 
-  it('takes this build’s TestFlight link from brand.json', () => {
+  it('takes this build’s App Store page from brand.json, ahead of TestFlight', () => {
+    expect(PHONE_APP_STORE_URL).toMatch(/^https:\/\/apps\.apple\.com\/app\//);
     expect(PHONE_APP_TESTFLIGHT_URL).toMatch(/^https:\/\/testflight\.apple\.com\/join\//);
-    expect(PHONE_APP_ROUTE).toBe('testflight');
+    expect(PHONE_APP_ROUTE).toBe('store');
   });
 });
 

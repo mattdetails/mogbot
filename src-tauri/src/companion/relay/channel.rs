@@ -72,6 +72,15 @@ pub enum Out {
     Payload(u32, Vec<u8>),
     /// The channel ended on the Mac's side.
     Ended(u32, u64),
+    /// The phone on this channel proved its token (its Welcome went out):
+    /// the relay keeps it when strangers fill the Mac's phone slots.
+    Authed(u32, u64),
+}
+
+/// A frame the socket handler sends is the Welcome: the phone proved its
+/// device token. Serialized with its tag first (`ServerFrame`).
+fn is_welcome(text: &str) -> bool {
+    text.starts_with(r#"{"t":"welcome""#)
 }
 
 /// The socket handler's WebSocket: protocol frames in from the phone, its
@@ -134,13 +143,14 @@ pub async fn run(
     mut inbound: Inbound,
     out: mpsc::Sender<Out>,
 ) {
-    serve(&c, ch, port, &mut inbound, &out).await;
+    serve(&c, ch, generation, port, &mut inbound, &out).await;
     let _ = out.send(Out::Ended(ch, generation)).await;
 }
 
 async fn serve(
     c: &Arc<Companion>,
     ch: u32,
+    generation: u64,
     port: Option<u16>,
     inbound: &mut Inbound,
     out: &mpsc::Sender<Out>,
@@ -170,6 +180,7 @@ async fn serve(
     let (from_tx, mut from_handler) = mpsc::channel::<Message>(QUEUE);
     let mut from_tx = Some(from_tx);
     let mut heard = Instant::now();
+    let mut authed = false;
     let mut idle_check = tokio::time::interval(IDLE / 3);
 
     loop {
@@ -229,8 +240,15 @@ async fn serve(
             }
             msg = from_handler.recv() => match msg {
                 Some(Message::Text(text)) => {
+                    let welcome = !authed && is_welcome(&text);
                     if !seal_out(&mut keys, ch, out, text.as_bytes()).await {
                         return;
+                    }
+                    if welcome {
+                        authed = true;
+                        if out.send(Out::Authed(ch, generation)).await.is_err() {
+                            return;
+                        }
                     }
                 }
                 Some(Message::Close(_)) | None => return,

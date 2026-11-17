@@ -141,6 +141,22 @@ export const baseCommands: CommandMap = {
   get_keep_dev_servers_running: true,
   get_agents_fix_previews: true,
   get_low_power_on_battery: true,
+  // Dictation's own words: two typed in, one learned from two fixes.
+  dictation_words: {
+    words: [
+      { word: 'Lobeva', learned: true, added: 1_763_060_000 },
+      { word: 'Native', learned: false, added: 1_763_050_000 },
+      { word: 'Maverick Rock', learned: false, added: 1_763_040_000 },
+    ],
+    fixes: [
+      { heard: 'Labiva', fixed: 'Lobeva', count: 1, last: 1_763_060_000 },
+      { heard: 'lo bever', fixed: 'Lobeva', count: 1, last: 1_763_055_000 },
+    ],
+    removed: [],
+  },
+  dictation_word_add: null,
+  dictation_word_remove: null,
+  dictation_learn: [],
   set_low_power_on_battery: null,
   // Quiet hours on, 22:00–07:00, so Settings shows the times.
   agents_quiet_hours: { start: 22 * 60, end: 7 * 60 },
@@ -263,6 +279,7 @@ export const baseCommands: CommandMap = {
   // Every agent has its one conversation until it's given another.
   agents_conversations: onlyFirst,
   agents_conversation_select: onlyFirst,
+  agents_conversation_for_project: onlyFirst,
   // No conversation has a living page until an agent pins one (`agents/page.rs`).
   agents_page: null,
   // The palette sweep now starts in Agents, where ⌘K → Apps opens this.
@@ -667,6 +684,7 @@ export const baseCommands: CommandMap = {
   // and friends open from the dashboard as well as from inside a project, and
   // a fixture that only exists in one context white-screens the other.
   get_shell_path: '/bin/zsh',
+  agents_terminal_model: null,
   resolve_cli_path: { path: '/opt/homebrew/bin/gh', dir: '/opt/homebrew/bin' },
   // ---- feature surfaces ---------------------------------------------------
   // Empty collections are a real backend answer ("nothing configured yet"),
@@ -698,6 +716,8 @@ export const baseCommands: CommandMap = {
     keepRunning: false,
     openAtLogin: false,
     openAtLoginAvailable: true,
+    keepScreenOn: false,
+    keepScreenOnAvailable: true,
   },
   set_stay_on: {
     supported: true,
@@ -705,6 +725,8 @@ export const baseCommands: CommandMap = {
     keepRunning: false,
     openAtLogin: false,
     openAtLoginAvailable: true,
+    keepScreenOn: false,
+    keepScreenOnAvailable: true,
   },
   close_to_background: false,
   // Settings → General's GPU row; the modal was never captured before.

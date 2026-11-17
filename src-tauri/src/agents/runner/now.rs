@@ -294,6 +294,9 @@ pub(super) fn with_work(agent_id: &str, status: &mut Status) {
         "idle" => None,
         _ => super::work::live(agent_id),
     };
+    if let Some(work) = status.work.as_mut() {
+        (work.handed, work.heard) = super::steer::seen(agent_id);
+    }
     status.room = match status.state {
         "idle" => None,
         _ => turn_room(agent_id).map(|r| r.room_id),

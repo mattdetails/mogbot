@@ -173,7 +173,7 @@ fn read_plist(path: &Path) -> Option<Value> {
     if !path.is_file() {
         return None;
     }
-    let out = std::process::Command::new("/usr/bin/plutil")
+    let out = crate::utils::create_command("/usr/bin/plutil")
         .args(["-convert", "json", "-o", "-"])
         .arg(path)
         .output()

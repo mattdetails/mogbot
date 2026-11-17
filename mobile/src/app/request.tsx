@@ -169,7 +169,12 @@ function Shown({
     agent &&
     router.push({
       pathname: '/chat/[id]',
-      params: { id: agent.id, ...(card ? { at: card.id } : {}) },
+      // The card's own conversation, or the chat opens on another and the
+      // jump to it ends in "too far back" (issue #22).
+      params: {
+        id: agent.id,
+        ...(card ? { at: card.id, conversation: card.conversation ?? 'first' } : {}),
+      },
     });
 
   return (

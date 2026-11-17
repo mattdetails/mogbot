@@ -247,6 +247,12 @@ export interface Methods {
       revises?: string;
       /** The conversation on screen; absent, the one the user is in on the Mac. */
       conversation?: string;
+      /**
+       * When the user wrote it (ms, phone clock), kept across retries: a typed
+       * yes answers only a card open then, and only within a minute. An older
+       * Mac ignores it.
+       */
+      writtenAt?: number;
     };
     result: AgentMessage;
   };
@@ -873,6 +879,22 @@ export interface Methods {
   'preview.screenshot': {
     params: { project: string; device: 'desktop' | 'phone' };
     result: BlobRef;
+  };
+
+  // ---- Dictation (`MAC_FEATURES.dictation`) --------------------------------
+  /**
+   * Write a dictation out again on the computer (Whisper, then a pass that
+   * knows the team's names), as the desk's own dictation is. `blob` is the
+   * session's 16 kHz WAV, uploaded through `/v1/blobs`; the computer reads it
+   * once and deletes it. The names are the team's agents and projects; the
+   * context is the last few lines of `agentId`'s chat or `roomId`'s thread.
+   * `text: null` means keep what you have: no speech model yet (`preparing`:
+   * its one-time download has started), too little sound, or it failed.
+   * Can take 5–15 s; the computer gives it up to 27 s.
+   */
+  'dictation.transcribe': {
+    params: { blob: string; agentId?: string; roomId?: string };
+    result: { text: string | null; raw?: string; tidied?: boolean; preparing?: boolean };
   };
 }
 

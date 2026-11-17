@@ -27,6 +27,11 @@ export interface KeyIconDrawing {
    * only (`mogbot`), which keeps its own curves. Every other legend is a stroke.
    */
   fill?: boolean;
+  /**
+   * Its own drawing box, when not the 24-unit grid: a face (`agentKeyFaces.ts`), drawn in the
+   * key face's coordinates so it fills the face, hat and all.
+   */
+  viewBox?: string;
 }
 
 /** The grid every legend is drawn on. */

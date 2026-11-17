@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Markdown } from '../src/components/Markdown';
+import { stacksAt } from '../src/lib/overflow';
 
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(() => Promise.resolve(true)) }));
 jest.mock('expo-haptics', () => ({
@@ -54,5 +55,31 @@ describe('Markdown', () => {
   it('shows entities as characters', async () => {
     await render(<Markdown text={'Use `a < b && c > d`'} />);
     expect(screen.getByText('a < b && c > d')).toBeTruthy();
+  });
+});
+
+describe('a table wider than the reply', () => {
+  const wide = `| Item | Today | My pick | Size |
+|---|---|---|---|
+| Always allow | One tool at a time | Every read of that app | Small |
+| Bold default | Steady | Bold plus one screen | Medium |`;
+
+  it('reads row by row once measured too narrow, never sideways', async () => {
+    await render(<Markdown text={wide} />);
+    expect(screen.queryByTestId('table-stacked')).toBeNull();
+    await fireEvent(screen.getByTestId('table-frame'), 'layout', {
+      nativeEvent: { layout: { width: 320, height: 60 } },
+    });
+    expect(screen.getByTestId('table-stacked')).toBeTruthy();
+    expect(screen.queryByTestId('table-scroll')).toBeNull();
+    expect(screen.getByText('Bold plus one screen')).toBeTruthy();
+    expect(screen.getAllByText('My pick')).toHaveLength(2);
+  });
+
+  it('stacks only past the width, and never two columns', () => {
+    expect(stacksAt([120, 120, 120], 400)).toBe(false);
+    expect(stacksAt([200, 200, 200], 400)).toBe(true);
+    expect(stacksAt([300, 300], 400)).toBe(false);
+    expect(stacksAt([200, 200, 200], 0)).toBe(false);
   });
 });

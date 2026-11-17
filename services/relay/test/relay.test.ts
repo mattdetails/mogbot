@@ -210,11 +210,15 @@ describe('phones', () => {
     expect(await b.phone.closed).toEqual({ code: 4404, reason: 'mac_offline' });
   });
 
-  it(`allows ${MAX_PHONES} phones per Mac, then 4429`, async () => {
+  it(`allows ${MAX_PHONES} welcomed phones per Mac, then 4429`, async () => {
     const mac = await newMacKey();
     const macWs = await loginMac(mac);
     const phones = [];
     for (let i = 0; i < MAX_PHONES; i++) phones.push(await openPhone(mac, macWs));
+    for (const p of phones) macWs.ws.send(JSON.stringify({ t: 'authed', ch: p.ch }));
+    // The relay has read them once a payload sent after them arrives.
+    macWs.ws.send(framed(phones[0].ch, new Uint8Array([9])));
+    await phones[0].phone.bytes();
     const extra = await open(`/v1/phone/${mac.fingerprint}`);
     expect((await extra.closed).code).toBe(4429);
     expect(await macWs.silent()).toBe(true);
@@ -222,6 +226,32 @@ describe('phones', () => {
     phones[0].phone.ws.close(1000);
     expect(await macWs.json()).toEqual({ t: 'close', ch: phones[0].ch });
     await openPhone(mac, macWs);
+  });
+
+  // CTO review 2026-11-14: anyone with the fingerprint could hold all the
+  // slots from two addresses and keep the owner's phone out with 4429.
+  it('a full house lets the oldest unwelcomed channel go, never a welcomed one', async () => {
+    const mac = await newMacKey();
+    const macWs = await loginMac(mac);
+    const phones = [];
+    for (let i = 0; i < MAX_PHONES; i++) phones.push(await openPhone(mac, macWs));
+    // The first two are the owner's, welcomed by the Mac.
+    macWs.ws.send(JSON.stringify({ t: 'authed', ch: phones[0].ch }));
+    macWs.ws.send(JSON.stringify({ t: 'authed', ch: phones[1].ch }));
+    macWs.ws.send(framed(phones[1].ch, new Uint8Array([9])));
+    await phones[1].phone.bytes();
+    await open(`/v1/phone/${mac.fingerprint}`);
+    // The oldest stranger (third) went, and the Mac was told, then the newcomer opened.
+    expect(await phones[2].phone.closed).toEqual({ code: 4429, reason: 'evicted' });
+    expect(await macWs.json()).toEqual({ t: 'close', ch: phones[2].ch });
+    const opened = await macWs.json();
+    expect(opened.t).toBe('open');
+    expect(opened.ch).toBeGreaterThan(phones[MAX_PHONES - 1].ch);
+    // The welcomed ones are still open: they still carry bytes.
+    phones[0].phone.ws.send(new Uint8Array([1]));
+    let got = await macWs.next();
+    while (typeof got === 'string') got = await macWs.next();
+    expect(new DataView(got as ArrayBuffer).getUint32(0)).toBe(phones[0].ch);
   });
 
   it('closes 1009 on a payload over 256 KiB', async () => {

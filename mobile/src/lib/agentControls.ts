@@ -24,13 +24,17 @@ export const EFFORT_LABEL: Record<AgentEffort, string> = {
   low: 'Low',
   medium: 'Medium',
   high: 'High',
+  xhigh: 'Extra high',
+  max: 'Max',
 };
 
 /** What each level means, under its row. */
 export const EFFORT_DETAIL: Record<AgentEffort, string> = {
   low: 'Quicker replies, fewer tokens',
   medium: 'A balance of the two',
-  high: 'Thinks longest, uses the most tokens',
+  high: 'Thinks longer, uses more tokens',
+  xhigh: 'For hard problems: slower, many more tokens',
+  max: 'Thinks as long as it needs, uses the most tokens',
 };
 
 const FAMILY = /^(opus|sonnet|haiku)$/;
@@ -120,7 +124,8 @@ export const effortRows = (): { value: AgentEffort | ''; label: string; detail?:
  */
 export function controlsLocked(agent: Pick<Agent, 'status' | 'takeover'>): string | null {
   const comp = pairedComputer();
-  if (agent.takeover) return `You’re driving it on ${comp.the}. Change these after you hand it back.`;
+  if (agent.takeover)
+    return `You’re driving it on ${comp.the}. Change these after you hand it back.`;
   if (agent.status.state !== 'idle') return 'Change the model and effort once it’s done with this.';
   return null;
 }

@@ -21,6 +21,7 @@
 pub mod alerts;
 pub mod blobs;
 pub mod desktop;
+pub mod dictation;
 pub mod files;
 #[cfg(test)]
 mod fixtures;
@@ -511,7 +512,8 @@ impl Registry {
 
     /// Record an allowed phone and mint its token. Only the phones named in
     /// `replace` (ids the desk showed, and the person there chose to
-    /// replace) are revoked; returns their ids so their sockets can close.
+    /// replace) are revoked; returns them, for the same clean-up as any
+    /// revoke (`Companion::revoked`).
     pub fn add(
         &self,
         device: &PairDevice,
@@ -519,7 +521,7 @@ impl Registry {
         now: i64,
         replace: &[String],
         tailnet_login: Option<String>,
-    ) -> Result<(DeviceRecord, String, Vec<String>), CommandError> {
+    ) -> Result<(DeviceRecord, String, Vec<DeviceRecord>), CommandError> {
         // No phone without a key: one made after it would reset it.
         self.kept();
         let token = pairing::new_token();
@@ -549,7 +551,7 @@ impl Registry {
                 remember_revoked(s, d.token_hash.clone());
             }
             s.devices.push(record.clone());
-            old.into_iter().map(|d| d.id).collect::<Vec<_>>()
+            old
         })?;
         Ok((record, token, replaced))
     }
@@ -868,21 +870,25 @@ impl Companion {
     pub fn revoke(&self, device_id: &str) -> Result<Option<DeviceRecord>, CommandError> {
         let gone = self.registry.revoke(device_id)?;
         if let Some(d) = &gone {
-            self.blobs.forget_device(&d.id);
-            self.watch.forget_device(&d.id);
-            self.forget_push_later(d);
-            self.hub.signal(hub::HubItem::Revoked {
-                device_id: d.id.clone(),
-            });
-            self.backend.audit(
-                &actor_for(&d.name),
-                "revoked",
-                concat!("removed on this ", crate::computer::noun!()).into(),
-                true,
-            );
-            self.backend.changed();
+            self.revoked(d, concat!("removed on this ", crate::computer::noun!()));
         }
         Ok(gone)
+    }
+
+    /// Everything a revoked phone leaves behind goes, whichever way it was
+    /// revoked (removed at the desk, or replaced when a phone paired): its
+    /// files, its watches, its push token, its sockets, and an audit line.
+    /// Pairing used to do only part of this by hand (CTO review 2026-11-14).
+    pub fn revoked(&self, d: &DeviceRecord, why: &str) {
+        self.blobs.forget_device(&d.id);
+        self.watch.forget_device(&d.id);
+        self.forget_push_later(d);
+        self.hub.signal(hub::HubItem::Revoked {
+            device_id: d.id.clone(),
+        });
+        self.backend
+            .audit(&actor_for(&d.name), "revoked", why.into(), true);
+        self.backend.changed();
     }
 
     /// A removed phone's token comes off the relay too, in the background.
@@ -952,6 +958,7 @@ mod tests {
         let (second, new_token, replaced) = r
             .add(&phone("A"), String::new(), 4, &[first.id.clone()], None)
             .unwrap();
+        let replaced: Vec<String> = replaced.into_iter().map(|d| d.id).collect();
         assert_eq!(replaced, vec![first.id.clone()]);
         assert_eq!(r.devices().len(), 3);
         assert!(matches!(r.authenticate(&old_token), Auth::Revoked));

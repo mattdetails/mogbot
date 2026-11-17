@@ -139,6 +139,15 @@ describe('outbox', () => {
       ['failed', false, true],
     ]);
   });
+
+  it('sends a message held while tidying when the app went, never left saying Tidying…', () => {
+    const restored = restorePending({ a: [pend('held', now - 5000, { tidying: true })] }, now);
+    expect(restored.a[0].tidying).toBeUndefined();
+    expect(restored.a[0].waiting).toBe(true);
+    // Stuck for long (an older build): cleared, never sent out of the blue.
+    const stale = pend('stuck', now - OUTBOX_WAIT_MS - 1, { tidying: true });
+    expect(restorePending({ a: [stale] }, now).a).toEqual([]);
+  });
 });
 
 describe('offline cache', () => {
@@ -303,6 +312,27 @@ describe('timeline', () => {
     const days = items.filter((i) => i.kind === 'day');
     expect(days.map((d) => d.key)).toEqual(firsts.map((m) => `day:${m.id}`).reverse());
     expect(days[0].kind === 'day' && days[0].label).toMatch(/^Today /);
+  });
+
+  it('still says it is working under a draft once a tool runs after the text (#26)', () => {
+    const list = [msg('a', now - 60_000, { kind: 'user' })];
+    const running = agent({
+      status: {
+        state: 'working',
+        activity: 'Running tests',
+        since: now,
+        work: { startedAt: now, steps: [], fileCount: 0, current: { label: 'Running tests' } },
+      },
+    } as never);
+    const items = chatItems(running, list, [], { id: 'd', text: 'Let me check' }, now);
+    // Newest first: the working row under the draft.
+    expect(items[0]).toMatchObject({ kind: 'working' });
+    expect(items[1]).toMatchObject({ kind: 'draft' });
+    // Still writing (no tool running): the draft alone.
+    const writing = agent({ status: { state: 'working', activity: null, since: now } });
+    expect(chatItems(writing, list, [], { id: 'd', text: 'Let me' }, now)[0]).toMatchObject({
+      kind: 'draft',
+    });
   });
 
   it('hands the list the same message rows while only the draft or the status changes', () => {

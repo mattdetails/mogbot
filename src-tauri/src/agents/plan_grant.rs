@@ -40,10 +40,15 @@ use super::store::{self, MessageKind};
 
 pub const TOOL: &str = "ask_plan";
 
-pub const DESCRIPTION: &str = "Before outward actions you already know you'll do (sending, posting, issues and comments, deploys including production, pushes, pull requests), list them all here once. The user answers one card \"Do these under your name?\" (or already said yes in chat to the plan you just listed). Once allowed, each listed action runs without another card for 60 minutes, for you and any agent you hand it to with message_agent. Never for paying, credentials, sudo or deleting.";
+pub const DESCRIPTION: &str = "Before outward actions you already know you'll do (sending, posting, issues and comments, deploys including production, pushes, pull requests), list them all here once. The user answers one card \"Do these under your name?\" (or already said yes in chat to the plan you just listed). Once allowed, each listed action runs without another card for an hour from the OK or its last use (8 hours at most), for you and any agent you hand it to with message_agent. Never for paying, credentials, sudo or deleting.";
 
-/// How long a plan the user allowed stays good.
+/// How long a plan the user allowed stays good, from the OK and again from
+/// each action it covers: a batch of twelve posts outlasted one fixed hour
+/// (Social Posts, 2026-11-16) and every action after it asked again.
 pub const LIFETIME_MS: i64 = 60 * 60 * 1000;
+
+/// However busy it is, a plan ends this long after the user's OK.
+pub const LONGEST_MS: i64 = 8 * 60 * 60 * 1000;
 
 /// How long the user's typed yes stays an answer to the plan before it.
 const CHAT_YES_MS: i64 = 15 * 60 * 1000;
@@ -134,7 +139,7 @@ pub fn schema() -> Value {
                     "properties": {
                         "kind": { "type": "string", "enum": kinds },
                         "target": { "type": "string", "description": "Where: the repo (owner/repo), the project, the channel, the site or address." },
-                        "summary": { "type": "string", "description": "What it does, in a few words the user reads on the card." },
+                        "summary": { "type": "string", "description": "What it does, in a few words the user reads on the card, said to them (\"your site\", never their name)." },
                         "text": { "type": "string", "description": "For a send, post, comment, email, issue or pull request: everything it will send (title and body), word for word. Required to cover it when the user OKs exact text; the call must send exactly these words." }
                     },
                     "required": ["kind", "target", "summary"]
@@ -163,6 +168,8 @@ struct Grant {
     /// Calls already made under it: the same call again (a retry) is covered.
     made: Vec<(String, Value)>,
     expires_at: i64,
+    /// When the user allowed it: it never outlives [`LONGEST_MS`] from here.
+    granted_at: i64,
 }
 
 static GRANTS: LazyLock<Mutex<Vec<Grant>>> = LazyLock::new(|| Mutex::new(Vec::new()));
@@ -189,6 +196,7 @@ pub fn grant(agent_id: &str, plan: &Plan, now: i64) {
                 .collect(),
             made: Vec::new(),
             expires_at: now + LIFETIME_MS,
+            granted_at: now,
         });
     });
 }
@@ -269,6 +277,42 @@ pub fn drop_holder(agent_id: &str) {
             x.holders.retain(|h| h != agent_id);
         }
         g.retain(|x| !x.holders.is_empty());
+    })
+}
+
+/// A live plan this agent holds lists a post, send or comment on `host`
+/// whose `text` is exactly what's typed on the page: every step of that
+/// send there (the clock, Confirm, Schedule, an unlabelled button) is
+/// covered, not only the one click a label names. The user OK'd those words
+/// for that site; a step can't send anything else. Keeps the plan alive.
+pub fn covers_typed(agent_id: &str, host: &str, typed: &[String], now: i64) -> bool {
+    use Kind::*;
+    let texts = super::outward::Texts {
+        pieces: typed.to_vec(),
+        unread: Vec::new(),
+    };
+    with_grants(|grants| {
+        for g in grants.iter_mut() {
+            if g.expires_at <= now || !g.holders.iter().any(|h| h == agent_id) {
+                continue;
+            }
+            let hit = g.slots.iter().any(|s| {
+                matches!(s.action.kind, Post | Send | Comment | Request)
+                    && target_ok(&s.action.target, &[host.to_string()])
+                    && s.action
+                        .text
+                        .as_deref()
+                        .is_some_and(|x| super::outward::approved_covers(x, &texts))
+            });
+            if hit {
+                g.expires_at = g
+                    .expires_at
+                    .max(now + LIFETIME_MS)
+                    .min(g.granted_at + LONGEST_MS);
+                return true;
+            }
+        }
+        false
     })
 }
 
@@ -474,7 +518,10 @@ pub async fn call(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value
             runner::new_message(
                 &caller.id,
                 MessageKind::Note,
-                format!("Your yes covers, for an hour:\n{}", numbered(&plan)),
+                format!(
+                    "Your yes covers, for an hour after the last of them:\n{}",
+                    numbered(&plan)
+                ),
             ),
         );
         return text(format!("The user already said yes to this in chat. {GO}"));
@@ -559,7 +606,22 @@ fn norm(s: &str) -> String {
     if let Some(rest) = t.strip_prefix("github.com/") {
         t = rest.to_string();
     }
-    let t = t.trim_end_matches('/');
+    // An issue or pull request on a repo ("owner/repo#25",
+    // "owner/repo/issues/25"): the repo is the place (seen 2026-11-16).
+    let mut t = t.trim_end_matches('/');
+    let numbered = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit());
+    if let Some((repo, n)) = t.rsplit_once('#') {
+        if !repo.is_empty() && numbered(n) {
+            t = repo;
+        }
+    }
+    for kind in ["/issues/", "/pull/", "/pulls/"] {
+        if let Some((repo, n)) = t.rsplit_once(kind) {
+            if numbered(n) {
+                t = repo;
+            }
+        }
+    }
     let t = t.strip_suffix(".git").unwrap_or(t);
     t.trim_start_matches('#').to_string()
 }
@@ -641,10 +703,20 @@ fn find(
     None
 }
 
-fn commit(grants: &mut [Grant], picked: &[(usize, usize)], made: (String, Value)) -> Vec<String> {
+fn commit(
+    grants: &mut [Grant],
+    picked: &[(usize, usize)],
+    made: (String, Value),
+    now: i64,
+) -> Vec<String> {
     let mut lines = Vec::new();
     for &(gi, si) in picked {
         let g = &mut grants[gi];
+        // In use: good for another hour, never past the longest.
+        g.expires_at = g
+            .expires_at
+            .max(now + LIFETIME_MS)
+            .min(g.granted_at + LONGEST_MS);
         let slot = &mut g.slots[si];
         lines.push(slot.action.summary.clone());
         slot.used = true;
@@ -736,7 +808,7 @@ fn cover_in(grants: &mut [Grant], tool: &str, input: &Value, turn: &Turn) -> Opt
                 super::autoallow::auto(turn.level, false, tool, input, turn.ctx).is_some()
             }
         });
-        return allowed.then(|| commit(grants, &picked, made));
+        return allowed.then(|| commit(grants, &picked, made, turn.now));
     }
     let call = if tool.starts_with(super::browser_gate::SERVER)
         || super::browser_gate::is_own_browser(tool)
@@ -763,7 +835,7 @@ fn cover_in(grants: &mut [Grant], tool: &str, input: &Value, turn: &Turn) -> Opt
         turn.now,
         texts.as_ref(),
     )?;
-    Some(commit(grants, &[slot], made))
+    Some(commit(grants, &[slot], made, turn.now))
 }
 
 fn browser_kind(verb: &str) -> Option<Kind> {

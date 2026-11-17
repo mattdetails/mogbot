@@ -77,7 +77,7 @@ results and start routines from anywhere.
 | **Mac** | [Mogbot.dmg](https://github.com/native-io-team/mogbot-releases/releases/latest/download/Mogbot.dmg) | Apple silicon, macOS 14 or later. Signed, notarized, updates itself |
 | **Windows** | [Installer (.exe)](https://github.com/native-io-team/mogbot-releases/releases/latest/download/Mogbot-windows-x86_64-setup.exe) · [.msi](https://github.com/native-io-team/mogbot-releases/releases/latest/download/Mogbot-windows-x86_64.msi) | 64-bit (x64), signed and ready. No auto-update yet |
 | **Linux** (early beta) | [All builds](https://github.com/native-io-team/mogbot-releases/releases/latest) | AppImage, .deb and .rpm for x86_64 and arm64. Less tested. No auto-update yet |
-| **iPhone** | [TestFlight beta](https://mogbot.app/phone) | Public beta |
+| **iPhone** | [App Store](https://apps.apple.com/app/mogbot/id6833062484) | Free |
 | **Android** | Coming soon | In testing |
 
 Mac 1.0.8 is the full release. Windows 1.0.8 is signed and ready. Linux is an early beta. On Windows and Linux, pairing your phone, app sign-ins and connecting your other assistants are still coming.
@@ -152,7 +152,7 @@ pnpm tauri:dev        # run from source with hot reload
 
 `pnpm dev` alone runs only the web UI, without the desktop app.
 
-**The phone app from source** comes two ways (or use TestFlight): **Expo Go**
+**The phone app from source** comes two ways (or get it from the App Store): **Expo Go**
 (minutes; no dictation or share sheet) or **built with Xcode** (the real app;
 with a free Apple ID, re-install every 7 days). Self-built phone apps don't get
 push notifications. See [INSTALL.md, step 13](docs/INSTALL.md#step-13-choose-how-to-get-the-phone-app).
@@ -184,7 +184,7 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 Early, and moving fast: a release most days. Mogbot is built for every
 computer. Mac 1.0.8 is the full release, Windows 1.0.8 is signed and ready,
-and Linux is an early beta. On Windows and Linux, pairing your phone, app sign-ins and connecting your other assistants are still coming. The iPhone app is on TestFlight, and Android
+and Linux is an early beta. On Windows and Linux, pairing your phone, app sign-ins and connecting your other assistants are still coming. The iPhone app is on the App Store, and Android
 is in testing. What's next: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Docs

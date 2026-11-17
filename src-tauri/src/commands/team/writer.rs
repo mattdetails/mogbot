@@ -244,6 +244,10 @@ pub fn gauntlet(project: &Path, summary: &TeamSummary) -> Result<TeamSummary, Co
             ));
         }
         check_shape(field, text)?;
+        // Judged before `relativise`, whose scrub now also blanks token
+        // shapes (#8): a summary quoting a key must be refused with "rotate
+        // it", never quietly kept with the key replaced.
+        check_secrets(field, text, &secrets)?;
         let text = relativise(text, project);
         check_secrets(field, &text, &secrets)?;
         Ok(text)

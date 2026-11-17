@@ -50,11 +50,11 @@ const account = (engine: 'claude' | 'codex'): UsageAccount => ({
 afterEach(cleanup);
 
 describe('AccountSignIn', () => {
-  it('says the browser decides which Claude account is added', () => {
+  it('says a Claude sign-in opens in a new window, never to sign out', () => {
     render(<AccountSignIn account={account('claude')} onDone={() => {}} />);
-    expect(screen.getByTestId('account-signin-warning').textContent).toMatch(
-      /whoever is logged into claude\.ai.*sign out there first.*private window/
-    );
+    const text = screen.getByTestId('account-signin-warning').textContent ?? '';
+    expect(text).toMatch(/new window where no one is signed in/);
+    expect(text).not.toMatch(/sign out/);
   });
 
   it('says the same for a ChatGPT sign-in', () => {

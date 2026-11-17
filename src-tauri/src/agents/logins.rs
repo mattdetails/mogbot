@@ -630,12 +630,30 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
                     .then(|| format!("There's no connector for {title} here."))
             });
     }
+    // The site to sign in on: a known service's, or the ask itself when it
+    // names a website nothing here knows ("walmart.com", issue #38).
+    let unknown_site = known.is_none().then(|| website(&ask.service)).flatten();
+    let site_of = known.and_then(|s| s.site).or(unknown_site.as_deref());
     // The agents' own browser first: either engine, and the person signs in
     // from the phone or here, never with a per-site Allow at the Mac.
-    let agents_browser = known.and_then(|s| s.site).is_some()
+    // Working on this site in the user's own Chrome: the step is finished
+    // there, never in the agents' browser (signed out there).
+    let in_users_chrome =
+        site_of.is_some_and(|s| super::browser_gate::in_users_chrome_on(&agent.id, s));
+    let agents_browser = site_of.is_some()
+        && !in_users_chrome
         && crate::agent_browser::available()
         && !agent.reach.browser_off;
-    if let Some(site) = known.and_then(|s| s.site).filter(|_| agents_browser) {
+    if let Some(site) = site_of.filter(|_| in_users_chrome) {
+        options.push(LoginOption {
+            id: "browser".into(),
+            method: Method::Browser,
+            label: "Done in my Chrome".into(),
+            detail: format!("{name} was working on {site} in your own Chrome on this Mac. Finish the step there (its tab is open), then tap this and it carries on in that same Chrome."),
+            connection_id: None,
+        });
+    }
+    if let Some(site) = site_of.filter(|_| agents_browser) {
         options.push(LoginOption {
             id: AGENTS_BROWSER_OPTION.into(),
             method: Method::AgentBrowser,
@@ -644,7 +662,7 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
             connection_id: None,
         });
     }
-    if let Some(site) = known.and_then(|s| s.site) {
+    if let Some(site) = site_of.filter(|_| !in_users_chrome) {
         if claude {
             let helper = if browser_helper_installed() {
                 ""
@@ -680,10 +698,23 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
     }
     // A key only where a raw API key is a real way in, or for a service
     // nothing else here knows.
-    let key_label = known
-        .and_then(|s| s.key)
-        .map(str::to_string)
-        .or_else(|| known.is_none().then(|| "API key".to_string()));
+    // A website nothing here knows is signed in to in a browser; a key only
+    // when the ask says it needs one.
+    let asks_for_key = {
+        let why = ask.why.to_ascii_lowercase();
+        [
+            "api key",
+            "api token",
+            "access token",
+            "token",
+            "secret key",
+        ]
+        .iter()
+        .any(|w| why.contains(w))
+    };
+    let key_label = known.and_then(|s| s.key).map(str::to_string).or_else(|| {
+        (known.is_none() && (unknown_site.is_none() || asks_for_key)).then(|| "API key".to_string())
+    });
     let key = match key_label {
         Some(label) => {
             let slug = secrets::slug(&format!(
@@ -772,38 +803,35 @@ pub fn declined_prompt(r: &LoginRequest, note: Option<&str>) -> String {
 pub const RULES: &str = "\
 ## Getting access
 
-Just try first; ask only when blocked on what the user asked, then. Never \
-ask up front or for a list. For a \
-task in an app or site, in this order:
+Just try first. Never ask up front or for a list. For an app or site, in \
+this order:
 
-1. One of the app's own connections you were given (`mcp__<app>__*`), \
-or its command on this Mac (`gh` for \
-GitHub). Use it.
-2. Otherwise a browser. Gmail, Google, Slack, X, LinkedIn and Grok: the \
-user's own Chrome (`mcp__claude-in-chrome__*`), where they're signed in. \
-Anything else: first the agents' browser (`mcp__browser__*`, when you have \
-it); a sign-in or signed-out page there: switch to the \
-user's Chrome at once, never \"I'm not signed in\". Their Chrome too for a site signed in only \
-there (`remember_browser_account` knows which), or when they say so. Say in \
+1. One of the app's own connections (`mcp__<app>__*`), or its command \
+here (`gh` for GitHub).
+2. Otherwise a browser: the one signed in to that site, kept for the \
+whole task. Gmail, Google, \
+Slack, X, LinkedIn, Grok, a site signed in only there \
+(`remember_browser_account` knows) or when they say so: the user's own \
+Chrome (`mcp__claude-in-chrome__*`). Anything else: the agents' browser \
+(`mcp__browser__*`, when you have it); a sign-in page there: switch to the \
+user's Chrome at once, never \"I'm not signed in\". Say in \
 one line which account you're in, from what the page shows; never guess. \
-Reading is free in either. Leave their Chrome as you found it: work in the \
-empty tab `createIfEmpty` opens and close your tabs before you finish, so \
-its window goes. Before any send, post, publish, \
-payment, delete or share, say exactly what will go and from which account; \
-the action itself asks the user on a card. A claude.ai connector \
+Reading is free in either. Leave their Chrome as you found it: use the tab \
+`createIfEmpty` opens, close yours when done. Before a send, post, \
+payment, delete or share, say exactly what goes and from which account; \
+the action asks on a card. A claude.ai connector \
 (`mcp__claude_ai_*`) is an extra, never waited on. Never \
-type a password. If a browser asks you to sign in, or for a password or code, stop using it and go to step 3 with `signed_out: true`: that card lets the user \
-sign in from their phone (\"Sign in from here\") or at their Mac. Never tell them to go \
+type a password. A browser asking you to sign in or for a code: stop and go to step 3 \
+with `signed_out: true`: that card lets the user sign in from their phone \
+or Mac. Never tell them to go \
 to their computer or finish in a tab you left open. Wrong account in \
 their Chrome? `select_browser` / \
 `switch_browser` to another connected one (`list_connected_browsers`), else \
 `ask_bring_browser_to_front` once, never `request_login`; once right, \
 `remember_browser_account`. Chrome not answering? The fix is Settings → \
 Chrome, never the Claude extension.
-3. Only if neither works: `request_login`, once, for that one app (with \
-`signed_out: true` if the browser showed a sign-in page). It may answer \
-that you can reach it already, or that someone already asked: do what it \
-says. One ask at a time; never repeat one that's waiting or was answered.";
+3. Only if neither works: `request_login`, once, for that app; do what \
+it answers. One ask at a time; never repeat one that's waiting or was answered.";
 
 /* ---------------------------------------------------------- live state */
 
@@ -2026,6 +2054,31 @@ pub(crate) fn record_card(
 }
 
 /// The card in the log without the app (tests): its request id.
+/// `service` as a website's host when it reads like one ("walmart.com",
+/// "https://www.walmart.com/account"), else `None`.
+pub(super) fn website(service: &str) -> Option<String> {
+    let t = service.trim().to_ascii_lowercase();
+    let t = t
+        .strip_prefix("https://")
+        .or_else(|| t.strip_prefix("http://"))
+        .unwrap_or(&t);
+    let host = t.split(['/', '?', '#']).next().unwrap_or("");
+    let host = host.strip_prefix("www.").unwrap_or(host);
+    let labels: Vec<&str> = host.split('.').collect();
+    let ok = labels.len() >= 2
+        && labels.iter().all(|l| {
+            !l.is_empty()
+                && l.len() <= 63
+                && l.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+                && !l.starts_with('-')
+                && !l.ends_with('-')
+        })
+        && labels
+            .last()
+            .is_some_and(|tld| tld.len() >= 2 && tld.chars().all(|c| c.is_ascii_alphabetic()));
+    ok.then(|| host.to_string())
+}
+
 #[cfg(test)]
 pub(crate) fn store_card(agent: &Agent, r: LoginRequest) -> Result<String, CommandError> {
     let m = card_message(agent, r);
@@ -2881,6 +2934,37 @@ mod tests {
         }
     }
 
+    /// Julian, 2026-11-16: working on X in his own Chrome, the agent hit
+    /// X's chat passcode and the card offered the agents' browser, where X
+    /// isn't signed in. Working there, the card says to finish in his Chrome.
+    #[test]
+    fn a_card_for_a_site_open_in_the_users_chrome_stays_in_that_chrome() {
+        with_root(|| {
+            let a = agent("Visa", Engine::Claude);
+            let mut p = super::super::browser_gate::Page::default();
+            p.tabs.insert(1, "https://x.com/messages".into());
+            super::super::browser_gate::note_user_chrome_page(&a.id, |page| *page = p);
+            let card = build(&a, &ask("x", &[])).unwrap();
+            assert!(card
+                .options
+                .iter()
+                .all(|o| o.method != Method::AgentBrowser));
+            let mine = card
+                .options
+                .iter()
+                .find(|o| o.method == Method::Browser)
+                .unwrap();
+            assert_eq!(mine.label, "Done in my Chrome");
+            assert_eq!(
+                card.options
+                    .iter()
+                    .filter(|o| o.method == Method::Browser)
+                    .count(),
+                1
+            );
+        });
+    }
+
     #[test]
     fn the_connectors_link_is_the_one_the_desk_and_phone_use() {
         let ts = include_str!("../../../packages/companion-protocol/src/links.ts");
@@ -2987,6 +3071,24 @@ mod tests {
             );
             assert!(unknown.no_connector.is_some());
 
+            // A website nothing here knows: a browser sign-in, no key (#38).
+            let walmart = build(&recruiter, &ask("walmart.com", &[])).unwrap();
+            assert_eq!(
+                walmart.options.iter().map(|o| o.method).collect::<Vec<_>>(),
+                vec![Method::AgentBrowser, Method::Browser]
+            );
+            assert!(walmart.key.is_none());
+            // Unless the agent says it needs a key.
+            let keyed = build(
+                &recruiter,
+                &Ask {
+                    why: "Its API token, to pull orders".into(),
+                    ..ask("walmart.com", &[])
+                },
+            )
+            .unwrap();
+            assert!(keyed.key.is_some());
+
             assert!(build(
                 &recruiter,
                 &Ask {
@@ -2996,6 +3098,29 @@ mod tests {
             )
             .is_err());
         });
+    }
+
+    #[test]
+    fn a_service_that_reads_like_a_website_is_one() {
+        assert_eq!(website("walmart.com").as_deref(), Some("walmart.com"));
+        assert_eq!(
+            website("https://www.Walmart.com/account?x=1").as_deref(),
+            Some("walmart.com")
+        );
+        assert_eq!(
+            website("shop.example.co.uk").as_deref(),
+            Some("shop.example.co.uk")
+        );
+        for not in [
+            "Acme OS recruiting tools",
+            "stripe",
+            "v1.2",
+            "a..com",
+            "-a.com",
+            "",
+        ] {
+            assert_eq!(website(not), None, "{not}");
+        }
     }
 
     #[test]

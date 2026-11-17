@@ -31,9 +31,11 @@ a turn moves on to the next account when one runs out.
 
 - Add one from **Settings → Accounts & usage → Add an account**, or from the usage-limit line when
   an account runs out.
-- Signing in opens your browser, and it signs in as whoever is already logged in to claude.ai or
-  chatgpt.com there. Sign out first, or use a private window, to add a different account. If you
-  add one that's already there, the app tells you and offers to try again.
+- A Claude account's sign-in opens in a new Chrome window where no one is signed in: sign in there
+  with the account you want to add. Your own browser stays signed in as it was. (Without Chrome it
+  opens in your browser, as a Codex sign-in does: that signs in as whoever is already logged in to
+  claude.ai or chatgpt.com there, so use a private window to add a different account.) If you add
+  one that's already there, the app tells you and offers to try again.
 - A Claude Code account signs in with Claude Code's own sign-in, the same one you used the first
   time, into a folder of its own. Claude Code keeps that sign-in; the app never sees or saves it.
   Claude Code needs to be version 2.1.318 or newer for this; the app asks you to update it if not.

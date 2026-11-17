@@ -18,9 +18,29 @@ import { ZoomGallery, type ZoomPage } from '../src/components/ZoomGallery';
 jest.mock('react-native-worklets', () =>
   jest.requireActual<typeof import('./reanimatedStub')>('./reanimatedStub').worklets()
 );
-jest.mock('react-native-reanimated', () =>
-  jest.requireActual<typeof import('./reanimatedStub')>('./reanimatedStub').reanimated()
-);
+/** Every number the viewer put in a shared value: what its transforms are drawn from. */
+const mockNumbersSet: number[] = [];
+jest.mock('react-native-reanimated', () => {
+  const base = jest
+    .requireActual<typeof import('./reanimatedStub')>('./reanimatedStub')
+    .reanimated();
+  const useShared = base.useSharedValue;
+  const recorded = new WeakSet<object>();
+  return {
+    ...base,
+    useSharedValue: <T,>(start: T) => {
+      const sv = useShared(start);
+      if (recorded.has(sv)) return sv;
+      recorded.add(sv);
+      const set = sv.set.bind(sv);
+      sv.set = (next) => {
+        if (typeof next === 'number') mockNumbersSet.push(next);
+        set(next);
+      };
+      return sv;
+    },
+  };
+});
 jest.mock('react-native-gesture-handler', () => {
   const actual = jest.requireActual<Record<string, unknown>>('react-native-gesture-handler');
   const { isWorklet, onUiRuntime } =
@@ -140,6 +160,32 @@ describe('the gallery’s gestures', () => {
     expect(onIndex).toHaveBeenCalledWith(2);
   });
 
+  it('a pinch whose numbers are unusable never puts a NaN into a transform (#3)', async () => {
+    const { onIndex } = await draw();
+    mockNumbersSet.length = 0;
+    // On the phone a NaN transform reaches Core Animation, which throws and ends the app.
+    await fire('viewer-pinch', [
+      { scale: 1, focalX: Number.NaN, focalY: 400 },
+      { scale: 2, focalX: Number.NaN, focalY: 400 },
+      { scale: 2, focalX: Number.NaN, focalY: 400 },
+    ]);
+    await fire('viewer-pinch', [
+      { scale: 1, focalX: 200, focalY: 400 },
+      { scale: Number.POSITIVE_INFINITY, focalX: 200, focalY: 400 },
+      { scale: Number.NaN, focalX: 200, focalY: 400 },
+      { scale: 0, focalX: 200, focalY: 400 },
+    ]);
+    // Not a frame of it held a NaN or Infinity, not only the picture it settled on.
+    expect(mockNumbersSet.filter((n) => !Number.isFinite(n))).toEqual([]);
+    // Still at fit: a swipe turns the page.
+    await fire('viewer-pan', [
+      { translationX: 0, translationY: 0, velocityX: 0 },
+      { translationX: -60, translationY: 0, changeX: -60, velocityX: -100 },
+      { translationX: -200, translationY: 0, changeX: -140, velocityX: -100 },
+    ]);
+    expect(onIndex).toHaveBeenCalledWith(2);
+  });
+
   it('closes on a long pull down, and not on a short one', async () => {
     const { onClose } = await draw();
     await fire('viewer-pan', [
@@ -165,5 +211,55 @@ describe('the gallery’s gestures', () => {
     expect(screen.queryByText('over')).toBeNull();
     await fire('viewer-tap', [{}]);
     expect(screen.getByText('over')).toBeTruthy();
+  });
+});
+
+describe('a picture that is slow or fails', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  const state = (failed: boolean) => <Text>{failed ? 'retrying' : 'loading'}</Text>;
+
+  it('shows a spinner while it comes, never plain black', async () => {
+    await render(
+      <GestureHandlerRootView>
+        <ZoomGallery
+          pages={[page('a')]}
+          start={0}
+          width={400}
+          height={800}
+          onIndex={jest.fn()}
+          onClose={jest.fn()}
+          renderState={state}
+        />
+      </GestureHandlerRootView>
+    );
+    expect(screen.queryByText('loading')).toBeNull();
+    await act(() => jest.advanceTimersByTime(500));
+    expect(screen.getByText('loading')).toBeTruthy();
+  });
+
+  it('with no source says so and tries again', async () => {
+    const retry = jest.fn();
+    const missing: ZoomPage = { ...page('a'), source: null, retry };
+    await render(
+      <GestureHandlerRootView>
+        <ZoomGallery
+          pages={[missing]}
+          start={0}
+          width={400}
+          height={800}
+          onIndex={jest.fn()}
+          onClose={jest.fn()}
+          renderState={state}
+        />
+      </GestureHandlerRootView>
+    );
+    await act(() => jest.advanceTimersByTime(500));
+    expect(screen.getByText('retrying')).toBeTruthy();
+    await act(() => jest.advanceTimersByTime(5_000));
+    expect(retry).toHaveBeenCalledTimes(1);
+    await act(() => jest.advanceTimersByTime(5_000));
+    expect(retry).toHaveBeenCalledTimes(2);
   });
 });

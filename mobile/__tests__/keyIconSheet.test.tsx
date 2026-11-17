@@ -60,7 +60,9 @@ it('the sheet finds icons by what they are for, and a tap picks one', async () =
   await waitFor(() => expect(screen.getByText('2,052 icons')).toBeTruthy(), LOAD);
   expect(screen.getByText('Wallet')).toBeTruthy();
   // Lucide's icons in round strokes (the native prop: round is 1, square 2).
-  expect(JSON.stringify(screen.toJSON())).toContain('"strokeLinecap":1');
+  // (The list's header is an element now, the faces row: its owner fiber is skipped.)
+  const tree = JSON.stringify(screen.toJSON(), (k, v: unknown) => (k === '_owner' ? undefined : v));
+  expect(tree).toContain('"strokeLinecap":1');
   await fireEvent.changeText(screen.getByLabelText('Search icons'), 'money');
   await waitFor(() => expect(screen.getByText(/for “money”/)).toBeTruthy());
   // The featured legend first, then the pack's.

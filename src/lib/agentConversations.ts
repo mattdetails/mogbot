@@ -68,6 +68,13 @@ export const newConversation = (agentId: string) =>
   invoke<Conversations>('agents_conversation_new', { agentId });
 export const selectConversation = (agentId: string, conversationId: string) =>
   invoke<Conversations>('agents_conversation_select', { agentId, conversationId });
+/**
+ * Open the agent in a project (its Session panel): its conversation there is
+ * made current. Unbound, it's bound there; bound elsewhere, it starts working
+ * on both, a conversation per project (`conversations::for_project`).
+ */
+export const conversationForProject = (agentId: string, projectPath: string) =>
+  invoke<Conversations>('agents_conversation_for_project', { agentId, projectPath });
 export const renameConversation = (agentId: string, conversationId: string, title: string) =>
   invoke<Conversations>('agents_conversation_rename', { agentId, conversationId, title });
 /**
@@ -82,3 +89,23 @@ export const forkConversation = (agentId: string, conversationId: string, messag
 /** Move a routine to another of the agent's conversations: it fires there from its next run. */
 export const moveRoutine = (agentId: string, routineId: string, conversationId: string) =>
   invoke<Conversations>('agents_conversation_routine', { agentId, routineId, conversationId });
+
+/**
+ * The card an agent's chat opens on when its row says "Needs your OK": the
+ * newest one still waiting that the Mac counts (`store::count_pending`; a
+ * "Save … as a skill?" offer waits on nothing), and the conversation it was
+ * said in, which is where the Mac's page for it holds it. Null when none of
+ * the lines read hold one.
+ */
+export function cardToOpen(
+  messages: readonly AgentMessage[] | undefined
+): { message: AgentMessage; conversation: string } | null {
+  if (!messages) return null;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const a = messages[i].approval;
+    if (a?.status === 'pending' && !a.skill) {
+      return { message: messages[i], conversation: conversationOf(messages[i]) };
+    }
+  }
+  return null;
+}

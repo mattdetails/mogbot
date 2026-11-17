@@ -12,11 +12,18 @@
  */
 
 import { useState, type KeyboardEvent, type ReactNode } from 'react';
-import { COLORWAYS, normalizeBoundKey } from '../../../packages/companion-protocol/src/agentKeys';
+import {
+  COLORWAYS,
+  KEY_FACES,
+  KEY_FACE_IDS,
+  isKeyFace,
+  normalizeBoundKey,
+} from '../../../packages/companion-protocol/src/agentKeys';
 import type { AgentIndependence } from '../../../packages/companion-protocol/src/model';
 import { CheckIcon } from '@/components/icons';
 import { AgentKey } from './AgentKey';
 import { AgentKeyIconPicker } from './AgentKeyIconPicker';
+import { SegmentedControl } from '../primitives/SegmentedControl';
 
 export interface KeyTaken {
   key: string;
@@ -61,6 +68,8 @@ export function AgentKeyPicker({
   onBoundKeyChange,
   autoFocusSearch = false,
 }: AgentKeyPickerProps) {
+  // A face or an icon: which list shows. Picking from it is what changes the key.
+  const [wears, setWears] = useState<'face' | 'icon'>(isKeyFace(icon) ? 'face' : 'icon');
   return (
     <div className="agent-look">
       <div className="agent-look__preview">
@@ -82,13 +91,36 @@ export function AgentKeyPicker({
           name={(id) => COLORWAYS.find((c) => c.id === id)?.name ?? id}
           render={(id) => <AgentKey name={name} colorway={id} icon={icon} size="md" />}
         />
-        <AgentKeyIconPicker
-          name={name}
-          colorway={colorway}
-          icon={icon}
-          onChange={onIconChange}
-          autoFocus={autoFocusSearch}
-        />
+        <div className="agent-look__row">
+          <SegmentedControl
+            aria-label="Face or icon"
+            className="agent-look__wears"
+            value={wears}
+            onValueChange={setWears}
+            options={[
+              { value: 'face', label: 'Face' },
+              { value: 'icon', label: 'Icon' },
+            ]}
+          />
+        </div>
+        {wears === 'face' ? (
+          <RadioRow
+            label="Face"
+            values={KEY_FACE_IDS}
+            value={icon}
+            onChange={onIconChange}
+            name={(id) => KEY_FACES.find((f) => f.id === id)?.name ?? id}
+            render={(id) => <AgentKey name={name} colorway={colorway} icon={id} size="lg" />}
+          />
+        ) : (
+          <AgentKeyIconPicker
+            name={name}
+            colorway={colorway}
+            icon={icon}
+            onChange={onIconChange}
+            autoFocus={autoFocusSearch}
+          />
+        )}
         <BindField boundKey={boundKey} taken={taken} onChange={onBoundKeyChange} />
       </div>
     </div>

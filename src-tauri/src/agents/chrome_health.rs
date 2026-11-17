@@ -336,3 +336,45 @@ mod tests {
         }
     }
 }
+
+/// Whether this Mac's screen is locked (the screensaver with a password, or
+/// the lock screen). Claude in Chrome asks for each new site in a small
+/// window in Chrome, which no one can answer then: every call times out.
+/// Seen 2026-11-14: an agent retried Gmail for half an hour on a locked Mac.
+pub fn screen_locked() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        crate::utils::create_command("/usr/sbin/ioreg")
+            .args(["-n", "Root", "-d1", "-a"])
+            .output()
+            .ok()
+            .is_some_and(|o| console_locked(&String::from_utf8_lossy(&o.stdout)))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
+
+/// `IOConsoleLocked` is true in `ioreg -n Root -d1 -a`'s plist.
+fn console_locked(plist: &str) -> bool {
+    plist
+        .split("<key>IOConsoleLocked</key>")
+        .nth(1)
+        .is_some_and(|rest| rest.trim_start().starts_with("<true/>"))
+}
+
+/// What a turn that may use Claude in Chrome is told while the Mac is locked.
+pub const LOCKED_LINE: &str = "This Mac's screen is locked right now, so Chrome can't show its Allow window: Claude in Chrome calls will time out. Don't retry them this turn. Use the agents' browser or another route, or tell the user in one line that you'll carry on when they unlock their Mac.";
+
+#[cfg(test)]
+mod locked_tests {
+    #[test]
+    fn the_lock_is_read_from_ioreg() {
+        let locked = "<dict>\n\t<key>IOConsoleLocked</key>\n\t<true/>\n</dict>";
+        let open = "<dict>\n\t<key>IOConsoleLocked</key>\n\t<false/>\n</dict>";
+        assert!(super::console_locked(locked));
+        assert!(!super::console_locked(open));
+        assert!(!super::console_locked("<dict></dict>"));
+    }
+}

@@ -99,7 +99,9 @@ export function signinRouteProblem(
   if (!secretProblem) return null;
   if (!route) return `${comp.yourCap} isn’t connected right now. Try again when it is.`;
   if (route.kind !== 'tailscale')
-    return `Signing in from here only works over Tailscale, which encrypts it all the way to ${comp.your}.`;
+    // Over the relay the page can't be shown here yet (#37): say where it
+    // can be finished, not a setup this phone may never have had.
+    return `Finish this one on ${comp.your}: signing in from your phone doesn’t work over this connection yet.`;
   return `This connection hasn’t proved it’s ${comp.the} you paired with, so nothing you type goes to it.`;
 }
 

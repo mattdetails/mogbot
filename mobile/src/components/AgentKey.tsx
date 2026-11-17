@@ -188,11 +188,19 @@ export function AgentKey({
     >
       {pose.light !== 'none' && state !== 'live' ? (
         <Breathing kind={pose.light === 'ask' ? 'pulse' : 'breathe'} fill>
-          <Spill g={g} color={spillColor(pose.light, base, neutrals.spillFace)} opacity={neutrals.spill} />
+          <Spill
+            g={g}
+            color={spillColor(pose.light, base, neutrals.spillFace)}
+            opacity={neutrals.spill}
+          />
         </Breathing>
       ) : (
         state === 'live' && (
-          <Spill g={g} color={spillColor('warm', base, neutrals.spillFace)} opacity={neutrals.spill} />
+          <Spill
+            g={g}
+            color={spillColor('warm', base, neutrals.spillFace)}
+            opacity={neutrals.spill}
+          />
         )
       )}
       <View style={[StyleSheet.absoluteFill, paused && { opacity: neutrals.pausedOpacity }]}>
@@ -462,9 +470,10 @@ function Legend({
   const wide = light === 'ask' ? 2.8 : 2.4;
   return (
     <Svg
-      width={g.icon}
-      height={g.icon}
-      viewBox={`0 0 ${KEY_ICON_GRID} ${KEY_ICON_GRID}`}
+      // A face (agentKeyFaces.ts) fills the key face, hat and all, in its own box.
+      width={drawing?.viewBox ? g.size - 2 * g.insetX : g.icon}
+      height={drawing?.viewBox ? g.size - g.insetTop - g.insetBottom : g.icon}
+      viewBox={drawing?.viewBox ?? `0 0 ${KEY_ICON_GRID} ${KEY_ICON_GRID}`}
       testID={
         lit
           ? light === 'ask'

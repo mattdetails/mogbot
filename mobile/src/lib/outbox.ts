@@ -105,11 +105,23 @@ export const retryWaitMs = (tries: number) =>
  * when the app died may or may not have reached the Mac; it waits, and the
  * `clientId` makes sending it again harmless.
  */
-export function restorePending(pending: SyncState['pending']): SyncState['pending'] {
+export function restorePending(
+  pending: SyncState['pending'],
+  now = Date.now()
+): SyncState['pending'] {
   return Object.fromEntries(
     Object.entries(pending).map(([id, list]) => [
       id,
-      list.map((p) => (p.failed || p.waiting ? p : { ...p, waiting: true })),
+      list
+        // Held while tidying when the app went, and long ago: stale, so it's
+        // cleared rather than sent out of the blue (a build before 1.0.14 left
+        // these stuck on "Tidying…").
+        .filter((p) => !p.tidying || now - p.ts < OUTBOX_WAIT_MS)
+        .map((held) => {
+          // Held while tidying a moment ago: nothing will tidy it now, so it goes as it is.
+          const { tidying: _held, ...p } = held;
+          return p.failed || p.waiting ? p : { ...p, waiting: true };
+        }),
     ])
   );
 }

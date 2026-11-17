@@ -64,13 +64,7 @@ import {
 import { flushCache, forgetCache, saveOutbox, loadCache, watchCache } from './cache';
 import { forgetRemembered } from './remembered';
 import { flushDrafts, forgetDrafts, loadDrafts, refusedToDraft, setComposer } from './drafts';
-import {
-  interruptStillMeant,
-  outboxPlan,
-  retryWaitMs,
-  sendInOrder,
-  unreached,
-} from './outbox';
+import { interruptStillMeant, outboxPlan, retryWaitMs, sendInOrder, unreached } from './outbox';
 import { loadPrefs } from './prefs';
 import { getApp, setApp, update, useApp } from './store';
 import {
@@ -83,6 +77,7 @@ import {
   emptySync,
   mergePage,
   setPendingFailed,
+  setPendingText,
 } from './sync';
 import { clearCache, http, localFiles, type PickedFile } from './files';
 import { relayImage, retryRelayImage, retryRelayImages } from './relayImages';
@@ -252,6 +247,8 @@ function connect(c: Credentials) {
     if (!roomsOffered(welcome)) setApp({ rooms: null });
     if (!canCall('agents.teamSetup', welcome)) setApp({ teamSetup: null });
     if (canCall('devices.setPush', welcome)) void syncPush();
+    // A Mac too old to take a token: say so in Settings, not nothing (#25).
+    else setApp({ push: 'mac_outdated' });
     if (canCall('system.reportCrashes', welcome) && getApp().prefs.errorReports) {
       void sendCrashes((crashes) =>
         call('system.reportCrashes', {
@@ -621,9 +618,13 @@ export async function send(
   // between finds the words in one file or the other, never in neither.
   void saveOutbox().then(() => flushDrafts());
   if (offline) return;
+  // When it was written, kept across retries and restarts: the Mac lets a
+  // typed yes answer only a card that was open then, and only while fresh.
+  const writtenAt = getApp().pending[agentId]?.find((p) => p.clientId === id)?.ts ?? Date.now();
   let message: AgentMessage;
   try {
     message = await call('agents.send', {
+      writtenAt,
       agentId,
       text,
       clientId: id,
@@ -762,6 +763,70 @@ async function flushOutbox() {
   } finally {
     flushing = false;
   }
+}
+
+/**
+ * Send pressed while the computer tidies what was said: the message shows in
+ * the chat at once, dimmed with "Tidying…", and goes (`send` with this
+ * `clientId`) once the better words are in. Returns its client id.
+ */
+export function holdTidying(
+  agentId: string,
+  text: string,
+  attachments: PendingAttachment[] = [],
+  mentions: string[] = []
+): string {
+  const clientId = Crypto.randomUUID();
+  update((s) =>
+    addPending(s, {
+      clientId,
+      agentId,
+      text,
+      ts: Date.now(),
+      failed: false,
+      tidying: true,
+      ...(attachments.length ? { attachments } : {}),
+      ...(mentions.length ? { mentions } : {}),
+    })
+  );
+  // The composer that held it lets it go once the better words are in (15 s
+  // at most). If that composer is gone (you left the chat, the screen
+  // reloaded) nothing would: so the app lets it go itself, a little later.
+  setTimeout(() => letGoHeld(agentId, clientId), HELD_MAX_MS);
+  return clientId;
+}
+
+/** Longest a held send waits, whatever happened to the composer holding it. */
+export const HELD_MAX_MS = 20_000;
+
+/** Whether this send is still held, waiting on the better words. */
+export function isHeld(agentId: string, clientId: string): boolean {
+  return !!getApp().pending[agentId]?.some((p) => p.clientId === clientId && p.tidying);
+}
+
+/**
+ * A held send that nothing let go: it goes now, with the words it has. Does
+ * nothing once it was let go (or sent, or removed).
+ */
+export function letGoHeld(agentId: string, clientId: string) {
+  const p = getApp().pending[agentId]?.find((x) => x.clientId === clientId);
+  if (!p?.tidying) return;
+  const text = p.text.trim();
+  if (!text && !p.attachments?.length) {
+    discardPending(agentId, clientId);
+    return;
+  }
+  setHeldText(agentId, clientId, text, false);
+  send(agentId, text, Boolean(p.interrupt), clientId, p.attachments ?? [], p.mentions ?? []).catch(
+    () => {
+      // `send` marks it failed, with Try again; nothing more to do here.
+    }
+  );
+}
+
+/** A held send's words, as they change; `tidying` false once it's let go to send. */
+export function setHeldText(agentId: string, clientId: string, text: string, tidying = true) {
+  update((s) => setPendingText(s, agentId, clientId, text, tidying));
 }
 
 export function discardPending(agentId: string, clientId: string) {
@@ -1074,6 +1139,22 @@ export async function markUnread(agentId: string) {
 export function upload(file: PickedFile, onProgress?: (fraction: number) => void) {
   if (!transport) return Promise.reject(new Error('Not paired'));
   return transport.upload(file, onProgress);
+}
+
+/**
+ * A dictation's audio, written out again on the computer
+ * (`dictation.transcribe`: Whisper, then the names pass), with this agent's
+ * conversation as context. The computer reads the upload once and deletes
+ * it. Null when it had nothing better (no model yet, too little sound).
+ */
+export async function tidyDictation(
+  file: { uri: string; name: string; mime: string },
+  agentId: string
+): Promise<{ text: string; raw?: string } | null> {
+  if (!transport) throw new Error('Not paired');
+  const ref = await transport.upload(file);
+  const said = await call('dictation.transcribe', { blob: ref.blobId, agentId });
+  return said.text ? { text: said.text, raw: said.raw } : null;
 }
 
 /** A local copy of an attachment (cached) or of a blob the Mac produced. */

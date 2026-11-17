@@ -68,6 +68,20 @@ pub fn approves(text: &str) -> bool {
     YES.contains(&words.join(" ").as_str())
 }
 
+/// How long a typed yes stays an answer: past this (a message held,
+/// queued or resent from a phone's outbox), it's a message, not an Allow.
+pub const YES_FRESH_MS: i64 = 60_000;
+
+/// How far a phone's clock may trail the Mac's and its yes still answer a
+/// card asked just before it.
+pub const CLOCK_GRACE_MS: i64 = 5_000;
+
+/// Whether a yes written at `written` still answers at `now`. A clock a
+/// little ahead (the phone's) still counts.
+pub fn fresh(written: i64, now: i64) -> bool {
+    now - written <= YES_FRESH_MS
+}
+
 /// The one card a typed yes answers: the only open card in the chat, and
 /// one Allow can answer.
 pub fn the_card(open: &[Approval]) -> Option<&Approval> {
@@ -89,6 +103,20 @@ pub fn the_card(open: &[Approval]) -> Option<&Approval> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// CTO review 2026-11-14: a yes held, queued or restored from a phone's
+    /// outbox could allow whatever card was open when it finally arrived.
+    #[test]
+    fn a_yes_answers_only_while_fresh() {
+        let written = 1_000_000;
+        assert!(fresh(written, written));
+        assert!(fresh(written, written + YES_FRESH_MS));
+        assert!(!fresh(written, written + YES_FRESH_MS + 1));
+        // Hours later from an outbox: a message, never an Allow.
+        assert!(!fresh(written, written + 3 * 60 * 60 * 1000));
+        // A phone clock a little ahead of the Mac's still counts.
+        assert!(fresh(written + 2_000, written));
+    }
 
     #[test]
     fn a_plain_yes_is_an_answer_and_anything_else_is_a_message() {

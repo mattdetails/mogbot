@@ -54,6 +54,7 @@ import {
 import { useSignIn } from '../../hooks/useAccount';
 import { TAILSCALE_DOWNLOAD_URL } from '../../lib/remoteAccess';
 import {
+  GET_ON_APP_STORE,
   GET_ON_TESTFLIGHT,
   PHONE_APP_ON_ANDROID,
   PHONE_APP_STORE_URL,
@@ -96,6 +97,10 @@ import {
   tailscaleHereTitle,
   TAILSCALE_YOUR_PHONE_TITLE,
 } from '../../../packages/companion-protocol/src/pairWords';
+
+/** How often a code that couldn't be made is tried again before saying so, and how far apart. */
+const CODE_TRIES = 4;
+const CODE_RETRY_MS = 1500;
 
 export const PHONE_FLOW_STEPS = [
   'phoneGetApp',
@@ -306,14 +311,23 @@ export function PhoneFlow({
   const [busy, setBusy] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [code, setCode] = useState<PairingCode | null>(null);
+  // When the status shown was asked for, and when the code shown came back: a
+  // status asked for before the code existed says pairing is off, and must not
+  // throw the new code away (it did, leaving the code screen on a spinner until
+  // you went back and returned).
+  const [statusAt, setStatusAt] = useState(0);
+  const codeAt = useRef(0);
+  const [retry, setRetry] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [phones, setPhones] = useState<TailnetPhone[] | null>(null);
   const [paired, setPaired] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
+      const at = Date.now();
       const s = await getPhoneStatus();
       setStatus(s);
+      setStatusAt(at);
       return s;
     } catch {
       return null;
@@ -360,9 +374,12 @@ export function PhoneFlow({
     async (key: string, fn: () => Promise<PhoneStatus | void>) => {
       setBusy(key);
       try {
+        const at = Date.now();
         const next = await fn();
-        if (next) setStatus(next);
-        else await load();
+        if (next) {
+          setStatus(next);
+          setStatusAt(at);
+        } else await load();
       } catch (err) {
         showToast(errText(err), 'error');
       } finally {
@@ -375,7 +392,9 @@ export function PhoneFlow({
   const recheck = useCallback(async () => {
     setChecking(true);
     try {
+      const at = Date.now();
       setStatus(await retryPhoneTailscale());
+      setStatusAt(at);
     } catch {
       await load();
     } finally {
@@ -390,26 +409,38 @@ export function PhoneFlow({
   // The code: made on arrival once phone access is ready, and again after it
   // ran out, was used, or a request was denied.
   const issuing = useRef(false);
+  const failures = useRef(0);
   const issue = useCallback(async () => {
     if (issuing.current) return;
     issuing.current = true;
     try {
-      setCode(await startPairing());
+      const made = await startPairing();
+      codeAt.current = Date.now();
+      failures.current = 0;
+      setCode(made);
       setNow(Date.now());
       await load();
     } catch (err) {
-      showToast(errText(err), 'error');
+      // Phone access may still be starting: try again on its own, and say so
+      // only once it has failed a few times.
+      failures.current += 1;
+      if (failures.current >= CODE_TRIES) showToast(errText(err), 'error');
+      else setTimeout(() => setRetry((n) => n + 1), CODE_RETRY_MS);
     } finally {
       issuing.current = false;
     }
   }, [load, showToast]);
-  const codeLive = !!code && code.expiresAt > now && status?.pairing.active !== false;
+  // Pairing reads as off only from a status asked for after the code came back.
+  const offSinceCode = (s: PhoneStatus | null) =>
+    !!s && statusAt > codeAt.current && !s.pairing.active && !s.pairing.request;
+  const codeLive = !!code && code.expiresAt > now && !offSinceCode(status);
   useEffect(() => {
     if (step === 'phoneScan' && ready && !request && !code) void issue();
-  }, [step, ready, request, code, issue]);
+  }, [step, ready, request, code, issue, retry]);
   useEffect(() => {
-    if (code && status && !status.pairing.active && !status.pairing.request) setCode(null);
-  }, [code, status]);
+    if (code && offSinceCode(status)) setCode(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- offSinceCode reads statusAt, listed
+  }, [code, status, statusAt]);
 
   // The phone asked: the Allow screen, on whichever screen this is.
   useEffect(() => {
@@ -519,26 +550,29 @@ function useStepView(p: {
   switch (step) {
     case 'phoneGetApp': {
       const store = PHONE_APP_STORE_URL;
-      const testFlight = store ? null : PHONE_APP_TESTFLIGHT_URL;
-      if (testFlight) {
-        // The beta: the link is the way, so it is the big button, and its
-        // code is beside it, since the phone's camera opens it straight from
-        // this screen. Only the person knows when it's installed.
+      const link = store ?? PHONE_APP_TESTFLIGHT_URL;
+      if (link) {
+        // The App Store, else the beta: the link is the way, so it is the big
+        // button, and its code is beside it, since the phone's camera opens it
+        // straight from this screen. Only the person knows when it's installed.
+        const where = store ? 'the App Store' : 'TestFlight';
         return {
           title: GET_PHONE_APP_TITLE,
           // People took this code for the pairing code: it says plainly what it is
           // (the download) and what it isn't, and those who have the app skip it.
-          lede: 'Don’t have it yet? Point your iPhone’s camera at this code to download the free beta from TestFlight.',
+          lede: store
+            ? 'Don’t have it yet? Point your iPhone’s camera at this code to get it free on the App Store.'
+            : 'Don’t have it yet? Point your iPhone’s camera at this code to download the free beta from TestFlight.',
           children: (
             <LinkQr
-              url={testFlight}
-              label="Download link for the phone app on TestFlight"
+              url={link}
+              label={`Download link for the phone app on ${where}`}
               caption={DOWNLOAD_NOT_PAIRING}
             />
           ),
           primary: (
-            <Primary external onClick={() => void openUrl(testFlight)}>
-              {GET_ON_TESTFLIGHT}
+            <Primary external onClick={() => void openUrl(link)}>
+              {store ? GET_ON_APP_STORE : GET_ON_TESTFLIGHT}
             </Primary>
           ),
           secondary: (
@@ -558,26 +592,12 @@ function useStepView(p: {
       }
       return {
         title: GET_PHONE_APP_TITLE,
-        lede: store
-          ? 'It’s free on the App Store. Install it on your iPhone.'
-          : 'On your iPhone, open the TestFlight invite you were sent and install it.',
-        children: (store || p.onInstall) && (
+        lede: 'On your iPhone, open the TestFlight invite you were sent and install it.',
+        children: p.onInstall && (
           <div className="flow-links">
-            {store && (
-              <Button
-                variant="secondary"
-                rightIcon={<ExternalLinkIcon size={12} />}
-                onClick={() => void openUrl(store)}
-                data-app-store
-              >
-                Open the App Store
-              </Button>
-            )}
-            {!store && p.onInstall && (
-              <Button variant="secondary" onClick={p.onInstall} data-install-open>
-                Build it on {THIS_COMPUTER}…
-              </Button>
-            )}
+            <Button variant="secondary" onClick={p.onInstall} data-install-open>
+              Build it on {THIS_COMPUTER}…
+            </Button>
           </div>
         ),
         primary: <Primary onClick={() => go(afterGetApp())}>{HAVE_PHONE_APP}</Primary>,

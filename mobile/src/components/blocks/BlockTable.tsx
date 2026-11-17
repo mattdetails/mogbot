@@ -13,7 +13,8 @@ import {
   type TableBlock,
 } from '@shipstudio/companion-protocol';
 import { useMemo, useState } from 'react';
-import { Pressable, useWindowDimensions, View } from 'react-native';
+import { type LayoutChangeEvent, Pressable, useWindowDimensions, View } from 'react-native';
+import { stacksAt } from '../../lib/overflow';
 import { makeStyles, useColors } from '../../lib/appearance';
 import {
   CHIP_H,
@@ -118,11 +119,57 @@ export function BlockTable({ block }: { block: TableBlock }) {
         : { col, dir: numeric ? 'desc' : 'asc' }
     );
   };
+  const measure = (e: LayoutChangeEvent) =>
+    setAvailable(Math.floor(e.nativeEvent.layout.width - space.xs * 2));
+  const showAll = rows.length > TABLE_ROWS_SHOWN && (
+    <ShowAll
+      open={open}
+      onPress={() => setOpen((v) => !v)}
+      label={`Show all ${rows.length} rows`}
+    />
+  );
+  // Wider than the card even after wrapping: read row by row, never sideways
+  // (a sideways scroll inside the chat was easy to miss and hard to start).
+  if (stacksAt(widths, available)) {
+    return (
+      <View style={styles.well} onLayout={measure} testID="table-stacked">
+        {shown.map((r, i) => (
+          <View
+            key={i}
+            style={[styles.stackRow, i < shown.length - 1 && styles.divided]}
+            testID="table-row"
+          >
+            <T
+              variant="small"
+              color={colors.textStrong}
+              selectable
+              style={{ fontFamily: fonts.semibold }}
+            >
+              {formatCell(r[0] ?? null, block.columns[0]) || '–'}
+            </T>
+            {block.columns.slice(1).map((c, j) => (
+              <View key={j} style={styles.stackPair}>
+                <T variant="small" color={colors.textSecondary} style={styles.stackLabel}>
+                  {c.label}
+                </T>
+                <T
+                  variant="small"
+                  color={colors.textPrimary}
+                  selectable
+                  style={[styles.stackValue, c.numeric && styles.tabular]}
+                >
+                  {formatCell(r[j + 1] ?? null, c) || '–'}
+                </T>
+              </View>
+            ))}
+          </View>
+        ))}
+        {showAll}
+      </View>
+    );
+  }
   return (
-    <View
-      style={styles.well}
-      onLayout={(e) => setAvailable(Math.floor(e.nativeEvent.layout.width - space.xs * 2))}
-    >
+    <View style={styles.well} onLayout={measure} testID="table-well">
       <SideScroll fade={colors.surfaceApp} indicator={false}>
         <View>
           <View style={[styles.row, styles.head]}>
@@ -132,7 +179,7 @@ export function BlockTable({ block }: { block: TableBlock }) {
                 <Pressable
                   key={j}
                   accessibilityRole="button"
-                  accessibilityLabel={`${c.label}${on ? (sort!.dir === 'asc' ? ', sorted ascending' : ', sorted descending') : ''}. Sort`}
+                  accessibilityLabel={`${c.label}${on ? (sort.dir === 'asc' ? ', sorted ascending' : ', sorted descending') : ''}. Sort`}
                   onPress={() => press(j)}
                   hitSlop={tapSlop(CHIP_H)}
                   style={({ pressed }) => [
@@ -157,7 +204,7 @@ export function BlockTable({ block }: { block: TableBlock }) {
                   </T>
                   {on && (
                     <Icon
-                      name={sort!.dir === 'asc' ? 'chevron.up' : 'chevron.down'}
+                      name={sort.dir === 'asc' ? 'chevron.up' : 'chevron.down'}
                       size={iconSize.micro}
                       color={colors.textStrong}
                     />
@@ -188,13 +235,7 @@ export function BlockTable({ block }: { block: TableBlock }) {
           ))}
         </View>
       </SideScroll>
-      {rows.length > TABLE_ROWS_SHOWN && (
-        <ShowAll
-          open={open}
-          onPress={() => setOpen((v) => !v)}
-          label={`Show all ${rows.length} rows`}
-        />
-      )}
+      {showAll}
     </View>
   );
 }
@@ -212,4 +253,9 @@ const useStyles = makeStyles((colors) => ({
   cell: { paddingHorizontal: space.sm, paddingVertical: space.sm, justifyContent: 'center' },
   headCell: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: CHIP_H },
   numeric: { textAlign: 'right', fontVariant: ['tabular-nums'] },
+  tabular: { fontVariant: ['tabular-nums'] },
+  stackRow: { paddingHorizontal: space.sm, paddingVertical: space.sm, gap: space['2xs'] },
+  stackPair: { flexDirection: 'row', gap: space.sm },
+  stackLabel: { width: '38%', flexShrink: 0 },
+  stackValue: { flex: 1, minWidth: 0 },
 }));

@@ -37,6 +37,7 @@ import {
   forgetToken,
   getDevice,
   hit,
+  pruneRate,
   putDevice,
 } from './store';
 
@@ -70,6 +71,10 @@ export default {
       }
       return error(500, 'internal');
     }
+  },
+  // Daily: spent rate counters go, so the table doesn't grow forever.
+  async scheduled(_event: ScheduledController, env: Env): Promise<void> {
+    await pruneRate(env.DB, Date.now());
   },
 } satisfies ExportedHandler<Env>;
 

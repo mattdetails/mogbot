@@ -63,12 +63,36 @@
   order: 1;
 }
 
-/* "● Listening · Cancel": its own small row under the text, starting where
-   the text starts, so the words arriving keep the field's full width and the
-   paperclip keeps its place (beside it, it squeezed them into a column). */
+/* "Couldn't write that out · Try again": its own small row under the
+   words it put back, starting where the text starts. */
 .agent-composer__bar > .agent-composer__listening {
   grid-column: 2 / -1;
   order: 4;
+}
+
+/* Dictating, the composer is one row: the paperclip, "● 0:42" and the wave
+   where the text was, Cancel, then [mic] [send]. No words show while you
+   talk, so the field steps aside: still focused underneath for Enter and
+   Esc, but takes no room and can't be clicked. */
+.agent-composer:not([data-dictation='idle']) .agent-composer__input {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.agent-composer:not([data-dictation='idle']) .agent-composer__bar > .agent-composer__listening {
+  grid-column: 2;
+  order: 2;
+  align-self: center;
+  padding: 0 var(--spacing-xs);
+  min-height: calc(var(--agent-composer-line) + (var(--spacing-xs) * 2));
+}
+
+/* The time and the warning at the size the words will be; Cancel stays small. */
+.agent-composer:not([data-dictation='idle']) .agent-composer__listening-clock {
+  font-size: var(--font-size-subhead-lg);
 }
 
 .agent-composer__bar > .agent-composer__hint {
@@ -293,6 +317,53 @@
   font-size: var(--font-size-body-sm);
   line-height: var(--line-height-compact);
   color: var(--text-secondary);
+}
+
+/* Listening and tidying: the line runs the field's width, the wave
+   filling what the clock and Cancel leave. */
+.agent-composer__listening[data-phase] {
+  justify-self: stretch;
+  min-width: 0;
+}
+
+.agent-composer__listening-clock {
+  display: inline-flex;
+  flex: none;
+  gap: var(--spacing-xs);
+  align-items: center;
+  white-space: nowrap;
+}
+
+.agent-composer__listening-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* "Can't hear you": said at once, in the warning colour, dot included. */
+.agent-composer__listening-clock:not([data-hearing='ok']) {
+  color: var(--accent-warning);
+}
+
+.agent-composer__listening-clock:not([data-hearing='ok']) .agent-composer__listening-dot {
+  background: var(--accent-warning);
+  animation: none;
+}
+
+.agent-composer__wave {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--size-control-compact);
+  color: var(--text-primary);
+  --wave-quiet: var(--text-muted);
+}
+
+/* Tidying: the last shape held, dimmed. */
+.agent-composer__wave:not([data-live]) {
+  opacity: 0.4;
+}
+
+.agent-composer__listening[data-failed] {
+  color: var(--accent-warning);
 }
 
 .agent-composer__listening-dot {

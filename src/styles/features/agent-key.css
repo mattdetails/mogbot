@@ -429,6 +429,13 @@
     filter var(--agent-key-travel);
 }
 
+/* A face (agentKeyFaces.ts) is drawn in the key face's own coordinates: it
+   fills the face, hat and all, the way the pack's keycaps and the site draw it. */
+.agent-key__legend[data-face] {
+  width: 100%;
+  height: 100%;
+}
+
 /* A pack icon (Lucide) keeps the round caps and joins it was drawn with. */
 .agent-key__legend[data-round] {
   stroke-linecap: round;

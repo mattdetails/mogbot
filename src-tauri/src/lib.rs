@@ -39,16 +39,15 @@ pub mod remote_access;
 // (docs/design/own-browser-layer.md).
 pub mod state;
 pub mod static_server;
+mod stray_browsers;
 pub mod types;
 pub mod user_chrome;
 pub mod utils;
+pub mod voice;
 pub mod watchdog;
 pub mod webview_scripts;
 
 use tauri::Manager;
-
-#[cfg(unix)]
-use std::process::Command;
 
 /// Stop this app's own agent CLIs, and the orphans a crashed run left.
 /// Run when the last window goes.
@@ -57,7 +56,7 @@ fn cleanup_agent_processes() {
     {
         let pid = std::process::id();
         for ag in agent::ALL_AGENTS {
-            let _ = Command::new("pkill")
+            let _ = crate::utils::create_command("pkill")
                 .args(["-P", &pid.to_string(), ag.process_name])
                 .output();
         }
@@ -83,11 +82,13 @@ fn reap_orphaned_agent_processes() {
                 "#,
                 ag.process_name
             );
-            let _ = Command::new("sh").args(["-c", &kill_script]).output();
+            let _ = crate::utils::create_command("sh")
+                .args(["-c", &kill_script])
+                .output();
         }
 
         // Also kill orphaned node processes running next-server (from dev server)
-        let _ = Command::new("sh")
+        let _ = crate::utils::create_command("sh")
             .args([
                 "-c",
                 r#"
@@ -195,7 +196,18 @@ pub fn run() {
         });
 
     // Hydrate the default agent cache from persisted AppState
-    let app_state = commands::setup::read_app_state();
+    let mut app_state = commands::setup::read_app_state();
+    // Projects' terminals follow the agents' engine chosen before they did.
+    if app_state.terminal_follows_agents.is_none() {
+        match commands::setup::update_app_state(agents::defaults::terminal_follow_once) {
+            Ok(Some(id)) => {
+                tracing::info!("Projects' terminals now open on {id}, the agents' engine");
+                app_state.default_agent_id = Some(id);
+            }
+            Ok(None) => {}
+            Err(e) => tracing::warn!("Couldn't match the terminals to the agents' engine: {e}"),
+        }
+    }
     agent::init_default_agent(app_state.default_agent_id.as_deref());
 
     // Initialize PostHog analytics (generates device_id on first launch)
@@ -344,6 +356,7 @@ pub fn run() {
             // The phone server and the agent bridge, asked every 10 s from a
             // thread of their own: a hang is logged loudly, never silent.
             watchdog::spawn();
+            stray_browsers::spawn();
             // Agents' check-ins and routines: one tick a minute, only while open.
             agents::schedule::spawn(_app.handle().clone());
             // "When…" routines: their checks, on their own minute tick.
@@ -377,6 +390,20 @@ pub fn run() {
                 if let Err(e) = remote_access::power::set_keep_awake_asked(true, false) {
                     tracing::error!("[Power] Could not keep the Mac awake at launch: {}", e);
                 }
+            }
+
+            // "Keep the screen on while agents work": held only while a turn
+            // runs, checked every 5 s (a Chrome Allow window waits ~60 s).
+            if remote_access::power::screen_on_available() {
+                remote_access::power::set_screen_on_asked(
+                    commands::setup::read_app_state().keep_screen_on == Some(true),
+                );
+                tauri::async_runtime::spawn(async {
+                    loop {
+                        remote_access::power::screen_tick(agents::runner::busy_count());
+                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    }
+                });
             }
 
             // Dev-server approvals: owner-only, whatever an older build left.
@@ -685,6 +712,7 @@ pub fn run() {
             commands::agents::agents_quit_check,
             commands::agents::agents_keep_running_in_background,
             commands::agents::agents_set_defaults,
+            commands::agents::agents_terminal_model,
             commands::agents::agents_independence,
             commands::agents::agents_set_independence,
             commands::agents::agents_set_import_choice,
@@ -752,6 +780,7 @@ pub fn run() {
             commands::agents::agents_conversations,
             commands::agents::agents_conversation_new,
             commands::agents::agents_conversation_select,
+            commands::agents::agents_conversation_for_project,
             commands::agents::agents_conversation_rename,
             commands::agents::agents_conversation_rewind,
             commands::agents::agents_conversation_fork,
@@ -1171,7 +1200,14 @@ pub fn run() {
             // Dictation (on-device speech to text)
             commands::dictation::start_dictation,
             commands::dictation::stop_dictation,
+            commands::dictation::retry_dictation,
             commands::dictation::cancel_dictation,
+            commands::dictation::dictation_model_status,
+            commands::dictation::dictation_model_download,
+            commands::dictation_words::dictation_words,
+            commands::dictation_words::dictation_word_add,
+            commands::dictation_words::dictation_word_remove,
+            commands::dictation_words::dictation_learn,
             // Code Browser
             commands::code::list_project_files,
             commands::code::read_project_file,
@@ -1268,6 +1304,8 @@ pub fn run() {
                 agent_browser::service::shutdown();
                 // The user's Chrome hears that the app is gone.
                 user_chrome::stop("quit");
+                // Whisper's Metal context must be gone before the process exits.
+                voice::transcribe::release();
                 // Phones hear it's going away, so they wait for it calmly.
                 companion::say_goodbye_sync();
                 tracing::info!(

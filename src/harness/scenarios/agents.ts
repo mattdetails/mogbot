@@ -1186,7 +1186,12 @@ export const messagesFor = (args: Record<string, unknown>) => {
   return sent;
 };
 
-/** Dictation mid-sentence: a partial in the draft, the meter at a speaking level. */
+/** A voice's levels over a few seconds, for the wave. */
+const VOICE = Array.from({ length: 120 }, (_, i) =>
+  Math.max(0, 0.45 + 0.4 * Math.sin(i * 0.7) * Math.sin(i * 0.13) + 0.1 * Math.cos(i * 2.3))
+);
+
+/** Dictation mid-sentence: words heard (not shown), a voice coming in. */
 const startListening = () => {
   setTimeout(() => {
     void emit('dictation://event', {
@@ -1194,7 +1199,73 @@ const startListening = () => {
       session: 1,
       text: 'Can you ask Finance to send the Northwind reminder',
     });
-    void emit('dictation://event', { kind: 'level', session: 1, level: 0.55 });
+    for (const level of VOICE) void emit('dictation://event', { kind: 'level', session: 1, level });
+  }, 50);
+  return { status: 'listening', session: 1, mic: 'MacBook Pro Microphone' };
+};
+
+/** The mic is on but hears nothing: flat, then "Can't hear you". */
+const startSilent = () => {
+  setTimeout(() => {
+    for (let i = 0; i < 60; i++)
+      void emit('dictation://event', { kind: 'level', session: 1, level: 0 });
+  }, 50);
+  return { status: 'listening', session: 1, mic: 'MacBook Pro Microphone' };
+};
+
+/** Heard, but it couldn't be written out: kept for Try again. */
+const startThenUnwritten = () => {
+  setTimeout(() => {
+    void emit('dictation://event', { kind: 'improving', session: 1 });
+    void emit('dictation://event', { kind: 'unwritten', session: 1 });
+    void emit('dictation://event', { kind: 'ended', session: 1, cancelled: false });
+  }, 50);
+  return { status: 'listening', session: 1 };
+};
+
+/** Stopped: the live words are in, and the computer is writing them out again. */
+const startThenTidying = () => {
+  setTimeout(() => {
+    void emit('dictation://event', {
+      kind: 'final',
+      session: 1,
+      text: 'tell the labiva site agent the pictures are fixed',
+    });
+    void emit('dictation://event', { kind: 'improving', session: 1 });
+  }, 50);
+  return { status: 'listening', session: 1 };
+};
+
+/** Enter while listening: the last words land and the computer writes them out again. */
+const stopThenTidying = () => {
+  setTimeout(() => {
+    void emit('dictation://event', {
+      kind: 'final',
+      session: 1,
+      text: 'Can you ask Finance to send the Northwind reminder',
+    });
+    void emit('dictation://event', { kind: 'improving', session: 1 });
+  }, 50);
+  return null;
+};
+
+/** Written out again: the better words replaced the live ones, Undo offered. */
+const startThenTidied = () => {
+  setTimeout(() => {
+    void emit('dictation://event', {
+      kind: 'final',
+      session: 1,
+      text: 'tell the labiva site agent the pictures are fixed',
+    });
+    void emit('dictation://event', { kind: 'improving', session: 1 });
+    void emit('dictation://event', {
+      kind: 'improved',
+      session: 1,
+      text: 'Tell the Lobeva Site agent the pictures are fixed.',
+      raw: 'Tell the Labiva site agent the pictures are fixed.',
+      tidied: true,
+    });
+    void emit('dictation://event', { kind: 'ended', session: 1, cancelled: false });
   }, 50);
   return { status: 'listening', session: 1 };
 };
@@ -1449,6 +1520,34 @@ const QUEUED_CHAT = [
   msg('user', 'Also check the footer links once that’s done.', 0.5, { agentId: 'acme' }),
 ];
 
+/** Mid-turn: one message of yours it already read, then one handed to it, not read yet (`runner::steer`). */
+const STEERED_CHAT = [
+  msg('user', 'Fix the pricing cards on mobile.', 1.5, { agentId: 'acme' }),
+  msg('agent', 'On it: checking the pricing grid at phone widths first.', 1.4, { agentId: 'acme' }),
+  msg('user', 'Do the tablet layout first, the client is demoing on an iPad.', 1, {
+    agentId: 'acme',
+    id: 'steer-heard',
+  }),
+  msg('agent', 'Tablet first, then. The cards now stack at 768px; on to mobile.', 0.6, {
+    agentId: 'acme',
+  }),
+  msg('user', 'Also check the footer links once that’s done.', 0.2, {
+    agentId: 'acme',
+    id: 'steer-handed',
+  }),
+];
+const steeredStatus = {
+  ...status('working', 'Editing PricingTable.tsx'),
+  work: {
+    startedAt: now - 2 * MIN,
+    stepCount: 4,
+    steps: [],
+    fileCount: 1,
+    handed: ['steer-handed'],
+    heard: ['steer-heard'],
+  },
+};
+
 /**
  * Start fresh. Acme Site's conversation as its engine last reported it: the
  * latest request carried 174k of a 200k window (87%, past the 85% nudge).
@@ -1581,6 +1680,28 @@ const withLaunch = (
 const GO_BACK = {
   ...CONVERSATIONS,
   agents_overview: acmeWith({ status: status('idle'), conversations: { loaded: 'c-launch' } }),
+};
+/**
+ * Issue #10: a long message of yours fills the column, so its "…" sits at the
+ * chat's left edge, beside the sidebar; and Acme is working, so the menu says
+ * why Edit and Rewind wait.
+ */
+const LAUNCH_LONG = msg(
+  'user',
+  'Plan the November launch email: who it goes to, three sections, one ask. Keep it short enough to read on a phone, lead with the pricing page, and leave the customer story for the end.',
+  9,
+  { agentId: 'acme', conversation: 'c-launch' }
+);
+const GO_BACK_EDGE = {
+  ...CONVERSATIONS,
+  agents_overview: acmeWith({
+    status: status('working', 'Drafting the email'),
+    conversations: { loaded: 'c-launch' },
+  }),
+  agents_messages: (args: Record<string, unknown>) =>
+    args.agentId === 'acme' && args.conversation === 'c-launch'
+      ? [LAUNCH_LONG, LAUNCH_CHAT[1]]
+      : CONVERSATIONS.agents_messages(args),
 };
 const REWOUND = {
   ...GO_BACK,
@@ -3626,7 +3747,7 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-dictating',
     title: 'Agents — dictating into the composer',
     looksRightWhen:
-      'The words arriving sit in the composer in the full text colour, never mistakable for the placeholder. The mic is green with a green halo sized by the voice level; the composer border is tinted green; the paperclip stays put, and a small row under the text, at its left edge, has a pulsing dot saying Listening with a Cancel beside it. Nothing reads as an error, and Send is unchanged.',
+      'One row, no words while you talk: the paperclip, then ● 0:00 where the text was, your voice as a wave of thin bars filling the row (newest at the right), Cancel, then the lit mic and Send. No second line under it; the composer stays one row tall with its border tinted. Nothing reads as an error.',
     // Steps run before a palette command, so walk in through the sidebar.
     openSelector: AGENTS_TAB,
     requires: '.agent-composer[data-dictation="listening"]',
@@ -3644,7 +3765,7 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-dictating-long',
     title: 'Agents — a long dictation after typed text',
     looksRightWhen:
-      'The composer reads like typing: “Quick one:” (typed first) then the spoken sentences, starting at the same left edge and the same size as typed text, the full width of the field, wrapping evenly. The paperclip stays where it is. A small row under the text, at the text’s left edge, says ● Listening · Cancel; it takes no width from the text. The field grows to its cap and shows the newest words.',
+      'Neither the typed “Quick one:” nor the spoken sentences show while listening: one row, ● time, the wave, Cancel. The typed words come back with the tidied ones.',
     openSelector: AGENTS_TAB,
     requires: '.agent-composer[data-dictation="listening"]',
     clipSelector: '.agent-chat__footer',
@@ -3659,6 +3780,101 @@ export const agentsScenarios: Scenario[] = [
       start_dictation: startListeningLong,
       cancel_dictation: null,
       stop_dictation: null,
+    },
+  },
+  {
+    id: 'agents-dictation-tidying',
+    title: 'Agents — dictation being written out again',
+    looksRightWhen:
+      'The field is empty (no live words); the row under it says ● Tidying…, the wave held and dimmed, then Cancel. The mic and Send are off until it is done. Nothing reads as an error.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-composer[data-dictation="tidying"]',
+    clipSelector: '.agent-chat__footer',
+    steps: [{ click: '.agent-composer__mic' }],
+    mockEvents: true,
+    commands: {
+      agents_overview: overview(),
+      agents_messages: messagesFor,
+      start_dictation: startThenTidying,
+      cancel_dictation: null,
+      stop_dictation: null,
+    },
+  },
+  {
+    id: 'agents-dictation-held',
+    title: 'Agents — sent while dictation is still tidying',
+    looksRightWhen:
+      'Enter while dictating: the message is already in the chat as your bubble, dimmed, holding a small wave of bars (no words yet), with “Tidying…” under it. The composer under it is empty and ordinary (no Tidying row), ready for the next message.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-chat__row--user[data-sending]',
+    steps: [
+      { click: '.agent-composer__mic' },
+      { focus: '.agent-composer__input' },
+      { key: 'Enter' },
+    ],
+    mockEvents: true,
+    commands: {
+      agents_overview: overview(),
+      agents_messages: messagesFor,
+      start_dictation: startListening,
+      stop_dictation: stopThenTidying,
+      cancel_dictation: null,
+    },
+  },
+  {
+    id: 'agents-dictation-tidied',
+    title: 'Agents — dictation written out',
+    looksRightWhen:
+      'The composer holds “Tell the Lobeva Site agent the pictures are fixed.” (the name corrected), editable, Send on. No row under it.',
+    openSelector: AGENTS_TAB,
+    requires:
+      '.agent-composer[data-dictation="idle"] .agent-composer__input:not(:placeholder-shown)',
+    clipSelector: '.agent-chat__footer',
+    steps: [{ click: '.agent-composer__mic' }],
+    mockEvents: true,
+    commands: {
+      agents_overview: overview(),
+      agents_messages: messagesFor,
+      start_dictation: startThenTidied,
+      cancel_dictation: null,
+      stop_dictation: null,
+    },
+  },
+  {
+    id: 'agents-dictation-silent',
+    title: 'Agents — dictating, but the mic hears nothing',
+    looksRightWhen:
+      'After eight seconds of nothing, the row under the field says “Can’t hear you · check the mic (MacBook Pro Microphone)” in the warning colour, its dot steady; the wave beside it is flat and dim. Cancel stays.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-composer__listening-clock[data-hearing="silent"]',
+    clipSelector: '.agent-chat__footer',
+    steps: [{ click: '.agent-composer__mic' }, { wait: 8_600 }],
+    mockEvents: true,
+    commands: {
+      agents_overview: overview(),
+      agents_messages: messagesFor,
+      start_dictation: startSilent,
+      cancel_dictation: null,
+      stop_dictation: null,
+    },
+  },
+  {
+    id: 'agents-dictation-unwritten',
+    title: 'Agents — heard, but it could not be written out',
+    looksRightWhen:
+      'The field is as it was; the row under it says “Couldn’t write that out · Try again” in the warning colour, Try again a text button.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-composer__listening[data-failed]',
+    clipSelector: '.agent-chat__footer',
+    steps: [{ click: '.agent-composer__mic' }],
+    mockEvents: true,
+    commands: {
+      agents_overview: overview(),
+      agents_messages: messagesFor,
+      start_dictation: startThenUnwritten,
+      cancel_dictation: null,
+      stop_dictation: null,
+      retry_dictation: null,
     },
   },
   {
@@ -3754,6 +3970,21 @@ export const agentsScenarios: Scenario[] = [
       agents_overview: acmeWith({ status: status('working', 'Editing PricingTable.tsx') }),
       agents_messages: (args: Record<string, unknown>) =>
         args.agentId === 'acme' ? QUEUED_CHAT : messagesFor(args),
+      agents_interrupt: true,
+    },
+  },
+  {
+    id: 'agents-message-handed',
+    title: 'Agents — messages you send while it works go into its turn',
+    looksRightWhen:
+      'Acme Site is Working. Your “Do the tablet layout first…” sits in the conversation with a quiet “Read” under it, and its reply follows. Then the working dots with “Editing PricingTable.tsx”, and under them your newest message with “Sent, Acme Site reads it at its next step” (no Interrupt link: it will be read without stopping).',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-chat__queued',
+    steps: [{ click: '[data-agent-id="acme"]' }],
+    commands: {
+      agents_overview: acmeWith({ status: steeredStatus }),
+      agents_messages: (args: Record<string, unknown>) =>
+        args.agentId === 'acme' ? STEERED_CHAT : messagesFor(args),
       agents_interrupt: true,
     },
   },
@@ -3931,6 +4162,20 @@ export const agentsScenarios: Scenario[] = [
       { click: '.agent-chat__row--user [aria-label="Go back to here"]' },
     ],
     commands: GO_BACK,
+  },
+  {
+    id: 'agents-go-back-menu-edge',
+    title: 'Agents — the … menu on a long message, beside the sidebar, while working',
+    looksRightWhen:
+      'A narrow window. Your long message fills the chat column, so its … sits at the chat’s left edge, next to the sidebar. Its menu opens wholly inside the chat area, never over or under the sidebar: “Edit and resend” and “Rewind to here” greyed, “Fork from here” available, and under them “Acme Site is working. Wait for it to finish, or Stop it.” Every word readable.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-go-back__menu',
+    viewport: { width: 1000, height: 800 },
+    steps: [
+      { click: '[data-agent-id="acme"]' },
+      { click: '.agent-chat__row--user [aria-label="Go back to here"]' },
+    ],
+    commands: GO_BACK_EDGE,
   },
   {
     id: 'agents-go-back-context',

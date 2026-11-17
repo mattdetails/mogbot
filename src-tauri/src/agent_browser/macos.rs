@@ -283,7 +283,7 @@ mod imp {
     /// A JPEG of one window, at most `max_width` wide.
     pub fn capture(window: u32, dir: &Path, max_width: u32) -> Result<(Vec<u8>, u32, u32), String> {
         let file = dir.join(format!("w-{}.png", uuid::Uuid::new_v4().simple()));
-        let mut child = std::process::Command::new("/usr/sbin/screencapture")
+        let mut child = crate::utils::create_command("/usr/sbin/screencapture")
             .args(["-x", "-o", "-t", "png"])
             .arg(format!("-l{window}"))
             .arg(&file)

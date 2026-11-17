@@ -107,3 +107,42 @@ describe('live step words', () => {
     });
   });
 });
+
+describe('a Claude in Chrome step that sits', () => {
+  const chrome = call({
+    kind: 'tool',
+    label: 'Opening x.com in your Chrome',
+    slow: undefined,
+    chrome: true,
+  });
+
+  it('says Chrome may be waiting for Allow after 20 s, on the desk and the phone', () => {
+    expect(slowHint(chrome, 19_000)).toBeNull();
+    expect(slowHint(chrome, 20_000)).toBe(
+      'Chrome may be waiting for you to click Allow on your Mac'
+    );
+    expect(slowHint(chrome, 20_000, 'this Mac')).toBe(
+      'Chrome may be waiting for you to click Allow on this Mac'
+    );
+  });
+
+  it('says the Mac is locked when it is, since then no Allow can show', () => {
+    const locked = { ...chrome, locked: true };
+    expect(slowHint(locked, 20_000)).toBe(
+      'Your Mac is locked: unlock it so Chrome can ask for its Allow and the agent can carry on'
+    );
+    expect(workingRowLine('x', work({ current: locked }), 0, 30_000).text).toBe(
+      'Unlock your Mac to go on'
+    );
+  });
+
+  it('never for other browsers or tools', () => {
+    expect(slowHint(call({ kind: 'tool', slow: undefined }), 600_000)).toBeNull();
+  });
+
+  it("names it in a list row so you see who's blocked", () => {
+    const w = work({ current: chrome });
+    expect(workingRowLine('x', w, 0, 5_000).text).toBe('Opening x.com in your Chrome');
+    expect(workingRowLine('x', w, 0, 30_000).text).toBe('Allow in Chrome?');
+  });
+});

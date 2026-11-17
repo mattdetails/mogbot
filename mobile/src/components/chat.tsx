@@ -26,7 +26,7 @@ import { type LayoutChangeEvent, Pressable, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { arriving } from './Arrive';
 import { useRouter } from 'expo-router';
-import { engineName, failureLine, folderName, formatClock } from '../lib/agents';
+import { engineName, failureLine, folderName, formatClock, isHanded, isHeard } from '../lib/agents';
 import { drivenWait } from '../lib/bars';
 import { haptic } from '../lib/haptics';
 import {
@@ -200,7 +200,14 @@ export const MessageRow = memo(function MessageRow({
             <T variant="caption" color={colors.textSecondary} style={styles.meta}>
               {agent.takeover
                 ? `Queued · ${drivenWait(agent.name)}`
-                : `Queued · ${agent.name} reads it when it’s done with this one`}
+                : isHanded(message, agent)
+                  ? `Sent · ${agent.name} reads it at its next step`
+                  : `Queued · ${agent.name} reads it when it’s done with this one`}
+            </T>
+          )}
+          {!queued && isHeard(message, agent) && (
+            <T variant="caption" color={colors.textSecondary} style={styles.meta}>
+              Read
             </T>
           )}
         </View>
@@ -735,7 +742,7 @@ export function PendingRow({ pending }: { pending: PendingSend }) {
   const colors = useColors();
   const styles = useStyles();
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
-  const dim = pending.failed || pending.waiting;
+  const dim = pending.failed || pending.waiting || pending.tidying;
   const slow = useSlow(pending.ts);
   return (
     <View style={styles.userRow}>
@@ -759,7 +766,12 @@ export function PendingRow({ pending }: { pending: PendingSend }) {
           {pending.reason}
         </T>
       )}
-      {pending.failed || pending.waiting ? (
+      {pending.tidying ? (
+        // Sent while the computer tidies the dictated words: it goes once they're in.
+        <T variant="caption" color={colors.textSecondary} style={styles.meta}>
+          Tidying…
+        </T>
+      ) : pending.failed || pending.waiting ? (
         <View style={styles.failedLine}>
           <T
             variant="caption"
@@ -879,6 +891,10 @@ export function WorkingRow({
   const live = label ? liveCallShown(work, agent?.status.activity) : undefined;
   const ticking = !!label && (work != null || live != null);
   const now = useClock(ticking);
+  const comp = useComputer();
+  // A turn past half a minute says where it runs (Cade, 2026-11-14: people
+  // kept the app open, thinking closing it would stop the work).
+  const long = !!work && now - work.startedAt > KEEPS_RUNNING_AFTER_MS;
   return (
     <Animated.View entering={FadeIn.duration(250)} style={styles.working}>
       {agent && label ? (
@@ -904,9 +920,23 @@ export function WorkingRow({
           )}
         </View>
       )}
+      {long && !bare && (
+        <Animated.View entering={FadeIn.duration(250)}>
+          <T variant="caption" color={colors.textSecondary} testID="keeps-running">
+            {keepsRunning(comp.your)}
+          </T>
+        </Animated.View>
+      )}
     </Animated.View>
   );
 }
+
+/** How long a turn runs before the working row says where it runs. */
+export const KEEPS_RUNNING_AFTER_MS = 30_000;
+
+/** "Keeps running on your Mac, even with this app closed." */
+export const keepsRunning = (yourComputer: string) =>
+  `Keeps running on ${yourComputer}, even with this app closed.`;
 
 const useStyles = makeStyles((colors) => ({
   userRow: { alignItems: 'flex-end', gap: space.xs },

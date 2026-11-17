@@ -1,8 +1,9 @@
 /**
  * A request in the chat, on the shared card (`surfaces.tsx`): what it asks,
  * the exact command, then ⋯ · Deny · Allow with the neutral Allow last, and
- * Always allow (when the desktop offers a scope) one tap away behind ⋯,
- * inert for a beat after it lands. Once answered, the outcome in a line.
+ * Always allow (when the desktop offers a scope) as its own quiet line under
+ * them and behind ⋯, each opening the sheet that says what it covers; inert
+ * for a beat after it lands. Once answered, the outcome in a line.
  *
  * "Carry on with Codex until then?" (`approval.crossover`) has the desk's
  * three answers instead: Wait and Just this time outlined, Always the
@@ -285,12 +286,10 @@ export function ApprovalCard({
   const off = !!busy || !connected;
   // Behind ⋯: the broader answer, and a denial with a note. One row of
   // answers under the thumb, never a second line of them.
-  const more = [
-    ...(approval.always
-      ? [{ label: `Always allow ${approval.always.label}`, run: () => void answer(true, true) }]
-      : []),
-    { label: 'Deny with a note…', run: () => setNoting(true) },
-  ];
+  const alwaysOption = approval.always
+    ? [{ label: `Always allow ${approval.always.label}`, run: () => void answer(true, true) }]
+    : [];
+  const more = [...alwaysOption, { label: 'Deny with a note…', run: () => setNoting(true) }];
 
   // "<source> sent what it knows": Ignore / Save to memory, nothing else.
   const handoff = !!approval.handoff;
@@ -441,6 +440,23 @@ export function ApprovalCard({
           style={share}
         />
       )}
+      {/*
+        Always allow in plain sight (Cade, 2026-11-14: hidden behind ⋯ nobody
+        found it, so every repeat read asked again). Still a deliberate second
+        step: it opens the sheet that says exactly what it covers.
+      */}
+      {!!approval.always && !consent && !gate && !crossover && !risky && (
+        <Button
+          title={`Always allow ${approval.always.label}…`}
+          variant="ghost"
+          disabled={off}
+          focusable={armed}
+          onPress={() => choose(approval.title, alwaysOption, scope ?? undefined)}
+          accessibilityHint={scope ?? undefined}
+          testID="always-allow"
+          style={cardStyles.always}
+        />
+      )}
     </Animated.View>
   );
 
@@ -456,14 +472,14 @@ export function ApprovalCard({
             : skill
               ? 'graduationcap'
               : crossover
-              ? 'arrow.left.arrow.right'
-              : consent
-                ? 'square.and.arrow.down'
-                : approval.settings
-                  ? 'slider.horizontal.3'
-                  : gate
-                    ? 'arrow.trianglehead.2.clockwise'
-                    : 'checkmark.shield'
+                ? 'arrow.left.arrow.right'
+                : consent
+                  ? 'square.and.arrow.down'
+                  : approval.settings
+                    ? 'slider.horizontal.3'
+                    : gate
+                      ? 'arrow.trianglehead.2.clockwise'
+                      : 'checkmark.shield'
       }
       title={approval.title}
       // Whose and where, as its sibling import card says it.
@@ -497,13 +513,13 @@ export function ApprovalCard({
               : skill
                 ? [skillCardNote(skill), SKILL_OFFER_NOTE].filter(Boolean).join(' ')
                 : paused &&
-                  !fit.pinned &&
-                  !consent &&
-                  !approval.settings &&
-                  !approval.slackReply &&
-                  !crossover
-                ? 'It paused here for you. Allow it and it picks up where it left off.'
-                : undefined
+                    !fit.pinned &&
+                    !consent &&
+                    !approval.settings &&
+                    !approval.slackReply &&
+                    !crossover
+                  ? 'It paused here for you. Allow it and it picks up where it left off.'
+                  : undefined
       }
       actions={answers && !stepIn?.inSince ? actions : undefined}
     >
@@ -513,23 +529,25 @@ export function ApprovalCard({
         // When to use it, then the steps as they'd be saved: never in the
         // fitted scroll area, which cut the steps off on a short pane.
         <SkillCardBody skill={skill} />
-      ) : !!(crossover ? approval.summary : !stepIn && approval.detail) && (
-        <FittedDetail fit={fit}>
-          {crossover ? (
-            <T color={colors.textBody}>{approval.summary}</T>
-          ) : consent ? (
-            // Consent asks in sentences, not a command: prose that wraps.
-            <T color={colors.textBody}>{approval.detail}</T>
-          ) : gate ? (
-            <GateBody approval={approval} />
-          ) : (
-            <Summarized
-              approval={approval}
-              lines={full ? FULL_LINES : large ? DETAIL_LINES_LARGE : DETAIL_LINES}
-              open={full}
-            />
-          )}
-        </FittedDetail>
+      ) : (
+        !!(crossover ? approval.summary : !stepIn && approval.detail) && (
+          <FittedDetail fit={fit}>
+            {crossover ? (
+              <T color={colors.textBody}>{approval.summary}</T>
+            ) : consent ? (
+              // Consent asks in sentences, not a command: prose that wraps.
+              <T color={colors.textBody}>{approval.detail}</T>
+            ) : gate ? (
+              <GateBody approval={approval} />
+            ) : (
+              <Summarized
+                approval={approval}
+                lines={full ? FULL_LINES : large ? DETAIL_LINES_LARGE : DETAIL_LINES}
+                open={full}
+              />
+            )}
+          </FittedDetail>
+        )
       )}
       {noting && (
         <Animated.View entering={FadeIn.duration(150)}>
@@ -1210,6 +1228,8 @@ export const useCardStyles = makeStyles((colors) => ({
    * Always) measured wider than the card and hung off its left edge.
    */
   answers: { flexDirection: 'row', flexWrap: 'wrap', flexGrow: 1, width: '100%', gap: space.sm },
+  /** Always allow, its own quiet line under the answers. */
+  always: { flexBasis: '100%', alignSelf: 'stretch' },
   /** A task's own menu: each option a full row, then the pair. */
   choices: { flexGrow: 1, flexBasis: '100%', gap: space.sm },
   more: {

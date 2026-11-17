@@ -59,7 +59,15 @@ import { useWorkspaceComments } from '../../hooks/useWorkspaceComments';
 import { useWorkspaceVariablesPanel } from '../../hooks/useWorkspaceVariablesPanel';
 import { useWorkspaceTerminalShortcuts } from '../../hooks/useWorkspaceTerminalShortcuts';
 import '../../styles/features/notifications.css';
-import { showAgentInSession, useSessionAgent } from '../../lib/sessionAgentChat';
+import {
+  PICK_AGENT,
+  sessionDecided,
+  showAgentInSession,
+  useSessionAgent,
+} from '../../lib/sessionAgentChat';
+import { openingFor, saveOpen } from '../../lib/projectOpens';
+import { ProjectAgentPicker } from './ProjectAgentPicker';
+import { requestAgentsIntent } from '../../commands/useAgentsCommands';
 
 /**
  * The workspace, with a rail around it.
@@ -644,7 +652,54 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
   const terminalAgents = commentAgents(currentProject.path, terminal, tabTitles, setIsAgentPanelHidden); // prettier-ignore
   // The agent chat open in the Session panel takes notes and errors too, ahead of the terminals.
   const agentsList = useAgentsList();
-  const chatAgent = chatAgentId ? agentIn(agentsList, chatAgentId) : undefined;
+  const chatAgent =
+    chatAgentId && chatAgentId !== PICK_AGENT ? agentIn(agentsList, chatAgentId) : undefined;
+  // Opening a project lands on an agent's chat (`lib/projectOpens`): the one it
+  // opened on last, one working here, or "Who should work on it?". Once
+  // anything was shown for it this session, that stays.
+  const agentsKnown = agentsList.length > 0;
+  useEffect(() => {
+    const path = currentProject.path;
+    if (!agentsKnown || sessionDecided(path)) return;
+    const opening = openingFor(path, agentsList);
+    showAgentInSession(path, opening === 'pick' ? PICK_AGENT : opening);
+    // Only on arriving in a project (or once the agents load), never on every agent update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProject.path, agentsKnown]);
+  // Whatever agent it shows is what the project opens on next time.
+  useEffect(() => {
+    if (chatAgent && !chatAgent.isMain) {
+      saveOpen(currentProject.path, { kind: 'agent', agentId: chatAgent.id });
+    }
+  }, [chatAgent, currentProject.path]);
+  const pickTerminal = useCallback(
+    (engine: string, remember: boolean) => {
+      const path = currentProject.path;
+      if (remember) saveOpen(path, { kind: 'terminal', engine });
+      const existing = terminalTabs.find((t) => t.agentId === engine);
+      if (existing) setActiveTerminalTab(existing.id);
+      else addTerminalTab(engine);
+      showAgentInSession(path, null);
+    },
+    [currentProject.path, terminalTabs, setActiveTerminalTab, addTerminalTab]
+  );
+  const onGoAgentsForPicker = homeNav?.onGoAgents;
+  const picker = (
+    <ProjectAgentPicker
+      projectPath={currentProject.path}
+      projectName={currentProject.name}
+      onPickAgent={(id) => showAgentInSession(currentProject.path, id)}
+      onPickTerminal={pickTerminal}
+      onNewAgent={
+        onGoAgentsForPicker
+          ? () => {
+              requestAgentsIntent({ kind: 'new' });
+              onGoAgentsForPicker();
+            }
+          : undefined
+      }
+    />
+  );
   const agentsForComments = chatAgent
     ? [chatAgentTarget(chatAgent.id, chatAgent.name, setIsAgentPanelHidden), ...terminalAgents]
     : terminalAgents;
@@ -1028,6 +1083,7 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
                     onHelp={helpModal.open}
                     chatAgentId={chatAgentId}
                     onCloseChat={closeChat}
+                    picker={picker}
                     onGoAgents={homeNav?.onGoAgents}
                   />
                   {team.panel}

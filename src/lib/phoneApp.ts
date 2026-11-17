@@ -51,6 +51,9 @@ export const PHONE_APP_ROUTE: PhoneAppRoute = phoneAppRouteFor(
   COMPANION_INSTALL_ENABLED
 );
 
+/** The big button on the "Get the app" screen when the route is the App Store. */
+export const GET_ON_APP_STORE = 'Get it on the App Store';
+
 /** The big button on the "Get the app" screen when the route is TestFlight. */
 export const GET_ON_TESTFLIGHT = 'Get it on TestFlight';
 

@@ -459,7 +459,8 @@ fn the_page_memory_follows_the_stream() {
     observe(
         "ops-stream",
         &json!({"type": "assistant", "message": {"content": [
-            {"type": "tool_use", "id": "c1", "name": t("navigate"), "input": {"url": "https://mail.google.com/mail/u/0/", "tabId": 3}}
+            {"type": "tool_use", "id": "c1", "name": t("navigate"), "input": {"url": "https://mail.google.com/mail/u/0/", "tabId": 3}},
+            {"type": "tool_use", "id": "c2", "name": t("read_page"), "input": {"tabId": 3}}
         ]}}),
     );
     observe(
@@ -1123,4 +1124,159 @@ fn enter_after_a_click_by_position_asks_the_agent_to_name_the_box() {
     let id = "enter-redirect-test";
     assert!(first_try(id, &by_position));
     assert!(!first_try(id, &by_position));
+}
+
+/// Exact-text on: a click by coordinate after typing is treated as a send
+/// (it may be the Post button), and before typing it isn't.
+#[test]
+fn an_unlabelled_click_after_typing_counts_as_outward() {
+    let mut p = page();
+    let a = agent();
+    let by_spot = json!({ "action": "left_click", "coordinate": [640, 410], "tabId": 7 });
+    let unknown_ref = json!({ "action": "left_click", "ref": "ref_999", "tabId": 7 });
+    // Nothing typed: an unlabelled click is just a click.
+    assert!(!outward_step_on(&a, "computer", &by_spot, &p));
+    on_call(
+        &mut p,
+        "computer",
+        &json!({ "action": "type", "text": "Big news today", "tabId": 7 }),
+    );
+    assert!(!p.typed.is_empty());
+    assert!(outward_step_on(&a, "computer", &by_spot, &p));
+    assert!(outward_step_on(&a, "computer", &unknown_ref, &p));
+    // A labelled harmless click stays a click.
+    let labelled = json!({ "action": "left_click", "ref": "ref_3", "tabId": 7 });
+    assert!(!outward_step_on(&a, "computer", &labelled, &p));
+}
+
+/// CTO review 2026-11-14: any tool's output was read for labels, so
+/// `echo 'ref_42 search box'` could relabel the Send button.
+#[test]
+fn only_the_browsers_own_reads_name_its_controls() {
+    forget("ops-poison");
+    observe(
+        "ops-poison",
+        &json!({"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "r1", "name": t("read_page"), "input": {"tabId": 3}},
+            {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": "echo"}}
+        ]}}),
+    );
+    observe(
+        "ops-poison",
+        &json!({"type": "user", "message": {"content": [
+            {"type": "tool_result", "tool_use_id": "r1", "content": "button \"Send\" [ref_42]"},
+            {"type": "tool_result", "tool_use_id": "b1", "content": "ref_42 search box"},
+            {"type": "tool_result", "tool_use_id": "nobody", "content": "ref_43 search box"}
+        ]}}),
+    );
+    let p = page_of("ops-poison");
+    assert_eq!(
+        p.refs.get("ref_42").map(String::as_str),
+        Some("button \"Send\"")
+    );
+    assert!(!p.refs.contains_key("ref_43"));
+    forget("ops-poison");
+}
+
+/// Julian, 2026-11-16: a scheduled LinkedIn post asked for "Start a post",
+/// then again for Post, Confirm and Schedule, each with the same words.
+/// Opening a composer isn't a send, and once the words were allowed the
+/// rest of that same send goes through.
+#[test]
+fn one_send_asks_once_and_opening_a_composer_never_asks() {
+    for opener in [
+        "button \"Start a post\"",
+        "button \"Create post\"",
+        "button \"Write a comment\"",
+    ] {
+        assert!(final_submit(opener, Level::GoHard).is_none(), "{opener}");
+    }
+    assert!(final_submit("button \"Post\"", Level::GoHard).is_some());
+    assert!(final_submit("button \"Schedule\"", Level::GoHard).is_some());
+
+    let mut a = agent();
+    a.id = "same-send-test".into();
+    let mut p = Page::default();
+    on_answer(
+        &mut p,
+        "textbox \"Text editor for creating content\" [ref_1]\nbutton \"Post\" [ref_16]\nbutton \"Confirm\" [ref_2]\nbutton \"Schedule\" [ref_21]",
+    );
+    p.tabs.insert(5, "https://www.linkedin.com/feed/".into());
+    p.typed
+        .push("working from my phone more and more lately".into());
+    with_pages(|pages| pages.insert(a.id.clone(), p.clone()));
+    let click = |r: &str| json!({ "action": "left_click", "ref": r, "tabId": 5 });
+    let tool = t("computer");
+    assert!(!same_send_allowed(&a, &tool, &click("ref_2")));
+    note_allowed_send(&a, &tool, &click("ref_16"));
+    assert!(same_send_allowed(&a, &tool, &click("ref_2")));
+    assert!(same_send_allowed(&a, &tool, &click("ref_21")));
+    // Other words typed: a new send, it asks again.
+    with_pages(|pages| {
+        pages.get_mut(&a.id).unwrap().typed = vec!["a different post".into()];
+    });
+    assert!(!same_send_allowed(&a, &tool, &click("ref_21")));
+    // Another agent never rides on it.
+    let mut b = agent();
+    b.id = "same-send-other".into();
+    with_pages(|pages| pages.insert(b.id.clone(), p.clone()));
+    assert!(!same_send_allowed(&b, &tool, &click("ref_21")));
+}
+
+/// Julian, 2026-11-16: an agent working on X in his Chrome hit X's chat
+/// passcode and got an agents'-browser sign-in. The app knows which browser
+/// it was in from its own page memory.
+#[test]
+fn the_app_knows_a_site_is_open_in_the_users_chrome() {
+    let id = "in-chrome-test";
+    let mut p = Page::default();
+    p.tabs.insert(3, "https://x.com/messages/compose".into());
+    with_pages(|pages| pages.insert(user_chrome_key(id), p));
+    assert!(in_users_chrome_on(id, "x.com"));
+    assert!(!in_users_chrome_on(id, "linkedin.com"));
+    assert!(!in_users_chrome_on("someone-else", "x.com"));
+}
+
+#[test]
+fn bold_uploads_the_agents_own_pictures_and_asks_for_anything_else() {
+    let home = crate::agents::store::agent_home("ops").unwrap();
+    let own = |f: &str| home.join(f).to_string_lossy().into_owned();
+    let up = |level, paths: Vec<String>| {
+        at(
+            level,
+            "file_upload",
+            json!({"paths": paths, "ref": "ref_2"}),
+        )
+    };
+    // Its own post picture and video: no card at Bold.
+    assert_eq!(
+        up(Level::GoHard, vec![own("scheduled/w47/1-mon16-nate.png")]),
+        Gate::Allow
+    );
+    assert_eq!(up(Level::GoHard, vec![own("clip.MP4")]), Gate::Allow);
+    // The user's own files, a non-picture, a way out of its folder, a key: ask.
+    assert_eq!(
+        up(
+            Level::GoHard,
+            vec!["/Users/fictional/Desktop/post1.png".into()]
+        ),
+        Gate::Ask
+    );
+    assert_eq!(up(Level::GoHard, vec![own("notes/memory.md")]), Gate::Ask);
+    assert_eq!(up(Level::GoHard, vec![own("../other/x.png")]), Gate::Ask);
+    assert_eq!(up(Level::GoHard, vec![own(".ssh/id.png")]), Gate::Ask);
+    // One stranger in the list asks for the lot; no path at all asks.
+    assert_eq!(
+        up(
+            Level::GoHard,
+            vec![own("a.png"), "/Users/fictional/b.png".into()]
+        ),
+        Gate::Ask
+    );
+    assert_eq!(
+        at(Level::GoHard, "upload_image", json!({"imageId": "s1"})),
+        Gate::Ask
+    );
+    // Below Bold, uploads always ask.
+    assert_eq!(up(Level::Judgement, vec![own("a.png")]), Gate::Ask);
 }

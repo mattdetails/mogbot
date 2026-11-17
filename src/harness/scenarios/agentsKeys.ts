@@ -106,7 +106,50 @@ const keyChat = (args: Record<string, unknown>) =>
       ]
     : messagesFor(args);
 
+/**
+ * Faces (docs/design/agent-keys.md, "Faces"): the site's cast, faces beside icons. Names and
+ * faces as on the site (mogbot-site src/site.ts), so a snap of the app matches it.
+ */
+const CAST: Record<string, { name: string; colorway: string; icon: string }> = {
+  chief: { name: 'Chief of Staff', colorway: 'graphite', icon: 'face-01' },
+  acme: { name: 'Ostler site', colorway: 'sky', icon: 'face-05' },
+  leadgen: { name: 'Inbox', colorway: 'blue', icon: 'face-03' },
+  hiring: { name: 'PR reviews', colorway: 'forest', icon: 'face-07' },
+  social: { name: 'Socials', colorway: 'pink', icon: 'face-11' },
+  finance: { name: 'Invoices', colorway: 'mustard', icon: 'money' },
+  native: { name: 'Lisbon trip', colorway: 'putty', icon: 'calendar' },
+};
+const FACES_TEAM = [
+  ...TEAM.filter((a) => a.id !== 'clients').map((a) => (CAST[a.id] ? { ...a, ...CAST[a.id] } : a)),
+  agent('design', 'Design system', {
+    colorway: 'lilac',
+    icon: 'face-12',
+    minutesAgo: 60 * 7,
+    role: 'Tokens and components.',
+    preview: 'The button tokens are in.',
+  }),
+  agent('research', 'Research', {
+    colorway: 'plum',
+    icon: 'face-04',
+    minutesAgo: 60 * 9,
+    role: 'Reading and sources.',
+    preview: 'Five sources on pricing pages, summed up.',
+  }),
+];
+
 export const agentsKeysScenarios: Scenario[] = [
+  {
+    id: 'agents-keys-faces',
+    title: 'Agents — faces beside icons (the site’s cast)',
+    looksRightWhen:
+      'The sidebar as on the site: Chief of Staff wears the slot-eyed mark face on Graphite, Ostler site the propeller face on Sky, Inbox the top hat on Blue, PR reviews the horns on Forest, Socials the jester on Pink, Design system the visor on Lilac, Research the wizard on Plum; Invoices (money) and Lisbon trip (calendar) keep their icons. Each face fills its key face, hat inside the cap, never cut off, in the legend’s colour; a lit key lights its face like an icon.',
+    openSelector: AGENTS_TAB,
+    requires: '.agents-list__row .agent-key[data-icon="face-05"]',
+    commands: {
+      agents_overview: { ...overview(FACES_TEAM), independence: 'judgement' },
+      agents_messages: messagesFor,
+    },
+  },
   {
     id: 'agents-keys-board',
     title: 'Agents — the team as a board of keys (What’s in flight)',

@@ -263,6 +263,18 @@ pub(super) async fn run_turn(
             .prompt
             .push_str(&super::account_reach::chrome_prompt_line());
     }
+    // Claude in Chrome on a locked Mac: its Allow window can't be answered,
+    // so the turn is told before it spends itself retrying.
+    if (access.browser || chrome_as_this_mac)
+        && tokio::task::spawn_blocking(super::chrome_health::screen_locked)
+            .await
+            .unwrap_or(false)
+    {
+        if !access.prompt.is_empty() {
+            access.prompt.push('\n');
+        }
+        access.prompt.push_str(super::chrome_health::LOCKED_LINE);
+    }
     let mcp_config = match engine {
         Engine::Claude => Some(super::reach::write_config(
             &super::reach::claude_config_with(&url, turn.secret(), claude_servers),
@@ -310,6 +322,29 @@ pub(super) async fn run_turn(
             },
         )
     };
+    // A conversation grown past `transcript::LONG_TRANSCRIPT`: the engine
+    // would load all of it for this turn. Start a new one with a recap, as
+    // for a lost one (once: the retry has `retry_fresh` false).
+    if resuming && retry_fresh && !crossed && !quiet && branch.is_none() && engine == Engine::Claude
+    {
+        let (h, s) = (home.clone(), session_id.clone());
+        let long = tokio::task::spawn_blocking(move || super::transcript::claude_too_long(&h, &s))
+            .await
+            .unwrap_or(false);
+        if long {
+            tracing::info!(
+                "[Agents] {agent_id}'s conversation is very long; starting a new one with a recap"
+            );
+            store::update(agent_id, |a| super::crossover::drop_session(a, engine))
+                .or_log("an agent's dropped engine session");
+            let _ = record_in_turn(
+                app,
+                new_message(agent_id, MessageKind::Note, LONG_SESSION_NOTE),
+            );
+            let prompt = with_recap(agent_id, prompt);
+            return Box::pin(run_turn(app, agent_id, &prompt, routine, false, account)).await;
+        }
+    }
     let recapped = !resuming
         && (agent.new_engine || !retry_fresh || branch == Some(super::rewind::Branch::Recap));
     // First turn on a new engine: it starts blank, so it gets the conversation.
@@ -371,7 +406,12 @@ pub(super) async fn run_turn(
     let resumed_at = if !resuming || crossed || quiet {
         None
     } else if engine == Engine::Claude {
-        super::transcript::claude_leaf(&home, &session_id)
+        // Read from the transcript's end, off the async workers.
+        let (home, session) = (home.clone(), session_id.clone());
+        tokio::task::spawn_blocking(move || super::transcript::claude_leaf(&home, &session))
+            .await
+            .ok()
+            .flatten()
     } else if engine == Engine::Codex && driver == Driver::CodexApp {
         super::rewind::codex_last_turn(agent_id, &session_id)
     } else {
@@ -698,6 +738,26 @@ pub(super) async fn run_turn(
         });
         let _ = tx.send(Some(first.to_string()));
         (Some(tx), Some(conversation))
+    } else if driver == Driver::ClaudePrint {
+        // stream-json in: the prompt is the first line and stdin stays open,
+        // so a message the user sends mid-turn reaches it (`steer`). Closed at
+        // the turn's `result` when none is waiting, so the CLI exits.
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Option<String>>();
+        let mut stdin = child.stdin.take();
+        let id = agent_id.to_string();
+        tokio::spawn(async move {
+            while let Some(Some(line)) = rx.recv().await {
+                let Some(pipe) = stdin.as_mut() else { break };
+                if let Err(e) = pipe.write_all(format!("{line}\n").as_bytes()).await {
+                    // A CLI that died on startup: its exit and stderr say why.
+                    tracing::warn!("[Agents] couldn't write to {id}'s turn: {e}");
+                    break;
+                }
+            }
+            drop(stdin);
+        });
+        let _ = tx.send(Some(super::steer::claude_line(&prompt, None)));
+        (Some(tx), None)
     } else {
         // A CLI that dies on startup closes stdin before reading it. Its exit
         // status and stderr say why; a "Broken pipe" here would only hide that.
@@ -749,6 +809,12 @@ pub(super) async fn run_turn(
         },
     );
 
+    // The user's messages into this turn (`steer`), where its engine takes them.
+    let mut steer_rx = if quiet || driver == Driver::CodexExec || driver == Driver::OpenCodeAcp {
+        None
+    } else {
+        super::steer::open(agent_id)
+    };
     let mut lines = BufReader::new(stdout).lines();
     let mut saw_result = false;
     // Whether that result really ended it, and the helpers still out (`turn_end`).
@@ -816,6 +882,9 @@ pub(super) async fn run_turn(
     // What it has done changed since it was last saved into the mark: saved
     // on the next peek tick, so a cut-off turn keeps its reply and timeline.
     let mut progress_dirty = false;
+    // Saved at most every PROGRESS_EVERY, off the async workers: a whole
+    // reply redacted and written each second was a steady cost for nothing.
+    let mut progress_saved = std::time::Instant::now();
 
     loop {
         tokio::select! {
@@ -836,6 +905,15 @@ pub(super) async fn run_turn(
                     let now = status_of(agent_id);
                     if now.state == "idle" || now.activity.as_deref().is_some_and(super::turn_end::is_waiting_line) {
                         set_status(app, agent_id, Status { state: "working", activity: None, since: Some(started), work: None, room: None });
+                    }
+                }
+                // One of the user's messages, read mid-turn (`steer`).
+                if driver == Driver::ClaudePrint {
+                    if let Some(id) = super::steer::claude_read(&value) {
+                        if super::steer::heard(agent_id, id) {
+                            refresh_status(app, agent_id);
+                        }
+                        continue;
                     }
                 }
                 // Claude Code's init says how it is really running: a turn
@@ -1092,6 +1170,11 @@ pub(super) async fn run_turn(
                             } else {
                                 set_status(app, agent_id, Status { state: "working", activity: Some(super::turn_end::waiting_line(helpers)), since: Some(started), work: None, room: None });
                             }
+                            // Let Claude Code go unless a message of the user's
+                            // is still waiting: it answers that next (`steer`).
+                            if driver == Driver::ClaudePrint && super::steer::close_if_idle(agent_id) {
+                                send(&writer, None);
+                            }
                             // Codex ends its turn once; only Claude Code's can reopen.
                             let grace = match driver {
                                 Driver::ClaudePrint => turn_end.grace(),
@@ -1101,6 +1184,26 @@ pub(super) async fn run_turn(
                         }
                     }
                 }
+            }
+            handed = async { steer_rx.as_mut().expect("guarded").recv().await }, if steer_rx.is_some() => {
+                let Some(handed) = handed else { steer_rx = None; continue };
+                match (driver, conversation.as_ref()) {
+                    (Driver::ClaudePrint, _) => {
+                        if let Some(tx) = &writer {
+                            let _ = tx.send(Some(super::steer::claude_line(&handed.text, Some(&handed.id))));
+                        }
+                    }
+                    (_, Some(c)) => match c.steer(&handed.text) {
+                        Some(msg) => {
+                            send(&writer, Some(msg));
+                            // Codex says nothing when it reads a steer: taken is read.
+                            super::steer::heard(agent_id, &handed.id);
+                        }
+                        None => super::steer::not_taken(agent_id, &handed.id),
+                    },
+                    _ => super::steer::not_taken(agent_id, &handed.id),
+                }
+                refresh_status(app, agent_id);
             }
             _ = draft_tick.tick(), if drafts.dirty() => {
                 progress_dirty = true;
@@ -1128,8 +1231,16 @@ pub(super) async fn run_turn(
             }
             _ = &mut deadline => { stopped = Some(Some(TIMEOUT_NOTE)); break; }
             _ = peek_tick.tick() => {
-                if std::mem::take(&mut progress_dirty) {
-                    save_progress(agent_id, drafts.current());
+                if progress_dirty && progress_saved.elapsed() >= PROGRESS_EVERY {
+                    progress_dirty = false;
+                    progress_saved = std::time::Instant::now();
+                    let (id, draft) = (
+                        agent_id.to_string(),
+                        drafts.current().map(|(m, t)| (m.to_string(), t.to_string())),
+                    );
+                    tokio::task::spawn_blocking(move || {
+                        save_progress(&id, draft.as_ref().map(|(m, t)| (m.as_str(), t.as_str())))
+                    });
                 }
                 if super::work::take_dirty(agent_id) {
                     let now = status_of(agent_id);
@@ -1200,6 +1311,12 @@ pub(super) async fn run_turn(
             })
             .await;
         }
+        send(&writer, None);
+    }
+
+    // The way in closes with the turn; what it never read waits for the next.
+    super::steer::close(agent_id);
+    if driver == Driver::ClaudePrint {
         send(&writer, None);
     }
 

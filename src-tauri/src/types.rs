@@ -902,6 +902,11 @@ pub struct AppState {
     /// keep running. Opt-in; remote access holds it awake on its own too.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_awake: Option<bool>,
+    /// Hold the display awake while an agent's turn runs, so the screen
+    /// doesn't lock under a step that needs it (Chrome's Allow window).
+    /// Opt-in: the lock is the user's security.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_screen_on: Option<bool>,
     /// Closing a window hides it and Ship Studio keeps running, so agents and
     /// check-ins keep going (macOS). Opt-in: `None` keeps the old behaviour,
     /// where closing a window quits.
@@ -935,6 +940,10 @@ pub struct AppState {
         deserialize_with = "crate::agents::defaults::lenient"
     )]
     pub agent_defaults: Option<crate::agents::defaults::Saved>,
+    /// Projects' terminals follow the agents' engine (`agents::defaults`):
+    /// set once the one-time catch-up ran or the engine was chosen since.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terminal_follows_agents: Option<bool>,
     /// A preview that stops by itself goes back to the agent that owns it
     /// (`agents::preview_fix`). `None` is on.
     #[serde(skip_serializing_if = "Option::is_none")]

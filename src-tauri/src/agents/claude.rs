@@ -1,5 +1,5 @@
 //! Claude Code's command line for one turn: `claude --print`, stream-json
-//! out, the prompt on stdin, approvals through our MCP server's `approve`
+//! in and out, the prompt (and messages sent mid-turn) on stdin, approvals through our MCP server's `approve`
 //! tool. Its stream is read by `stream::claude_steps` (and drafts by
 //! `stream::Drafts::on_stream_event`); the counterpart for Codex is `codex`
 //! and `codex_app`. `driver` picks between them per turn.
@@ -20,6 +20,10 @@ pub(super) fn args(
 ) -> Vec<String> {
     let mut args: Vec<String> = [
         "--print",
+        // The prompt, and the user's messages that arrive mid-turn, as
+        // stream-json lines on stdin (`runner::steer`).
+        "--input-format",
+        "stream-json",
         "--output-format",
         "stream-json",
         "--verbose",
@@ -89,8 +93,9 @@ pub(super) const ENV: [(&str, &str); 1] = [("CLAUDE_CODE_ARTIFACT", "1")];
 
 /// What only a `--print` turn gets: its output format, and approvals through
 /// our `approve` tool. A flag here that takes a value drops it too.
-const PRINT_ONLY: [&str; 5] = [
+const PRINT_ONLY: [&str; 6] = [
     "--print",
+    "--input-format",
     "--output-format",
     "--verbose",
     "--include-partial-messages",
@@ -98,7 +103,11 @@ const PRINT_ONLY: [&str; 5] = [
 ];
 
 /// Flags in [`PRINT_ONLY`] followed by a value.
-const PRINT_ONLY_WITH_VALUE: [&str; 2] = ["--output-format", "--permission-prompt-tool"];
+const PRINT_ONLY_WITH_VALUE: [&str; 3] = [
+    "--input-format",
+    "--output-format",
+    "--permission-prompt-tool",
+];
 
 /// The command line for the user taking over the agent's session
 /// (`takeover`): exactly a turn's, resuming the same session, so its tools,
@@ -196,9 +205,9 @@ mod tests {
         assert!(!mine.contains(&"stream-json".to_string()));
         assert!(!mine.contains(&prompts::approval_tool_id()));
 
-        // Everything else is the turn's, in the turn's order: exactly seven
-        // arguments fewer (five flags, two values).
-        assert_eq!(mine.len(), turn.len() - 7);
+        // Everything else is the turn's, in the turn's order: exactly nine
+        // arguments fewer (six flags, three values).
+        assert_eq!(mine.len(), turn.len() - 9);
         let mut rest = turn.iter();
         for arg in &mine {
             assert!(rest.any(|t| t == arg), "{arg} out of the turn's order");

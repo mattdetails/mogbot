@@ -710,13 +710,38 @@ pub struct Overview {
     pub homes: Vec<HomeSize>,
 }
 
-/// A home's size, and how much of it is regenerable.
+/// A home's size, and how much of it Free up space may remove: regenerable
+/// folders, and the app's kept conversation copies an account still holds
+/// in full (`transcript::redundant_copies`).
 pub fn measure(home: &Path) -> (u64, u64) {
+    measure_in(
+        home,
+        &super::wallet::engine_folders(super::engine::Engine::Claude),
+    )
+}
+
+fn measure_in(home: &Path, roots: &[PathBuf]) -> (u64, u64) {
     let regen: u64 = candidates(home, Duration::ZERO, SystemTime::now())
         .iter()
         .map(|d| size_of(d))
         .sum();
-    (size_of(home), regen)
+    let copies: u64 = super::transcript::redundant_copies(roots, home)
+        .iter()
+        .map(|(_, n)| n)
+        .sum();
+    (size_of(home), regen + copies)
+}
+
+/// Remove `home`'s kept conversation copies that an account folder in
+/// `roots` holds in full: nothing is lost, and the next turn keeps a copy
+/// again. They reached gigabytes (a copy per agent, rewritten every turn).
+pub fn drop_redundant_copies(home: &Path, roots: &[PathBuf], freed: &mut Freed) {
+    for (path, bytes) in super::transcript::redundant_copies(roots, home) {
+        if std::fs::remove_file(&path).is_ok() {
+            freed.bytes += bytes;
+            freed.removed += 1;
+        }
+    }
 }
 
 const SIZES_FRESH_FOR: Duration = Duration::from_secs(5 * 60);
@@ -773,12 +798,29 @@ pub async fn free_up(agent_id: &str) -> Freed {
             ..Freed::default()
         };
     }
-    prune_agent(agent_id, Duration::ZERO)
+    let mut freed = prune_agent(agent_id, Duration::ZERO)
         .await
         .unwrap_or(Freed {
             busy: true,
             ..Freed::default()
-        })
+        });
+    if !freed.busy && !super::runner::is_working(agent_id) {
+        if let Ok(home) = store::agent_home(agent_id) {
+            let roots = super::wallet::engine_folders(super::engine::Engine::Claude);
+            let mut more = Freed::default();
+            let _ = tokio::task::spawn_blocking(move || {
+                drop_redundant_copies(&home, &roots, &mut more);
+                more
+            })
+            .await
+            .map(|more| {
+                freed.bytes += more.bytes;
+                freed.removed += more.removed;
+            });
+            forget_sizes();
+        }
+    }
+    freed
 }
 
 #[cfg(test)]

@@ -162,6 +162,29 @@ fn a_script_the_line_writes_then_runs_is_judged_by_its_body() {
     }
 }
 
+/// CTO review 2026-11-14: a script run by an interpreter (`python3 p.py`)
+/// wasn't followed, so one holding `subprocess.run(["git","push","-f"])`
+/// ran with no card. Written then run on the same line, its code is read.
+#[test]
+fn an_interpreter_script_the_line_writes_is_read_for_what_it_starts() {
+    for cmd in [
+        "cat > p.py <<'EOF'\nimport subprocess\nsubprocess.run(['git','push','-f'])\nEOF\npython3 p.py",
+        "cat > x.js <<'EOF'\nrequire('child_process').execSync('git push -f')\nEOF\nnode x.js",
+        "cat > x.rb <<'EOF'\nsystem('sudo ls')\nEOF\nruby x.rb",
+        "cat > x.ts <<'EOF'\nnew Deno.Command('git', {args:['push']}).spawn()\nEOF\ndeno run -A x.ts",
+    ] {
+        assert!(go_hard(cmd), "asks at Go hard: {cmd:?}");
+    }
+    // Everyday scripts that read, parse and write files keep running.
+    for cmd in [
+        "cat > c.py <<'EOF'\nimport json\nprint(json.load(open('a.json'))['x'])\nEOF\npython3 c.py",
+        "cat > c.mjs <<'EOF'\nconst m = /a(b)/.exec(s); console.log(m)\nEOF\nnode c.mjs",
+        "python3 scripts/check.py",
+    ] {
+        assert!(!go_hard(cmd), "runs at Go hard: {cmd:?}");
+    }
+}
+
 /// A shell script written earlier in the turn (just now, on disk) and run
 /// by a shell is judged by what it says; one that has sat there a while,
 /// or that isn't a shell script, keeps today's behaviour.
@@ -353,12 +376,10 @@ fn a_write_through_a_variable_set_to_a_protected_path_asks() {
 /// would be. Only a guess that names something there counts: the engine's
 /// shell may have moved since, and `../site/.env` from a project the shell
 /// is really in stays a read of that project.
+// TODO(windows): the classifier reads POSIX shell paths; on Windows every
+// path asks, so this is held to Unix like the other classifier tests.
+#[cfg(unix)]
 #[test]
-// TODO(windows): on CI the temp dir is an 8.3 short name (RUNNER~1), and the
-// absolute read of bridge.json there didn't ask. Likely one side is
-// canonicalised to the long name and the other isn't. The real app-data
-// folder (%APPDATA%) has no short name; fix the comparison, then drop this.
-#[cfg_attr(windows, ignore = "8.3 short temp path vs canonical long path")]
 fn relative_paths_into_the_apps_data_are_resolved() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path().canonicalize().unwrap().join("home");

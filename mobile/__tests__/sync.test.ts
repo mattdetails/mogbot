@@ -16,6 +16,7 @@ import {
   confirmSend,
   emptySync,
   mergePage,
+  setPendingText,
   upsert,
   upsertAll,
   type SyncState,
@@ -259,5 +260,23 @@ describe('“When…” routines from the Mac (fixtures.gen.ts)', () => {
     expect(describeWatchTitle(folder.watch!.source)).toBe(
       'When a new file appears in /Users/julian/Downloads/invoices'
     );
+  });
+});
+
+describe('a send held while the words are tidied', () => {
+  it('swaps in the better words, then lets go of "Tidying…" to send', () => {
+    const held = addPending(emptySync(), {
+      clientId: 'c1',
+      agentId: 'a1',
+      text: 'ask lobby va',
+      ts: 1,
+      failed: false,
+      tidying: true,
+    });
+    const tidied = setPendingText(held, 'a1', 'c1', 'Ask Lobeva', true);
+    expect(tidied.pending.a1?.[0]).toMatchObject({ text: 'Ask Lobeva', tidying: true });
+    const going = setPendingText(tidied, 'a1', 'c1', 'Ask Lobeva', false);
+    expect(going.pending.a1?.[0]?.text).toBe('Ask Lobeva');
+    expect(going.pending.a1?.[0]).not.toHaveProperty('tidying');
   });
 });

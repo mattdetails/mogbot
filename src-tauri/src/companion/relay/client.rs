@@ -356,6 +356,13 @@ async fn session(
                         break Ended::WasUp;
                     }
                 }
+                Out::Authed(ch, generation) => {
+                    if open.get(&ch).is_some_and(|o| o.generation == generation)
+                        && ws.send(authed_text(ch)).await.is_err()
+                    {
+                        break Ended::WasUp;
+                    }
+                }
                 Out::Ended(ch, generation) => {
                     // Still open on the relay's side: close the phone's socket.
                     if open.get(&ch).is_some_and(|o| o.generation == generation) {
@@ -428,6 +435,12 @@ fn delete_error(code: &Value) -> String {
         }
         _ => "The sign-in service couldn't delete the account. It's still there; try again.".into(),
     }
+}
+
+/// Tells the relay this channel's phone proved its token, so it is never
+/// the one let go when strangers fill the Mac's phone slots.
+fn authed_text(ch: u32) -> Message {
+    Message::Text(json!({ "t": "authed", "ch": ch }).to_string())
 }
 
 fn close_text(ch: u32) -> Message {

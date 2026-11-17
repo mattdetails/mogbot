@@ -231,6 +231,12 @@ const NOT_ACTIONS: &[&str] = &[
     "all",
     "copy",
     "save",
+    // Openers: "Start a post", "Create post", "Write a comment" open a
+    // composer; the button inside it sends (Julian, 2026-11-16).
+    "start",
+    "create",
+    "write",
+    "compose",
 ];
 
 /// [`SENDS`] that, at "Go hard", are steps on the way rather than the final
@@ -267,9 +273,20 @@ pub struct Page {
     /// What it typed or filled in on this page, in order: the words a send
     /// click would send, shown on that card (`outward`).
     pub typed: Vec<String>,
+    /// Browser calls waiting for their answer: tool_use id → tool name. An
+    /// answer is read for labels only when it is one of these (CTO review
+    /// 2026-11-14: `echo 'ref_42 search box'` from Bash relabelled Send).
+    pub calls: HashMap<String, String>,
 }
 
 const MAX_REFS: usize = 4000;
+const MAX_CALLS: usize = 256;
+
+/// Browser calls whose answer says which `ref` is which control, or which
+/// page each tab is on.
+fn names_controls(name: &str) -> bool {
+    matches!(name, "read_page" | "find" | "browser_batch") || name.starts_with("tabs_")
+}
 const MAX_TYPED: usize = 8;
 
 /// Note what a typing step puts on the page (`form_input`'s value, a
@@ -343,11 +360,26 @@ pub fn observe(agent_id: &str, value: &Value) {
                         continue;
                     };
                     let input = b.get("input").cloned().unwrap_or(Value::Null);
+                    if let Some(id) = b.get("id").and_then(Value::as_str) {
+                        if page.calls.len() >= MAX_CALLS {
+                            page.calls.clear();
+                        }
+                        page.calls.insert(id.to_string(), name.to_string());
+                    }
                     on_call(page, name, &input);
                 }
                 Some("tool_result") => {
-                    let text = result_text(b.get("content"));
-                    on_answer(page, &text);
+                    // Only the browser's own reads name controls and tabs:
+                    // any other tool's output (a command, a fetched page) is
+                    // text the page could have written.
+                    let call = b
+                        .get("tool_use_id")
+                        .and_then(Value::as_str)
+                        .and_then(|id| page.calls.remove(id));
+                    if call.as_deref().is_some_and(names_controls) {
+                        let text = result_text(b.get("content"));
+                        on_answer(page, &text);
+                    }
                 }
                 _ => {}
             }
@@ -450,6 +482,25 @@ fn host_matches(host: &str, site: &str) -> bool {
     let h = host.trim_start_matches("www.").to_ascii_lowercase();
     let s = site.trim_start_matches("www.").to_ascii_lowercase();
     !s.is_empty() && (h == s || h.ends_with(&format!(".{s}")))
+}
+
+/// Whether the agent has `site` open in the user's own Chrome (our
+/// extension's tabs, or Claude in Chrome's): the browser it is working in
+/// there. A sign-in, passcode or step on that site belongs in that same
+/// Chrome, never the agents' browser where it isn't signed in (Julian,
+/// 2026-11-16: an X passcode in his Chrome raised an agents'-browser
+/// sign-in).
+pub fn in_users_chrome_on(agent_id: &str, site: &str) -> bool {
+    [user_chrome_key(agent_id), agent_id.to_string()]
+        .iter()
+        .map(|k| page_of(k))
+        .any(|p| {
+            p.tabs
+                .values()
+                .chain(p.url.iter())
+                .filter_map(|u| host_of(u))
+                .any(|h| host_matches(&h, site))
+        })
 }
 
 /// The host of a web URL (`http`/`https` only).
@@ -830,6 +881,58 @@ fn uploads_secret(input: &Value) -> bool {
     })
 }
 
+/// Pictures, videos and PDFs an upload may carry at "Go hard" when they are
+/// the agent's own.
+const OWN_MEDIA: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "heic", "mp4", "mov", "m4v", "webm", "pdf",
+];
+
+/// Every file an upload names is a picture, video or PDF inside the agent's
+/// own home (where it makes a post's image), judged where a link lands. "Go
+/// hard" uploads those without a card: one OK on the post's words covers
+/// the post, and asking again for its picture was a card per post (Social
+/// Posts, 12 posts, 2026-11-16). Anything else (the user's own files, a
+/// file that isn't media, no path at all) still asks.
+fn own_media(agent_id: &str, input: &Value) -> bool {
+    use std::path::{Component, Path, PathBuf};
+    let Ok(home) = super::store::agent_home(agent_id) else {
+        return false;
+    };
+    let real = |p: &Path| -> Option<PathBuf> {
+        if let Ok(c) = p.canonicalize() {
+            return Some(c);
+        }
+        // Not on disk (yet): only a plain absolute path, never `..`.
+        (p.is_absolute() && !p.components().any(|c| c == Component::ParentDir))
+            .then(|| p.to_path_buf())
+    };
+    let Some(home) = real(&home) else {
+        return false;
+    };
+    let mut paths = Vec::new();
+    for key in ["paths", "path", "filePath", "file"] {
+        match input.get(key) {
+            Some(Value::String(s)) => paths.push(s.clone()),
+            Some(Value::Array(a)) => {
+                paths.extend(a.iter().filter_map(Value::as_str).map(str::to_string))
+            }
+            _ => {}
+        }
+    }
+    !paths.is_empty()
+        && paths.iter().all(|p| {
+            let path = Path::new(p);
+            let media = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| OWN_MEDIA.contains(&e.to_ascii_lowercase().as_str()));
+            // `..` by either separator: in a Windows verbatim path (`\\?\C:\…`)
+            // `/` isn't a separator, so `components()` alone misses `../x`.
+            let climbs = p.split(['/', '\\']).any(|s| s == "..");
+            media && !climbs && real(path).is_some_and(|r| r.starts_with(&home) && r != home)
+        })
+}
+
 /// A text box or option, not a button: `textbox "Message"`, `combobox …`.
 fn is_field(label: &str) -> bool {
     let lower = label.trim_start().to_ascii_lowercase();
@@ -910,7 +1013,10 @@ fn decide(level: Level, agent: &Agent, name: &str, input: &Value, page: &Page) -
     if level.goes_hard() {
         match name {
             "file_upload" | "upload_image" => {
-                return free(level == Level::FullSend && !uploads_secret(input))
+                return free(
+                    !uploads_secret(input)
+                        && (level == Level::FullSend || own_media(&agent.id, input)),
+                )
             }
             "javascript_tool" => {
                 let url = url_for(page, input);
@@ -1035,7 +1141,8 @@ pub fn gate(agent: &Agent, tool: &str, input: &Value, outside: bool) -> Gate {
             outside,
             &page_of(&agents_key(&agent.id)),
         );
-        return held_for_exact_text(g, agent, tool, input);
+        let g = held_for_exact_text(g, agent, tool, input);
+        return unless_same_send(g, agent, tool, input);
     }
     if let Some(name) = tool.strip_prefix(USER_CHROME_SERVER) {
         // The user's own Chrome, through the app's extension: the same
@@ -1055,6 +1162,7 @@ pub fn gate(agent: &Agent, tool: &str, input: &Value, outside: bool) -> Gate {
             &page,
         );
         let g = held_for_exact_text(g, agent, tool, input);
+        let g = unless_same_send(g, agent, tool, input);
         let (n, i) = agents_equivalent(name, input);
         if g == Gate::Ask
             && only_unlabelled_enter(level, agent, super::outward::required(agent), &n, &i, &page)
@@ -1076,6 +1184,7 @@ pub fn gate(agent: &Agent, tool: &str, input: &Value, outside: bool) -> Gate {
     let page = page_of(&agent.id);
     let g = gate_with(team_enabled(), level, agent, tool, input, outside, &page);
     let g = held_for_exact_text(g, agent, tool, input);
+    let g = unless_same_send(g, agent, tool, input);
     let name = tool.strip_prefix(SERVER).unwrap_or(tool);
     if g == Gate::Ask
         && only_unlabelled_enter(
@@ -1155,6 +1264,77 @@ fn first_try(agent_id: &str, input: &Value) -> bool {
     seen.insert(key)
 }
 
+/// Sends the user allowed on a card, by agent: (agent, host, the words
+/// typed on the page, when). Posting is several clicks (Post, Confirm,
+/// Schedule) of one send: once its exact words were allowed, the next steps
+/// of that same send on that site go through instead of asking again for
+/// the same words (Julian, 2026-11-16: three cards per scheduled post).
+static ALLOWED_SENDS: Mutex<Vec<(String, String, String, i64)>> = Mutex::new(Vec::new());
+
+/// How long an allowed send's later steps go through.
+const SAME_SEND_MS: i64 = 15 * 60 * 1000;
+
+/// The page, tool name and input a browser call acts on, for any browser.
+fn call_on(agent_id: &str, tool: &str, input: &Value) -> Option<(Page, String, Value)> {
+    own_call(agent_id, tool, input).or_else(|| {
+        let name = tool.strip_prefix(SERVER)?;
+        Some((page_of(agent_id), name.to_string(), input.clone()))
+    })
+}
+
+/// The site and the words of a send step: `None` unless it is a step that
+/// goes out under the user's name with words typed on a known site, and
+/// nothing "Full send" still asks for (money, deleting for good, uploads,
+/// scripts).
+fn send_of(agent: &Agent, tool: &str, input: &Value) -> Option<(String, String)> {
+    let (page, name, input) = call_on(&agent.id, tool, input)?;
+    if matches!(
+        name.as_str(),
+        "javascript_tool" | "file_upload" | "upload_image" | "browser_batch"
+    ) || page.typed.is_empty()
+        || !outward_step_on(agent, &name, &input, &page)
+        || decide(Level::FullSend, agent, &name, &input, &page) != Gate::Allow
+    {
+        return None;
+    }
+    let host = url_for(&page, &input).and_then(|u| host_of(&u))?;
+    Some((host, super::outward::norm(&page.typed.join("\n"))))
+}
+
+/// The user allowed this browser step on a card: later steps of the same
+/// send (same site, same words) won't ask again for a while.
+pub fn note_allowed_send(agent: &Agent, tool: &str, input: &Value) {
+    let Some((host, words)) = send_of(agent, tool, input) else {
+        return;
+    };
+    let now = super::store::now_ms();
+    let mut sends = ALLOWED_SENDS.lock().unwrap_or_else(|e| e.into_inner());
+    sends.retain(|(_, _, _, at)| now - at < SAME_SEND_MS);
+    sends.push((agent.id.clone(), host, words, now));
+}
+
+/// Whether this step continues a send the user already allowed.
+fn same_send_allowed(agent: &Agent, tool: &str, input: &Value) -> bool {
+    let Some((host, words)) = send_of(agent, tool, input) else {
+        return false;
+    };
+    let now = super::store::now_ms();
+    ALLOWED_SENDS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .any(|(a, h, w, at)| *a == agent.id && *h == host && *w == words && now - at < SAME_SEND_MS)
+}
+
+/// A card the gate would raise for the next step of a send already allowed.
+fn unless_same_send(g: Gate, agent: &Agent, tool: &str, input: &Value) -> Gate {
+    if g == Gate::Ask && same_send_allowed(agent, tool, input) {
+        Gate::Allow
+    } else {
+        g
+    }
+}
+
 /// With "nothing goes out under my name unless I OK the exact text" on
 /// (`outward`), a send click, Enter or script that submits asks at every
 /// level, "Full send" included: its card shows what was typed.
@@ -1205,6 +1385,16 @@ pub fn outward_step_on(agent: &Agent, name: &str, input: &Value, page: &Page) ->
     ) || name.starts_with("unknown_")
     {
         return false;
+    }
+    // A click by coordinate (or on a ref nothing labelled) after typing on
+    // this page can't be told from the Post button: Go hard lets it through
+    // as unlabelled, so on its own it would skip the exact-text card. Found
+    // in review (CTO, 2026-11-14): type a post, click Post by position.
+    if name == "computer" && !page.typed.is_empty() {
+        let action = input.get("action").and_then(Value::as_str).unwrap_or("");
+        if CLICKS.contains(&action) && target_of(page, input).is_none() {
+            return true;
+        }
     }
     decide(Level::GoHard, agent, name, input, page) != Gate::Allow
 }
@@ -1338,6 +1528,8 @@ pub fn agents_equivalent(name: &str, input: &Value) -> (String, Value) {
         "find" => ("find".into(), i),
         "get_text" => ("get_page_text".into(), i),
         "close_tab" => ("tabs_close_mcp".into(), i),
+        // A picture pasted from this Mac is an upload: the same rules.
+        "attach_image" => ("upload_image".into(), i),
         "browsers" => ("list_connected_browsers".into(), i),
         "use_browser" => ("select_browser".into(), i),
         "hover" => {

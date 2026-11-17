@@ -56,8 +56,42 @@ const SLOW_HINT: Record<WorkSlow, string> = {
   other: 'This usually takes a few minutes',
 };
 
-/** After a minute on a known slow tool: a quiet "This usually takes a few minutes". */
-export function slowHint(call: LiveCall | undefined, now: number): string | null {
+/** A Claude in Chrome call this long may be held by Chrome's own Allow window. */
+export const CHROME_ALLOW_HINT_AFTER_MS = 20_000;
+/** A list row's words for a Claude in Chrome call that sits (`chromeAllowHint`). */
+export const CHROME_ALLOW_ROW = 'Allow in Chrome?';
+/** The same, while the Mac's screen is locked. */
+export const CHROME_LOCKED_ROW = 'Unlock your Mac to go on';
+
+/**
+ * Chrome's per-site Allow window shows only on the Mac, never as a card, so
+ * a Claude in Chrome step that sits says where to look. "May": the Mac
+ * can't see that window, only how long the call has been running.
+ */
+export function chromeAllowHint(
+  call: LiveCall | undefined,
+  now: number,
+  computer = 'your Mac'
+): string | null {
+  if (!call?.chrome || now - call.startedAt < CHROME_ALLOW_HINT_AFTER_MS) return null;
+  if (call.locked) {
+    const cap = computer.charAt(0).toUpperCase() + computer.slice(1);
+    return `${cap} is locked: unlock it so Chrome can ask for its Allow and the agent can carry on`;
+  }
+  return `Chrome may be waiting for you to click Allow on ${computer}`;
+}
+
+/**
+ * After a minute on a known slow tool: a quiet "This usually takes a few
+ * minutes". A Claude in Chrome step that sits: where its Allow may be waiting.
+ */
+export function slowHint(
+  call: LiveCall | undefined,
+  now: number,
+  computer = 'your Mac'
+): string | null {
+  const chrome = chromeAllowHint(call, now, computer);
+  if (chrome) return chrome;
   if (!call?.slow || now - call.startedAt < SLOW_HINT_AFTER_MS) return null;
   return SLOW_HINT[call.slow] ?? SLOW_HINT.other;
 }
@@ -122,7 +156,13 @@ export function workingRowLine(
   const quiet = quietLine(work, now);
   if (quiet) return { text: quiet, elapsed: null };
   const call = work?.current;
-  const text = call?.label ?? activity?.trim() ?? '';
+  // A list shows who is blocked on Chrome's Allow window without opening the chat.
+  const chrome = chromeAllowHint(call, now)
+    ? call?.locked
+      ? CHROME_LOCKED_ROW
+      : CHROME_ALLOW_ROW
+    : null;
+  const text = chrome ?? call?.label ?? activity?.trim() ?? '';
   const from = call?.startedAt ?? since ?? null;
   return {
     text: text || 'Thinking',

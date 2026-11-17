@@ -214,7 +214,8 @@ function legend(drawing: ReturnType<typeof legendDrawing>, under?: 'low' | 'high
       data-glow={under === 'keyline' ? undefined : under}
       data-round={drawing?.round || undefined}
       data-fill={drawing?.fill || undefined}
-      viewBox={`0 0 ${KEY_ICON_GRID} ${KEY_ICON_GRID}`}
+      data-face={drawing?.viewBox ? true : undefined}
+      viewBox={drawing?.viewBox ?? `0 0 ${KEY_ICON_GRID} ${KEY_ICON_GRID}`}
       focusable="false"
     >
       {drawing?.paths.map((d, i) => (

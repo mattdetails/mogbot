@@ -6,18 +6,27 @@
  * clicking a session or terminal row goes back to the terminals, which keep
  * running underneath.
  *
- * In memory only: a relaunch opens on the terminals, as before.
+ * Opening a project picks one by itself (`lib/projectOpens`, `openingFor`):
+ * the agent it opened on last, an agent working there, or [`PICK_AGENT`], the
+ * screen asking who should work on it. Once anything was shown for a project
+ * this session, that stays until the user changes it.
  *
  * @module lib/sessionAgentChat
  */
 
 import { useSyncExternalStore } from 'react';
 
+/** Instead of an agent's id: ask who should work on the project. */
+export const PICK_AGENT = ':pick';
+
 let shown = new Map<string, string>();
+/** Projects something was shown for this session (terminals included). */
+let decided = new Set<string>();
 const listeners = new Set<() => void>();
 
 /** Show `agentId`'s chat in `projectPath`'s Session panel, or the terminals again (null). */
 export function showAgentInSession(projectPath: string, agentId: string | null) {
+  decided.add(projectPath);
   if ((shown.get(projectPath) ?? null) === agentId) return;
   const next = new Map(shown);
   if (agentId) next.set(projectPath, agentId);
@@ -25,6 +34,9 @@ export function showAgentInSession(projectPath: string, agentId: string | null) 
   shown = next;
   for (const l of listeners) l();
 }
+
+/** Whether this project's Session panel was set this session (so opening it again leaves it). */
+export const sessionDecided = (projectPath: string) => decided.has(projectPath);
 
 /** The agent whose chat the Session panel shows for this project, if any. */
 export function sessionAgentOf(projectPath: string | null | undefined): string | null {
@@ -49,5 +61,6 @@ export function useSessionAgent(projectPath: string | null | undefined): string 
 /** Tests only. */
 export function __resetSessionAgents() {
   shown = new Map();
+  decided = new Set();
   for (const l of listeners) l();
 }

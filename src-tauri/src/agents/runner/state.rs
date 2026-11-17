@@ -206,6 +206,9 @@ pub(super) struct Runtime {
     /// other agents' answers to this agent: it may end with no post
     /// ([`quiet_answer`]).
     pub(super) answers_only: bool,
+    /// The way into the turn in progress for the user's next messages, while
+    /// its engine takes them mid-turn (`steer`).
+    pub(super) steer: Option<super::steer::Slot>,
 }
 
 /// Why a take-over can't start now.

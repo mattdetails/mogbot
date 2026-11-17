@@ -18,6 +18,8 @@ import { setThumbnailsEnabled } from '../lib/settings';
 import { isPermissionDenialError } from '../lib/thumbnailGate';
 import { asCommandError, formatCommandError } from '../lib/errors';
 import { BRAND } from '../lib/brand';
+import { pickOurWindow } from '../lib/captureWindow';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 /** Real underlying message for a capture failure (never "[object Object]"). */
 const captureErrorMessage = (error: unknown): string => formatCommandError(asCommandError(error));
@@ -81,11 +83,10 @@ export function usePreviewCapture({
       await import('tauri-plugin-screenshots-api');
 
     const windows = await getScreenshotableWindows();
-    const ourWindow = windows.find(
-      (w) =>
-        w.title?.toLowerCase().includes(BRAND.name.toLowerCase()) ||
-        w.title?.toLowerCase().includes('tauri')
-    );
+    const title = await getCurrentWindow()
+      .title()
+      .catch(() => null);
+    const ourWindow = pickOurWindow(windows, { appName: BRAND.name, title });
 
     if (!ourWindow) {
       // macOS omits window titles from the capturable-windows list when Screen

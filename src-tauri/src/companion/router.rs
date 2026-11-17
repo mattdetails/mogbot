@@ -150,6 +150,7 @@ pub const METHODS: &[&str] = &[
     "agents.teamSetup.dismiss",
     "agents.teamSetup.later",
     "agents.teamSetup.check",
+    "dictation.transcribe",
 ];
 
 /// `READ_ONLY_METHODS` in methods.ts (the served subset): not audited.
@@ -232,6 +233,8 @@ pub struct SendExtras {
     /// The conversation it was sent in; `None` from an older phone (the one
     /// the user is in).
     pub conversation: Option<String>,
+    /// When the user wrote it (ms); `None` from an older phone.
+    pub written_at: Option<i64>,
 }
 
 /// What `rooms.send` carries besides the room and the text.
@@ -1064,6 +1067,17 @@ pub trait Backend: Send + Sync + 'static {
     fn server_name(&self) -> String;
     fn app_version(&self) -> String;
     fn audit(&self, actor: &str, tool: &str, detail: String, ok: bool);
+    /// `dictation.transcribe`: write a dictation's 16 kHz mono audio out
+    /// again (`crate::voice::improve`) with the team's names and the last
+    /// lines of `agent_id`'s chat (or `room_id`'s thread) as context. With
+    /// no speech model yet, start its one-time download and answer
+    /// `preparing`.
+    async fn transcribe(
+        &self,
+        samples_16k: Vec<f32>,
+        agent_id: Option<String>,
+        room_id: Option<String>,
+    ) -> Result<super::dictation::Transcribed, CommandError>;
     /// Something the Phone panel shows changed (a pair request, a connect).
     fn changed(&self);
 }
@@ -1406,6 +1420,16 @@ struct BlobParam {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct TranscribeParams {
+    blob: String,
+    #[serde(default)]
+    agent_id: Option<String>,
+    #[serde(default)]
+    room_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PathParams {
     agent_id: String,
     path: String,
@@ -1720,6 +1744,10 @@ struct SendParams {
     revises: Option<String>,
     #[serde(default)]
     conversation: Option<String>,
+    /// When the user wrote it, by the phone's clock (ms): a typed yes
+    /// answers only a card that was open then (`agents_send`).
+    #[serde(default)]
+    written_at: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -1817,7 +1845,10 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
     let field = |k: &str| params.get(k).and_then(Value::as_str).unwrap_or("");
     let preview = crate::remote_access::preview;
     match method {
-        "agents.send" | "sessions.send" => preview(field("text")),
+        "agents.send" => preview(field("text")),
+        // Typed into a session's terminal: it may be a password at a prompt,
+        // so only how long it was (CTO review 2026-11-14).
+        "sessions.send" => format!("typed {} chars", field("text").chars().count()),
         "rooms.send" => preview(&format!("in a room: {}", field("text"))),
         "rooms.focus" => field("roomId").to_string(),
         "sessions.key" => format!("pressed {}", field("key")),
@@ -1990,6 +2021,8 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
         },
         "agents.fetchPath" => preview(field("path")),
         "agents.revokePermission" => format!("revoke {} {}", field("ruleId"), field("agentId")),
+        // Never the words: what was said is the user's.
+        "dictation.transcribe" => "wrote out a dictation".into(),
         "agents.skillEdit" => format!("edit skill {} of {}", field("slug"), field("agentId")),
         "agents.skillRemove" => format!("remove skill {} of {}", field("slug"), field("agentId")),
         "agents.onItsOwnNarrow" => format!(
@@ -2323,6 +2356,7 @@ async fn run(
                         client_id: Some(client_id),
                         revises: p.revises.filter(|r| !r.trim().is_empty()),
                         conversation: p.conversation.filter(|c| !c.trim().is_empty()),
+                        written_at: p.written_at,
                     };
                     let sent = b.send(&p.agent_id, text, extras).await?;
                     c.blobs.consume(&blob_ids);
@@ -2363,6 +2397,11 @@ async fn run(
         }
         "rooms.focus" => {
             let p: RoomFocusParams = parse(params)?;
+            if p.room_id.is_some() {
+                // A chat open on the phone: dictation may come, so Whisper
+                // loads now, for someone who dictates.
+                crate::voice::warm_up_for_chat();
+            }
             b.room_focus(&caller.label, p.room_id).await?;
             Ok(Value::Null)
         }
@@ -2451,6 +2490,11 @@ async fn run(
         }
         "agents.focus" => {
             let p: FocusParams = parse(params)?;
+            if p.agent_id.is_some() {
+                // A chat open on the phone: dictation may come, so Whisper
+                // loads now, for someone who dictates.
+                crate::voice::warm_up_for_chat();
+            }
             c.set_showing(&caller.label, p.agent_id.clone());
             b.focus(&caller.label, p.agent_id).await?;
             Ok(Value::Null)
@@ -3236,7 +3280,9 @@ async fn run(
         }
         "sessions.key" => {
             let p: SessionKeyParams = parse(params)?;
-            if crate::remote_access::tools::key_bytes(&p.key).is_none() {
+            if crate::remote_access::tools::key_bytes(&p.key).is_none()
+                && crate::remote_access::tools::option_index(&p.key).is_none()
+            {
                 return Err(WireError::protocol(
                     ProtocolCode::Refused,
                     format!("\"{}\" isn't a key the phone can press.", p.key),
@@ -3278,6 +3324,29 @@ async fn run(
                 now_ms(),
             )?;
             Ok(to_value(&blob.as_ref()))
+        }
+        "dictation.transcribe" => {
+            let p: TranscribeParams = parse(params)?;
+            let blob = c
+                .blobs
+                .get(&caller.device_id, &p.blob, now_ms())
+                .ok_or_else(|| {
+                    WireError::from(CommandError::expected(
+                        "The recording didn't reach this computer. Try again.",
+                    ))
+                })?;
+            // The audio is read once and gone: never kept, whatever happens next.
+            let bytes = std::fs::read(&blob.path);
+            c.blobs.consume(std::slice::from_ref(&p.blob));
+            let bytes = bytes.map_err(|e| CommandError::from(format!("read recording: {e}")))?;
+            let samples = crate::voice::pcm::parse_wav(&bytes).map_err(bad_params)?;
+            drop(bytes);
+            let samples = crate::voice::pcm::capped(samples);
+            let some = |s: Option<String>| s.filter(|s| !s.trim().is_empty());
+            Ok(to_value(
+                &b.transcribe(samples, some(p.agent_id), some(p.room_id))
+                    .await?,
+            ))
         }
         _ => Err(WireError::protocol(
             ProtocolCode::UnknownMethod,

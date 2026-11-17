@@ -67,7 +67,12 @@ import { RememberModal } from './AgentRemember';
 import { useArrivals, useFollowBottom, usePresence, useRecently } from './useAgentMotion';
 import { useRowAnchoring } from './useRowAnchoring';
 import { useDictation } from './useDictation';
-import { blockedCopy, dictationVocabulary, openPrivacySettings } from '../../lib/dictation';
+import {
+  blockedCopy,
+  dictationContext,
+  dictationVocabulary,
+  openPrivacySettings,
+} from '../../lib/dictation';
 import { listProjects } from '../../lib/project';
 import {
   toOutgoing,
@@ -81,7 +86,9 @@ import { ConversationPage, ConversationPagePin } from './ConversationPage';
 import { useConversationPage } from '../../lib/agentPage';
 import {
   FIRST_CONVERSATION,
+  cardToOpen,
   conversationKey,
+  conversationOf,
   loadedConversation,
 } from '../../lib/agentConversations';
 import {
@@ -131,6 +138,8 @@ import {
   newestPeerGroups,
   interruptAgent,
   isQueued,
+  isHanded,
+  isHeard,
   retryExtras,
   retrySourceFor,
   continuesFrom,
@@ -162,6 +171,7 @@ import {
   roleWithoutPath,
   showsStarters,
   agentKeyState,
+  needsYou,
   ROUTINES_NEED_THE_COMPUTER,
 } from '../../lib/agents';
 import { AgentStarters } from './AgentStarters';
@@ -305,6 +315,8 @@ function TemplateStarters({
 }
 
 /** Within this many px of the bottom counts as "at the bottom". */
+/** The row of a message sent while dictation still tidies it (useDictation `holdOnSend`). */
+const HELD_ID = 'dictation-held';
 const STICK_THRESHOLD = 80;
 
 /** Older lines start loading while this many screens of history are still above. */
@@ -430,6 +442,11 @@ interface AgentChatProps extends AgentActions {
   /** A search result to scroll to and flash; `onJumped` is called once it's shown. */
   jumpTo?: string | null;
   onJumped?: () => void;
+  /**
+   * Open the chat on one line, in its own conversation (switching to it):
+   * how a card waiting elsewhere in this agent's chat is reached.
+   */
+  onOpenMessage?: (agentId: string, messageId: string, conversation?: string) => void;
   /** Words put in the composer for you to finish ("Set up an agent that "); `n` asks again. */
   prefill?: { text: string; n: number } | null;
   /** "Apps your agents can use", for a ready-made agent that needs one. */
@@ -484,6 +501,7 @@ export const AgentChat = memo(function AgentChat({
   compact,
   jumpTo,
   onJumped,
+  onOpenMessage,
   prefill,
   onOpenApps,
   onMoreIdeas,
@@ -531,6 +549,22 @@ export const AgentChat = memo(function AgentChat({
   // Every line it has, whatever the conversation: what waits on you (its
   // cards) is the agent's, said in every conversation.
   const allLines = useAgentsSelector((s) => s.messages[agent.id]);
+  // Opened while its row says "Needs your OK": on the card, in whichever of
+  // its conversations holds it (the conversation the user was last in may
+  // not), once per agent opened. A search hit being jumped to comes first.
+  const landedFor = useRef<string | null>(null);
+  const waitsOnYou = needsYou(agent);
+  useEffect(() => {
+    if (!onOpenMessage || !viewing || !allLines || landedFor.current === agent.id) return;
+    landedFor.current = agent.id;
+    if (!waitsOnYou || jumpTo) return;
+    const card = cardToOpen(allLines);
+    if (card) onOpenMessage(agent.id, card.message.id, card.conversation);
+  }, [agent.id, viewing, allLines, waitsOnYou, jumpTo, onOpenMessage]);
+  const reviewCard = useCallback(
+    (message: AgentMessage) => onOpenMessage?.(agent.id, message.id, conversationOf(message)),
+    [agent.id, onOpenMessage]
+  );
   // The streaming bubble's place in the history: the same object for the
   // whole reply, so the history is built once when it starts, not per word.
   const streaming = useMemo(
@@ -583,13 +617,29 @@ export const AgentChat = memo(function AgentChat({
       ),
     []
   );
+  // The names pass reads the last few messages here (lib/dictation).
+  const getContext = useStableEvent(() =>
+    dictationContext(
+      (Array.isArray(messages) ? messages : [])
+        .filter((m) => m.kind === 'user' || m.kind === 'agent')
+        .map((m) => ({ who: m.kind === 'user' ? 'Me' : agent.name, text: m.text }))
+    )
+  );
   const dictation = useDictation({
     getDraft,
     setDraft,
     getVocabulary,
+    getContext,
     meterRef: micRef,
     enabled: engineReady,
+    holdOnSend: true,
   });
+  const held = dictation.held;
+  // A held message is already in the chat: the field is an ordinary empty one again.
+  const composerDictation = useMemo(
+    () => (held === null ? dictation : { ...dictation, phase: 'idle' as const }),
+    [dictation, held]
+  );
   const dictating = dictation.phase !== 'idle';
   const blocked = dictation.blocked ? blockedCopy(dictation.blocked) : null;
   const sectionRef = useRef<HTMLElement>(null);
@@ -825,8 +875,11 @@ export const AgentChat = memo(function AgentChat({
     // The reply being written sits after what's settled and before anything
     // you've just sent, which it will read next.
     const draft = streaming && !list.some((m) => m.id === streaming.id) ? [streaming] : [];
+    // Sent while dictation still tidies it: here at once, dimmed, until it goes.
+    if (held !== null)
+      local.push({ id: HELD_ID, agentId: agent.id, ts: Date.now(), kind: 'user', text: held });
     return { shown: [...list, ...draft, ...local], aliases, failed, sending };
-  }, [messages, pending, agent.id, streaming]);
+  }, [messages, pending, agent.id, streaming, held]);
 
   // What the rows read from the agent. A status or activity change re-renders
   // the header and the indicator, never the history.
@@ -987,13 +1040,19 @@ export const AgentChat = memo(function AgentChat({
   const turnState = agent.status.state;
   const turnSince = agent.status.since;
   const takeoverSince = agent.takeover?.since;
+  // Your messages the turn took mid-turn: joined, so a new status with the
+  // same ids doesn't rebuild everything that reads the turn.
+  const handedKey = agent.status.work?.handed?.join('\n') ?? '';
+  const heardKey = agent.status.work?.heard?.join('\n') ?? '';
   const turn = useMemo(
     () =>
       ({
         status: { state: turnState, since: turnSince },
         takeover: takeoverSince === undefined ? undefined : { since: takeoverSince },
+        handed: handedKey ? handedKey.split('\n') : undefined,
+        heard: heardKey ? heardKey.split('\n') : undefined,
       }) satisfies AgentTurn,
-    [turnState, turnSince, takeoverSince]
+    [turnState, turnSince, takeoverSince, handedKey, heardKey]
   );
   const drivingId = useMemo(() => drivingBriefId(items, turn), [items, turn]);
   // Retry belongs to the newest failure only, and only if nothing was said
@@ -1596,6 +1655,7 @@ export const AgentChat = memo(function AgentChat({
     const canSend = draft.trim().length > 0 || staged.length > 0 || quotes.length > 0;
     if (!canSend || dictating) return;
     const typed = draft.trim();
+    dictation.noteSent(typed);
     // Edit and resend: back to just before the message, then this goes there.
     if (editing) {
       const target = editing;
@@ -1761,8 +1821,11 @@ export const AgentChat = memo(function AgentChat({
                 arrived={arrived}
                 failed={failed.has(m.id)}
                 sending={sending.get(m.id)}
+                tidying={m.id === HELD_ID}
                 onRetry={retry}
                 queued={m.id === queuedId}
+                handed={m.id === queuedId && isHanded(m, turn)}
+                heard={isHeard(m, turn)}
                 onInterrupt={interruptNow}
                 driven={driven}
                 colorwayOf={colorwayOf}
@@ -1898,6 +1961,7 @@ export const AgentChat = memo(function AgentChat({
       sending,
       retry,
       queuedId,
+      turn,
       interruptNow,
       driven,
       colorwayOf,
@@ -2214,7 +2278,13 @@ export const AgentChat = memo(function AgentChat({
                       { id: 'stepIn', node: <StepInBar agent={agent} messages={allLines ?? []} /> },
                       {
                         id: 'waiting',
-                        node: <WaitingForYouBar agent={agent} messages={allLines ?? []} />,
+                        node: (
+                          <WaitingForYouBar
+                            agent={agent}
+                            messages={allLines ?? []}
+                            onReview={onOpenMessage ? reviewCard : undefined}
+                          />
+                        ),
                       },
                       {
                         id: 'takeover',
@@ -2281,7 +2351,11 @@ export const AgentChat = memo(function AgentChat({
                           <ConversationBar
                             role="alert"
                             state="waiting"
-                            title={blocked.message}
+                            title={
+                              dictation.preparing === null
+                                ? blocked.message
+                                : `${blocked.message} ${Math.round(dictation.preparing * 100)}%`
+                            }
                             actions={
                               <>
                                 <TextButton onClick={dictation.dismissBlocked}>Dismiss</TextButton>
@@ -2312,7 +2386,7 @@ export const AgentChat = memo(function AgentChat({
                     agentName={agent.name}
                     inputRef={inputRef}
                     micRef={micRef}
-                    dictation={dictation}
+                    dictation={composerDictation}
                     mentionSet={mentionSet}
                     staged={staged}
                     onRemoveStaged={attachments.remove}

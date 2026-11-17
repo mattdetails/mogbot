@@ -27,6 +27,13 @@
  *   your finger; let go and what it heard is sent; slide away first and
  *   nothing is (lib/dictation.ts, `holdEnds`). The mic is the accent while
  *   it's held.
+ * - tidying: when the paired computer serves `dictation.transcribe`, a
+ *   dictation that heard you is written out again there once it ends
+ *   (lib/dictation.ts, `improve`): the card stays, saying "Tidying…", ×
+ *   puts the draft back and Send waits for the better words (15 s at most);
+ *   tapping the words lets you edit meanwhile. Then the better words replace
+ *   the dictated part (never over your typing) and the line over the field
+ *   says "Tidied the names and words" with **Undo** for 8 s.
  *
  * The field is one piece of the system's glass (Glass.tsx) where the phone
  * has it, as the tab bar is; a theme surface where it doesn't. Everything is
@@ -46,6 +53,7 @@
 import {
   MAC_FEATURES,
   MAX_ATTACHMENTS,
+  VOICE_LEVEL,
   type Agent,
   type AgentRef,
 } from '@shipstudio/companion-protocol';
@@ -79,6 +87,7 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import {
+  DICTATION_AUDIO_NAME,
   HOLD_CANCEL_DISTANCE,
   HOLD_DELAY_MS,
   RECORDING_NAME,
@@ -104,7 +113,10 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import type { ComposerDraft } from '../lib/drafts';
+import { LiveWords, type WordMorph } from './LiveWords';
 import { Waveform } from './Waveform';
+import { ListeningLine, newListeningMeter, type ListeningMeter } from './ListeningLine';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccent } from '../lib/accent';
 import { needsYou } from '../lib/agents';
@@ -141,7 +153,18 @@ import { haptic } from '../lib/haptics';
 import { useRouter } from 'expo-router';
 import { chipLabel } from '../lib/agentControls';
 import { OUTBOX_WAIT_MS } from '../lib/outbox';
-import { describeError, send, sendEdited, stop, upload } from '../lib/session';
+import {
+  describeError,
+  discardPending,
+  holdTidying,
+  isHeld,
+  send,
+  sendEdited,
+  setHeldText,
+  stop,
+  tidyDictation,
+  upload,
+} from '../lib/session';
 import { getApp, useApp, useServed } from '../lib/store';
 import {
   keySize,
@@ -203,6 +226,9 @@ export function Composer({
   const { fontScale } = useWindowDimensions();
   const draft = useComposerDraft(agent.id);
   const [staged, setStaged] = useState<Staged[]>([]);
+  // Between the picker closing and its files arriving (photos are converted
+  // first, a few seconds for many): said, so it never looks like nothing.
+  const [preparing, setPreparing] = useState(false);
   // The Mac's last answer while it's away: "+" stays, disabled, so the field doesn't jump.
   const canAttach = useServed('agents.files');
   const team = useApp((s) => s.overview?.agents ?? NONE);
@@ -238,9 +264,34 @@ export function Composer({
     return () => clearTimeout(t);
   }, [restored]);
   const vocabulary = useMemo(() => team.map((a) => a.name), [team]);
-  const getDraft = useCallback(() => getApp().composer[agent.id]?.text ?? '', [agent.id]);
+  // Send pressed while the computer still tidies what was said: the message is
+  // already in the chat (dimmed, "Tidying…") and the field is free. The words
+  // still coming (the last ones, then the better ones) go to it, not the field.
+  const heldSend = useRef<{ clientId: string; draft: ComposerDraft; now: boolean } | null>(null);
+  // The field stops being the dictation card while a held message waits.
+  const [holding, setHolding] = useState(false);
+  const getDraft = useCallback(
+    () => heldSend.current?.draft.text ?? getApp().composer[agent.id]?.text ?? '',
+    [agent.id]
+  );
+  /** What it hears, for the listening line (never through React state). */
+  const heard = useRef<ListeningMeter>(newListeningMeter());
   const putSpoken = useCallback(
     (text: string) => {
+      if (text.trim()) heard.current.lastWordsAt = Date.now();
+      const h = heldSend.current;
+      // Let go by the app meanwhile (it waited too long): it's sent as it
+      // was, so words this late are dropped, never put in an emptied field.
+      if (h && !isHeld(agent.id, h.clientId)) {
+        heldSend.current = null;
+        setHolding(false);
+        return;
+      }
+      if (h) {
+        h.draft = { ...h.draft, text };
+        setHeldText(agent.id, h.clientId, text);
+        return;
+      }
       const mentions = getApp().composer[agent.id]?.mentions ?? [];
       setComposer(agent.id, { text, mentions: liveMentions(text, mentions) });
     },
@@ -248,9 +299,48 @@ export function Composer({
   );
   // The voice's level, 0..1, straight to the UI thread: the waveform reads it there.
   const level = useSharedValue(0);
-  const onLevel = useCallback((l: number) => level.set(l), [level]);
-  const dictation = useDictation({ getDraft, setDraft: putSpoken, vocabulary, onLevel });
-  const listening = dictation.phase !== 'idle';
+  const onLevel = useCallback(
+    (l: number) => {
+      level.set(l);
+      heard.current.readyAt ??= Date.now();
+      if (l >= VOICE_LEVEL) heard.current.lastVoiceAt = Date.now();
+    },
+    [level]
+  );
+  // The computer writes each dictation out again when it can: better names and words.
+  const canTidy = useServed('dictation.transcribe', MAC_FEATURES.dictation);
+  const improve = useMemo(
+    () =>
+      canTidy && connected
+        ? (uri: string) =>
+            tidyDictation({ uri, name: DICTATION_AUDIO_NAME, mime: 'audio/wav' }, agent.id)
+        : null,
+    [canTidy, connected, agent.id]
+  );
+  const dictation = useDictation({
+    getDraft,
+    setDraft: putSpoken,
+    vocabulary,
+    onLevel,
+    improve,
+    discard: discardFile,
+  });
+  // Tapping the words while it tidies: edit them meanwhile (the better words won't overwrite you).
+  const [editingTidy, setEditingTidy] = useState(false);
+  const tidying = dictation.tidying;
+  useEffect(() => {
+    if (!tidying) setEditingTidy(false);
+  }, [tidying]);
+  /** The field is the dictation card: listening, or tidying what it heard. */
+  const listening = !holding && (dictation.phase !== 'idle' || (tidying && !editingTidy));
+  // No live words show, so there's no swap to show either: they just appear.
+  const [morph, setMorph] = useState<WordMorph | null>(null);
+  // A new dictation: its own clock and hearing.
+  const listeningNow = dictation.phase === 'listening';
+  useEffect(() => {
+    if (listeningNow) heard.current = newListeningMeter();
+  }, [listeningNow]);
+  const morphing = !!morph && !listening && draft.text === morph.to;
   /** A voice message: the mic is held (or was, and its last words are landing). */
   const held = listening && dictation.state.held;
   const problem = dictation.problem ? problemCopy(dictation.problem) : null;
@@ -326,7 +416,8 @@ export function Composer({
   /** Tapping the words while it listens: keep them and edit. */
   const editDictation = () => {
     refocus.current = true;
-    dictation.stop();
+    if (dictation.phase === 'idle' && tidying) setEditingTidy(true);
+    else dictation.stop();
   };
   const fixProblem = () => {
     const fix = problem?.fix;
@@ -372,7 +463,13 @@ export function Composer({
       : !listening && problem?.fix === 'retry'
         ? 'Try again'
         : null;
-  const chipNow = offerNow && !fixLabel;
+  // No Undo: the words you saw are the written-out ones; there's nothing earlier to go back to.
+  const undo: typeof dictation.undo = null;
+  const undoTidy = () => {
+    haptic.select();
+    dictation.undoTidy();
+  };
+  const chipNow = offerNow && !fixLabel && !undo;
 
   const query = mentionQuery(draft.text);
   const suggestions = useMemo(() => {
@@ -404,27 +501,32 @@ export function Composer({
 
   const add = (files: PickedFile[]) => {
     const { kept, refused } = admit(files, MAX_ATTACHMENTS - attached);
-    if (refused) onError(refused);
+    if (refused) {
+      haptic.error();
+      onError(refused);
+    }
     const items = kept.map((file) => ({ key: `f${seq.current++}`, file, progress: 0 }));
     setStaged((list) => [...list, ...items]);
     items.forEach((item) => void start(item));
   };
 
+  // A pick that fails always says so: never an empty line.
+  const pickFailed = (e: unknown) => {
+    haptic.error();
+    onError(describeError(e).trim() || 'Those files couldn’t be added. Try again.');
+  };
+  const picking = (pick: () => Promise<PickedFile[]>) => {
+    setPreparing(true);
+    pick()
+      .then(add, pickFailed)
+      .finally(() => setPreparing(false));
+  };
   const attach = () =>
     choose(undefined, [
-      {
-        label: 'Take Photo',
-        run: () => void takePhoto().then(add, (e: Error) => onError(e.message)),
-      },
-      {
-        label: 'Photo Library',
-        run: () =>
-          void pickPhotos(MAX_ATTACHMENTS - attached).then(add, (e: Error) => onError(e.message)),
-      },
-      {
-        label: 'Choose File',
-        run: () => void pickDocuments().then(add, (e: Error) => onError(e.message)),
-      },
+      { label: 'Take Photo', run: () => picking(takePhoto) },
+      // The picker stops at the room left (`selectionLimit`); `admit` holds it anyway.
+      { label: 'Photo Library', run: () => picking(() => pickPhotos(MAX_ATTACHMENTS - attached)) },
+      { label: 'Choose File', run: () => picking(pickDocuments) },
     ]);
 
   const setText = (text: string) => {
@@ -441,8 +543,69 @@ export function Composer({
     haptic.select();
   };
 
-  const submit = (now: boolean) => {
+  /**
+   * Send while the words are still coming (listening, or the computer tidying
+   * them): the message moves up into the chat at once, dimmed with
+   * "Tidying…", the field empties, and it goes once the better words are in
+   * (`sendWhenReady`: 15 s at most, then what it has).
+   */
+  const holdUntilTidied = (now: boolean) => {
+    const current = getApp().composer[agent.id];
+    const taken = takeDraft(current);
+    if (!current || !taken || heldSend.current) {
+      dictation.sendWhenReady(() => submit(now, true));
+      return;
+    }
+    if (now) haptic.medium();
+    else haptic.light();
+    const clientId = holdTidying(agent.id, current.text.trim(), taken.files, taken.mentions);
+    heldSend.current = { clientId, draft: current, now };
+    setHolding(true);
+    clearComposer(agent.id);
+    setStaged([]);
+    onSent();
+    dictation.sendWhenReady(sendHeld);
+  };
+
+  /** The held message's words are final: it goes, as Send would have. */
+  const sendHeld = () => {
+    const h = heldSend.current;
+    heldSend.current = null;
+    setHolding(false);
+    // Already let go by the app (it waited too long): it's on its way.
+    if (!h || !isHeld(agent.id, h.clientId)) return;
+    // The better words are in it now; nothing more comes.
+    dictation.drop();
+    const taken = takeDraft(h.draft);
+    if (!taken) {
+      discardPending(agent.id, h.clientId);
+      return;
+    }
+    setHeldText(agent.id, h.clientId, h.draft.text.trim(), false);
+    const answersCard = mode === 'queue' && waitingOnYou && !driven;
+    send(
+      agent.id,
+      taken.body,
+      h.now || answersCard,
+      h.clientId,
+      taken.files,
+      taken.mentions,
+      h.draft.revising
+    ).catch((error: unknown) => {
+      haptic.error();
+      onError(describeError(error));
+    });
+  };
+
+  /** `ready`: the computer's better words are in (or weren't coming), so it goes now. */
+  const submit = (now: boolean, ready = false) => {
     if (!canSend) return;
+    // Still tidying what was said: it shows in the chat now and goes once the better words are in.
+    if (!ready && dictation.tidying) {
+      if (draft.editing) dictation.sendWhenReady(() => submit(now, true));
+      else holdUntilTidied(now);
+      return;
+    }
     // From the store, not this render: a second tap in the same frame finds
     // the draft already emptied by the first, and sends nothing.
     const current = takeDraft(getApp().composer[agent.id]);
@@ -473,35 +636,35 @@ export function Composer({
     // closes as moved on, rather than waiting behind a question nobody must answer.
     const answersCard = mode === 'queue' && waitingOnYou && !driven;
     // Offline (or unheard), the interrupt waits in the outbox with the message.
-    send(
-      agent.id,
-      body,
-      now || answersCard,
-      undefined,
-      files,
-      mentions,
-      draft.revising
-    ).catch((error: unknown) => {
-      haptic.error();
-      onError(describeError(error));
-    });
+    send(agent.id, body, now || answersCard, undefined, files, mentions, draft.revising).catch(
+      (error: unknown) => {
+        haptic.error();
+        onError(describeError(error));
+      }
+    );
   };
 
-  /** Send while listening: stop, and send what's on screen now. */
+  /**
+   * Send while listening: stop, and send once the words are in (with the
+   * computer's better words, waiting 15 s at most); without them, what's on
+   * screen now.
+   */
   const dictationSend = () => {
     if (!canSend) return;
-    dictation.send();
-    submit(false);
+    if (draft.editing || !improve) dictation.sendWhenReady(() => submit(false, true));
+    else holdUntilTidied(false);
   };
 
   // A voice message let go, its words all in: it sends, as Send would. Once per hold.
   const sentHold = useRef<DictationState | null>(null);
+  // With the computer's better words, once they're in.
   useEffect(() => {
-    if (!sendsOnRelease(dictation.state) || sentHold.current === dictation.state) return;
+    if (!sendsOnRelease(dictation.state) || dictation.tidying) return;
+    if (sentHold.current === dictation.state) return;
     sentHold.current = dictation.state;
     const recording = dictation.takeRecording();
     if (!recording) {
-      submit(false);
+      submit(false, true);
       return;
     }
     // The audio goes with the words, to the Mac only, and is deleted here after.
@@ -519,12 +682,12 @@ export function Composer({
         () => onError(`The recording didn't reach ${macName}, so only the words went.`)
       )
       .finally(() => {
-        submit(false);
+        submit(false, true);
         void discardFile(recording);
       });
     // `submit` reads the draft from the store; only the session's end matters here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dictation.state]);
+  }, [dictation.state, dictation.tidying]);
 
   const stopTurn = () => {
     haptic.medium();
@@ -548,20 +711,26 @@ export function Composer({
       ? 'Sending what you said…'
       : (listeningNote(dictation.via) ?? 'Let go to send · slide away to cancel')
     : listening
-      ? (listeningNote(dictation.via) ?? queued)
+      ? tidying && dictation.phase === 'idle'
+        ? null
+        : (listeningNote(dictation.via) ?? queued)
       : problem
         ? problem.text
-        : micHint
-          ? micHint
-          : restored
-            ? 'Restored your draft'
-            : !connected
-              ? hasContent
-                ? `Send waits up to ${OUTBOX_WAIT_MS / 60_000} min for ${macName}`
-                : 'What you type stays here'
-              : uploading
-                ? `Uploading ${staged.filter((f) => !f.error).length} of ${attached}…`
-                : queued;
+        : undo
+          ? 'Tidied the names and words'
+          : micHint
+            ? micHint
+            : restored
+              ? 'Restored your draft'
+              : !connected
+                ? hasContent
+                  ? `Send waits up to ${OUTBOX_WAIT_MS / 60_000} min for ${macName}`
+                  : 'What you type stays here'
+                : preparing
+                  ? 'Adding your files…'
+                  : uploading
+                    ? `Uploading ${staged.filter((f) => !f.error).length} of ${attached}…`
+                    : queued;
 
   return (
     <View
@@ -609,7 +778,7 @@ export function Composer({
           </ScrollView>
         </Animated.View>
       )}
-      {(hint || chipNow || fixLabel) && (
+      {(hint || chipNow || fixLabel || undo) && (
         <Animated.View
           entering={FadeIn.duration(150)}
           exiting={FadeOut.duration(100)}
@@ -631,6 +800,21 @@ export function Composer({
             >
               <T variant="caption" color={colors.textStrong} maxFontSizeMultiplier={chromeScale}>
                 {fixLabel}
+              </T>
+            </Pressable>
+          )}
+          {undo && !fixLabel && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Undo"
+              accessibilityHint="Puts back the words as they were heard"
+              onPress={undoTidy}
+              android_ripple={ripple}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+              style={({ pressed }) => [styles.nowChip, pressed && styles.pressed]}
+            >
+              <T variant="caption" color={colors.textStrong} maxFontSizeMultiplier={chromeScale}>
+                Undo
               </T>
             </Pressable>
           )}
@@ -714,7 +898,13 @@ export function Composer({
           }
           label={`Message ${agent.name}`}
           inputRef={input}
-          dictation={listening ? { ...dictation.display, onPress: editDictation } : undefined}
+          dictation={
+            listening
+              ? { settled: '', deciding: '', onPress: editDictation, bare: true }
+              : morphing
+                ? { settled: '', deciding: '', morph, onPress: () => setMorph(null) }
+                : undefined
+          }
           // Held, the field keeps the shape it had, so the mic stays under the finger.
           hold={held}
           // The files ride at the card's top, as Claude's own, each with its ×.
@@ -799,20 +989,23 @@ export function Composer({
             </RoundButton>
           )}
           {listening && !held && (
-            <Waveform
+            <ListeningLine
               key="dictation-waveform"
-              level={level}
+              meter={heard}
+              tidying={tidying && dictation.phase === 'idle'}
+              onPress={editDictation}
               height={size.send}
-              fill
               style={field.wave}
-            />
+            >
+              <Waveform level={level} height={size.send} fill />
+            </ListeningLine>
           )}
           {listening && !held && (
             <RoundButton
               key="dictation-stop"
               label="Stop dictating"
               hint="Puts what you said in the message, to edit before you send"
-              disabled={dictation.phase === 'stopping'}
+              disabled={dictation.phase === 'stopping' || dictation.phase === 'idle'}
               onPress={dictationStop}
               tone="quiet"
             >
@@ -1020,7 +1213,17 @@ export function ComposerField({
    * input's exact type and padding so the field keeps its height. What's
    * still being decided is lighter. A tap on them is `onPress`.
    */
-  dictation?: { settled: string; deciding: string; onPress: () => void };
+  dictation?: {
+    settled: string;
+    deciding: string;
+    onPress: () => void;
+    /** The computer is writing them out again: a soft light passes over them. */
+    tidying?: boolean;
+    /** The better words arriving: only the changed ones swap (`LiveWords`). */
+    morph?: WordMorph | null;
+    /** No words area at all: the row's listening line says it (`ListeningLine`). */
+    bare?: boolean;
+  };
   /**
    * The mic is held (a voice message): the field keeps the shape it had when
    * the hold began, pill or card, so the button under the finger isn't moved
@@ -1090,7 +1293,7 @@ export function ComposerField({
   // from code (a send). Empty, it's held to one line (`emptyHeight`) rather
   // than remounted: a remount took the keyboard away and gave it back on
   // every send, and the composer and the chat dipped and rose with it.
-  const empty = dictation ? !dictation.settled && !dictation.deciding : false;
+  const empty = dictation ? !dictation.settled && !dictation.deciding && !dictation.morph : false;
   // The pill's room for the words: the field less the + and the buttons beside them.
   const [width, setWidth] = useState(0);
   const [oneLine, setOneLine] = useState(0);
@@ -1138,109 +1341,122 @@ export function ComposerField({
       {top ? <View style={field.top}>{top}</View> : null}
       <View style={card ? null : [field.pill, leading ? field.pillLed : null]}>
         {!card && leading ? leading : null}
-        <View
-          style={[
-            card ? null : field.words,
-            {
-              paddingLeft: card
-                ? composer.padLeft
-                : leading
-                  ? composer.afterLead
-                  : composer.padLeft,
-            },
-          ]}
-        >
-          <ScrollView
-            ref={scroll}
-            style={{ maxHeight: size.maxHeight }}
-            // Listening, it only follows: a tap on the words is Stop and edit.
-            scrollEnabled={!dictation}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            onContentSizeChange={follow}
-            onScroll={onScroll}
-            scrollEventThrottle={16}
+        {dictation?.bare ? null : (
+          <View
+            style={[
+              card ? null : field.words,
+              {
+                paddingLeft: card
+                  ? composer.padLeft
+                  : leading
+                    ? composer.afterLead
+                    : composer.padLeft,
+              },
+            ]}
           >
-            {dictation ? (
-              <Pressable
-                onPress={dictation.onPress}
-                accessibilityRole="text"
-                accessibilityLabel={
-                  empty ? 'Listening' : `${label}: ${dictation.settled}${dictation.deciding}`
-                }
-                accessibilityHint="Double-tap to stop and edit"
-                accessibilityLiveRegion="polite"
-              >
-                <Text maxFontSizeMultiplier={chromeScale} style={[field.input, field.cardInput]}>
-                  {empty ? (
-                    <>
-                      <Caret />
-                      <Text style={{ color: colors.textMuted }}>{placeholder}</Text>
-                    </>
-                  ) : (
-                    <>
-                      {dictation.settled}
-                      <Text style={{ color: colors.textSecondary }}>{dictation.deciding}</Text>
-                      <Caret />
-                    </>
-                  )}
-                </Text>
-              </Pressable>
-            ) : (
-              <View>
-                <TextInput
-                  ref={own}
-                  maxFontSizeMultiplier={chromeScale}
-                  value={value}
-                  autoFocus={autoFocus}
-                  editable={editable}
-                  onChangeText={onChangeText}
-                  onSelectionChange={(e) =>
-                    setCaret({ at: e.nativeEvent.selection, length: value.length, listening })
+            <ScrollView
+              ref={scroll}
+              style={{ maxHeight: size.maxHeight }}
+              // Listening, it only follows: a tap on the words is Stop and edit.
+              scrollEnabled={!dictation}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              onContentSizeChange={follow}
+              onScroll={onScroll}
+              scrollEventThrottle={16}
+            >
+              {dictation ? (
+                <Pressable
+                  onPress={dictation.onPress}
+                  accessibilityRole="text"
+                  accessibilityLabel={
+                    empty ? 'Listening' : `${label}: ${dictation.settled}${dictation.deciding}`
                   }
-                  onLayout={fitWeb}
-                  multiline
-                  // The field scrolls around it: the input is always as tall as its words.
-                  scrollEnabled={false}
-                  style={[
-                    field.input,
-                    card && field.cardInput,
-                    value.length === 0 && { maxHeight: emptyHeight(size.field, card) },
-                  ]}
-                  selectionColor={accent.accent}
-                  keyboardAppearance={appearance}
-                  accessibilityLabel={label}
-                />
-                {value.length === 0 ? (
-                  // Drawn here, not by the input: a multiline input wraps its
-                  // placeholder while the field is still laying out, so the empty
-                  // capsule showed it on two lines for a moment. One line, clipped.
-                  <Text
-                    pointerEvents="none"
-                    accessibilityElementsHidden
-                    importantForAccessibility="no"
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
+                  accessibilityHint="Double-tap to stop and edit"
+                  accessibilityLiveRegion="polite"
+                >
+                  {
+                    <Text
+                      maxFontSizeMultiplier={chromeScale}
+                      style={[field.input, field.cardInput]}
+                    >
+                      {empty ? (
+                        <>
+                          <Caret />
+                          <Text style={{ color: colors.textMuted }}>{placeholder}</Text>
+                        </>
+                      ) : (
+                        <>
+                          <LiveWords
+                            settled={dictation.settled}
+                            deciding={dictation.deciding}
+                            tidying={dictation.tidying}
+                            morph={dictation.morph}
+                          />
+                          {!dictation.tidying && !dictation.morph && <Caret />}
+                        </>
+                      )}
+                    </Text>
+                  }
+                </Pressable>
+              ) : (
+                <View>
+                  <TextInput
+                    ref={own}
                     maxFontSizeMultiplier={chromeScale}
+                    value={value}
+                    autoFocus={autoFocus}
+                    editable={editable}
+                    onChangeText={onChangeText}
+                    onSelectionChange={(e) =>
+                      setCaret({ at: e.nativeEvent.selection, length: value.length, listening })
+                    }
+                    onLayout={fitWeb}
+                    multiline
+                    // The field scrolls around it: the input is always as tall as its words.
+                    scrollEnabled={false}
                     style={[
                       field.input,
                       card && field.cardInput,
-                      field.placeholder,
-                      { color: colors.textMuted },
+                      value.length === 0 && { maxHeight: emptyHeight(size.field, card) },
                     ]}
-                  >
-                    {placeholder}
-                  </Text>
-                ) : null}
-              </View>
-            )}
-          </ScrollView>
-          {scrolled && <FieldFade />}
-        </View>
+                    selectionColor={accent.accent}
+                    keyboardAppearance={appearance}
+                    accessibilityLabel={label}
+                  />
+                  {value.length === 0 ? (
+                    // Drawn here, not by the input: a multiline input wraps its
+                    // placeholder while the field is still laying out, so the empty
+                    // capsule showed it on two lines for a moment. One line, clipped.
+                    <Text
+                      pointerEvents="none"
+                      accessibilityElementsHidden
+                      importantForAccessibility="no"
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      maxFontSizeMultiplier={chromeScale}
+                      style={[
+                        field.input,
+                        card && field.cardInput,
+                        field.placeholder,
+                        { color: colors.textMuted },
+                      ]}
+                    >
+                      {placeholder}
+                    </Text>
+                  ) : null}
+                </View>
+              )}
+            </ScrollView>
+            {scrolled && <FieldFade />}
+          </View>
+        )}
         {card ? null : children}
       </View>
       {card ? (
-        <View style={field.cardRow}>
+        // With no words above (dictating), the row needs the top inset the
+        // words gave it, or its buttons sit on the card's top edge, off centre.
+        <View style={[field.cardRow, dictation?.bare ? field.cardRowAlone : null]}>
           {leading}
           {chip}
           {/* Listening, the waveform fills the middle; otherwise the buttons go right. */}
@@ -1451,6 +1667,7 @@ const useFieldStyles = makeStyles((colors) => ({
   // The card: the words keep the input's type and top; at the right as wide as at the left.
   cardInput: { paddingRight: composer.padLeft, paddingBottom: space.sm },
   cardRow: { flexDirection: 'row', alignItems: 'flex-end', paddingLeft: composer.inset },
+  cardRowAlone: { paddingTop: composer.inset },
   spacer: { flex: 1 },
   top: { paddingTop: space.sm },
   chip: {

@@ -30,7 +30,7 @@ Mac's slot.
 
 `<fingerprint>` is 22 characters of base64url. Closes: `4401` bad or late Mac login, `4409` Mac
 replaced by a newer login, `4404 mac_offline` no Mac, `4402 sign_in_needed` the Mac isn't signed in
-(accounts on only; offline is said first), `4429` more than 8 phones, `1009` a payload over 256 KiB. Idle sockets hibernate (and `ping` gets `pong` without waking the object), so they
+(accounts on only; offline is said first), `4429` more than 24 phones (12 from one address), `1009` a payload over 256 KiB. Idle sockets hibernate (and `ping` gets `pong` without waking the object), so they
 cost nothing.
 
 ## Run your own
@@ -62,7 +62,8 @@ The per-IP limit on new connections (60 a minute) is Cloudflare's rate limiting 
 
 ## Accounts
 
-Accounts decide who may use a relay, nothing more: the encryption and the Mac's key work the same
+Accounts decide which Macs may use a relay, nothing more (a phone reaches a Mac that's allowed,
+and the Mac's own pairing decides which phones it talks to): the encryption and the Mac's key work the same
 with them on or off. They are **off** unless `CLERK_JWKS_URL` is set. Off means no gating at all:
 every Mac that proves its key may log in and every one of its phones may connect. That is the right
 setting for a relay you run for yourself, and the one this repo ships (all four vars empty in

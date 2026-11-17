@@ -37,7 +37,7 @@ import {
 } from './PhoneFlow';
 import { isPassedOver, nextStep, prevStep } from '../../lib/onboardingFlow';
 import { SCAN_LINE } from '../../../packages/companion-protocol/src/pairWords';
-import { PHONE_APP_TESTFLIGHT_URL } from '../../lib/phoneApp';
+import { PHONE_APP_STORE_URL } from '../../lib/phoneApp';
 import { overrideRelayForHarness } from '../../lib/brand';
 import { readPhoneRoute, savePhoneRoute } from '../../lib/account';
 
@@ -96,14 +96,14 @@ describe('PhoneFlow', () => {
     expect(go).toHaveBeenCalledWith('phoneMacTailscale');
   });
 
-  it('offers TestFlight as the big button with a code of its link', async () => {
+  it('offers the App Store as the big button with a code of its link', async () => {
     show('phoneGetApp');
-    fireEvent.click(screen.getByRole('button', { name: /Get it on TestFlight/ }));
-    expect(openUrl).toHaveBeenCalledWith(PHONE_APP_TESTFLIGHT_URL);
+    fireEvent.click(screen.getByRole('button', { name: /Get it on the App Store/ }));
+    expect(openUrl).toHaveBeenCalledWith(PHONE_APP_STORE_URL);
     expect(
-      await screen.findByRole('img', { name: 'Download link for the phone app on TestFlight' })
+      await screen.findByRole('img', { name: 'Download link for the phone app on the App Store' })
     ).toBeInTheDocument();
-    expect(getLinkQr).toHaveBeenCalledWith(PHONE_APP_TESTFLIGHT_URL);
+    expect(getLinkQr).toHaveBeenCalledWith(PHONE_APP_STORE_URL);
   });
 
   it('ticks Tailscale on this Mac from its own status, with the account', async () => {
@@ -122,6 +122,43 @@ describe('PhoneFlow', () => {
     show('phoneScan');
     expect(await screen.findByRole('heading', { name: SCAN_LINE })).toBeInTheDocument();
     await waitFor(() => expect(startPairing).toHaveBeenCalledTimes(1));
+  });
+
+  // Tom's first install: the status read on arrival (pairing off) landed after
+  // the code and threw it away, leaving a spinner until Back and forward again.
+  it('keeps the first code although the status read before it says pairing is off', async () => {
+    // Later reads take as long as a real one, so the screen draws the new code
+    // while it still holds the read from before it.
+    getPhoneStatus
+      .mockReset()
+      .mockResolvedValueOnce(status())
+      .mockImplementation(
+        () =>
+          new Promise((done) => setTimeout(() => done(status({ pairing: { active: true } })), 50))
+      );
+    show('phoneScan');
+    expect(
+      await screen.findByRole('img', { name: /Pairing code for the/ }, { timeout: 3000 })
+    ).toBeInTheDocument();
+    expect(startPairing).toHaveBeenCalledTimes(1);
+  });
+
+  it('tries again on its own when the code can’t be made yet', async () => {
+    getPhoneStatus.mockReset().mockResolvedValue(status({ pairing: { active: true } }));
+    const code = {
+      link: 'x://pair?d=1',
+      qr: { size: 21, modules: '0'.repeat(441) },
+      expiresAt: Date.now() + 300_000,
+    };
+    startPairing
+      .mockReset()
+      .mockRejectedValueOnce(new Error('phone access is starting'))
+      .mockResolvedValue(code);
+    show('phoneScan');
+    expect(
+      await screen.findByRole('img', { name: /Pairing code for the/ }, { timeout: 5000 })
+    ).toBeInTheDocument();
+    expect(startPairing).toHaveBeenCalledTimes(2);
   });
 
   it('a request takes the screen; Allow is the neutral answer and ends on Paired', async () => {

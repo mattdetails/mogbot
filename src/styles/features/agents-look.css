@@ -249,3 +249,9 @@
   justify-content: center;
   padding: var(--spacing-xs) 0;
 }
+
+/* Face or icon: the switch hugs its two words, left, over the list it picks. */
+.agent-look__wears {
+  align-self: flex-start;
+  width: auto;
+}

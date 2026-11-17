@@ -55,6 +55,16 @@ impl Engine {
         }
     }
 
+    /// The project terminal's tab id for this engine (`agent::AgentConfig::id`,
+    /// `AppState::default_agent_id`).
+    pub fn terminal_id(self) -> &'static str {
+        match self {
+            Engine::Claude => "claude-code",
+            Engine::Codex => "codex",
+            Engine::OpenCode => "opencode",
+        }
+    }
+
     fn binary_name(self) -> &'static str {
         match self {
             Engine::Claude => "claude",
@@ -194,7 +204,7 @@ pub async fn signed_in_here(engine: Engine) -> bool {
             static PROBE: crate::joined::Joined<bool> = crate::joined::Joined::new();
             PROBE
                 .run(|| async move {
-                    let mut cmd = tokio::process::Command::new(binary);
+                    let mut cmd = crate::utils::create_tokio_command(binary);
                     cmd.args(["login", "status"])
                         .env("PATH", crate::utils::get_extended_path());
                     crate::external_command::run_with_timeout(cmd, "codex login status", 15)

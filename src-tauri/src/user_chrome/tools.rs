@@ -127,6 +127,11 @@ pub const TOOLS: &[ToolDef] = &[
         schema: || same_as_agents("press"),
     },
     ToolDef {
+        name: "attach_image",
+        description: "Attach a picture from this Mac to the page. With a ref (the composer, the site's upload button or its drop area) it goes in as a file, the way the site's own upload takes it, else it's pasted there; with no ref it's pasted wherever the cursor is. `path`: a PNG, JPEG, GIF or WebP in your own folder or a project, at most 20 MB. Asks the user first, like any upload.",
+        schema: || json!({ "type": "object", "properties": { "path": { "type": "string", "description": "Full path to the image." }, "ref": { "type": "string" }, "tab": tab_prop() }, "required": ["path"] }),
+    },
+    ToolDef {
         name: "scroll",
         description: "Scroll the page (or the control `ref` is in): up, down, left or right, by 1-10 steps.",
         schema: || same_as_agents("scroll"),
@@ -542,6 +547,58 @@ fn browsers_text(agent: &str) -> String {
         .join("\n")
 }
 
+/// The picture's type, from its extension (`attachable` allows only these).
+fn image_mime(path: &std::path::Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        _ => "image/png",
+    }
+}
+
+/// Pictures an agent may attach: an image file, inside its own folder or
+/// the projects folder, at most 20 MB. Anything else is refused.
+pub fn attachable(agent: &str, raw: &str) -> Result<std::path::PathBuf, String> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Err("Give the picture's full path.".into());
+    }
+    let path = std::fs::canonicalize(raw).map_err(|_| format!("No file at {raw}."))?;
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default();
+    if !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp") {
+        return Err("Only pictures attach this way: PNG, JPEG, GIF or WebP.".into());
+    }
+    let mut roots = Vec::new();
+    if let Ok(home) = crate::agents::store::agent_home(agent) {
+        roots.extend(std::fs::canonicalize(home));
+    }
+    if let Ok(projects) = crate::utils::projects_root() {
+        roots.extend(std::fs::canonicalize(projects));
+    }
+    if !roots.iter().any(|r| path.starts_with(r)) {
+        return Err(
+            "Attach pictures from your own folder or a project. Copy it there first.".into(),
+        );
+    }
+    let size = std::fs::metadata(&path)
+        .map(|m| m.len())
+        .unwrap_or(u64::MAX);
+    if size > 20 * 1024 * 1024 {
+        return Err("That picture is over 20 MB.".into());
+    }
+    Ok(path)
+}
+
 /// Run one tool, blocking. `label`: the agent's name, for its tab group.
 /// `Err` is told to the agent as an error result.
 pub fn run(agent: &str, label: &str, name: &str, args: &Value) -> Result<Vec<Value>, String> {
@@ -764,6 +821,60 @@ pub fn run(agent: &str, label: &str, name: &str, args: &Value) -> Result<Vec<Val
             }
             p.insert_text(t)?;
             Ok(vec![text("Typed.")])
+        }
+        "attach_image" => {
+            let path = attachable(
+                agent,
+                args.get("path").and_then(Value::as_str).unwrap_or(""),
+            )?;
+            let tab = tab_for(agent, &conn, tab_arg(args))?;
+            to_front(&conn, agent, &tab)?;
+            let p = page(&conn, agent, &tab);
+            let node = match args.get("ref").and_then(Value::as_str) {
+                Some(r) => Some(ref_of(agent, tab.tab_id, r)?.backend_node_id),
+                None => None,
+            };
+            // First as a file, the way the site's own upload takes it
+            // (LinkedIn ignores a pasted picture); then as a paste. An
+            // extension from before this refuses the file route.
+            let mut old_extension = false;
+            if let Some(n) = node {
+                let bytes =
+                    std::fs::read(&path).map_err(|e| format!("Couldn't read the picture: {e}"))?;
+                let name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "picture.png".into());
+                match p.attach_file(n, &bytes, &name, image_mime(&path), true) {
+                    Ok(crate::agent_browser::page::Attached::Input)
+                    | Ok(crate::agent_browser::page::Attached::Dropped) => {
+                        p.settle(Duration::from_secs(3));
+                        clear_refs(agent, tab.tab_id);
+                        return Ok(vec![text(
+                            "Attached as a file. Read the page or take a screenshot to check the picture shows before you post.",
+                        )]);
+                    }
+                    Ok(crate::agent_browser::page::Attached::Nothing) => {}
+                    Err(e) if e.starts_with("The extension refused") => old_extension = true,
+                    Err(e) => return Err(e),
+                }
+                let (x, y) = p.center_of(n)?;
+                click(&p, x, y)?;
+            }
+            let kept = crate::user_chrome::clipboard::put_image(&path)?;
+            let pasted = p.paste();
+            std::thread::sleep(Duration::from_millis(800));
+            crate::user_chrome::clipboard::restore(kept);
+            pasted?;
+            p.settle(Duration::from_secs(3));
+            clear_refs(agent, tab.tab_id);
+            Ok(vec![text(if old_extension {
+                "Pasted. Read the page or take a screenshot to check the picture shows before you post. If it doesn't, this site needs a newer Mogbot for Chrome (Chrome updates it from the Web Store)."
+            } else if node.is_some() {
+                "Pasted (nothing on the page took it as a file). Read the page or take a screenshot to check the picture shows before you post."
+            } else {
+                "Pasted. Read the page or take a screenshot to check the picture shows before you post. If it doesn't, try again with the ref of the site's upload button or drop area."
+            })])
         }
         "press" => {
             let k = args.get("key").and_then(Value::as_str).unwrap_or("");

@@ -45,7 +45,7 @@
 //!   line, the ask without the pleasantries (`conversation_title`).
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
 use super::store::{self, Agent, AgentMessage, MessageKind};
@@ -72,11 +72,19 @@ pub struct Sessions {
     /// The other conversations' sessions, until a turn loads one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parked: Vec<Parked>,
+    /// An agent that works on several projects: each conversation's project
+    /// (conversation id → its path). Empty: one project or none, the agent's
+    /// own `project`, as always. Not empty: loading a conversation makes its
+    /// project the agent's (`project`, and its copy there), so everything that
+    /// reads those works per project without knowing there are several. A
+    /// conversation not in it works in no project.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub projects: BTreeMap<String, String>,
 }
 
 impl Sessions {
     pub fn is_empty(&self) -> bool {
-        self.loaded.is_none() && self.parked.is_empty()
+        self.loaded.is_none() && self.parked.is_empty() && self.projects.is_empty()
     }
 }
 
@@ -95,6 +103,10 @@ pub struct Parked {
     /// Its session on the engine the agent is carrying on with (`away`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub away_session: Option<String>,
+    /// Its open copy of its own project, for an agent on several projects
+    /// (`Sessions::projects`): kept until the user keeps or discards it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub copy: Option<super::task::TaskCopy>,
 }
 
 impl Parked {
@@ -103,7 +115,50 @@ impl Parked {
             && !self.new_engine
             && self.context.is_none()
             && self.away_session.is_none()
+            && self.copy.is_none()
     }
+}
+
+/// Whether the agent works on several projects, one per conversation.
+pub fn per_project(agent: &Agent) -> bool {
+    !agent.conversations.projects.is_empty()
+}
+
+/// The project conversation `id` works in.
+pub fn project_of<'a>(agent: &'a Agent, id: &str) -> Option<&'a str> {
+    if per_project(agent) {
+        agent.conversations.projects.get(id).map(String::as_str)
+    } else {
+        agent.project.as_deref()
+    }
+}
+
+/// Every project the agent works on: its own, then the others its
+/// conversations work in, each once.
+pub fn projects(agent: &Agent) -> Vec<String> {
+    let mut all: Vec<String> = agent.project.iter().cloned().collect();
+    for p in agent.conversations.projects.values() {
+        if !all.contains(p) {
+            all.push(p.clone());
+        }
+    }
+    all
+}
+
+/// Every copy the agent holds: the loaded conversation's, then those parked
+/// with its other projects' conversations.
+pub fn copies(agent: &Agent) -> Vec<&super::task::TaskCopy> {
+    agent
+        .copy
+        .iter()
+        .chain(
+            agent
+                .conversations
+                .parked
+                .iter()
+                .filter_map(|p| p.copy.as_ref()),
+        )
+        .collect()
 }
 
 /// The conversation the agent's session fields belong to.
@@ -125,12 +180,14 @@ pub fn swap(agent: &mut Agent, to: &str) -> bool {
     if from == to {
         return false;
     }
+    let several = per_project(agent);
     let leaving = Parked {
         id: from.clone(),
         session_id: agent.session_id.take(),
         new_engine: std::mem::take(&mut agent.new_engine),
         context: agent.context.take(),
         away_session: agent.away.as_ref().and_then(|a| a.session_id.clone()),
+        copy: if several { agent.copy.take() } else { None },
     };
     agent.conversations.parked.retain(|p| p.id != from);
     if !leaving.is_blank() {
@@ -149,6 +206,10 @@ pub fn swap(agent: &mut Agent, to: &str) -> bool {
     if let Some(away) = agent.away.as_mut() {
         away.session_id = coming.away_session;
         away.fresh = false;
+    }
+    if several {
+        agent.copy = coming.copy;
+        agent.project = agent.conversations.projects.get(to).cloned();
     }
     agent.conversations.loaded = (to != FIRST).then(|| to.to_string());
     true
@@ -299,6 +360,9 @@ pub struct ConversationView {
     /// A fork: where it came from, and that one's title.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub forked_from: Option<ForkedFromView>,
+    /// The project it works in, for an agent on several projects.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
 }
 
 /// A fork's origin as the chat names it.
@@ -460,6 +524,9 @@ fn view(agent: &Agent, list: &List, waiting: &HashMap<String, u32>) -> Conversat
                     })
                     .unwrap_or_default(),
             }),
+            project: per_project(agent)
+                .then(|| agent.conversations.projects.get(&c.id).cloned())
+                .flatten(),
         })
         .collect();
     items.sort_by(|a, b| {
@@ -542,10 +609,124 @@ pub fn create(agent_id: &str) -> Result<Conversations, CommandError> {
                 forked_from: None,
                 inherited: Vec::new(),
             });
-            list.current = Some(id);
+            list.current = Some(id.clone());
             write(agent_id, &list)?;
+            drop(_guard);
+            same_project_as(agent_id, &current, &id);
         }
     }
+    list(agent_id)
+}
+
+/// A conversation made from `from` (New conversation, a fork) works where
+/// `from` does, for an agent on several projects.
+fn same_project_as(agent_id: &str, from: &str, made: &str) {
+    let Ok(agent) = store::get(agent_id) else {
+        return;
+    };
+    if !per_project(&agent) {
+        return;
+    }
+    let project = agent.conversations.projects.get(from).cloned();
+    let made = made.to_string();
+    let _ = store::update(agent_id, |a| match &project {
+        Some(p) => {
+            a.conversations.projects.insert(made, p.clone());
+        }
+        None => {
+            a.conversations.projects.remove(&made);
+        }
+    });
+}
+
+/// A new, empty conversation, made current. Never reuses an empty one: the
+/// caller is about to say where it works.
+fn new_blank(agent_id: &str) -> Result<String, CommandError> {
+    let agent = store::get(agent_id)?;
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut list = read(&agent)?;
+    if list.items.len() >= MAX_CONVERSATIONS {
+        return Err(CommandError::expected(format!(
+            "{} already has {MAX_CONVERSATIONS} conversations. Carry on in one of them.",
+            agent.name
+        )));
+    }
+    let now = store::now_ms();
+    let id = format!("c{}", store::new_id());
+    list.items.push(Conversation {
+        id: id.clone(),
+        title: String::new(),
+        named: false,
+        created_at: now,
+        last_activity_at: now,
+        preview: None,
+        rewinds: Vec::new(),
+        forked_from: None,
+        inherited: Vec::new(),
+    });
+    list.current = Some(id.clone());
+    write(agent_id, &list)?;
+    Ok(id)
+}
+
+/// The user opened this agent in `project` (a project's Session panel): its
+/// conversation there, made current. An agent with no project is bound to
+/// it, as from its editor. One bound elsewhere starts working on both: each
+/// conversation it had stays in its old project, and a new one works here.
+/// One already on several finds its newest conversation here, or starts one.
+/// `same` says whether two project paths are the same folder.
+pub fn for_project(
+    agent_id: &str,
+    project: &str,
+    same: impl Fn(&str, &str) -> bool,
+) -> Result<Conversations, CommandError> {
+    let agent = store::get(agent_id)?;
+    // The Chief works for the whole team: it is never bound to a project.
+    if agent.is_main {
+        return list(agent_id);
+    }
+    if per_project(&agent) {
+        let listed = list(agent_id)?;
+        if let Some(c) = listed
+            .items
+            .iter()
+            .find(|c| c.project.as_deref().is_some_and(|p| same(p, project)))
+        {
+            if c.current {
+                return Ok(listed);
+            }
+            let id = c.id.clone();
+            return select(agent_id, &id);
+        }
+    } else {
+        match agent.project.as_deref() {
+            None => {
+                super::runner::update_settings(agent_id, true, |a| {
+                    a.project = Some(project.to_string());
+                })?;
+                return list(agent_id);
+            }
+            Some(p) if same(p, project) => return list(agent_id),
+            Some(old) => {
+                // Every conversation it has stays where it was.
+                let old = old.to_string();
+                let ids: Vec<String> = {
+                    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+                    read(&agent)?.items.into_iter().map(|c| c.id).collect()
+                };
+                store::update(agent_id, |a| {
+                    for id in &ids {
+                        a.conversations.projects.insert(id.clone(), old.clone());
+                    }
+                })?;
+            }
+        }
+    }
+    let id = new_blank(agent_id)?;
+    let project = project.to_string();
+    store::update(agent_id, |a| {
+        a.conversations.projects.insert(id.clone(), project.clone());
+    })?;
     list(agent_id)
 }
 
@@ -836,6 +1017,8 @@ pub fn add_fork(
     });
     list.current = Some(id.clone());
     write(agent_id, &list)?;
+    drop(_guard);
+    same_project_as(agent_id, from, &id);
     Ok(id)
 }
 

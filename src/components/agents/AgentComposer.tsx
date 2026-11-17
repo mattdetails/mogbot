@@ -23,7 +23,6 @@ import {
 } from 'react';
 import { ArrowUpIcon, MicrophoneIcon, PaperclipIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
-import { TextButton } from '../primitives/TextButton';
 import { TextArea } from '../primitives/TextField';
 import { ComposerAttachments, ComposerQuotes } from './AgentAttachments';
 import { ComposerRevising } from './AgentResult';
@@ -34,7 +33,8 @@ import type { DraftAttachment } from './useComposerAttachments';
 import { sortAgents, type Agent, type ResultRef } from '../../lib/agents';
 import { getAgentsSnapshot } from '../../lib/agentsStore';
 import { setComposerDraft, useComposerDraft } from '../../lib/composerDraft';
-import type { DictationPhase } from './useDictation';
+import type { DictationMeter, DictationPhase } from './useDictation';
+import { DictationLive } from './DictationLive';
 import { noteQueueHintUse, queueHintLearned } from '../../lib/queueHint';
 
 /** A second Esc within this long stops a working agent; the first only says so. */
@@ -45,7 +45,19 @@ export interface ComposerDictation {
   phase: DictationPhase;
   toggle: () => void;
   cancel: () => void;
-  onComposerKeyDown: (e: KeyboardEvent) => boolean;
+  stopAndSend: (send: () => void) => void;
+  onComposerKeyDown: (e: KeyboardEvent, send?: () => void) => boolean;
+  /** This dictation as it's heard: the wave, the time, "Can't hear you". */
+  meter: DictationMeter;
+  /** Heard but couldn't be written out: Try again. */
+  retry: (() => void) | null;
+}
+
+/** Send works while listening (it stops, then sends); not while tidying. */
+export function sendDisabled(phase: DictationPhase, canSend: boolean): boolean {
+  if (phase === 'listening' || phase === 'starting') return false;
+  if (phase !== 'idle') return true;
+  return !canSend;
 }
 
 interface AgentComposerProps {
@@ -87,26 +99,21 @@ interface AgentComposerProps {
 }
 
 /**
- * "● Listening · Cancel" while dictating: its own small row under the text
- * (the CSS places it), so it never takes width from the words arriving.
+ * The dictation line under the field: the wave and clock while listening,
+ * "Tidying…", or "Couldn't write that out · Try again" (DictationLive).
  */
 export function ListeningStatus({
   phase,
+  meter,
   onCancel,
+  onRetry,
 }: {
   phase: DictationPhase;
+  meter: DictationMeter;
   onCancel: () => void;
+  onRetry?: (() => void) | null;
 }) {
-  return (
-    <span className="agent-composer__listening" role="status">
-      <span className="agent-composer__listening-dot" aria-hidden />
-      {phase === 'finishing' ? 'Finishing…' : 'Listening'}
-      <span aria-hidden>·</span>
-      <TextButton tabIndex={0} onClick={onCancel}>
-        Cancel
-      </TextButton>
-    </span>
-  );
+  return <DictationLive phase={phase} meter={meter} onCancel={onCancel} onRetry={onRetry} />;
 }
 
 /**
@@ -255,7 +262,8 @@ export const AgentComposer = memo(function AgentComposer({
       }
       onSubmit={(e) => {
         e.preventDefault();
-        sendFromHere(false);
+        if (dictating) dictation.stopAndSend(() => sendFromHere(false));
+        else sendFromHere(false);
       }}
     >
       {mentionPicker.menu}
@@ -277,7 +285,7 @@ export const AgentComposer = memo(function AgentComposer({
         onSelect={mentionPicker.sync}
         onPaste={onPaste}
         onKeyDown={(e) => {
-          if (dictation.onComposerKeyDown(e)) return;
+          if (dictation.onComposerKeyDown(e, () => !blank && sendFromHere(e.metaKey))) return;
           if (mentionPicker.onKeyDown(e)) return;
           if (
             e.key === 'ArrowUp' &&
@@ -329,7 +337,14 @@ export const AgentComposer = memo(function AgentComposer({
           aria-label="Attach files"
           title="Attach files, or paste or drop them here"
         />
-        {dictating && <ListeningStatus phase={dictation.phase} onCancel={dictation.cancel} />}
+        {(dictating || dictation.retry) && (
+          <ListeningStatus
+            phase={dictation.phase}
+            meter={dictation.meter}
+            onCancel={dictation.cancel}
+            onRetry={dictation.retry}
+          />
+        )}
         {/* Its own row above the text, so a long hint never squeezes it. */}
         {blank && !dictating ? (
           <span className="agent-composer__hint" role="status">
@@ -364,7 +379,7 @@ export const AgentComposer = memo(function AgentComposer({
             className="agent-composer__mic"
             icon={<MicrophoneIcon size={14} />}
             onClick={dictation.toggle}
-            disabled={dictation.phase === 'finishing'}
+            disabled={dictation.phase === 'finishing' || dictation.phase === 'tidying'}
             aria-pressed={dictating}
             aria-label={dictating ? 'Stop dictating' : 'Dictate'}
             title={dictating ? 'Stop dictating (Esc to discard)' : 'Dictate (⌘⇧D, or hold ⌥Space)'}
@@ -384,10 +399,10 @@ export const AgentComposer = memo(function AgentComposer({
             <IconButton
               tabIndex={0}
               type="submit"
-              variant={canSend && !dictating ? 'primary' : 'secondary'}
+              variant={!sendDisabled(dictation.phase, canSend) ? 'primary' : 'secondary'}
               className="agent-composer__send"
               icon={<ArrowUpIcon size={14} />}
-              disabled={!canSend || dictating}
+              disabled={sendDisabled(dictation.phase, canSend)}
               aria-label="Send"
               title={
                 busy

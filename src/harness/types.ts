@@ -49,6 +49,8 @@ export interface ScenarioStep {
    * Menus gain items; "the seventh item" silently becomes a different one.
    */
   text?: string;
+  /** Let this many ms of real time pass (a state that only arrives after a while). */
+  wait?: number;
 }
 
 export interface Scenario {

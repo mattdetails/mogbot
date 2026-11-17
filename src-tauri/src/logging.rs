@@ -61,11 +61,187 @@ pub fn init_sentry() {
     let _ = SENTRY_GUARD.set(guard);
 }
 
+/// Everything that leaves this machine in a report or to Sentry goes through
+/// this: local paths (user names, project and client folders) and credentials
+/// (URL userinfo, tokens, `Bearer …`, `password=…`). A git error can carry
+/// `https://x-access-token:ghp_…@github.com`, and reports are filed as
+/// issues on a public repo.
 pub(crate) fn scrub_string(s: &str) -> String {
     // Strip local paths so Sentry doesn't see usernames or project folder names.
-    let re_unix = regex_lite_replace(s, "/Users/", "/Users/<redacted>");
-    let re_home = regex_lite_replace(&re_unix, "/home/", "/home/<redacted>");
-    regex_lite_replace(&re_home, "C:\\Users\\", "C:\\Users\\<redacted>")
+    let mut out = s.to_string();
+    for prefix in ["/Users/", "/home/", "/Volumes/", "/private/", "C:/Users/"] {
+        out = regex_lite_replace(&out, prefix, &format!("{prefix}<redacted>"));
+    }
+    out = regex_lite_replace(&out, "C:\\Users\\", "C:\\Users\\<redacted>");
+    redact_secrets(&out)
+}
+
+const REDACTED: &str = "<redacted>";
+
+/// A label whose value is a credential or an account identifier
+/// (`token=…`, `"password": …`, `Authorization: …`).
+pub(crate) fn is_sensitive_label(label: &str) -> bool {
+    let label = label
+        .trim_matches(|c: char| matches!(c, '"' | '\'' | '{' | '}' | '[' | ']' | ',' | '-'))
+        .to_ascii_lowercase();
+    matches!(
+        label.as_str(),
+        "token"
+            | "access_token"
+            | "refresh_token"
+            | "api_key"
+            | "api-key"
+            | "apikey"
+            | "secret"
+            | "client_secret"
+            | "password"
+            | "passwd"
+            | "authorization"
+            | "cookie"
+            | "set-cookie"
+            | "x-api-key"
+            | "username"
+            | "user"
+            | "user_id"
+            | "email"
+    ) || [
+        "_token",
+        "_secret",
+        "_password",
+        "_key",
+        "_email",
+        "-token",
+        "-key",
+    ]
+    .iter()
+    .any(|suffix| label.ends_with(suffix))
+}
+
+/// A word that is itself a credential: a known token prefix, an AWS access
+/// key id, or a JWT. `word` as written (case matters for AWS ids).
+pub(crate) fn looks_like_secret(word: &str) -> bool {
+    let lower = word.to_ascii_lowercase();
+    let prefixed = [
+        "ghp_",
+        "github_pat_",
+        "gho_",
+        "ghu_",
+        "ghs_",
+        "ghr_",
+        "glpat-",
+        "sk-ant-",
+        "sk-proj-",
+        "sk_live_",
+        "sk_test_",
+        "rk_live_",
+        "xoxa-",
+        "xoxb-",
+        "xoxp-",
+        "xoxr-",
+        "xoxs-",
+        "xoxe-",
+        "xapp-",
+        "npm_",
+    ]
+    .iter()
+    .any(|p| lower.starts_with(p) && lower.len() > p.len() + 3);
+    // OpenAI-style `sk-…`: long enough not to catch an ordinary word.
+    let sk = lower.starts_with("sk-") && word.len() >= 20;
+    let aws = (word.starts_with("AKIA") || word.starts_with("ASIA"))
+        && word.len() == 20
+        && word
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit());
+    let jwt = word.starts_with("eyJ") && word.matches('.').count() == 2 && word.len() >= 30;
+    prefixed || sk || aws || jwt
+}
+
+/// Credentials out of `s`, keeping its layout (lines, spacing) so a stack
+/// stays readable. Pure.
+pub(crate) fn redact_secrets(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut redact_next = false;
+    // A bare label ("password") only means a value follows when the next
+    // word is its separator ("password = x"); "User report: …" is prose.
+    let mut label_before = false;
+    for piece in s.split_inclusive(char::is_whitespace) {
+        let word = piece.trim_end_matches(char::is_whitespace);
+        let space = &piece[word.len()..];
+        if word.is_empty() {
+            out.push_str(space);
+            continue;
+        }
+        let word = strip_userinfo(word);
+        let lower = word.to_ascii_lowercase();
+        if label_before && matches!(word.as_str(), "=" | ":") {
+            // "password = x": the separator stands alone; the next word is
+            // the value.
+            label_before = false;
+            redact_next = true;
+            out.push_str(&word);
+            out.push_str(space);
+            continue;
+        }
+        label_before = false;
+        if redact_next && !matches!(word.as_str(), "=" | ":") {
+            out.push_str(REDACTED);
+            out.push_str(space);
+            redact_next = matches!(lower.as_str(), "bearer" | "basic" | "token");
+            continue;
+        }
+        redact_next = false;
+        // label=value / label:value in one word.
+        if let Some(at) = word.find(['=', ':']) {
+            if is_sensitive_label(&word[..at]) && !word[at + 1..].starts_with("//") {
+                let value = word[at + 1..].trim_matches(|c| c == '"' || c == '\'');
+                out.push_str(&word[..=at]);
+                if value.is_empty() || value == "," {
+                    redact_next = true;
+                } else {
+                    out.push_str(REDACTED);
+                }
+                out.push_str(space);
+                continue;
+            }
+        }
+        let core = word.trim_matches(|c: char| {
+            matches!(
+                c,
+                '"' | '\'' | ',' | ';' | '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' | '`'
+            )
+        });
+        if !core.is_empty() && looks_like_secret(core) {
+            out.push_str(&word.replacen(core, REDACTED, 1));
+        } else {
+            out.push_str(&word);
+            redact_next = redact_next && matches!(word.as_str(), "=" | ":")
+                || matches!(lower.as_str(), "bearer" | "basic");
+            label_before = is_sensitive_label(core) && core.len() == word.len();
+        }
+        out.push_str(space);
+    }
+    out
+}
+
+/// `scheme://user:pass@host/…` → `scheme://<redacted>@host/…`.
+fn strip_userinfo(word: &str) -> String {
+    let mut out = String::with_capacity(word.len());
+    let mut rest = word;
+    while let Some(i) = rest.find("://") {
+        let (head, tail) = rest.split_at(i + 3);
+        out.push_str(head);
+        let authority_end = tail.find(['/', '?', '#']).unwrap_or(tail.len());
+        match tail[..authority_end].rfind('@') {
+            Some(at) => {
+                out.push_str(REDACTED);
+                out.push_str(&tail[at..authority_end]);
+            }
+            None => out.push_str(&tail[..authority_end]),
+        }
+        rest = &tail[authority_end..];
+    }
+    out.push_str(rest);
+    out
 }
 
 fn regex_lite_replace(input: &str, prefix: &str, replacement: &str) -> String {
@@ -108,7 +284,61 @@ fn regex_lite_replace(input: &str, prefix: &str, replacement: &str) -> String {
 
 #[cfg(test)]
 mod scrub_tests {
-    use super::scrub_string;
+    use super::{redact_secrets, scrub_string};
+
+    /// CTO review 2026-11-14: reports only lost home paths; a git error's
+    /// token went out as written, into issues on a public repo.
+    #[test]
+    fn credentials_never_leave_in_a_report() {
+        let cases = [
+            (
+                "fatal: unable to access 'https://x-access-token:ghp_abcdefghijklmnop1234@github.com/o/r.git/': 403",
+                "fatal: unable to access 'https://<redacted>@github.com/o/r.git/': 403",
+            ),
+            ("Authorization: Bearer abc.def.ghi", "Authorization: <redacted> <redacted>"),
+            ("header Bearer s3cr3tvalue here", "header Bearer <redacted> here"),
+            ("key sk-ant-api03-AAAAAAAAAAAAAAAA failed", "key <redacted> failed"),
+            ("OPENAI sk-abcdefghijklmnopqrstuvwx", "OPENAI <redacted>"),
+            ("slack xoxb-1234-5678-abcdef bad", "slack <redacted> bad"),
+            ("pat github_pat_11ABCDEFG0123456789_x", "pat <redacted>"),
+            ("aws AKIAIOSFODNN7EXAMPLE denied", "aws <redacted> denied"),
+            (
+                "jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJlLXZhbHVl",
+                "jwt <redacted>",
+            ),
+            ("password=hunter2 next", "password=<redacted> next"),
+            ("{\"token\":\"abc123\"}", "{\"token\":<redacted>"),
+            ("api_key: \"zzz\"", "api_key: <redacted>"),
+            ("password = hunter2 ok", "password = <redacted> ok"),
+            ("User report: The phone drops", "User report: The phone drops"),
+        ];
+        for (input, want) in cases {
+            assert_eq!(scrub_string(input), want, "{input}");
+        }
+        // Ordinary text and its layout are left alone.
+        let plain = "git push failed:\n  remote rejected main (sk- prefix test)\n\tat line 4";
+        assert_eq!(redact_secrets(plain), plain);
+        assert_eq!(
+            scrub_string("see https://github.com/o/r and task-list skill"),
+            "see https://github.com/o/r and task-list skill"
+        );
+    }
+
+    #[test]
+    fn more_local_paths_are_scrubbed() {
+        assert_eq!(
+            scrub_string("in /Volumes/Work/clients/acme/app.ts"),
+            "in /Volumes/<redacted>/…/app.ts"
+        );
+        assert_eq!(
+            scrub_string("tmp /private/var/folders/xy/T/x.log"),
+            "tmp /private/<redacted>/…/x.log"
+        );
+        assert_eq!(
+            scrub_string("at C:/Users/julian/proj/main.rs"),
+            "at C:/Users/<redacted>/…/main.rs"
+        );
+    }
 
     #[test]
     fn user_names_and_folders_go_the_file_name_stays() {

@@ -11,6 +11,7 @@
  * @module components/dashboard/ProjectTeam
  */
 
+import { worksIn } from '../../lib/projectOpens';
 import { AgentKey } from '../agents/AgentKey';
 import { TextButton } from '../primitives/TextButton';
 import { atWorkLines } from '../workspace/useProjectAgents';
@@ -49,11 +50,7 @@ export function projectTeam(
 ): ProjectTeamSummary | null {
   const atWork = atWorkLines(agents, projectPath, now);
   const bound = agents.filter(
-    (a) =>
-      !a.hidden &&
-      !!a.project &&
-      sameFolder(a.project, projectPath) &&
-      !atWork.some((w) => w.agentId === a.id)
+    (a) => !a.hidden && worksIn(a, projectPath) && !atWork.some((w) => w.agentId === a.id)
   );
   if (atWork.length === 0 && bound.length === 0) return null;
   const members: ProjectTeamMember[] = [

@@ -28,7 +28,7 @@
 //! `agent_bridge_respond` command. This module only speaks MCP.
 
 use bytes::Bytes;
-use http_body_util::{combinators::BoxBody, BodyExt, Full};
+use http_body_util::{combinators::BoxBody, BodyExt, Full, Limited};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
@@ -53,6 +53,22 @@ fn full_body(data: Bytes) -> ServerBody {
 /// Maximum accepted request body (JSON-RPC messages are tiny; this is a
 /// safety cap, not a tuning knob).
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
+
+/// A request body, read only up to [`MAX_BODY_BYTES`]: `None` once it goes
+/// past, without buffering the rest (CTO review 2026-11-14: the whole body
+/// used to be collected before its size was checked).
+async fn read_capped<B>(body: B) -> Result<Option<hyper::body::Bytes>, hyper::Error>
+where
+    B: hyper::body::Body<Error = hyper::Error>,
+{
+    match Limited::new(body, MAX_BODY_BYTES).collect().await {
+        Ok(collected) => Ok(Some(collected.to_bytes())),
+        Err(e) => match e.downcast::<hyper::Error>() {
+            Ok(transport) => Err(*transport),
+            Err(_) => Ok(None),
+        },
+    }
+}
 
 /// How long a forwarded tool call waits for the frontend before giving up.
 const DEFAULT_TOOL_TIMEOUT_SECS: u64 = 20;
@@ -514,13 +530,12 @@ async fn handle_http(
             };
             let method = req.method().clone();
             let headers = req.headers().clone();
-            let body = req.into_body().collect().await?.to_bytes();
-            if body.len() > MAX_BODY_BYTES {
+            let Some(body) = read_capped(req.into_body()).await? else {
                 return Ok(plain_response(
                     StatusCode::PAYLOAD_TOO_LARGE,
                     "Payload too large",
                 ));
-            }
+            };
             return Ok(crate::agents::conn_relay::relay(
                 &app, &agent_id, via, &key, &method, &headers, body,
             )
@@ -555,13 +570,12 @@ async fn handle_http(
 
     match *req.method() {
         Method::POST => {
-            let body = req.into_body().collect().await?.to_bytes();
-            if body.len() > MAX_BODY_BYTES {
+            let Some(body) = read_capped(req.into_body()).await? else {
                 return Ok(plain_response(
                     StatusCode::PAYLOAD_TOO_LARGE,
                     "Payload too large",
                 ));
-            }
+            };
             let message: Value = match serde_json::from_slice(&body) {
                 Ok(v) => v,
                 Err(e) => {
@@ -649,13 +663,12 @@ async fn handle_import_http(
 ) -> Result<Response<ServerBody>, hyper::Error> {
     match *req.method() {
         Method::POST => {
-            let body = req.into_body().collect().await?.to_bytes();
-            if body.len() > MAX_BODY_BYTES {
+            let Some(body) = read_capped(req.into_body()).await? else {
                 return Ok(plain_response(
                     StatusCode::PAYLOAD_TOO_LARGE,
                     "Payload too large",
                 ));
-            }
+            };
             let message: Value = match serde_json::from_slice::<Value>(&body) {
                 Ok(v) if v.is_object() => v,
                 _ => {
@@ -692,13 +705,12 @@ async fn handle_user_chrome_http(
 ) -> Result<Response<ServerBody>, hyper::Error> {
     match *req.method() {
         Method::POST => {
-            let body = req.into_body().collect().await?.to_bytes();
-            if body.len() > MAX_BODY_BYTES {
+            let Some(body) = read_capped(req.into_body()).await? else {
                 return Ok(plain_response(
                     StatusCode::PAYLOAD_TOO_LARGE,
                     "Payload too large",
                 ));
-            }
+            };
             let message: Value = match serde_json::from_slice::<Value>(&body) {
                 Ok(v) if v.is_object() => v,
                 _ => {
@@ -735,13 +747,12 @@ async fn handle_browser_http(
 ) -> Result<Response<ServerBody>, hyper::Error> {
     match *req.method() {
         Method::POST => {
-            let body = req.into_body().collect().await?.to_bytes();
-            if body.len() > MAX_BODY_BYTES {
+            let Some(body) = read_capped(req.into_body()).await? else {
                 return Ok(plain_response(
                     StatusCode::PAYLOAD_TOO_LARGE,
                     "Payload too large",
                 ));
-            }
+            };
             let message: Value = match serde_json::from_slice::<Value>(&body) {
                 Ok(v) if v.is_object() => v,
                 _ => {
@@ -778,13 +789,12 @@ async fn handle_agents_http(
 ) -> Result<Response<ServerBody>, hyper::Error> {
     match *req.method() {
         Method::POST => {
-            let body = req.into_body().collect().await?.to_bytes();
-            if body.len() > MAX_BODY_BYTES {
+            let Some(body) = read_capped(req.into_body()).await? else {
                 return Ok(plain_response(
                     StatusCode::PAYLOAD_TOO_LARGE,
                     "Payload too large",
                 ));
-            }
+            };
             let message: Value = match serde_json::from_slice::<Value>(&body) {
                 Ok(v) if v.is_object() => v,
                 _ => {
@@ -1363,5 +1373,20 @@ mod tests {
         assert!(decode_project_segment("!!!not-base64!!!").is_none());
         // Empty decodes to an empty string, which handle_http rejects.
         assert_eq!(decode_project_segment("").as_deref(), Some(""));
+    }
+}
+
+#[cfg(test)]
+mod capped_body_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_body_past_the_cap_is_refused_without_reading_it_all() {
+        let small = Full::new(hyper::body::Bytes::from(vec![b'a'; 10]))
+            .map_err(|never: std::convert::Infallible| match never {});
+        assert_eq!(read_capped(small).await.unwrap().unwrap().len(), 10);
+        let big = Full::new(hyper::body::Bytes::from(vec![b'a'; MAX_BODY_BYTES + 1]))
+            .map_err(|never: std::convert::Infallible| match never {});
+        assert!(read_capped(big).await.unwrap().is_none());
     }
 }

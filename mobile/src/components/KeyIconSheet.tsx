@@ -12,6 +12,7 @@
 
 import {
   FEATURED_CATEGORY,
+  KEY_FACE_IDS,
   featuredEntries,
   iconName,
   loadAllPackDrawings,
@@ -137,7 +138,7 @@ export function KeyIconSheet({
       <View style={[styles.page, { paddingBottom: insets.bottom }]}>
         <View style={styles.head}>
           <T variant="subhead" color={colors.textStrong}>
-            Icon
+            Face or icon
           </T>
           <Button title="Done" variant="ghost" size="compact" onPress={onClose} />
         </View>
@@ -212,12 +213,21 @@ export function KeyIconSheet({
           accessibilityLabel="Icons"
           contentContainerStyle={styles.grid}
           ListHeaderComponent={
-            browsing && recent.length > 0 ? (
+            browsing ? (
               <View style={styles.recent}>
+                {/* A key can wear a face instead of an icon (agentKeyFaces.ts). */}
                 <T variant="caption" color={colors.textSecondary}>
-                  Recently used
+                  Faces
                 </T>
-                <View style={styles.recentRow}>{recent.map((id) => tile(id, true))}</View>
+                <View style={styles.recentRow}>{KEY_FACE_IDS.map((id) => tile(id))}</View>
+                {recent.length > 0 && (
+                  <>
+                    <T variant="caption" color={colors.textSecondary}>
+                      Recently used
+                    </T>
+                    <View style={styles.recentRow}>{recent.map((id) => tile(id, true))}</View>
+                  </>
+                )}
                 <T variant="caption" color={colors.textSecondary}>
                   All icons
                 </T>

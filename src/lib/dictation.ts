@@ -16,10 +16,17 @@ export type DictationBlock =
   | 'microphone'
   | 'speechRecognition'
   | 'unavailable'
-  | 'missingUsageDescription';
+  | 'missingUsageDescription'
+  // Windows and Linux, first use: the speech model is being fetched (once).
+  | 'preparing'
+  // That fetch failed (no connection): Try again.
+  | 'modelFailed'
+  // Not from the Mac's check: macOS's own Siri & Dictation switch is off,
+  // which surfaces only once a session has started (`dictationOffError`).
+  | 'dictationOff';
 
 export type DictationStart =
-  | { status: 'listening'; session: number }
+  | { status: 'listening'; session: number; mic?: string }
   | { status: 'blocked'; reason: DictationBlock };
 
 export type DictationEvent =
@@ -27,6 +34,10 @@ export type DictationEvent =
   | { kind: 'final'; session: number; text: string }
   | { kind: 'level'; session: number; level: number }
   | { kind: 'error'; session: number; message: string }
+  | { kind: 'improving'; session: number }
+  | { kind: 'improved'; session: number; text: string; raw: string; tidied: boolean }
+  // It heard you but couldn't write it out; the recording is kept for Try again.
+  | { kind: 'unwritten'; session: number }
   | { kind: 'ended'; session: number; cancelled: boolean };
 
 /**
@@ -39,13 +50,80 @@ export function dictationVocabulary(agentNames: string[], projectNames: string[]
   return [...new Set([...agentNames, ...spoken].filter(Boolean))];
 }
 
-export function startDictation(contextualStrings: string[]): Promise<DictationStart> {
-  return invoke<DictationStart>('start_dictation', { contextualStrings });
+/**
+ * Start listening. `context` is the conversation so far, for the pass that
+ * fixes names once it stops.
+ */
+export function startDictation(
+  contextualStrings: string[],
+  context?: string
+): Promise<DictationStart> {
+  return invoke<DictationStart>('start_dictation', { contextualStrings, context: context ?? null });
+}
+
+export const DICTATION_MODEL_EVENT = 'dictation://model';
+
+/** The speech model Whisper uses (574 MB, fetched once). */
+export interface DictationModelStatus {
+  ready: boolean;
+  downloading: boolean;
+  received: number;
+  total: number;
+  failed: boolean;
+}
+
+export function dictationModelStatus(): Promise<DictationModelStatus> {
+  return invoke<DictationModelStatus>('dictation_model_status');
+}
+
+export function downloadDictationModel(): Promise<DictationModelStatus> {
+  return invoke<DictationModelStatus>('dictation_model_download');
+}
+
+export function onDictationModel(
+  handler: (status: DictationModelStatus) => void
+): Promise<UnlistenFn> {
+  return listen<DictationModelStatus>(DICTATION_MODEL_EVENT, (e) => handler(e.payload));
+}
+
+/**
+ * The conversation's last few messages, newest last, as plain lines for the
+ * names pass: who said it and what. Capped; the backend trims it again.
+ */
+export function dictationContext(lines: { who: string; text: string }[], max = 2_000): string {
+  const out: string[] = [];
+  let size = 0;
+  for (let i = lines.length - 1; i >= 0 && out.length < 8; i--) {
+    const line = `${lines[i].who}: ${lines[i].text.replace(/\s+/g, ' ').trim()}`;
+    if (!lines[i].text.trim()) continue;
+    if (size + line.length > max) break;
+    out.unshift(line);
+    size += line.length;
+  }
+  return out.join('\n');
 }
 
 export function stopDictation(session: number): Promise<void> {
   return invoke('stop_dictation', { session });
 }
+
+/** Write out again a recording that couldn't be (after `unwritten`). */
+export function retryDictation(session: number): Promise<void> {
+  return invoke('retry_dictation', { session });
+}
+
+// Whether the mic is really hearing you, and the listening line's words:
+// one rule for desk and phone (companion-protocol, listening.ts).
+export {
+  VOICE_LEVEL,
+  SILENT_FIRST_MS,
+  SILENT_AFTER_MS,
+  NO_WORDS_MS,
+  hearing,
+  hearingLine,
+  elapsedLabel,
+  type Hearing,
+} from '../../packages/companion-protocol/src/listening';
 
 export function cancelDictation(session: number): Promise<void> {
   return invoke('cancel_dictation', { session });
@@ -73,7 +151,30 @@ export function blockedCopy(reason: DictationBlock): { message: string; settings
       return { message: 'This build can’t ask for microphone access.' };
     case 'unavailable':
       return { message: `Speech recognition isn’t available on ${THIS_COMPUTER} right now.` };
+    case 'preparing':
+      return {
+        message: `Getting dictation ready on ${THIS_COMPUTER}: a one-time 574 MB download.`,
+      };
+    case 'modelFailed':
+      return {
+        message:
+          'Dictation couldn’t finish getting ready. Check the connection, then try the mic again.',
+      };
+    case 'dictationOff':
+      return {
+        message: `Dictation is turned off on ${THIS_COMPUTER}. Turn it on in Keyboard settings, then try again.`,
+        settings: 'x-apple.systempreferences:com.apple.Keyboard-Settings.extension',
+      };
   }
+}
+
+/**
+ * True when a session's error is macOS saying its own Siri & Dictation switch
+ * is off ("Siri and Dictation are disabled."): a setting to change, not a
+ * fault, so it shows as the blocked line with its Settings button (issue #17).
+ */
+export function dictationOffError(message: string): boolean {
+  return /siri and dictation are disabled|dictation is (disabled|turned off)/i.test(message);
 }
 
 export function openPrivacySettings(url: string): Promise<void> {
@@ -86,4 +187,42 @@ export function joinDictation(base: string, spoken: string): string {
   if (!said) return base;
   if (!base) return said;
   return /\s$/.test(base) ? base + said : `${base} ${said}`;
+}
+
+/** Your words (Settings → Agents → Dictation), and the fixes that taught some. */
+export interface DictationWords {
+  words: { word: string; learned: boolean; added: number }[];
+  fixes: { heard: string; fixed: string; count: number; last: number }[];
+  removed: string[];
+}
+
+export function dictationWords(): Promise<DictationWords> {
+  return invoke<DictationWords>('dictation_words');
+}
+
+export function addDictationWord(word: string): Promise<DictationWords> {
+  return invoke<DictationWords>('dictation_word_add', { word });
+}
+
+export function removeDictationWord(word: string): Promise<DictationWords> {
+  return invoke<DictationWords>('dictation_word_remove', { word });
+}
+
+/**
+ * A dictated message as it was sent: the computer notes each word you fixed
+ * and answers the words that became yours because of it (the same fix made
+ * a second time).
+ */
+export function learnFromDictation(dictated: string, sent: string): Promise<string[]> {
+  return invoke<string[]>('dictation_learn', { dictated, sent });
+}
+
+/** The line shown when a fix taught a word. */
+export function learnedWordsLine(words: string[]): string {
+  const quoted = words.map((w) => `“${w}”`);
+  const list =
+    quoted.length <= 1
+      ? quoted.join('')
+      : `${quoted.slice(0, -1).join(', ')} and ${quoted[quoted.length - 1]}`;
+  return `Added ${list} to your words`;
 }

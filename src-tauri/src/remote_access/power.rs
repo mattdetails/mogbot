@@ -19,8 +19,9 @@
 //!   the process does); Linux with `systemd-inhibit` when it is installed,
 //!   running `tail --pid=<our pid>` so the lock dies with us. Without
 //!   `systemd-inhibit` the row isn't offered ([`keep_awake_available`]).
-//!   Lid-closed mode and reopening at login stay macOS only.
-//! - **Restart** — a LaunchAgent that reopens the app at login. macOS still
+//!   Lid-closed mode stays macOS only.
+//! - **Restart** — an entry that reopens the app at login (`login_item`: a
+//!   LaunchAgent, the Run key on Windows, XDG autostart on Linux). macOS still
 //!   needs someone to log in after a restart when FileVault is on; nothing an
 //!   app does gets around that, and the UI says so instead of implying it.
 
@@ -85,7 +86,7 @@ pub fn parse_sleep_disabled(output: &str) -> Option<bool> {
 }
 
 async fn pmset(args: &[&str]) -> Option<String> {
-    let mut cmd = tokio::process::Command::new("/usr/bin/pmset");
+    let mut cmd = crate::utils::create_tokio_command("/usr/bin/pmset");
     cmd.args(args);
     let output = crate::external_command::run_with_timeout(cmd, "pmset", 5)
         .await
@@ -235,7 +236,7 @@ pub async fn set_lid_closed_mode(enabled: bool) -> Result<(), CommandError> {
     let script = format!(
         "do shell script \"/usr/bin/pmset -a disablesleep {value}\" with administrator privileges"
     );
-    let mut cmd = tokio::process::Command::new("/usr/bin/osascript");
+    let mut cmd = crate::utils::create_tokio_command("/usr/bin/osascript");
     cmd.args(["-e", &script]);
     // Long timeout: a person is typing a password.
     let output = crate::external_command::run_with_timeout(cmd, "osascript pmset", 180).await?;
@@ -350,7 +351,7 @@ fn spawn_holder() -> Result<Holder, CommandError> {
     })?;
     // The lock lasts while `tail` runs, and `tail --pid` ends when we do, so
     // a crash can't leave the machine unable to sleep. The display may sleep.
-    let child = std::process::Command::new(bin)
+    let child = crate::utils::create_command(bin)
         .args([
             "--what=idle:sleep",
             &format!("--who={}", crate::brand::NAME),
@@ -490,93 +491,152 @@ pub fn keep_awake_active() -> bool {
 }
 
 // ============================================================================
+// Screen on while agents work
+// ============================================================================
+//
+// A locked screen stops whatever needs a person at it: Claude in Chrome's
+// per-site Allow window can't show, so every step in the user's Chrome times
+// out. "Keep the screen on while agents work" (off by default: it's the
+// user's security call) holds the display awake only while a turn is running,
+// so the screen saver and display sleep (and the lock that follows them)
+// wait until the team is idle. It can't stop a lock the user asks for (⌘⌃Q,
+// closing the lid) and never unlocks anything.
+
+static SCREEN: LazyLock<Mutex<Option<Holder>>> = LazyLock::new(|| Mutex::new(None));
+static SCREEN_ASKED: AtomicBool = AtomicBool::new(false);
+
+/// Only where the display can be held awake: macOS and Windows.
+pub fn screen_on_available() -> bool {
+    cfg!(any(target_os = "macos", windows))
+}
+
+#[cfg(target_os = "macos")]
+fn spawn_screen_holder() -> Result<Holder, CommandError> {
+    // -d: no display sleep (and so no screen saver or the lock after it).
+    let child = crate::utils::create_command("/usr/bin/caffeinate")
+        .args(["-d", "-w", &std::process::id().to_string()])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| CommandError::from(format!("Could not start caffeinate: {e}")))?;
+    Ok(Holder::Process(child))
+}
+
+#[cfg(windows)]
+fn spawn_screen_holder() -> Result<Holder, CommandError> {
+    use windows_sys::Win32::System::Power::{
+        SetThreadExecutionState, ES_CONTINUOUS, ES_DISPLAY_REQUIRED,
+    };
+    let (stop, stopped) = std::sync::mpsc::channel::<()>();
+    let (started, result) = std::sync::mpsc::channel::<bool>();
+    let thread = std::thread::Builder::new()
+        .name("screen-on".into())
+        .spawn(move || {
+            // SAFETY: plain Win32 call with flag constants.
+            let ok = unsafe { SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED) } != 0;
+            let _ = started.send(ok);
+            if ok {
+                let _ = stopped.recv();
+                // SAFETY: as above; clears what this thread set.
+                unsafe { SetThreadExecutionState(ES_CONTINUOUS) };
+            }
+        })
+        .map_err(|e| CommandError::from(format!("Could not start screen-on: {e}")))?;
+    if result.recv().unwrap_or(false) {
+        Ok(Holder::Thread(WinHold { stop, thread }))
+    } else {
+        let _ = thread.join();
+        Err(CommandError::from(
+            "Windows refused to keep the screen on.".to_string(),
+        ))
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn spawn_screen_holder() -> Result<Holder, CommandError> {
+    Err(CommandError::expected(
+        "Keeping the screen on isn't offered on Linux yet.",
+    ))
+}
+
+/// The user's switch. Takes effect on the next [`screen_tick`].
+pub fn set_screen_on_asked(asked: bool) {
+    SCREEN_ASKED.store(asked, Ordering::SeqCst);
+    if !asked {
+        release_screen();
+    }
+}
+
+pub fn screen_on_asked() -> bool {
+    SCREEN_ASKED.load(Ordering::SeqCst)
+}
+
+/// Whether the screen should be held now: the switch is on and a turn runs.
+pub fn screen_should_hold(asked: bool, busy: usize) -> bool {
+    asked && busy > 0
+}
+
+/// Hold or release the display for how many turns are running now. Called
+/// every few seconds from launch; cheap when nothing changes.
+pub fn screen_tick(busy: usize) {
+    if !screen_on_available() {
+        return;
+    }
+    if !screen_should_hold(screen_on_asked(), busy) {
+        release_screen();
+        return;
+    }
+    let Ok(mut guard) = SCREEN.lock() else { return };
+    if guard.as_mut().is_some_and(Holder::alive) {
+        return;
+    }
+    match spawn_screen_holder() {
+        Ok(holder) => {
+            tracing::info!("[Power] Keeping the screen on while agents work");
+            if let Some(old) = guard.replace(holder) {
+                old.release();
+            }
+        }
+        Err(e) => tracing::warn!("[Power] Could not keep the screen on: {e}"),
+    }
+}
+
+fn release_screen() {
+    let holder = SCREEN.lock().ok().and_then(|mut g| g.take());
+    if let Some(holder) = holder {
+        holder.release();
+        tracing::info!("[Power] Let the screen sleep again");
+    }
+}
+
+// ============================================================================
 // Reopen after restart
 // ============================================================================
+//
+// The entry itself, per OS, is `login_item`.
 
-/// `<identifier>.reopen-at-login`. Ship Studio's agent is
-/// `studio.ship.reopen-at-login`; sharing it would let either app's toggle
-/// rewrite or delete the other's.
-fn launch_agent_label() -> String {
-    format!("{}.reopen-at-login", crate::brand::IDENTIFIER)
-}
-
-fn launch_agent_path() -> Option<std::path::PathBuf> {
-    dirs::home_dir().map(|h| {
-        h.join("Library/LaunchAgents")
-            .join(format!("{}.plist", launch_agent_label()))
-    })
-}
-
-/// The `.app` bundle we are running from. `None` in a dev build, where there
-/// is no bundle to reopen and the toggle is shown as unavailable.
-pub fn app_bundle_path() -> Option<std::path::PathBuf> {
-    let exe = std::env::current_exe().ok()?;
-    exe.ancestors()
-        .find(|p| p.extension().is_some_and(|e| e == "app"))
-        .map(|p| p.to_path_buf())
-}
+pub use super::login_item::{app_bundle_path, launch_agent_plist};
 
 pub fn open_at_login_active() -> bool {
-    launch_agent_path().is_some_and(|p| p.exists())
-}
-
-pub fn launch_agent_plist(bundle: &std::path::Path) -> String {
-    let bundle = bundle
-        .to_string_lossy()
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;");
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>{label}</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/usr/bin/open</string>
-    <string>-g</string>
-    <string>{bundle}</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-</dict>
-</plist>
-"#,
-        label = launch_agent_label()
-    )
+    super::login_item::active()
 }
 
 pub fn set_open_at_login(enabled: bool) -> Result<(), CommandError> {
-    let path = launch_agent_path()
-        .ok_or_else(|| CommandError::expected("Could not find your home folder."))?;
-    if !enabled {
-        if path.exists() {
-            std::fs::remove_file(&path)?;
-        }
-        return Ok(());
-    }
-    if !cfg!(target_os = "macos") {
-        return Err(CommandError::expected(
-            "Reopening after a restart is only available on macOS.",
-        ));
-    }
-    let bundle = app_bundle_path().ok_or_else(|| {
-        CommandError::expected(
-            "This build isn't running from an installed app, so there is nothing to reopen.",
-        )
-    })?;
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    std::fs::write(&path, launch_agent_plist(&bundle))?;
-    Ok(())
+    super::login_item::set(enabled)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_screen_is_held_only_when_asked_and_an_agent_works() {
+        assert!(!screen_should_hold(false, 0));
+        assert!(!screen_should_hold(false, 3));
+        assert!(!screen_should_hold(true, 0));
+        assert!(screen_should_hold(true, 1));
+    }
 
     #[test]
     fn parses_a_laptop_on_battery() {

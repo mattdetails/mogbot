@@ -5,6 +5,8 @@
 import { fromB64url } from './auth';
 
 /** How long fetched keys are trusted before they're fetched again. */
+/** No outgoing request waits longer than this: a stalled upstream must not hold the relay. */
+export const FETCH_TIMEOUT_MS = 5_000;
 export const JWKS_TTL_MS = 10 * 60_000;
 /** An unknown `kid` refetches the keys (Clerk rotated them), at most this often. */
 const REFETCH_MIN_MS = 30_000;
@@ -26,7 +28,10 @@ type Keys = { keys: Map<string, CryptoKey>; fetchedAt: number };
 const cache = new Map<string, Keys>();
 
 async function fetchKeys(url: string, now: number): Promise<Keys> {
-  const res = await fetch(url, { headers: { accept: 'application/json' } });
+  const res = await fetch(url, {
+    headers: { accept: 'application/json' },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`jwks ${res.status}`);
   const body = (await res.json()) as { keys?: unknown };
   const keys = new Map<string, CryptoKey>();

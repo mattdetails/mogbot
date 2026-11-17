@@ -870,7 +870,13 @@ A scheduled run is settled by its ticket id (it rides on the queued wake and
 carries over an interrupt); stopped, or dropped by a Stop, it is recorded as
 failed ("Stopped"), never as a success or left "Running". The status says
 "Needs your OK" until every open card of the turn is answered (a count per
-agent, per turn). Deleting an agent stops it, closes its queue (anything sent to it
+agent, per turn). A chat's newest page (desk and phone) reaches back to the
+oldest card still waiting in that conversation (`store::oldest_open_card`),
+so a card a row counts is always in the chat, and opening an agent that
+needs you lands on its newest open card, switching to the conversation it
+was asked in (`cardToOpen`). An answer an agent sends with `message_agent`
+goes to the conversation that asked, like one from its final words
+(`mcp::received_line`, `conversations::asked_in`). Deleting an agent stops it, closes its queue (anything sent to it
 meanwhile is refused and its sender told), and waits up to 3 s for its
 turn to end; a write for an agent no longer registered is refused, so its
 folder never comes back.
@@ -1528,8 +1534,8 @@ left end and "Just does it" at the right:
 | Stop | Stored id | Its line under the slider |
 | --- | --- | --- |
 | **Careful** | `often` | Reads and looks around; asks before bigger changes. |
-| **Steady** (the default) | `judgement` | Reads and edits; asks before running changes or anything leaving this Mac. |
-| **Bold** | `go_hard` | Does local work on this Mac; asks before anything leaves it. |
+| **Steady** (the default before 1.0.14; still where an older install that never moved the slider runs) | `judgement` | Reads and edits; asks before running changes or anything leaving this Mac. |
+| **Bold** (a new install starts here, `independence::NEW_INSTALL`) | `go_hard` | Does local work on this Mac; asks before anything leaves it. |
 | **Unleashed** | `full_send` | Sends, posts and pushes too; only stops for money, logins, deleting for good or going live. |
 
 Under it, at every stop: "Always asks before spending money, using your
@@ -1712,7 +1718,10 @@ below; it asks only for:
   repeats the server's name (`slack_post_message`). So `post_message`,
   `createPost`, `send_email` and `publishPost` ask, while `capturePost`,
   `upsertSocialPosts` and `listPosts` run ("post" there names posts). Code
-  hosts' and databases' writes ask too; uploads in the browser
+  hosts' and databases' writes ask too; uploads in the browser, except a
+  picture, video or PDF inside the agent's own home (`browser_gate::own_media`:
+  the post's words already had their OK, and a card per picture was twelve
+  extra cards for twelve posts)
 - a network request with a secret in its address, query or headers
   (`agents/egress.rs`, below): `curl` (and its `-u` / `-b` /
   `--oauth2-bearer`), `wget`, `http`, `gh api`, a `git` remote with a
@@ -2075,13 +2084,14 @@ above). When the user's own typed yes had no card to answer
 without a card if that turn answers the yes alone (no other agent's request or
 app note batched with it: `runner::users_message_alone`, else the card asks)
 and every action's target is named in that reply ("Your yes
-covers, for an hour: …"). Allow makes a **plan grant** (in memory; a restart
+covers, for an hour after the last of them: …"). Allow makes a **plan grant** (in memory; a restart
 forgets it): each action matched on its kind (push, pull request, merge, issue,
 comment, release, deploy, publish, post, send, request, github) **and** its
 target (`owner/repo` from the checkout's remotes or `-R`, the folder or
 `.vercel/project.json` name, a deployment host named after the project, a
-connector's `owner`/`repo`/`channel`/`project`, a browser page's host), for 60
-minutes, each listed action once (the same call again, a retry, still
+connector's `owner`/`repo`/`channel`/`project`, a browser page's host), for an
+hour from the OK and again from each covered action, never past 8 hours
+(`LONGEST_MS`; a 12-post batch outlived a fixed hour), each listed action once (the same call again, a retry, still
 passes). `message_agent` carries the grant to the agent it hands work to, and
 on down the chain (never from a turn answering outside text). Each covered
 call runs without a card and leaves "Under your OK · <summary>" in "What it
@@ -2250,7 +2260,10 @@ instead of only saying OK. Rust decides, not the prompt:
   a note the app queues (`runner::From::App`: late Allow, declined login) and a
   message the app writes from a button ("Say hi") carry no typed words, so an
   admin answering for another agent can't either. `quote` must be whole words
-  of what they typed.
+  of what they typed, must say it's for good ("always", "from now on", "every
+  time", "without asking"…; `FOR_GOOD`), and for scope "team" must name the
+  team ("the team", "everyone", "all agents"; `TEAM_WORDS`): "yes do those"
+  is a yes to the card, not a rule.
 - **Only a card they saw.** The rule is the `always` scope a card in this
   chat offered, found by tool name, command, host or label. Nothing broader.
 - **Never the floor** (`go_hard::floor`): Bold's ask list for commands and
@@ -2404,6 +2417,17 @@ value from the webview to the macOS Keychain, service
 with the variable's name and the reference (`secret:finance/stripe_key`).
 Deny wakes it with a plain refusal (or the user's note). The registry keeps
 names, purpose, reference, created and last-used only.
+
+Off the Mac the same items go to Windows Credential Manager, or on Linux to
+the Secret Service (`keychain/linux_store.rs`). A Linux box with no session
+bus at all gets an encrypted file instead (`keychain/file_store.rs`):
+`secrets.enc` (ChaCha20-Poly1305, 0600) in the app's folder, its key derived
+with HKDF from `secrets.key` beside it (0600) or the file named by
+`<SLUG>_SECRET_KEY_FILE`. The choice is written down once (`secret-store`),
+so secrets never split across two stores; a desktop whose keyring doesn't
+answer gets the error, never a new empty file. `<SLUG>_SECRET_STORE=file` or
+`=secret-service` chooses outright. A lost or wrong key, or a tampered file,
+is an error and the file is never overwritten.
 
 **Use: environment variables.** Each turn is a fresh `claude` process, so
 that agent's turns (and no other's) start with its secrets as variables
@@ -2991,7 +3015,12 @@ their own, and the person signs in to it from the phone.
   server (`mcp::decide_agents_browser`). "Bold" doesn't auto-allow a step
   the browser gate said asks (this also closed that gap for Claude in
   Chrome's send clicks).
-- **Which browser** (`access_chain`): the agents' browser first; the user's
+- **Which browser** (`access_chain`): the one already signed in to the site,
+  kept for the whole task (agents hopped from the agents' browser to the
+  user's Chrome mid-task, opening two windows for one job); a site the agent
+  already has open in the user's Chrome stays there (`in_users_chrome_on`),
+  sign-in cards included ("Done in my Chrome"). Otherwise the agents' browser
+  for most sites; the user's
   own Chrome (Claude in Chrome) for Gmail, Google Calendar, Drive, Slack, X,
   LinkedIn and Grok (`users_chrome_first`: Google refuses a sign-in in a
   driven browser, and signed out, mail.google.com lands on Google's product
@@ -5365,8 +5394,9 @@ MCP servers) stays per account, but its servers are brought over (below).
 Code 2.1.319, read in its own code and observed on this Mac 2026-11-08):
 
 - **MCP servers.** Before each turn on an added account, This Mac's
-  user-scope `mcpServers` are merged into the account's `.claude.json`
-  (`sync_servers`): only that key, atomic 0600 write, the account's own
+  user-scope `mcpServers`, and each project's (`projects["<path>"].mcpServers`,
+  such as the preview server registered for one project), are merged into
+  the account's `.claude.json` (`sync_servers`): only those keys, atomic 0600 write, the account's own
   servers kept, a server This Mac dropped removed only if the sync put it
   there (`.synced-mcp-servers.json` beside it). Nothing else of the file is
   touched; no login is copied. The servers' OAuth tokens live in Claude
@@ -5400,10 +5430,14 @@ Code 2.1.319, read in its own code and observed on this Mac 2026-11-08):
   browser. Nothing for the owner to do.
 - **claude.ai connectors** belong to each claude.ai account and can't be
   copied. When a switched turn's engine lists what it has, `lost_line`
-  compares it with the last turn's and posts one Note: "Gmail isn't on in
-  claude.ai for Personal: turn it on at claude.ai/settings/connectors while
-  signed in as Personal; agents use them in your Chrome meanwhile." (or "or
-  connect them here" without the browser). The access chain already falls
+  compares it with the last turn's and posts one Note. What the account
+  lists as needing a sign-in is said as that ("On Personal, Figma needs a
+  one-time sign-in…"), never as a claude.ai connector; the rest: "Gmail isn't
+  reachable on Personal. If it's a claude.ai connector, turn it on at
+  claude.ai/settings/connectors while signed in as Personal; agents use them
+  in your Chrome meanwhile." (or "or connect them here" without the browser).
+  The capabilities list can't tell a claude.ai connector from another
+  server, so the line doesn't claim which it is. The access chain already falls
   back to a connection here or the user's Chrome for that service, since
   the connector is no longer in the agent's capabilities.
 - **Not verified:** a real `claude auth login` into an added account's
@@ -5994,10 +6028,10 @@ back from the thing itself:
   opt-in because it changes what closing a window does for every project, not
   only Agents. Nobody who hasn't turned it on here sees any difference.
 - **Open at login** is remote access's own login item
-  (`remote_access::power::set_open_at_login`, the
-  `studio.ship.reopen-at-login` LaunchAgent): one file, so turning it on or off
-  here shows in remote access's checklist too. Hidden in a dev build, which has
-  no installed app to reopen.
+  (`remote_access::login_item`: the `<identifier>.reopen-at-login` LaunchAgent
+  on macOS, the app's value in the Run key on Windows, an XDG autostart entry
+  on Linux): one entry, so turning it on or off here shows in remote access's
+  checklist too. Hidden in a dev build, which has no installed app to reopen.
 
 They are offered in two quiet places only, and only once they matter: at the
 foot of What's in flight while an agent is working or something is scheduled
@@ -7668,8 +7702,12 @@ at 8 levels and 200,000 entries.
 **Settings → Agents → Disk space** (`AgentsDiskSettings`, ⌘K "Disk space used
 by agents…") is hidden while disk is fine and no home is 1 GB or more.
 Otherwise it shows free space when low, and each home of 1 GB or more: its
-size, how much of it is in regenerable folders, and **Free up space**, which
-runs the same prune with no age limit (refused while the agent is working). Its
+size, how much of it is safe to free, and **Free up space**, which
+runs the same prune with no age limit (refused while the agent is working),
+and also removes the app's kept conversation copies (`.session`) that an
+account folder still holds in full: nothing is lost, the next turn keeps a
+copy again. A Claude Code conversation past 100 MB starts a new one with a
+recap of the chat and one quiet line (`transcript::LONG_TRANSCRIPT`). Its
 line then says what it did ("Freed 37 GB."), and how many it left because git
 doesn't ignore them. Sizes are on-disk blocks, measured on demand and kept for 5
 minutes.

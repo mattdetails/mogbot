@@ -165,7 +165,7 @@ export const getRemoteAudit = (limit = 50) => invoke<AuditEntry[]>('get_remote_a
  * What keeps agents going on this computer, offered in Agents apart from
  * remote access: hold it awake (the same assertion remote access holds),
  * keep running when windows close (macOS), and open at login (remote
- * access's own login item, macOS). Each is read back from the thing itself.
+ * access's own login item). Each is read back from the thing itself.
  */
 export interface StayOn {
   supported: boolean;
@@ -179,8 +179,14 @@ export interface StayOn {
   openAtLogin: boolean;
   /** False in a dev build, which has no installed app to reopen. */
   openAtLoginAvailable: boolean;
+  /** "Keep the screen on while agents work": the switch (held only while a turn runs). */
+  keepScreenOn?: boolean;
+  /** macOS and Windows only. */
+  keepScreenOnAvailable?: boolean;
 }
-export type StayOnChange = Partial<Pick<StayOn, 'keepAwake' | 'keepRunning' | 'openAtLogin'>>;
+export type StayOnChange = Partial<
+  Pick<StayOn, 'keepAwake' | 'keepRunning' | 'openAtLogin' | 'keepScreenOn'>
+>;
 export const getStayOn = () => invoke<StayOn>('get_stay_on');
 export const setStayOn = (change: StayOnChange) => invoke<StayOn>('set_stay_on', change);
 

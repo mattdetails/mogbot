@@ -15,6 +15,7 @@
  * @module components/workspace/useProjectAgents
  */
 
+import { worksIn } from '../../lib/projectOpens';
 import { useEffect, useMemo, useState } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import {
@@ -27,11 +28,7 @@ import {
 } from '../../lib/agents';
 import { logger } from '../../lib/logger';
 import { requestAgentsIntent } from '../../commands/useAgentsCommands';
-import {
-  agentsAtWork,
-  atWorkText,
-  sameFolder,
-} from '../../../packages/companion-protocol/src/work';
+import { agentsAtWork, atWorkText } from '../../../packages/companion-protocol/src/work';
 import { keyLookFor } from '../../../packages/companion-protocol/src/agentKeys';
 
 export interface ProjectAgentRow {
@@ -77,11 +74,7 @@ export function projectAgentRows(
   if (!projectPath) return [];
   const atWork = atWorkLines(agents, projectPath, now);
   const bound = agents.filter(
-    (a) =>
-      !a.hidden &&
-      a.project &&
-      sameFolder(a.project, projectPath) &&
-      !atWork.some((w) => w.agentId === a.id)
+    (a) => !a.hidden && worksIn(a, projectPath) && !atWork.some((w) => w.agentId === a.id)
   );
   // Agents at work here are rows among the Sessions, not here (`agentWorkItems`).
   return bound.map((a) => ({

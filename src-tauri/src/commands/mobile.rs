@@ -890,6 +890,10 @@ struct AndroidBridgeHandle {
     /// handler for its connection's lifetime. `None` = screenrecord fallback (or
     /// no client connected).
     current_scid: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    /// The bridge's own random token, required as `?t=` on the WebSocket
+    /// handshake ([`bridge_handshake_ok`]): only the webview that started the
+    /// mirror is handed it, in [`MirrorInfo::ws_url`].
+    token: String,
 }
 
 /// Live bridges keyed by project path — the same key as [`MOBILE_SESSIONS`], so
@@ -1640,6 +1644,53 @@ fn bridge_hello(input: &str) -> String {
     format!(r#"{{"type":"mode","input":"{input}"}}"#)
 }
 
+/// May this WebSocket handshake reach the mirror? The bridge streams the
+/// device's screen out and takes taps and keys in, on a loopback port any web
+/// page could open (WebSockets skip CORS). So: the bridge's own token as
+/// `t=` in the query, and an Origin that is the app's own (`tauri://localhost`,
+/// `http(s)://tauri.localhost`) or loopback (the dev server, the harness). No
+/// Origin is refused too: the webview always sends one. Pure.
+fn bridge_handshake_ok(origin: Option<&str>, query: Option<&str>, token: &str) -> bool {
+    let token_ok = !token.is_empty()
+        && query
+            .unwrap_or("")
+            .split('&')
+            .any(|kv| kv.strip_prefix("t=").is_some_and(|t| t == token));
+    let origin_ok = origin
+        .and_then(|o| url::Url::parse(o).ok())
+        .is_some_and(|u| {
+            let host = u.host_str().unwrap_or("");
+            match u.scheme() {
+                "tauri" => host == "localhost",
+                "http" | "https" => matches!(
+                    host,
+                    "tauri.localhost" | "localhost" | "127.0.0.1" | "[::1]"
+                ),
+                _ => false,
+            }
+        });
+    token_ok && origin_ok
+}
+
+/// A fresh bridge token: 128 random bits as hex.
+fn new_bridge_token() -> String {
+    uuid::Uuid::new_v4().simple().to_string()
+}
+
+/// The mirror's WebSocket address for the webview, carrying the bridge's token.
+fn bridge_ws_url(port: u16, token: &str) -> String {
+    format!("ws://127.0.0.1:{port}/?t={token}")
+}
+
+/// The live bridge's token for `project_path`, if one runs.
+fn android_bridge_token(project_path: &str) -> Option<String> {
+    ANDROID_BRIDGES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(project_path)
+        .map(|h| h.token.clone())
+}
+
 /// Handle one webview connection: WebSocket handshake, announce the input mode,
 /// then run video out and control in concurrently. Whichever side ends first
 /// cancels the others (dropped futures kill their capture children), so a
@@ -1648,15 +1699,27 @@ fn bridge_hello(input: &str) -> String {
 async fn handle_bridge_client(
     serial: &str,
     current_scid: &std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    token: &str,
     stream: tokio::net::TcpStream,
 ) {
     use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::tungstenite::handshake::server::{ErrorResponse, Request, Response};
     use tokio_tungstenite::tungstenite::Message;
     let _ = stream.set_nodelay(true);
-    let ws = match tokio_tungstenite::accept_async(stream).await {
+    let check = |req: &Request, resp: Response| -> Result<Response, ErrorResponse> {
+        let origin = req.headers().get("origin").and_then(|v| v.to_str().ok());
+        if bridge_handshake_ok(origin, req.uri().query(), token) {
+            Ok(resp)
+        } else {
+            let mut refused = ErrorResponse::new(None);
+            *refused.status_mut() = tokio_tungstenite::tungstenite::http::StatusCode::FORBIDDEN;
+            Err(refused)
+        }
+    };
+    let ws = match tokio_tungstenite::accept_hdr_async(stream, check).await {
         Ok(ws) => ws,
         Err(e) => {
-            tracing::warn!(%serial, error = %e, "android bridge ws handshake failed");
+            tracing::warn!(%serial, error = %e, "android bridge ws handshake refused or failed");
             return;
         }
     };
@@ -1709,11 +1772,12 @@ async fn handle_bridge_client(
 async fn android_bridge_supervisor(
     serial: String,
     current_scid: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    token: String,
     listener: tokio::net::TcpListener,
 ) {
     loop {
         match listener.accept().await {
-            Ok((stream, _)) => handle_bridge_client(&serial, &current_scid, stream).await,
+            Ok((stream, _)) => handle_bridge_client(&serial, &current_scid, &token, stream).await,
             Err(e) => {
                 tracing::warn!(%serial, error = %e, "android bridge accept failed; stopping");
                 break;
@@ -1729,15 +1793,17 @@ async fn start_android_bridge(
     serial: &str,
     project_path: &str,
     ws_port: u16,
-) -> Result<(), CommandError> {
+) -> Result<String, CommandError> {
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", ws_port))
         .await
         .map_err(|e| format!("Failed to bind the Android mirror bridge on port {ws_port}: {e}"))?;
     let serial = serial.to_string();
     let current_scid = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let token = new_bridge_token();
     let task = tokio::spawn(android_bridge_supervisor(
         serial.clone(),
         current_scid.clone(),
+        token.clone(),
         listener,
     ));
     ANDROID_BRIDGES
@@ -1749,9 +1815,10 @@ async fn start_android_bridge(
                 serial,
                 task,
                 current_scid,
+                token: token.clone(),
             },
         );
-    Ok(())
+    Ok(token)
 }
 
 /// On-device kill command for a bridge's lingering capture process. When the
@@ -2101,7 +2168,7 @@ pub fn teardown_mobile_previews_for_window_sync(window_label: &str) {
         // cold start would block window close for hundreds of ms.
         kill_process_on_port_sync(session.serve_sim_port);
         if session.booted_by_us {
-            let _ = std::process::Command::new("xcrun")
+            let _ = crate::utils::create_command("xcrun")
                 .args(["simctl", "shutdown", &session.udid])
                 .env("PATH", get_extended_path())
                 .output();
@@ -2566,11 +2633,11 @@ async fn android_emu_kill(serial: &str) {
 /// Reconstruct the canvas-mirror connection info for a live Android session — the
 /// Android analog of [`reuse_mirror_info`]. There's no MJPEG URL: the frontend
 /// decodes the WebSocket's H.264 onto a `<canvas>`, so `stream_url` is empty.
-fn android_mirror_info(s: &crate::state::MobileSession) -> MirrorInfo {
+fn android_mirror_info(s: &crate::state::MobileSession, token: &str) -> MirrorInfo {
     MirrorInfo {
         udid: s.udid.clone(),
         stream_url: String::new(),
-        ws_url: format!("ws://127.0.0.1:{}", s.serve_sim_port),
+        ws_url: bridge_ws_url(s.serve_sim_port, token),
         port: s.serve_sim_port,
         device_name: s.device_name.clone(),
         device_runtime: s.device_runtime.clone(),
@@ -2618,8 +2685,10 @@ async fn start_android_preview(
             && android_device_present(&existing.udid).await
             && serve_sim_alive(existing.serve_sim_port).await
         {
-            tracing::info!(serial = %existing.udid, "start_android_preview: reusing live bridge");
-            return Ok(android_mirror_info(&existing));
+            if let Some(token) = android_bridge_token(&project_path) {
+                tracing::info!(serial = %existing.udid, "start_android_preview: reusing live bridge");
+                return Ok(android_mirror_info(&existing, &token));
+            }
         }
         // Stale or wrong-platform session (e.g. an iOS preview was up) — drop it and
         // tear it down via the platform dispatcher before rebuilding for Android.
@@ -2633,13 +2702,16 @@ async fn start_android_preview(
         project_path.clone(),
         ANDROID_BRIDGE_BASE_PORT,
     )?;
-    if let Err(e) = start_android_bridge(&device.serial, &project_path, reserved).await {
-        crate::state::release_port_for_project(&window_label, &project_path);
-        if booted_by_us {
-            android_emu_kill(&device.serial).await;
+    let token = match start_android_bridge(&device.serial, &project_path, reserved).await {
+        Ok(token) => token,
+        Err(e) => {
+            crate::state::release_port_for_project(&window_label, &project_path);
+            if booted_by_us {
+                android_emu_kill(&device.serial).await;
+            }
+            return Err(e);
         }
-        return Err(e);
-    }
+    };
 
     let device_runtime = android_device_runtime(&device.serial).await;
     crate::state::register_mobile_session(
@@ -2661,7 +2733,7 @@ async fn start_android_preview(
     Ok(MirrorInfo {
         udid: device.serial,
         stream_url: String::new(),
-        ws_url: format!("ws://127.0.0.1:{reserved}"),
+        ws_url: bridge_ws_url(reserved, &token),
         port: reserved,
         device_name: device.name,
         device_runtime,
@@ -3281,6 +3353,85 @@ mod tests {
         );
     }
 
+    /// CTO review 2026-11-14: any web page could open the mirror socket
+    /// (`new WebSocket('ws://127.0.0.1:3200')`) and watch and drive the device.
+    #[test]
+    fn mirror_handshake_needs_the_token_and_the_apps_origin() {
+        let t = "0123456789abcdef0123456789abcdef";
+        let q = format!("t={t}");
+        for origin in [
+            "tauri://localhost",
+            "http://tauri.localhost",
+            "https://tauri.localhost",
+            "http://localhost:1420",
+            "http://127.0.0.1:1425",
+        ] {
+            assert!(bridge_handshake_ok(Some(origin), Some(&q), t), "{origin}");
+        }
+        // No Origin, a website's, or a lookalike.
+        for origin in [
+            None,
+            Some("https://evil.example"),
+            Some("http://localhost.evil.example"),
+            Some("null"),
+            Some("file://"),
+        ] {
+            assert!(!bridge_handshake_ok(origin, Some(&q), t), "{origin:?}");
+        }
+        // No token, a wrong one, a prefix of it, or an empty bridge token.
+        for query in [None, Some(""), Some("t=nope"), Some("t=0123"), Some("x=1")] {
+            assert!(
+                !bridge_handshake_ok(Some("tauri://localhost"), query, t),
+                "{query:?}"
+            );
+        }
+        assert!(!bridge_handshake_ok(
+            Some("tauri://localhost"),
+            Some("t="),
+            ""
+        ));
+        assert_eq!(
+            bridge_ws_url(3200, t),
+            format!("ws://127.0.0.1:3200/?t={t}")
+        );
+        assert_ne!(new_bridge_token(), new_bridge_token());
+    }
+
+    /// The real handshake refuses before anything touches a device.
+    #[tokio::test]
+    async fn the_mirror_socket_refuses_a_page_without_the_token() {
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let token = new_bridge_token();
+        let scid = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let server_token = token.clone();
+        tokio::spawn(async move {
+            for _ in 0..3 {
+                let (stream, _) = listener.accept().await.unwrap();
+                handle_bridge_client("no-such-device", &scid, &server_token, stream).await;
+            }
+        });
+        let attempt = |url: String, origin: Option<&'static str>| async move {
+            let mut req = url.into_client_request().unwrap();
+            if let Some(o) = origin {
+                req.headers_mut().insert("origin", o.parse().unwrap());
+            }
+            tokio_tungstenite::connect_async(req).await
+        };
+        let plain = format!("ws://127.0.0.1:{port}");
+        assert!(attempt(plain.clone(), Some("https://evil.example"))
+            .await
+            .is_err());
+        assert!(attempt(plain, Some("tauri://localhost")).await.is_err());
+        let with_token = bridge_ws_url(port, &token);
+        assert!(attempt(with_token, Some("https://evil.example"))
+            .await
+            .is_err());
+    }
+
     /// Live, non-hermetic proof that the bridge streams decodable H.264 from a real
     /// emulator AND that the scrcpy control socket accepts our injected input.
     /// Gated behind `SHIPSTUDIO_LIVE_ANDROID=1` (serial via
@@ -3307,11 +3458,18 @@ mod tests {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/scrcpy-server.jar"),
         );
 
-        start_android_bridge(&serial, project, port)
+        let token = start_android_bridge(&serial, project, port)
             .await
             .expect("bridge should bind");
 
-        let (mut ws, _) = tokio_tungstenite::connect_async(format!("ws://127.0.0.1:{port}"))
+        let mut req =
+            tokio_tungstenite::tungstenite::client::IntoClientRequest::into_client_request(
+                bridge_ws_url(port, &token),
+            )
+            .expect("request");
+        req.headers_mut()
+            .insert("origin", "tauri://localhost".parse().expect("origin"));
+        let (mut ws, _) = tokio_tungstenite::connect_async(req)
             .await
             .expect("client should connect");
 

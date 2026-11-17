@@ -159,7 +159,28 @@ const RUN_AXE = `(async () => {
   })));
 })()`;
 
-async function scan(s, theme) {
+/** One page's scan may take this long; past it the page counts as unsettled. */
+const SCAN_MS = 60_000;
+
+function scan(s, theme) {
+  let timer;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(
+      () =>
+        resolve({
+          id: s.id,
+          theme,
+          ready: false,
+          error: `no answer in ${SCAN_MS / 1000}s`,
+          violations: [],
+        }),
+      SCAN_MS
+    );
+  });
+  return Promise.race([scanPage(s, theme), late]).finally(() => clearTimeout(timer));
+}
+
+async function scanPage(s, theme) {
   const url =
     `${ORIGIN}/harness.html?chrome=off&theme=${theme}&scenario=${s.id}` +
     (s.command ? `&command=${encodeURIComponent(s.command)}` : '');
@@ -169,8 +190,16 @@ async function scan(s, theme) {
     // Let entrance transitions finish: a fading card measures as low contrast.
     await sleep(500);
     await page.eval(AXE_SOURCE + ';true');
+    let axeFound = JSON.parse(await page.eval(RUN_AXE));
+    // A slow CI runner can still be mid-fade at 500 ms (main run 43497996791:
+    // a modal's text measured 2 contrast failures that never reproduce). A real
+    // failure is still there a moment later, so a contrast find is read twice.
+    if (axeFound.some((v) => v.id === 'color-contrast')) {
+      await sleep(1500);
+      axeFound = JSON.parse(await page.eval(RUN_AXE));
+    }
     const violations = [
-      ...JSON.parse(await page.eval(RUN_AXE)),
+      ...axeFound,
       ...JSON.parse(await page.eval(MOTION_CHECK)),
     ];
     return { id: s.id, theme, ready, violations };
@@ -201,6 +230,14 @@ async function main() {
     basePort: BASE_CDP_PORT,
     args: [
       '--window-size=1440,900',
+      // Four tabs scan at once and only one is in front: without these the
+      // others' timers were throttled and their animation frames paused, so a
+      // third of the pages never settled and were read again one by one (95
+      // minutes on CI, and runs that never ended).
+      '--disable-background-timer-throttling',
+      '--disable-renderer-backgrounding',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-features=IntensiveWakeUpThrottling,CalculateNativeWinOcclusion',
       '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE localhost',
       'about:blank',
     ],

@@ -10,6 +10,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
@@ -323,17 +324,26 @@ interface UserBubbleProps extends Arrival {
    * and offers to interrupt that turn to send it now.
    */
   queued?: boolean;
+  /** Queued, and already handed to the turn in progress: it reads it at its next step. */
+  handed?: boolean;
+  /** Read by the turn in progress, mid-turn. */
+  heard?: boolean;
   onInterrupt?: () => void;
   /** You're driving the agent's session: it waits for the hand-back, and nothing interrupts. */
   driven?: boolean;
   /** Still copying its files in: the files as staged, shown while it sends. */
   sending?: DraftAttachment[];
+  /** Sent while dictation was still tidying its words: dimmed, "Tidying…", it goes once they're in. */
+  tidying?: boolean;
   /** "Remember this", with this message. */
   onRemember?: (message: AgentMessage) => void;
   /** Edit and resend, Fork from here, Rewind to here: what blocks them, and the pick. */
   goBack?: GoBackState;
   onGoBack?: (action: GoBackAction, message: AgentMessage) => void;
 }
+
+/** The held voice message's bars, as heights 0..1. */
+const VOICE_BARS = [0.3, 0.55, 0.8, 0.45, 0.95, 0.6, 0.35, 0.7, 1, 0.5, 0.75, 0.4, 0.6, 0.3];
 
 /** Attachments sit above the words, both against the right edge, as one message. */
 export const UserBubble = memo(function UserBubble({
@@ -344,15 +354,18 @@ export const UserBubble = memo(function UserBubble({
   onRetry,
   colorwayOf,
   queued,
+  handed,
+  heard,
   onInterrupt,
   driven,
   sending,
+  tidying,
   onRemember,
   goBack,
   onGoBack,
 }: UserBubbleProps) {
   const attachments = message.attachments ?? [];
-  const actions = !failed && !sending && (
+  const actions = !failed && !sending && !tidying && (
     <MessageActions
       text={message.text}
       ts={message.ts}
@@ -367,6 +380,14 @@ export const UserBubble = memo(function UserBubble({
   const bubble = (
     <div className="agent-bubble agent-bubble--user">
       {message.revises && <RevisesBar revises={message.revises} />}
+      {tidying && !message.text.trim() && (
+        // Sent before its words were written out: your voice, until they are.
+        <span className="agent-bubble__wave" role="img" aria-label="What you said">
+          {VOICE_BARS.map((h, i) => (
+            <span key={i} style={{ '--bar': h } as CSSProperties} />
+          ))}
+        </span>
+      )}
       {splitQuotes(message.text).map((part, i) =>
         part.kind === 'quote' ? (
           <blockquote key={i} className="agent-bubble__quote">
@@ -389,8 +410,8 @@ export const UserBubble = memo(function UserBubble({
       className="agent-chat__row agent-chat__row--user"
       data-arrived={arrived || undefined}
       data-failed={failed || undefined}
-      data-sending={sending ? '' : undefined}
-      aria-busy={sending ? true : undefined}
+      data-sending={sending || tidying ? '' : undefined}
+      aria-busy={sending || tidying ? true : undefined}
       data-attachments={attachments.length > 0 || Boolean(sending?.length) || undefined}
       data-message-ids={message.id}
     >
@@ -405,10 +426,10 @@ export const UserBubble = memo(function UserBubble({
           <MessageAttachments agent={agent} attachments={attachments} />
         </div>
       )}
-      {message.text && (
+      {(message.text || tidying) && (
         <div className="agent-chat__line">
           {actions}
-          {goBack && onGoBack && !failed && !sending ? (
+          {goBack && onGoBack && !failed && !sending && !tidying ? (
             <GoBackContextMenu
               state={goBack}
               text={message.text}
@@ -423,17 +444,33 @@ export const UserBubble = memo(function UserBubble({
         </div>
       )}
       {via && <div className="agent-chat__queued">{via}</div>}
-      {sending && (
+      {tidying ? (
         <div className="agent-chat__queued" role="status">
-          Sending…
+          Tidying…
         </div>
+      ) : (
+        sending && (
+          <div className="agent-chat__queued" role="status">
+            Sending…
+          </div>
+        )
       )}
       {queued && !failed && driven && (
         <div className="agent-chat__queued" role="status">
           Waiting, sends when you hand {agent.name} back
         </div>
       )}
-      {queued && !failed && !driven && (
+      {heard && !failed && (
+        <div className="agent-chat__queued" role="status">
+          Read
+        </div>
+      )}
+      {queued && handed && !failed && !driven && (
+        <div className="agent-chat__queued" role="status">
+          Sent, {agent.name} reads it at its next step
+        </div>
+      )}
+      {queued && !handed && !failed && !driven && (
         <div className="agent-chat__queued" role="status">
           Queued, sends when {agent.name} finishes
           <span aria-hidden>·</span>

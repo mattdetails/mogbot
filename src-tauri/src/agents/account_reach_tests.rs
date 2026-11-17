@@ -44,15 +44,13 @@ fn fixture() -> (tempfile::TempDir, std::path::PathBuf, std::path::PathBuf) {
 fn this_macs_servers_are_merged_in_and_nothing_else_is_touched() {
     let (_home, native, target) = fixture();
     let done = sync_servers(&native, &target).unwrap();
-    assert_eq!(done.added, ["figma", "notes"]);
+    assert_eq!(done.added, ["figma", "notes", "local-only (/x)"]);
     let got = read(&target);
     // Its own login and keys are as they were; this Mac's aren't copied.
     assert_eq!(got["oauthAccount"]["emailAddress"], "personal@example.test");
     assert_eq!(got["userID"], "u-2");
-    assert!(
-        got.get("projects").is_none(),
-        "project scope isn't user scope"
-    );
+    // A project's servers go to that project, not to user scope.
+    assert!(got["projects"]["/x"]["mcpServers"]["local-only"].is_object());
     let servers = got["mcpServers"].as_object().unwrap();
     assert_eq!(servers.len(), 3);
     assert_eq!(servers["figma"]["url"], "https://mcp.figma.example/mcp");
@@ -72,6 +70,36 @@ fn this_macs_servers_are_merged_in_and_nothing_else_is_touched() {
     );
 }
 
+/// Seen 2026-11-14: a turn on an added account had no preview server, which
+/// this Mac registers for one project only (`projects[path].mcpServers`).
+#[test]
+fn a_projects_own_servers_follow_and_go_when_this_mac_drops_them() {
+    let (_home, native, target) = fixture();
+    let mut t = read(&target);
+    t["projects"] = json!({
+        "/x": { "hasTrustDialogAccepted": true, "mcpServers": { "theirs": {} } }
+    });
+    write(&target, &t);
+    sync_servers(&native, &target).unwrap();
+    let got = read(&target);
+    let x = &got["projects"]["/x"];
+    assert_eq!(x["hasTrustDialogAccepted"], true, "its other settings kept");
+    assert!(x["mcpServers"]["local-only"].is_object());
+    assert!(x["mcpServers"]["theirs"].is_object());
+    // This Mac drops the project's server: ours goes, theirs stays.
+    let mut n = read(&native);
+    n["projects"] = json!({});
+    write(&native, &n);
+    let done = sync_servers(&native, &target).unwrap();
+    assert_eq!(done.removed, ["local-only (/x)"]);
+    let x = &read(&target)["projects"]["/x"];
+    assert!(x["mcpServers"].get("local-only").is_none());
+    assert!(x["mcpServers"]["theirs"].is_object());
+    // User-scope servers untouched by that.
+    assert!(read(&target)["mcpServers"]["figma"].is_object());
+    assert!(!sync_servers(&native, &target).unwrap().changed());
+}
+
 #[test]
 fn a_change_on_this_mac_follows_and_only_synced_servers_are_removed() {
     let (_home, native, target) = fixture();
@@ -82,7 +110,7 @@ fn a_change_on_this_mac_follows_and_only_synced_servers_are_removed() {
     );
     let done = sync_servers(&native, &target).unwrap();
     assert_eq!(done.updated, ["figma"]);
-    assert_eq!(done.removed, ["notes"]);
+    assert_eq!(done.removed, ["notes", "local-only (/x)"]);
     let servers = read(&target)["mcpServers"].as_object().unwrap().clone();
     assert_eq!(servers["figma"]["url"], "https://new.example/mcp");
     assert!(
@@ -104,11 +132,11 @@ fn a_server_the_account_already_had_is_never_taken_off_it() {
     config["mcpServers"]["figma"] = figma.clone();
     write(&target, &config);
     let done = sync_servers(&native, &target).unwrap();
-    assert_eq!(done.added, ["notes"]);
+    assert_eq!(done.added, ["notes", "local-only (/x)"]);
     // This Mac drops Figma and Notes.
     write(&native, &json!({ "mcpServers": {} }));
     let done = sync_servers(&native, &target).unwrap();
-    assert_eq!(done.removed, ["notes"]);
+    assert_eq!(done.removed, ["notes", "local-only (/x)"]);
     let servers = read(&target)["mcpServers"].as_object().unwrap().clone();
     assert_eq!(
         servers.get("figma"),
@@ -122,7 +150,7 @@ fn a_server_the_account_already_had_is_never_taken_off_it() {
 fn a_missing_account_file_is_started_and_a_broken_one_left_alone() {
     let (_home, native, target) = fixture();
     std::fs::remove_file(&target).unwrap();
-    assert_eq!(sync_servers(&native, &target).unwrap().added.len(), 2);
+    assert_eq!(sync_servers(&native, &target).unwrap().added.len(), 3);
     assert_eq!(read(&target)["mcpServers"].as_object().unwrap().len(), 2);
     std::fs::write(&target, "{ not json").unwrap();
     assert!(sync_servers(&native, &target).is_err());
@@ -201,7 +229,7 @@ fn a_switch_names_the_connectors_the_account_lacks_and_the_way_in_meanwhile() {
     let line = lost_line("Personal", &before, &now, true).unwrap();
     assert_eq!(
         line,
-        "Gmail and Google Calendar aren't on in claude.ai for Personal: turn them on at claude.ai/settings/connectors while signed in as Personal; agents use them in your Chrome meanwhile."
+        "Gmail and Google Calendar aren't reachable on Personal. If they're a claude.ai connector, turn them on at claude.ai/settings/connectors while signed in as Personal; agents use them in your Chrome meanwhile."
     );
     let one = lost_line(
         "Personal",
@@ -211,7 +239,9 @@ fn a_switch_names_the_connectors_the_account_lacks_and_the_way_in_meanwhile() {
     )
     .unwrap();
     assert!(
-        one.starts_with("Gmail isn't on in claude.ai for Personal: turn it on"),
+        one.starts_with(
+            "Gmail isn't reachable on Personal. If it's a claude.ai connector, turn it on"
+        ),
         "{one}"
     );
     assert!(one.contains("or connect them here"), "{one}");
@@ -219,7 +249,9 @@ fn a_switch_names_the_connectors_the_account_lacks_and_the_way_in_meanwhile() {
         one.contains("Your Chrome isn't reachable on Personal"),
         "{one}"
     );
-    // A connector needing sign-in there is lost too; nothing lost, no line.
+    // One needing a sign-in there is a sign-in, never "turn it on in
+    // claude.ai" (seen 2026-11-14: Figma, Webflow and Sanity blamed on
+    // claude.ai). Nothing lost, no line.
     let signed_out = caps(&[
         ("Chrome", "Browse."),
         ("Connectors", "Figma"),
@@ -228,9 +260,11 @@ fn a_switch_names_the_connectors_the_account_lacks_and_the_way_in_meanwhile() {
             "Gmail and Google Calendar. Connect them in Claude Code to use them here.",
         ),
     ]);
-    assert!(lost_line("Personal", &before, &signed_out, true)
-        .unwrap()
-        .starts_with("Gmail and Google Calendar"));
+    let line = lost_line("Personal", &before, &signed_out, true).unwrap();
+    assert_eq!(
+        line,
+        "On Personal, Gmail and Google Calendar need a one-time sign-in: their logins are kept per Claude account."
+    );
     assert!(lost_line("Personal", &before, &before, true).is_none());
 }
 

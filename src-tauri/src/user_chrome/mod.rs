@@ -26,6 +26,7 @@
 //! Design, threat model and what's verified: docs/design/own-browser-layer.md.
 
 pub mod auth;
+pub mod clipboard;
 pub mod frame;
 #[cfg(any(unix, windows))]
 pub mod host;

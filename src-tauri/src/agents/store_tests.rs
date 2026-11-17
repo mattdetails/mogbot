@@ -266,6 +266,13 @@ fn pages_read_from_the_end_carry_their_answers() {
 
         let full = messages(&a.id, usize::MAX).unwrap();
         assert_eq!(full.len(), 2000);
+        // Filtered from the end, without holding the log: the same messages,
+        // the same order, the same answers applied.
+        let cards = messages_where(&a.id, &|m| m.approval.is_some()).unwrap();
+        let want: Vec<&AgentMessage> = full.iter().filter(|m| m.approval.is_some()).collect();
+        assert_eq!(cards.len(), want.len());
+        assert!(cards.iter().zip(&want).all(|(a, b)| a.id == b.id
+            && a.approval.as_ref().map(|c| c.status) == b.approval.as_ref().map(|c| c.status)));
         let ids = |v: &[AgentMessage]| v.iter().map(|m| m.id.clone()).collect::<Vec<_>>();
         let status = |v: &[AgentMessage], rid: &str| {
             v.iter()
@@ -1214,11 +1221,16 @@ fn models_are_the_cli_aliases_only() {
 }
 
 #[test]
-fn efforts_are_the_three_both_engines_take() {
+fn efforts_are_the_five_levels_and_codex_gets_its_highest_for_max() {
     assert_eq!(normalize_effort("").unwrap(), None);
     assert_eq!(normalize_effort(" High ").unwrap().as_deref(), Some("high"));
     assert_eq!(normalize_effort("low").unwrap().as_deref(), Some("low"));
-    for refused in ["max", "minimal", "--model", "high\"; x=1"] {
+    assert_eq!(normalize_effort("XHigh").unwrap().as_deref(), Some("xhigh"));
+    assert_eq!(normalize_effort("max").unwrap().as_deref(), Some("max"));
+    assert_eq!(codex_effort("max"), "xhigh");
+    assert_eq!(codex_effort("xhigh"), "xhigh");
+    assert_eq!(codex_effort("low"), "low");
+    for refused in ["minimal", "ultra", "--model", "high\"; x=1"] {
         assert!(normalize_effort(refused).is_err(), "{refused}");
     }
 }
@@ -1274,4 +1286,59 @@ fn the_chiefs_old_names_still_mean_the_chief() {
     for name in ["Chef", "Finance", "Chief Marketing", "Dash"] {
         assert!(!super::chief_alias(name), "{name}");
     }
+}
+
+/// Issue #22: a card stays up for days, so in a busy chat it sank below the
+/// newest page; the row said "Needs your OK" and the chat had nothing to
+/// answer. The newest page now reaches back to the oldest open card, in its
+/// own conversation only.
+#[test]
+fn the_newest_page_reaches_back_to_a_card_still_waiting() {
+    with_root(|| {
+        let a = create(new("Busy")).unwrap();
+        let said = |text: &str, ts: i64, conversation: &str| {
+            let mut m = crate::agents::runner::new_message(&a.id, MessageKind::Agent, text);
+            m.ts = ts;
+            m.conversation = Some(conversation.into());
+            m
+        };
+        append_message(&said("before", 1, "c2")).unwrap();
+        let mut card = said("", 2, "c2");
+        card.kind = MessageKind::Approval;
+        card.approval = Some(crate::agents::mcp::new_card(
+            new_id(),
+            "Run a command".into(),
+            "ls".into(),
+            None,
+        ));
+        append_message(&card).unwrap();
+        for i in 0..30 {
+            append_message(&said(&format!("c2 {i}"), 10 + i, "c2")).unwrap();
+            append_message(&said(&format!("first {i}"), 10 + i, "first")).unwrap();
+        }
+        assert_eq!(oldest_open_card(&a.id, Some("c2")), Some(card.id.clone()));
+        assert_eq!(oldest_open_card(&a.id, None), Some(card.id.clone()));
+        // Another conversation's chat isn't stretched for it.
+        assert_eq!(oldest_open_card(&a.id, Some("first")), None);
+        // Ten lines would have left it out; reaching back keeps it, and no further.
+        let through = oldest_open_card(&a.id, Some("c2")).map(|id| (id, 5000));
+        let page = conversation_page(
+            &a.id,
+            "c2",
+            10,
+            None,
+            through.as_ref().map(|(id, cap)| (id.as_str(), *cap)),
+        )
+        .unwrap();
+        assert_eq!(page.first().map(|m| &m.id), Some(&card.id));
+        assert_eq!(page.len(), 31);
+        // Answered, nothing reaches back any more.
+        set_approval_status(
+            &a.id,
+            &card.approval.as_ref().unwrap().request_id,
+            ApprovalStatus::Allowed,
+        )
+        .unwrap();
+        assert_eq!(oldest_open_card(&a.id, None), None);
+    });
 }

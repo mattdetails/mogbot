@@ -439,7 +439,7 @@ export function LiveStep({
   const elapsed =
     work && now - work.startedAt >= 1_000 ? formatElapsed(now - work.startedAt) : null;
   const meta = [count, elapsed].filter(Boolean).join(' · ');
-  const hint = quiet ? null : slowHint(live, now);
+  const hint = quiet ? null : slowHint(live, now, comp.your);
   const life = lifeLine(work, now);
   const stopStep = canStopStep && !quiet && offersStopStep(live, now);
   // Open belongs to this turn: the next one starts folded.

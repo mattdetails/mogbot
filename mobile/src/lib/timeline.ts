@@ -130,14 +130,17 @@ export function chatItems(
   // A reply being written in a room streams there, not here: this chat
   // only says it's working, and folds the reply once it lands.
   if (agent.status.room) draft = undefined;
-  if (draft) out.push({ kind: 'draft', key: draft.id, text: draft.text });
-  else if (agent.status.state === 'working')
+  // A draft whose text block has ended while a tool runs still says it's
+  // working (the newest row, under the draft), or the chat looks finished
+  // (issue #26).
+  if ((!draft || agent.status.work?.current) && agent.status.state === 'working')
     out.push({
       kind: 'working',
       key: 'working',
       // Mid-import the bar above the composer says it; the row keeps its dots.
       label: isImportInterview(agent.status.activity) ? '' : workingLine(agent),
     });
+  if (draft) out.push({ kind: 'draft', key: draft.id, text: draft.text });
   const rows = messages.some((m) => m.room) ? foldRoomLines(messages, agent.copy?.id) : messages;
   const last = rows[rows.length - 1];
   out.push(

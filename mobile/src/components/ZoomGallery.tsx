@@ -38,12 +38,14 @@ import {
   clampScale,
   doubleTapTarget,
   dragBy,
+  finiteOr,
   fitSize,
   isZoomed,
   offsetLimit,
   pageAfterSwipe,
   pageDrag,
   shouldClose,
+  usableEvent,
   zoomOffset,
   type Size,
 } from '../lib/zoom';
@@ -54,7 +56,16 @@ export interface ZoomPage {
   placeholder?: ImageSource | null;
   label: string;
   onError: () => void;
+  /** Fetch it again (over the relay it's a new download; direct, a reload). */
+  retry?: () => void;
 }
+
+/** A picture that takes longer than this shows a spinner (a cached one never flashes it). */
+const SLOW_MS = 400;
+/** No picture by then: say so, and keep trying. */
+const GIVE_UP_MS = 20_000;
+/** A picture that couldn't load is tried again this often while it's shown. */
+const RETRY_MS = 5_000;
 
 const TIMING = { duration: 220 };
 const SPRING = { damping: 22, stiffness: 240 };
@@ -79,6 +90,7 @@ export function ZoomGallery({
   onIndex,
   onClose,
   overlay,
+  renderState,
 }: {
   pages: readonly ZoomPage[];
   start: number;
@@ -88,6 +100,8 @@ export function ZoomGallery({
   onClose: () => void;
   /** Drawn over the picture; a tap hides it, a pull to close fades it. */
   overlay?: ReactNode;
+  /** Over a picture still coming (a spinner) or that didn't load (`failed`). */
+  renderState?: (failed: boolean) => ReactNode;
 }) {
   const count = pages.length;
   const [index, setIndex] = useState(start);
@@ -192,6 +206,8 @@ export function ZoomGallery({
     testID: 'viewer-pinch',
     onActivate: guard((e) => {
       'worklet';
+      // A pinch with no usable focal point never starts (see `finiteOr`).
+      if (!usableEvent([e.focalX, e.focalY])) return;
       pinching.set(true);
       cancelAnimation(scale);
       cancelAnimation(x);
@@ -206,16 +222,21 @@ export function ZoomGallery({
     }),
     onUpdate: guard((e) => {
       'worklet';
-      if (drop.get() !== 0) return;
+      if (!pinching.get() || drop.get() !== 0) return;
+      if (!usableEvent([e.scale, e.focalX, e.focalY]) || e.scale <= 0) return;
       const b = base.get();
       const to = Math.min(Math.max(b.scale * e.scale, 0.6), MAX_OVERSHOOT);
       // The picture point that was between the fingers stays between them.
-      x.set(zoomOffset(b.x, b.scale, to, b.fx, e.focalX - width / 2));
-      y.set(zoomOffset(b.y, b.scale, to, b.fy, e.focalY - height / 2));
+      const nx = zoomOffset(b.x, b.scale, to, b.fx, e.focalX - width / 2);
+      const ny = zoomOffset(b.y, b.scale, to, b.fy, e.focalY - height / 2);
+      if (!usableEvent([nx, ny, to])) return;
+      x.set(nx);
+      y.set(ny);
       scale.set(to);
     }),
     onDeactivate: guard(() => {
       'worklet';
+      if (!pinching.get()) return;
       pinching.set(false);
       settle();
     }),
@@ -235,6 +256,7 @@ export function ZoomGallery({
     onUpdate: guard((e) => {
       'worklet';
       if (pinching.get() || e.numberOfPointers > 1) return;
+      if (!usableEvent([e.translationX, e.translationY, e.changeX, e.changeY])) return;
       if (mode.get() === UNDECIDED) {
         const ax = Math.abs(e.translationX);
         const ay = Math.abs(e.translationY);
@@ -259,12 +281,16 @@ export function ZoomGallery({
         const content = contentNow();
         const lx = offsetLimit(content.width, scale.get(), width);
         const ly = offsetLimit(content.height, scale.get(), height);
-        x.set(withDecay({ velocity: e.velocityX, clamp: [-lx, lx], rubberBandEffect: true }));
-        y.set(withDecay({ velocity: e.velocityY, clamp: [-ly, ly], rubberBandEffect: true }));
+        const vx = finiteOr(e.velocityX, 0);
+        const vy = finiteOr(e.velocityY, 0);
+        x.set(withDecay({ velocity: vx, clamp: [-lx, lx], rubberBandEffect: true }));
+        y.set(withDecay({ velocity: vy, clamp: [-ly, ly], rubberBandEffect: true }));
       } else if (was === PAGE) {
-        pageTo(pageAfterSwipe(at.get(), e.translationX, e.velocityX, width, count));
+        const dx = finiteOr(e.translationX, 0);
+        pageTo(pageAfterSwipe(at.get(), dx, finiteOr(e.velocityX, 0), width, count));
       } else if (was === CLOSE) {
-        if (shouldClose(e.translationY, e.velocityY)) scheduleOnRN(onClose);
+        const dy = finiteOr(e.translationY, 0);
+        if (shouldClose(dy, finiteOr(e.velocityY, 0))) scheduleOnRN(onClose);
         else drop.set(withSpring(0, SPRING));
       }
     }),
@@ -275,6 +301,7 @@ export function ZoomGallery({
     numberOfTaps: 2,
     onActivate: guard((e) => {
       'worklet';
+      if (!usableEvent([e.x, e.y])) return;
       const t = doubleTapTarget(
         scale.get(),
         { x: e.x - width / 2, y: e.y - height / 2 },
@@ -296,9 +323,11 @@ export function ZoomGallery({
   const taps = useExclusiveGestures(doubleTap, singleTap);
   const gesture = useSimultaneousGestures(pinch, pan, taps);
 
-  const stripStyle = useAnimatedStyle(() => ({ transform: [{ translateX: strip.get() }] }));
+  const stripStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: finiteOr(strip.get(), -at.get() * width) }],
+  }));
   const overlayStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(drop.get(), [0, CLOSE_PULL], [1, 0], 'clamp'),
+    opacity: interpolate(finiteOr(drop.get(), 0), [0, CLOSE_PULL], [1, 0], 'clamp'),
   }));
 
   // Each picture's own size, kept so a rotation can fit them to the new screen.
@@ -358,6 +387,7 @@ export function ZoomGallery({
                   y={y}
                   drop={drop}
                   onNatural={(size) => natural(i, size)}
+                  renderState={renderState}
                 />
               )
             )}
@@ -384,6 +414,7 @@ function Page({
   y,
   drop,
   onNatural,
+  renderState,
 }: {
   page: ZoomPage;
   i: number;
@@ -395,39 +426,97 @@ function Page({
   y: SharedValue<number>;
   drop: SharedValue<number>;
   onNatural: (size: Size) => void;
+  renderState?: (failed: boolean) => ReactNode;
 }) {
   const style = useAnimatedStyle(() => {
     if (at.get() !== i) return { transform: [{ translateX: 0 }, { translateY: 0 }, { scale: 1 }] };
     // Pulled down to close, it follows the finger and shrinks a little.
-    const shrink = interpolate(drop.get(), [0, height], [1, 0.7], 'clamp');
+    const pull = finiteOr(drop.get(), 0);
+    const shrink = interpolate(pull, [0, Math.max(height, 1)], [1, 0.7], 'clamp');
+    // Never a NaN into a transform: Core Animation throws on one and the app ends.
+    const s = finiteOr(scale.get(), 1);
     return {
       transform: [
-        { translateX: x.get() },
-        { translateY: y.get() + drop.get() },
-        { scale: scale.get() * shrink },
+        { translateX: finiteOr(x.get(), 0) },
+        { translateY: finiteOr(y.get(), 0) + pull },
+        { scale: (s > 0 ? s : 1) * shrink },
       ],
     };
   });
+  const uri = page.source && 'uri' in page.source ? page.source.uri : undefined;
+  // Loaded, failed, slow and the try count, kept by address: a picture that
+  // arrives over the relay later (a new address) starts afresh.
+  const [loadedUri, setLoadedUri] = useState<string | null>(null);
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  // The address (and try) that has been loading a while, and the one that gave up.
+  const waitKey = `${uri ?? 'pending'}#${attempt}`;
+  const [slowOn, setSlowOn] = useState<string | null>(null);
+  const [lateOn, setLateOn] = useState<string | null>(null);
+  const loaded = !!uri && loadedUri === uri;
+  const slow = slowOn === waitKey;
+  // No source at all (no link to the computer, or the relay gave up) is a failure too.
+  const failed = !page.source || (!!uri && failedUri === uri) || lateOn === waitKey;
+  useEffect(() => {
+    if (loaded) return;
+    const s = setTimeout(() => setSlowOn(waitKey), SLOW_MS);
+    const l = setTimeout(() => setLateOn(waitKey), GIVE_UP_MS);
+    return () => {
+      clearTimeout(s);
+      clearTimeout(l);
+    };
+  }, [waitKey, loaded]);
+  // Never black for good: a picture that failed is fetched again while it's on screen.
+  const retry = useRef(page.retry);
+  useEffect(() => {
+    retry.current = page.retry;
+  });
+  useEffect(() => {
+    if (!failed || loaded) return;
+    const t = setTimeout(() => {
+      setFailedUri(null);
+      retry.current?.();
+      setAttempt((a) => a + 1);
+    }, RETRY_MS);
+    return () => clearTimeout(t);
+  }, [failed, loaded, attempt]);
   return (
     <Animated.View
       style={[styles.page, { left: i * width, width, height }, style]}
       testID="viewer-page"
       accessibilityLabel={page.label}
     >
-      <Image
-        source={page.source}
-        placeholder={page.placeholder ?? undefined}
-        placeholderContentFit="contain"
-        style={{ width, height }}
-        contentFit="contain"
-        transition={150}
-        recyclingKey={page.key}
-        onLoad={(e) => {
-          const { width: w, height: h } = e.source;
-          if (w && h) onNatural({ width: w, height: h });
-        }}
-        onError={page.onError}
-      />
+      {page.source && (
+        <Image
+          key={attempt}
+          source={page.source}
+          placeholder={page.placeholder ?? undefined}
+          placeholderContentFit="contain"
+          style={{ width, height }}
+          contentFit="contain"
+          // Decoded straight at the screen's size: the size it's drawn at
+          // anyway (expo-image downscales to the view), without first holding
+          // the whole photo in memory. A 48 MP photo is ~190 MB decoded, and the
+          // page beside it loads too; together they could get the app killed.
+          enforceEarlyResizing
+          transition={150}
+          recyclingKey={page.key}
+          onLoad={(e) => {
+            if (uri) setLoadedUri(uri);
+            const { width: w, height: h } = e.source;
+            if (w && h) onNatural({ width: w, height: h });
+          }}
+          onError={() => {
+            if (uri) setFailedUri(uri);
+            page.onError();
+          }}
+        />
+      )}
+      {!loaded && (slow || failed) && renderState && (
+        <View style={styles.state} pointerEvents="none" testID="viewer-page-state">
+          {renderState(failed)}
+        </View>
+      )}
     </Animated.View>
   );
 }
@@ -435,4 +524,5 @@ function Page({
 const styles = StyleSheet.create({
   strip: { position: 'absolute', top: 0, left: 0 },
   page: { position: 'absolute', top: 0 },
+  state: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
 });

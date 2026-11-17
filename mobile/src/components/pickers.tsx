@@ -24,6 +24,7 @@ import { AgentKey } from './AgentKey';
 import {
   COLORWAYS,
   KEY_CHARS,
+  KEY_FACES,
   KEY_ICONS,
   PACK_INFO,
   iconName,
@@ -189,7 +190,7 @@ export function KeyChoices({
   const styles = useStyles();
   const free = [...KEY_CHARS].filter((k) => k === boundKey || !taken.includes(k));
   const [searching, setSearching] = useState(false);
-  const featured = KEY_ICONS.some((i) => i.id === icon);
+  const featured = KEY_ICONS.some((i) => i.id === icon) || KEY_FACES.some((f) => f.id === icon);
   return (
     <View style={styles.look}>
       <T variant="caption" color={colors.textSecondary}>
@@ -214,7 +215,23 @@ export function KeyChoices({
         ))}
       </View>
       <T variant="caption" color={colors.textSecondary}>
-        Icon
+        Face
+      </T>
+      <View style={styles.swatches} accessibilityRole="radiogroup" accessibilityLabel="Face">
+        {KEY_FACES.map((f) => (
+          <LookChoice key={f.id} label={f.name} on={f.id === icon} onPress={() => onIcon(f.id)}>
+            <AgentKey
+              name={name}
+              colorway={colorway}
+              icon={f.id}
+              size={keySize.md}
+              pressed={f.id === icon}
+            />
+          </LookChoice>
+        ))}
+      </View>
+      <T variant="caption" color={colors.textSecondary}>
+        Or an icon
       </T>
       <View style={styles.swatches} accessibilityRole="radiogroup" accessibilityLabel="Icon">
         {/* One from the pack leads the row, so the pick is always in sight. */}
@@ -323,7 +340,10 @@ export function PickCheck() {
   return (
     <Animated.View
       entering={FadeIn.duration(120)}
-      style={[styles.check, { backgroundColor: colors.textStrong, borderColor: colors.surfacePanel }]}
+      style={[
+        styles.check,
+        { backgroundColor: colors.textStrong, borderColor: colors.surfacePanel },
+      ]}
       pointerEvents="none"
       importantForAccessibility="no-hide-descendants"
     >

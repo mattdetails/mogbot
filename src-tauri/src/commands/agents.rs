@@ -244,6 +244,14 @@ pub async fn agents_messages(
     const MAX: usize = 5000;
     blocking(move || {
         let limit = limit.unwrap_or(400).min(MAX);
+        // The newest page reaches back to a card still waiting on the user,
+        // so the chat always holds what its row says needs your OK.
+        let through = through.or_else(|| {
+            before
+                .is_none()
+                .then(|| store::oldest_open_card(&agent_id, conversation.as_deref()))
+                .flatten()
+        });
         let through = through.as_deref().map(|id| (id, MAX));
         // One conversation's lines; without one (an older client), all of them.
         let mut page = match conversation.as_deref() {
@@ -290,6 +298,7 @@ pub async fn agents_send(
     client_id: Option<String>,
     revises: Option<String>,
     conversation: Option<String>,
+    written_at: Option<i64>,
 ) -> Result<store::AgentMessage, CommandError> {
     send_in(
         app,
@@ -301,6 +310,7 @@ pub async fn agents_send(
         revises,
         true,
         conversation,
+        written_at,
     )
     .await
 }
@@ -330,6 +340,7 @@ pub(crate) async fn send_as(
         revises,
         typed,
         None,
+        None,
     )
     .await
 }
@@ -348,6 +359,7 @@ pub(crate) async fn send_in(
     revises: Option<String>,
     typed: bool,
     conversation: Option<String>,
+    written_at: Option<i64>,
 ) -> Result<store::AgentMessage, CommandError> {
     let text = text.trim().to_string();
     let said = text.clone();
@@ -466,8 +478,15 @@ pub(crate) async fn send_in(
         .await
         .unwrap_or(false)
     };
-    let typed_yes =
-        typed && says_yes && message.attachments.is_empty() && message.revises.is_none();
+    // A yes answers what was open when it was written, and only while it's
+    // fresh: a message held, queued or restored from a phone's outbox later
+    // must never allow a card that arrived after it (CTO review 2026-11-14).
+    let written = written_at.unwrap_or_else(store::now_ms);
+    let typed_yes = typed
+        && says_yes
+        && message.attachments.is_empty()
+        && message.revises.is_none()
+        && agents::typed_answer::fresh(written, store::now_ms());
     let message = runner::record(&app, message)?;
     // "Approve it", typed by the user into a chat with one open card: that
     // card is allowed as their answer (`typed_answer`). Only this, the user's
@@ -475,7 +494,7 @@ pub(crate) async fn send_in(
     if typed_yes {
         // Only a card in this conversation: a yes typed in one is never an
         // answer to a request made in another.
-        let open = cards_in(&agent_id, &conversation);
+        let open = cards_in(&agent_id, &conversation, written);
         // No card to answer: the yes may be to a plan the agent's last reply
         // listed, which `ask_plan` then grants without a card (`plan_grant`).
         if open.is_empty() {
@@ -548,11 +567,14 @@ pub(crate) fn unseen_block_answer(log: &[store::AgentMessage], text: &str) -> bo
 }
 
 /// The cards waiting on the user in one of the agent's conversations.
-fn cards_in(agent_id: &str, conversation: &str) -> Vec<store::Approval> {
+fn cards_in(agent_id: &str, conversation: &str, written: i64) -> Vec<store::Approval> {
     store::pending_card_messages(agent_id)
         .unwrap_or_default()
         .into_iter()
         .filter(|m| conversations::of(m) == conversation)
+        // Asked after the yes was written: not what it answers. A few
+        // seconds' grace for a phone clock behind the Mac's.
+        .filter(|m| m.ts <= written + agents::typed_answer::CLOCK_GRACE_MS)
         .filter_map(|m| m.approval)
         .collect()
 }
@@ -1223,8 +1245,8 @@ pub async fn agents_delete(app: AppHandle, agent_id: String) -> Result<(), Comma
     let removed = takeover::delete_agent(&app, &agent_id).await?;
     // Its copy's folder goes once pending work is committed on its branch;
     // a branch with work on it stays.
-    if let Some(copy) = removed.copy {
-        tauri::async_runtime::spawn(agents::task::abandon(copy));
+    for copy in conversations::copies(&removed) {
+        tauri::async_runtime::spawn(agents::task::abandon(copy.clone()));
     }
     emit_registry(&app);
     notify::refresh_badge(&app);
@@ -1333,6 +1355,30 @@ pub async fn agents_conversation_new(
     let id = agent_id.clone();
     let list = blocking(move || conversations::create(&id)).await?;
     let _ = app.emit(runner::EVENT_CONVERSATIONS, &agent_id);
+    Ok(list)
+}
+
+/// The user opened this agent in a project's Session panel: its
+/// conversation there, made current (bound, or working on several projects;
+/// `conversations::for_project`).
+#[tauri::command]
+#[tracing::instrument(skip(app))]
+pub async fn agents_conversation_for_project(
+    app: AppHandle,
+    agent_id: String,
+    project_path: String,
+) -> Result<conversations::Conversations, CommandError> {
+    let known = crate::commands::projects::list_projects()
+        .await?
+        .into_iter()
+        .map(|p| p.path)
+        .find(|p| agents::task::same_path(p, &project_path))
+        .ok_or_else(|| CommandError::expected("That project isn't in your projects."))?;
+    let id = agent_id.clone();
+    let list =
+        blocking(move || conversations::for_project(&id, &known, agents::task::same_path)).await?;
+    let _ = app.emit(runner::EVENT_CONVERSATIONS, &agent_id);
+    emit_registry(&app);
     Ok(list)
 }
 
@@ -2781,6 +2827,14 @@ pub async fn agents_set_defaults(
     Ok(view)
 }
 
+/// The model a project terminal opens on (Settings → Agents' choice for its
+/// engine); `None` is the engine's own.
+#[tauri::command]
+#[tracing::instrument]
+pub async fn agents_terminal_model(agent_id: String) -> Result<Option<String>, CommandError> {
+    blocking(move || Ok(agents::defaults::terminal_model(&agent_id))).await
+}
+
 /// The user's own switch (the agent editor, the phone): "Admin — can manage
 /// and approve for other agents". No agent tool reaches it. Takes effect from
 /// the agent's next call; its chat gets a line saying so.
@@ -3720,7 +3774,7 @@ pub async fn agents_user_chrome_show_extension() -> Result<(), CommandError> {
     }
     #[cfg(target_os = "macos")]
     {
-        let mut cmd = tokio::process::Command::new("open");
+        let mut cmd = crate::utils::create_tokio_command("open");
         cmd.arg("-R").arg(&dir);
         crate::external_command::run_with_timeout(cmd, "open -R", 10)
             .await
@@ -3766,7 +3820,7 @@ pub async fn agents_user_chrome_open_extensions_page() -> Result<(), CommandErro
     {
         // `open` hands chrome:// URLs to Chrome as a launch argument, which it
         // ignores for its own pages; asking Chrome for a new tab works.
-        let mut cmd = tokio::process::Command::new("osascript");
+        let mut cmd = crate::utils::create_tokio_command("osascript");
         cmd.arg("-e")
             .arg(crate::user_chrome::install::OPEN_EXTENSIONS_SCRIPT);
         if crate::external_command::run_with_timeout(cmd, "open chrome://extensions", 15)
@@ -3775,7 +3829,7 @@ pub async fn agents_user_chrome_open_extensions_page() -> Result<(), CommandErro
         {
             return Ok(());
         }
-        let mut cmd = tokio::process::Command::new("open");
+        let mut cmd = crate::utils::create_tokio_command("open");
         cmd.args(["-a", "Google Chrome", "chrome://extensions/"]);
         crate::external_command::run_with_timeout(cmd, "open chrome://extensions", 10)
             .await
@@ -3817,7 +3871,7 @@ pub async fn agents_user_chrome_open_profile(dir: Option<String>) -> Result<Stri
     };
     #[cfg(target_os = "macos")]
     {
-        let mut cmd = tokio::process::Command::new("open");
+        let mut cmd = crate::utils::create_tokio_command("open");
         cmd.args(managed::open_profile_args(&dir));
         crate::external_command::run_with_timeout(cmd, "open a Chrome profile", 15).await?;
     }

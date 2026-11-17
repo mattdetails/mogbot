@@ -626,3 +626,238 @@ fn with_exact_text_on_a_plan_covers_only_the_words_it_listed() {
     .unwrap();
     assert_eq!(parsed.actions[0].text.as_deref(), Some("Thanks!"));
 }
+
+#[test]
+fn a_listed_push_covers_it_spelled_as_a_refspec() {
+    // Seen 2026-11-13: a listed push to main still asked as `<sha>:refs/heads/main`.
+    let m = mac();
+    for (i, push) in [
+        "git push origin 05698a999:refs/heads/main",
+        "git push origin HEAD:main",
+        "git push origin HEAD:refs/heads/mogbot/foundation",
+    ]
+    .iter()
+    .enumerate()
+    {
+        for level in [Level::GoHard, Level::FullSend] {
+            let id = format!("plan-test-refspec-{i}-{level:?}");
+            grant(
+                &id,
+                &Plan {
+                    actions: vec![action(
+                        Kind::Push,
+                        "julian-fictional/shippy",
+                        "Push to main",
+                    )],
+                    why: None,
+                },
+                NOW,
+            );
+            assert!(covers(&id, level, &m, push), "{push} at {level:?}");
+        }
+    }
+}
+
+#[test]
+fn one_push_of_two_listed_branches_is_covered() {
+    // Seen 2026-11-13: "push to main and foundation" listed, then one command
+    // pushing both refspecs, asked twice.
+    let m = mac();
+    let cmd = "git push origin efec19593:refs/heads/main efec19593:refs/heads/mogbot/foundation";
+    for (n, actions) in [
+        (
+            1,
+            vec![action(
+                Kind::Push,
+                "julian-fictional/shippy",
+                "Push to main and foundation",
+            )],
+        ),
+        (
+            2,
+            vec![
+                action(Kind::Push, "julian-fictional/shippy", "Push to main"),
+                action(Kind::Push, "julian-fictional/shippy", "Push to foundation"),
+            ],
+        ),
+    ] {
+        for level in [Level::GoHard, Level::FullSend] {
+            let id = format!("plan-test-two-{n}-{level:?}");
+            grant(
+                &id,
+                &Plan {
+                    actions: actions.clone(),
+                    why: None,
+                },
+                NOW,
+            );
+            assert!(covers(&id, level, &m, cmd), "{n} listed at {level:?}");
+        }
+    }
+}
+
+/// Seen 2026-11-16: an allowed plan closing issues, each with its note, still
+/// asked for some closes (quotes, an apostrophe, ⌘ in the note) and for five
+/// closes chained with `&&`.
+#[test]
+fn a_plan_closing_issues_with_notes_covers_each_close() {
+    let m = mac();
+    let notes = [
+        (
+            "1",
+            "Fixed. Agents write about you as \"they\" or by name now.",
+        ),
+        (
+            "22",
+            "Fixed. \"Needs your OK\" only shows when there's a card.",
+        ),
+        ("25", "Fixed. The phone now says when your Mac is too old."),
+        ("28", "Fixed. ⌘K finds every project by name."),
+        (
+            "32",
+            "Fixed. A question on the phone lists its real options.",
+        ),
+        (
+            "33",
+            "Fixed. Slow thumbnail captures no longer count as errors.",
+        ),
+    ];
+    let actions = notes
+        .iter()
+        .map(|(n, text)| PlanAction {
+            text: Some(text.to_string()),
+            ..action(
+                Kind::Issue,
+                &format!("julian-fictional/shippy#{n}"),
+                "Close with a note",
+            )
+        })
+        .collect();
+    let at = |id: &str, command: &str| {
+        let turn = Turn {
+            holder: id,
+            ctx: &m.ctx,
+            level: Level::GoHard,
+            exposed: false,
+            browser: None,
+            now: NOW,
+            exact: true,
+            typed: Vec::new(),
+        };
+        cover("Bash", &bash(command), &turn).is_some()
+    };
+    let id = "plan-test-close-notes";
+    grant(id, &Plan { actions, why: None }, NOW);
+    let r = "-R julian-fictional/shippy";
+    assert!(at(id, &format!("gh issue close 1 {r} -c 'Fixed. Agents write about you as \"they\" or by name now.'")), "quotes");
+    assert!(at(id, &format!("gh issue close 22 {r} -c 'Fixed. \"Needs your OK\" only shows when there'\"'\"'s a card.'")), "apostrophe");
+    assert!(
+        at(
+            id,
+            &format!(
+                "gh issue close 25 {r} -c 'Fixed. The phone now says when your Mac is too old.'"
+            )
+        ),
+        "plain"
+    );
+    assert!(
+        at(
+            id,
+            &format!("gh issue close 28 {r} -c 'Fixed. ⌘K finds every project by name.'")
+        ),
+        "cmd key"
+    );
+    assert!(at(id, &format!(
+        "gh issue close 32 {r} -c \"Fixed. A question on the phone lists its real options.\" && \\\ngh issue close 33 {r} -c \"Fixed. Slow thumbnail captures no longer count as errors.\""
+    )), "chained");
+}
+
+#[test]
+fn a_plan_in_use_lasts_an_hour_past_its_last_action_and_never_past_eight() {
+    let m = mac();
+    let id = "plan-test-in-use";
+    grant(id, &owners_plan(), NOW);
+    let issue = bash("gh issue create --title x --body y");
+    let min = 60_000;
+    // Used at 50 minutes: still good at 100, past the first hour.
+    assert!(covers_at(
+        id,
+        Level::GoHard,
+        &m,
+        "Bash",
+        &issue,
+        NOW + 50 * min
+    ));
+    assert!(holds(id, NOW + 100 * min));
+    // Kept busy (a retry is covered), it still ends 8 hours after the OK.
+    let mut t = NOW + 100 * min;
+    while t < NOW + LONGEST_MS {
+        assert!(covers_at(id, Level::GoHard, &m, "Bash", &issue, t));
+        t += 40 * min;
+    }
+    assert!(!holds(id, NOW + LONGEST_MS + 1));
+    // Left alone, it ends an hour after its last action.
+    let idle = "plan-test-idle";
+    grant(idle, &owners_plan(), NOW);
+    assert!(covers_at(
+        idle,
+        Level::GoHard,
+        &m,
+        "Bash",
+        &issue,
+        NOW + 10 * min
+    ));
+    assert!(holds(idle, NOW + 69 * min));
+    assert!(!holds(idle, NOW + 71 * min));
+}
+
+#[test]
+fn a_posts_listed_words_cover_every_step_of_it_on_its_site() {
+    // Social Posts, 16 Nov: one LinkedIn post scheduled for 19 Nov.
+    let words = "I'm on two Claude Max plans and it feels almost impossible to hit the limit now\n\nMost nights my agents keep going after I log off";
+    let mut a = action(Kind::Post, "linkedin.com", "Schedule the Max plans post");
+    a.text = Some(words.into());
+    let id = "plan-test-typed";
+    grant(
+        id,
+        &Plan {
+            actions: vec![a],
+            why: None,
+        },
+        NOW,
+    );
+    let typed = vec![
+        words.to_string(),
+        "11/19/2026".to_string(),
+        "11:00 AM".to_string(),
+    ];
+    // The clock, an unlabelled button, Confirm, Schedule: all of them.
+    for _ in 0..4 {
+        assert!(covers_typed(id, "www.linkedin.com", &typed, NOW + 60_000));
+    }
+    // Not other words, not another site, not someone else.
+    let other = vec!["Something else".to_string(), "11/19/2026".to_string()];
+    assert!(!covers_typed(id, "www.linkedin.com", &other, NOW + 60_000));
+    assert!(!covers_typed(id, "x.com", &typed, NOW + 60_000));
+    assert!(!covers_typed(
+        "someone-else",
+        "www.linkedin.com",
+        &typed,
+        NOW + 60_000
+    ));
+    // Only dates and times typed: nothing the user OK'd.
+    let only_time = vec!["11:00 AM".to_string()];
+    assert!(!covers_typed(
+        id,
+        "www.linkedin.com",
+        &only_time,
+        NOW + 60_000
+    ));
+    // Not past the plan's end.
+    assert!(!covers_typed(
+        id,
+        "www.linkedin.com",
+        &typed,
+        NOW + LONGEST_MS + 1
+    ));
+}

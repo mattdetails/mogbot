@@ -48,6 +48,9 @@ struct Spec {
     colorways: Vec<Colorway>,
     legacy_colors: HashMap<String, String>,
     icons: Vec<Icon>,
+    /// The faces a key can wear instead of an icon (agentKeyFaces.ts draws them).
+    #[serde(default)]
+    faces: Vec<Icon>,
     chief_icon: String,
     chief_colorway: String,
     default_icon: String,
@@ -149,8 +152,9 @@ pub fn icons() -> Vec<&'static str> {
 /// What a tool's `icon` takes, for its schema.
 pub fn icon_hint() -> String {
     format!(
-        "One of the featured legends ({}), any of the {} icons in the pack as \"{}<name>\" (\"{}wallet\", \"{}house\"), or a word for what it's for (\"invoice\", \"dog\", \"calendar\"): the best match is used.",
+        "One of the featured legends ({}), a face instead of an icon (face-01 to face-{:02}), any of the {} icons in the pack as \"{}<name>\" (\"{}wallet\", \"{}house\"), or a word for what it's for (\"invoice\", \"dog\", \"calendar\"): the best match is used.",
         icons().join(", "),
+        SPEC.faces.len(),
         SPEC.pack.count,
         SPEC.pack.prefix,
         SPEC.pack.prefix,
@@ -167,9 +171,19 @@ pub fn is_colorway(id: &str) -> bool {
     SPEC.colorways.iter().any(|c| c.id == id)
 }
 
-/// A featured legend or an icon in the pack (`lucide:wallet`).
+/// A featured legend, a face (`face-05`) or an icon in the pack (`lucide:wallet`).
 pub fn is_icon(id: &str) -> bool {
-    SPEC.icons.iter().any(|i| i.id == id) || PACK.ids.contains(id)
+    SPEC.icons.iter().any(|i| i.id == id) || is_face(id) || PACK.ids.contains(id)
+}
+
+/// One of the faces a key can wear instead of an icon.
+pub fn is_face(id: &str) -> bool {
+    SPEC.faces.iter().any(|f| f.id == id)
+}
+
+/// The faces' ids, in picker order.
+pub fn faces() -> Vec<&'static str> {
+    SPEC.faces.iter().map(|f| f.id.as_str()).collect()
 }
 
 fn unique(words: impl IntoIterator<Item = String>) -> Vec<String> {
@@ -321,7 +335,7 @@ pub fn colorway_name(id: &str) -> String {
 
 /// A featured legend's name, or a pack icon's ("lucide:badge-dollar-sign" → "Badge dollar sign").
 pub fn icon_name(id: &str) -> String {
-    if let Some(i) = SPEC.icons.iter().find(|i| i.id == id) {
+    if let Some(i) = SPEC.icons.iter().chain(&SPEC.faces).find(|i| i.id == id) {
         return i.name.clone();
     }
     match id.strip_prefix(SPEC.pack.prefix.as_str()) {
@@ -633,7 +647,11 @@ impl KeyChange {
             parts.push(format!("now {}", colorway_name(c)));
         }
         if let Some(i) = &self.icon {
-            parts.push(format!("with the {} legend", icon_name(i)));
+            parts.push(if is_face(i) {
+                format!("with the {} face", icon_name(i))
+            } else {
+                format!("with the {} legend", icon_name(i))
+            });
         }
         if let Some(k) = &self.bound_key {
             parts.push(format!("on key {k}"));

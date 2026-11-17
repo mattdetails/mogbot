@@ -433,6 +433,13 @@ pub async fn request(
     outside: bool,
 ) -> Result<String, CommandError> {
     let r = logins::build(agent, ask)?;
+    // The app knows which browser it was working in: a site open in the
+    // user's own Chrome is that Chrome, whatever the agent said.
+    let mut tried = tried.clone();
+    if let Some(site) = logins::service(&r.service).and_then(|s| s.site) {
+        tried.in_chrome |= super::browser_gate::in_users_chrome_on(&agent.id, site);
+    }
+    let tried = &tried;
     let here = Here {
         gh: if r.service == "github" {
             gh_login().await

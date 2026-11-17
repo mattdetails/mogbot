@@ -527,7 +527,7 @@ fn toggle_stay_on(app: &AppHandle, awake: bool) {
     use crate::commands::remote_access::{get_stay_on, set_stay_on};
     let Ok(now) = get_stay_on() else { return };
     let result = if awake {
-        set_stay_on(app.clone(), Some(!now.keep_awake), None, None)
+        set_stay_on(app.clone(), Some(!now.keep_awake), None, None, None)
     } else {
         // Turned off from the icon itself: keep the icon, which would
         // otherwise follow "Keep running" out of the menu bar under the
@@ -538,7 +538,7 @@ fn toggle_stay_on(app: &AppHandle, awake: bool) {
         {
             let _ = crate::commands::setup::update_app_state(|s| s.menu_bar_icon = Some(true));
         }
-        set_stay_on(app.clone(), None, Some(!now.keep_running), None)
+        set_stay_on(app.clone(), None, Some(!now.keep_running), None, None)
     };
     if let Err(e) = result {
         tracing::warn!("[Agents] stay-on from the menu bar: {e:?}");

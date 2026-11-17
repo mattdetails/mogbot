@@ -40,8 +40,14 @@ export const canReceivePush = (
 ) => official && (os !== 'android' || androidPush);
 
 /** What Settings says about push, from what is known. Null: say nothing yet. */
+/**
+ * Push as this phone knows it: the Mac's answer, or `mac_outdated` when the
+ * Mac's app is too old to take a push token at all (issue #25).
+ */
+export type PhonePush = PushStatus | 'mac_outdated';
+
 export function pushLine(
-  status: PushStatus | null,
+  status: PhonePush | null,
   official: boolean,
   os: string = Platform.OS
 ): { value: string; footer: string } | null {
@@ -59,25 +65,27 @@ export function pushLine(
     case 'on':
       return {
         value: 'On',
-        footer:
-          `${comp.yourCap} can wake this phone through the notification service. Notifications say only that an agent needs you or finished, never what it said. While you’re using ${comp.your}, only ${comp.your} notifies.`,
+        footer: `${comp.yourCap} can wake this phone through the notification service. Notifications say only that an agent needs you or finished, never what it said. While you’re using ${comp.your}, only ${comp.your} notifies.`,
       };
     case 'pending':
       return {
         value: 'Connecting',
-        footer:
-          `${comp.yourCap} couldn’t reach the notification service yet. It tries again with the next one.`,
+        footer: `${comp.yourCap} couldn’t reach the notification service yet. It tries again with the next one.`,
       };
     case 'off':
       return {
         value: `Off on ${comp.your}`,
         footer: `Turn on phone notifications on ${comp.your}, in Settings → Phone.`,
       };
+    case 'mac_outdated':
+      return {
+        value: `Update ${comp.your}`,
+        footer: `The app on ${comp.your} is too old to wake this phone, so notifications arrive only while this app is open. Update it on ${comp.your} to get them with the app closed.`,
+      };
     case 'unavailable':
       return {
         value: `Not on ${comp.this}`,
-        footer:
-          `The app on ${comp.your} has no notification service. Notifications arrive while this app is open.`,
+        footer: `The app on ${comp.your} has no notification service. Notifications arrive while this app is open.`,
       };
     default:
       return null;

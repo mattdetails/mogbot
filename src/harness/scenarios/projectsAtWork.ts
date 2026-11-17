@@ -96,7 +96,51 @@ const chatCommands = {
   agents_messages: messagesFor,
 };
 
+/** Acme Site bound to lumen-site, Finance on another project, nobody at work. */
+const boundTeam = () =>
+  TEAM.map((a) =>
+    a.id === 'acme' ? { ...a, project: SITE } : a.id === 'finance' ? { ...a, project: ACME } : a
+  );
+
+const pickCommands = {
+  ...chatCommands,
+  agents_overview: overview(TEAM.map((a) => (a.id === 'finance' ? { ...a, project: ACME } : a))),
+  agents_with_projects: TEAM,
+};
+
 export const projectsAtWorkScenarios: Scenario[] = [
+  {
+    id: 'project-opens-on-agent',
+    title: 'Opening a project an agent works on lands on its chat',
+    looksRightWhen:
+      'lumen-site’s workspace opens straight on Acme Site’s conversation in the Session panel (no click): its own header, the composer at the bottom, no Terminal bar and no terminal footer.',
+    project: SITE,
+    requires: '[data-testid="session-agent-chat"]',
+    commands: {
+      ...chatCommands,
+      agents_overview: overview(boundTeam()),
+      agents_with_projects: boundTeam(),
+    },
+  },
+  {
+    id: 'project-opens-pick-agent',
+    title: 'Opening a project nobody works on asks who should',
+    looksRightWhen:
+      '“Who should work on lumen-site?” in the Session panel: one line under it, then a card of agents (each key, name and “Also on acme-marketing” or its role), “New agent for this project” last, and “Rather type commands yourself?” with a Use a terminal button. No Terminal bar or footer. The Chief is not listed.',
+    project: SITE,
+    requires: '[data-testid="project-pick-agent"]',
+    commands: pickCommands,
+  },
+  {
+    id: 'project-opens-pick-terminal',
+    title: 'Use a terminal: which one',
+    looksRightWhen:
+      'Back at the top, “Which terminal?”, a line, then Claude Code, Codex, OpenCode and Plain terminal rows, each with its icon and one line, and an “Open lumen-site this way next time” tick box under them.',
+    project: SITE,
+    requires: '[data-testid="project-pick-agent"]',
+    steps: [{ click: '.project-pick__foot button' }],
+    commands: pickCommands,
+  },
   {
     id: 'project-agent-chat-in-session',
     title: 'A project: an agent at work in it, its chat open in the Session panel',

@@ -157,6 +157,7 @@ export function QuickEntry() {
 
   const send = async () => {
     if (!canSend || !to) return;
+    dictation.noteSent(recipient.text);
     setSending(true);
     setProblem(null);
     try {
@@ -283,7 +284,14 @@ export function QuickEntry() {
             aria-label="Attach a screenshot"
             title="Attach a screenshot: drag to select, or press Space and click a window"
           />
-          {dictating && <ListeningStatus phase={dictation.phase} onCancel={dictation.cancel} />}
+          {(dictating || dictation.retry) && (
+            <ListeningStatus
+              phase={dictation.phase}
+              meter={dictation.meter}
+              onCancel={dictation.cancel}
+              onRetry={dictation.retry}
+            />
+          )}
           <div className="agent-composer__actions">
             <IconButton
               ref={micRef}
@@ -292,7 +300,7 @@ export function QuickEntry() {
               className="agent-composer__mic"
               icon={<MicrophoneIcon size={14} />}
               onClick={dictation.toggle}
-              disabled={dictation.phase === 'finishing'}
+              disabled={dictation.phase === 'finishing' || dictation.phase === 'tidying'}
               aria-pressed={dictating}
               aria-label={dictating ? 'Stop dictating' : 'Dictate'}
               title={dictating ? 'Stop dictating (Esc to discard)' : 'Dictate (⌘⇧D)'}

@@ -18,6 +18,7 @@
 import data from './agent-keys.json';
 import { KEY_ICON_DRAWINGS, type KeyIconDrawing } from './agentKeyIcons';
 import { isPackIconId, packDrawing, packIconName } from './agentKeyPack';
+import { KEY_FACE_DRAWINGS } from './agentKeyFaces';
 import type { AgentIndependence } from './model';
 
 export { KEY_ICON_DRAWINGS, KEY_ICON_GRID, type KeyIconDrawing } from './agentKeyIcons';
@@ -55,6 +56,12 @@ export type ColorwayId = string;
 /** The featured legends, in picker order; `aka` are other names a search finds one by. */
 export const KEY_ICONS: readonly { id: string; name: string; aka?: string[] }[] = data.icons;
 export const KEY_ICON_IDS: readonly string[] = KEY_ICONS.map((i) => i.id);
+
+/** The faces a key can wear instead of an icon (Antonio's pack), in picker order. */
+export const KEY_FACES: readonly { id: string; name: string; aka?: string[] }[] = data.faces;
+export const KEY_FACE_IDS: readonly string[] = KEY_FACES.map((f) => f.id);
+export const isKeyFace = (v: unknown): v is string =>
+  typeof v === 'string' && KEY_FACE_IDS.includes(v);
 
 /**
  * The Chief's legend (the app's mark) and colourway (Graphite, the app
@@ -114,7 +121,7 @@ export const isColorway = (v: unknown): v is string =>
   typeof v === 'string' && COLORWAY_IDS.includes(v);
 /** A featured legend, or a pack id (`lucide:wallet`; which exist is the Mac's to say). */
 export const isKeyIcon = (v: unknown): v is string =>
-  (typeof v === 'string' && KEY_ICON_IDS.includes(v)) || isPackIconId(v);
+  (typeof v === 'string' && KEY_ICON_IDS.includes(v)) || isKeyFace(v) || isPackIconId(v);
 
 export function colorwayOf(id: string | null | undefined): Colorway {
   return COLORWAYS.find((c) => c.id === id) ?? COLORWAYS[0];
@@ -130,7 +137,7 @@ export function iconDrawing(id: string | null | undefined): KeyIconDrawing {
  * on `subscribePackDrawings`), else the default legend.
  */
 export function legendDrawing(id: string | null | undefined): KeyIconDrawing | null {
-  const own = KEY_ICON_DRAWINGS[id ?? ''];
+  const own = KEY_ICON_DRAWINGS[id ?? ''] ?? KEY_FACE_DRAWINGS[id ?? ''];
   if (own) return own;
   if (isPackIconId(id)) {
     const d = packDrawing(id);
@@ -141,7 +148,9 @@ export function legendDrawing(id: string | null | undefined): KeyIconDrawing | n
 }
 
 export const iconName = (id: string) =>
-  KEY_ICONS.find((i) => i.id === id)?.name ?? (isPackIconId(id) ? packIconName(id) : id);
+  KEY_ICONS.find((i) => i.id === id)?.name ??
+  KEY_FACES.find((f) => f.id === id)?.name ??
+  (isPackIconId(id) ? packIconName(id) : id);
 export const colorwayName = (id: string) => COLORWAYS.find((c) => c.id === id)?.name ?? id;
 
 /** The nearest colourway to an old avatar colour key (blue for one it doesn't know). */

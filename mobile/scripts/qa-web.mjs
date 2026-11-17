@@ -819,39 +819,20 @@ const SIDEWAYS = `[...document.querySelectorAll('body *')].filter((e) => {
 })`;
 
 /**
- * Drag each wide table sideways with a finger over its middle, and fail
- * unless every one of them moved (the chat staying put is logged).
+ * Wide tables read row by row on the phone (a sideways scroll inside the
+ * chat was easy to miss and hard to start on an iPhone): fail if any still
+ * runs past its well, or fewer than three are stacked.
  */
-const scrollTablesSideways = async (page) => {
-  const n = await page.eval(`${SIDEWAYS}.length`);
-  if (n < 3) throw new Error(`expected 3 wide tables, found ${n}`);
-  const seen = [];
-  for (let i = 0; i < n; i++) {
-    const w = await page.eval(`(() => {
-      const e = ${SIDEWAYS}[${i}];
-      e.scrollIntoView({ block: 'center' });
-      const r = e.getBoundingClientRect();
-      return { x: r.x + r.width / 2, y: r.y + Math.min(r.height / 2, 60), sw: e.scrollWidth, cw: e.clientWidth };
-    })()`);
-    await sleep(500);
-    const top = await page.eval(`window.__qaScroller ? window.__qaScroller.scrollTop : 0`);
-    // A finger's drag, not a wheel: on the web the inverted chat list takes
-    // every wheel event for itself (react-native-web's inverted wheel
-    // handler), which a phone never sends.
-    await page.send('Input.synthesizeScrollGesture', {
-      x: w.x,
-      y: w.y,
-      xDistance: -300,
-      yDistance: 0,
-      gestureSourceType: 'touch',
-      speed: 1200,
-    });
-    await sleep(500);
-    const after = await page.eval(`(() => ({ x: ${SIDEWAYS}[${i}].scrollLeft, top: window.__qaScroller ? window.__qaScroller.scrollTop : 0 }))()`);
-    seen.push({ width: [w.sw, w.cw], scrollLeft: after.x, chatMoved: after.top !== top });
-  }
-  log('tables', JSON.stringify(seen));
-  if (seen.some((t) => !(t.scrollLeft > 0))) throw new Error(`a wide table didn't scroll sideways: ${JSON.stringify(seen)}`);
+const tablesReadDown = async (page) => {
+  const sideways = await page.eval(
+    `${SIDEWAYS}.filter((e) => e.closest('[data-testid^="table"]')).length`
+  );
+  const stacked = await page.eval(
+    `document.querySelectorAll('[data-testid="table-stacked"]').length`
+  );
+  log('tables', JSON.stringify({ sideways, stacked }));
+  if (sideways > 0) throw new Error(`${sideways} table(s) still scroll sideways`);
+  if (stacked < 3) throw new Error(`expected 3 stacked tables, found ${stacked}`);
 };
 
 /** Long-press the message whose words start with `start`, as a finger held on it. */
@@ -1402,7 +1383,7 @@ const LIVE = [
     ready: 'Tables',
     pages: 4,
     check:
-      'Three six-column vendor tables wider than the phone: the reply’s, the “Renewals next year” block and the one in the “Vendor renewals for 2027” result card. Each is cut at its well’s right edge with a fade, columns keep readable widths, and the sentences around them wrap normally',
+      'Three six-column vendor tables wider than the phone: the reply’s, the “Renewals next year” block and the one in the “Vendor renewals for 2027” result card. Each reads row by row: the vendor as the row’s title, then each column’s name beside its value; nothing runs past the right edge, and the sentences around them wrap normally',
   },
   {
     name: 'tables-scrolled',
@@ -1410,11 +1391,11 @@ const LIVE = [
     ready: 'Tables',
     act: async (page) => {
       await page.eval(FIND_SCROLLER);
-      await scrollTablesSideways(page);
+      await tablesReadDown(page);
     },
     pages: 4,
     check:
-      'After a sideways scroll over each table, every one shows its right-hand columns (Annual cost, Notes) and its fade is gone at the end, while the words above and below, the card’s title and its checks have not moved',
+      'Every wide table reads down, not sideways: Annual cost and Notes show in each row without any scrolling',
   },
   // A conversation's living page (dev/mock-page.ts): pinned above the messages.
   {
@@ -1554,7 +1535,7 @@ const LIVE = [
       await sleep(2300);
     },
     check:
-      'Listening: × in the +’s place, words streaming (the last lighter), the waveform and 0:0x, then Stop and Send (accent); no mic',
+      'Listening: one row, no words and nothing above it: × in the +’s place, “● 0:0x” then the waveform, then Stop and Send (accent); no mic',
     after: async (page) => {
       await page.clickLabel('Cancel dictation').catch(() => {});
       await sleep(600);
@@ -1576,6 +1557,59 @@ const LIVE = [
       await sleep(800);
     },
   },
+  // The computer writes it out again (dictation.transcribe; the mock answers in 1 s).
+  {
+    name: 'dictation-tidying',
+    route: '/chat/fin',
+    ready: 'Finance',
+    act: async (page) => {
+      await page.clickLabel('Dictate');
+      await sleep(5500);
+      await page.clickLabel('Stop dictating');
+      await sleep(250);
+    },
+    check:
+      'Stopped, the computer writing it out: one row, “Tidying…” once between × and Stop/Send (no dot, no wave, nothing above the composer); Stop dimmed',
+    after: async (page) => {
+      await page.clickLabel('Cancel dictation').catch(() => {});
+      await sleep(600);
+    },
+  },
+  // The better words arriving: only the changed words swap, lit for a moment.
+  {
+    name: 'dictation-swapping',
+    route: '/chat/fin',
+    ready: 'Finance',
+    act: async (page) => {
+      await page.clickLabel('Dictate');
+      await sleep(5500);
+      await page.clickLabel('Stop dictating');
+      await sleep(1500);
+    },
+    check:
+      'Still tidying or just in: the card says Tidying…, or the written-out words have appeared in the field; never the rough live words',
+    after: async (page) => {
+      await page.clickLabel('Send').catch(() => {});
+      await sleep(800);
+    },
+  },
+  {
+    name: 'dictation-tidied',
+    route: '/chat/fin',
+    ready: 'Finance',
+    act: async (page) => {
+      await page.clickLabel('Dictate');
+      await sleep(5500);
+      await page.clickLabel('Stop dictating');
+      await sleep(2500);
+    },
+    check:
+      'The written-out words in the field (“…for Thursday and send it to me first?”, no comma), editable; no Undo line',
+    after: async (page) => {
+      await page.clickLabel('Send').catch(() => {});
+      await sleep(800);
+    },
+  },
   {
     name: 'dictation-long',
     route: '/chat/design',
@@ -1586,7 +1620,7 @@ const LIVE = [
       await sleep(5200);
     },
     check:
-      'A long dictation while listening: the waveform and 0:0x in a slim row over the field; the words use the full width beside Stop and Send, wrapping like typed text, six lines then scrolled to the newest',
+      'A long dictation while listening: still no words, only “● 0:0x” and the waveform beside Stop and Send',
     after: async (page) => {
       await page.clickLabel('Cancel dictation').catch(() => {});
       await page.eval(`globalThis.__qaDictation = {}`);

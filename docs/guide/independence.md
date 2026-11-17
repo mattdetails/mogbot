@@ -9,8 +9,8 @@ from "Asks a lot" to "Just does it".
 | Stop | What it does on its own |
 | --- | --- |
 | **Careful** | Reads and looks around; asks before bigger changes. |
-| **Steady** (the default) | Reads and edits; asks before running changes or anything leaving your computer. |
-| **Bold** | Does local work on your computer; asks before anything leaves it. |
+| **Steady** | Reads and edits; asks before running changes or anything leaving your computer. |
+| **Bold** (where a new install starts) | Does local work on your computer; asks before anything leaves it. |
 | **Unleashed** | Sends, posts and pushes too; only stops for money, logins, deleting for good or going live. |
 
 ## Setting it
@@ -37,6 +37,10 @@ publishing a release or package, changing settings that affect what others see (
 repository visibility), and anything that would keep running on your computer by itself (like a launch
 agent or a change to your shell profile).
 
+At Bold, a picture, video or PDF the agent made in its own folder goes onto a page (a post's
+image) without a card: you already OK'd the post's words. Uploading any of your own files still
+asks.
+
 ## Text from outside
 
 When an agent is working on something that came from outside (a web page, an email, a message from
@@ -47,10 +51,17 @@ for the rest of that conversation.
 ## Approval cards
 
 When an agent needs your OK, a card appears in its chat showing exactly what it wants to do: the
-command, the file, the site or the message. The agent's row says "Needs your OK" while it waits.
+command, the file, the site or the message. The agent's row says "Needs your OK" while it waits,
+and opening its chat takes you to the card, in whichever of its conversations it was asked, however
+far back it is. **Review** on the "needs your OK" bar does the same.
 
 - **Allow** or **Deny**. Some cards also offer **Always allow** for that kind of thing (for
-  example, web searches).
+  example, web searches). When an agent reads one of your apps (searching your Gmail, say), it
+  offers **Always allow reading your Gmail**: every read of that app stops asking, while sending,
+  changing or deleting anything there still asks each time. On the phone it sits on its own line
+  under Allow.
+- A card for one of your apps lists what it will send as plain lines (To, Subject, then the
+  text), each value exactly as it goes, never as code.
 - Answer from the computer, the phone, or by typing "yes" or "approve it" in the chat when there's
   exactly one card open.
 - A card can be answered once. If you answer on the phone and the computer at the same moment, only the
@@ -74,3 +85,10 @@ Unleashed, the turn also ends with one line listing what was sent or pushed with
 Agents never ask for a password in the chat. When one needs a key or token, it shows a masked card,
 and what you type goes into your Mac's Keychain, not the chat. To connect a service, you get a
 sign-in card: connect the app, use your own browser, or paste an API key.
+
+## Pictures in your Chrome
+
+Through Mogbot for Chrome an agent can attach a picture to a post or message, the way pasting it
+would: a PNG, JPEG, GIF or WebP from its own folder or a project. It counts as an upload, so below
+Unleashed it asks you first on a card. The picture goes on the clipboard for a moment, and the
+text that was there comes back after.

@@ -41,6 +41,12 @@ These 23 are the **featured** legends: drawn by us, first in the picker, the def
 
 **The Chief's key** is the mark on **Graphite** (the app icon's colourway): `chiefIcon` / `chiefColorway` in `agent-keys.json`, used by `ensure_main` and the onboarding and pairing screens. A Chief made earlier wore the star on Putty; `keys::fill` moves it once (marked `chiefKeyDefault` in the Chief's entry): the legend only if it's still the star, the colourway only if it's still Putty. Nothing records whether the user chose those, so a value that differs is theirs and is kept, and after the move a star picked again stays. The Chief's old `color` stays "white" either way: it is the app's accent (`src/lib/accent.ts`), and a new default key is not a new accent.
 
+## Faces
+Instead of an icon, a key can wear one of **16 faces** (Antonio's pack, 13 Nov): `face-01` to `face-16`, listed with names and search words in `agent-keys.json` → `faces` (the Mac reads it: `keys::is_face`, accepted wherever an icon is), drawn in `agentKeyFaces.ts`, the same shapes as the site's `src/faces.ts`. Like the mark, a face is **filled** in the legend's colour (even-odd, eyes cut out) and lit like any legend. Unlike every icon it is drawn in the **key face's own coordinates** (`KeyIconDrawing.viewBox`, `10 5 92 90` of the 112-unit cap), so it fills the face, hat and all, exactly as the pack's keycaps do: the desk's `.agent-key__legend[data-face]` is the face's full size, the phone's `Legend` takes the face's width and height. No face is a default: a new agent still gets an icon from its name, and the Chief keeps the mark.
+
+- **The picker:** desk, a **Face / Icon** switch under Colour; Face shows the 16 in the agent's colourway (arrows move the pick), Icon the search and grid below. Phone, a Face row above the icons ("Or an icon") and a Faces row at the top of the full sheet.
+- **From chat:** `icon: "face-05"`; the line says "with the Propeller face".
+
 ## The icon pack
 Beyond the featured legends, a key can wear any of **Lucide**'s 2,029 icons (version in `agent-keys.json` → `pack`). Chosen over Tabler (MIT, ~5,000) and Phosphor (MIT): Lucide is drawn on the same 24 grid with one 2px stroke and no fills, its geometry is more even than Tabler's (which matters at 15px on a small key), and every icon carries tags and categories for search. Licence: ISC (permissive and MIT-compatible); the notice, with Feather's MIT notice for the icons derived from it, ships beside the data in `agent-key-pack/LICENSE`.
 

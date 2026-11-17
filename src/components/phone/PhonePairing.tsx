@@ -23,6 +23,7 @@ import {
 import { PhoneQr } from './PhoneQr';
 import { TailscaleStoreLinks } from './PhoneTailscale';
 import { BRAND } from '../../lib/brand';
+import { PHONE_APP_STORE_URL } from '../../lib/phoneApp';
 import { formatClock } from '../../../packages/companion-protocol/src/clock';
 import {
   PAIR_BUTTON,
@@ -101,7 +102,7 @@ export function PairCode({
         <ol className="phone-code__steps">
           <li>
             <span className="phone-code__step-strong">Get the {BRAND.name} app</span> on your phone,
-            from your TestFlight invite.
+            {PHONE_APP_STORE_URL ? ' free on the App Store.' : ' from your TestFlight invite.'}
           </li>
           {!viaRelay && (
             <li data-tailscale>

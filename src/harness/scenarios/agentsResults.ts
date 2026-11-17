@@ -300,4 +300,21 @@ export const agentsResultsScenarios: Scenario[] = [
     steps: [open('acme')],
     commands: chats(FINANCE_V1),
   },
+  {
+    id: 'agents-result-copy-kept',
+    title: 'Agents — a project copy’s result card once the copy is kept',
+    looksRightWhen:
+      'The same card after Keep: its footer, on the recessed fill to the card’s edges and its rounded bottom, is one line: a folder icon, “Changed 3 files in a copy of acme-marketing”, then on the right “Ask for changes” (speech-bubble icon) and “Review changes”. Nothing hangs under the footer: no second Ask for changes, no gap or edge between the footer and the card’s bottom.',
+    requires: '.agent-result .agent-changes[data-in-result]',
+    openSelector: AGENTS_TAB,
+    steps: [open('acme')],
+    commands: {
+      ...chats(FINANCE_V1),
+      agents_overview: overview(
+        TEAM.map((a) =>
+          a.id === 'acme' ? { ...a, project: ACME_PATH, status: status('idle') } : a
+        )
+      ),
+    },
+  },
 ];

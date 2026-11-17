@@ -212,6 +212,11 @@ async function runSteps(list?: ScenarioStep[]): Promise<void> {
   ];
 
   for (const step of steps) {
+    if (step.wait) {
+      await new Promise((r) => setTimeout(r, step.wait));
+      stepLog.push(`waited ${step.wait}ms`);
+      continue;
+    }
     if (step.key) {
       const parts = step.key.split('+');
       const key = parts[parts.length - 1];
@@ -326,7 +331,15 @@ async function settle(): Promise<void> {
   // paint. This is what makes two capture runs agree: a fixed delay races
   // any panel whose state arrives on a later round-trip.
   await whenIpcQuiet();
-  await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 250)));
+  // One paint, or 500ms where frames are paused (a tab that isn't in front).
+  await new Promise<void>((r) => {
+    const done = () => setTimeout(r, 250);
+    const fallback = setTimeout(done, 500);
+    requestAnimationFrame(() => {
+      clearTimeout(fallback);
+      done();
+    });
+  });
   (window as unknown as { __harnessReady?: boolean }).__harnessReady = true;
 }
 

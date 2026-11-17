@@ -583,6 +583,9 @@ pub(super) fn push(app: &AppHandle, agent_id: &str, mut inbound: Inbound) {
     let admitted = {
         let mut runtimes = RUNTIMES.lock().unwrap_or_else(|e| e.into_inner());
         let runtime = runtimes.entry(agent_id.to_string()).or_default();
+        // Into the turn in progress too, when its engine takes it mid-turn
+        // (`steer`); it is queued either way, until the engine has read it.
+        super::steer::offer(runtime, &inbound);
         let admitted = runtime.admit(inbound);
         if admitted.is_ok() {
             save_inbox(agent_id, &runtime.queue);

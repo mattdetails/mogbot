@@ -205,9 +205,11 @@ A picture tile is one view from loading to drawn (`Thumb` in
 and **Tap to try again** after an error or 30 s with no answer (over the relay
 the fetch gives up at 30 s too, `RELAY_IMAGE_GIVE_UP_MS`, and a tap asks again,
 `retryRelayImage`). It is never swapped for another view and doesn't fade, and
-a result card has no layout glide (`Card glide={false}`): on iOS a view mounted
-in place of another while a layout animation ran could stay invisible, and a
-ten-picture card over the relay drew as blank space. `QA_MOCK_FLAGS=--lost-pictures`
+neither a result card nor the chat list has a layout glide (`Card glide={false}`,
+no `itemLayoutAnimation` on the chat's list): on iOS views inside a gliding row
+could stay unpainted, and many-picture result cards drew as blank space (never
+on the web build, where the glide was always off). A compare picture's box is a
+visible surface until its picture lands, never an Image with no address. `QA_MOCK_FLAGS=--lost-pictures`
 makes two of `result-many`'s ten fail (404) and hang.
 
 - `system.status`, `devices.self|unpairSelf|setPush`
@@ -1166,6 +1168,15 @@ The phone can start work as well as answer it. Each piece is gated by
   before hearing anything (model not downloaded, "Failed to initialize
   recognizer") tries the platform's service once (`fallsBackToServer`). The
   desk does the same (`commands/dictation.rs`).
+  **Written out again on the computer** (Mac feature `dictation.transcribe`,
+  `companion/dictation.rs`): every session keeps its 16 kHz WAV; when it ends
+  the phone uploads it as a blob and the computer runs Whisper and the names
+  pass (`src-tauri/src/voice`) with the team's names and that chat's last
+  lines, consumes the blob at once and answers the better words. The card
+  says "Tidying…" (× still cancels), the dictated words are replaced only if
+  the draft is what the live words left, and Undo puts them back. Send while
+  listening waits for them (capped) and then sends. No model yet
+  (`preparing`), a failure or an older computer: today's words stand.
   **On iOS 26 and later "on the phone" is SpeechAnalyzer** with
   SpeechTranscriber (`modules/speech-analyzer`, a local Expo module;
   `lib/speechAnalyzer.ts` puts it in front of expo-speech-recognition with
@@ -1580,7 +1591,11 @@ changes (live regions are Android's only). A chart's accessible name says
 its values (`chartSummary`: each slice and share, a short series point by
 point, a long one by start, end, low and high), and every chart series is 3:1
 on app, panel and control in both themes.
-A command, code block, table or diff that runs past the edge scrolls sideways
+A table of three or more columns too wide for the screen (in a reply or a
+table block) reads row by row instead: each row's first cell as its title,
+then every column's name beside its value (`stacksAt`); a sideways scroll
+inside the chat was easy to miss and hard to start on an iPhone.
+A command, code block or diff that runs past the edge scrolls sideways
 and says so: its far edge fades into the well while there's more, and the
 indicator flashes once (`SideScroll`), so a cut-off command never reads as the
 whole one. A role squeezed to a stub ("Desig…") beside a name or an account is

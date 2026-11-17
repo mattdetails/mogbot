@@ -43,7 +43,7 @@ where
 }
 
 impl Saved {
-    fn model(&self, engine: Engine) -> Option<&str> {
+    pub(crate) fn model(&self, engine: Engine) -> Option<&str> {
         match engine {
             Engine::Claude => self.claude_model.as_deref(),
             Engine::Codex => self.codex_model.as_deref(),
@@ -235,14 +235,148 @@ pub async fn set(change: Change) -> Result<View, CommandError> {
             saved.opencode_model = checked.opencode_model.clone();
         }
         s.agent_defaults = (saved != Saved::default()).then_some(saved);
+        // One choice of engine: Projects' terminals open on it too. They read
+        // `default_agent_id`, which only onboarding set before, so picking
+        // Codex here still opened Claude Code in a project.
+        if let Some(engine) = checked.engine.filter(|_| change.engine.is_some()) {
+            s.default_agent_id = Some(engine.terminal_id().to_string());
+            s.terminal_follows_agents = Some(true);
+        }
     })?;
+    if let Some(engine) = checked.engine.filter(|_| change.engine.is_some()) {
+        crate::agent::set_default_agent_cached(engine.terminal_id());
+    }
     Ok(view().await)
+}
+
+/// The model a project terminal for `terminal_id` (`claude-code`, `codex`,
+/// `opencode`) opens on: the one chosen for that engine in Settings → Agents,
+/// or `None` for the engine's own (also for a model the engine no longer
+/// lists, and for any other terminal). It becomes an argument, so only a
+/// plain model name gets through.
+pub fn terminal_model(terminal_id: &str) -> Option<String> {
+    let engine = match terminal_id {
+        "claude-code" => Engine::Claude,
+        "codex" => Engine::Codex,
+        "opencode" => Engine::OpenCode,
+        _ => return None,
+    };
+    model_for_terminal(&saved(), engine, &engine::models(engine))
+}
+
+fn model_for_terminal(
+    saved: &Saved,
+    engine: Engine,
+    offered: &[engine::ModelChoice],
+) -> Option<String> {
+    let model = saved.model(engine)?.trim();
+    let plain = !model.is_empty()
+        && !model.starts_with('-')
+        && !model.chars().any(|c| c.is_whitespace() || c.is_control());
+    // An empty list is one not read yet (OpenCode before its first look):
+    // the saved name was checked when it was chosen.
+    let still_offered = offered.is_empty() || offered.iter().any(|m| m.value == model);
+    (plain && still_offered).then(|| model.to_string())
+}
+
+/// Once, for a Mac whose agents' engine was chosen before it reached the
+/// terminals: Projects' terminals take that engine when they were still on
+/// the fallback (unset, or Claude Code from onboarding). Returns the terminal
+/// id to use, or `None` when nothing changes.
+pub fn terminal_follow_once(state: &mut crate::types::AppState) -> Option<String> {
+    if state.terminal_follows_agents.is_some() {
+        return None;
+    }
+    state.terminal_follows_agents = Some(true);
+    let engine = state.agent_defaults.as_ref()?.engine?;
+    let current = state.default_agent_id.as_deref();
+    if !matches!(current, None | Some("claude-code")) || current == Some(engine.terminal_id()) {
+        return None;
+    }
+    state.default_agent_id = Some(engine.terminal_id().to_string());
+    state.default_agent_id.clone()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::agents::engine::ModelChoice;
+
+    fn state(engine: Option<Engine>, terminal: Option<&str>) -> crate::types::AppState {
+        crate::types::AppState {
+            agent_defaults: engine.map(|e| Saved {
+                engine: Some(e),
+                ..Default::default()
+            }),
+            default_agent_id: terminal.map(str::to_string),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_terminal_opens_on_the_chosen_model_while_its_engine_offers_it() {
+        let saved = Saved {
+            codex_model: Some("gpt-b".into()),
+            opencode_model: Some("--yolo".into()),
+            ..Default::default()
+        };
+        let offered = |names: &[&str]| -> Vec<ModelChoice> {
+            names
+                .iter()
+                .map(|n| ModelChoice {
+                    value: n.to_string(),
+                    label: n.to_string(),
+                })
+                .collect()
+        };
+        assert_eq!(
+            model_for_terminal(&saved, Engine::Codex, &offered(&["gpt-a", "gpt-b"])).as_deref(),
+            Some("gpt-b")
+        );
+        assert_eq!(
+            model_for_terminal(&saved, Engine::Codex, &offered(&["gpt-a"])),
+            None
+        );
+        assert_eq!(
+            model_for_terminal(&saved, Engine::Codex, &[]).as_deref(),
+            Some("gpt-b")
+        );
+        assert_eq!(
+            model_for_terminal(&saved, Engine::Claude, &offered(&["opus"])),
+            None
+        );
+        assert_eq!(model_for_terminal(&saved, Engine::OpenCode, &[]), None);
+    }
+
+    #[test]
+    fn terminals_catch_up_once_with_the_agents_engine() {
+        // Codex chosen for agents, terminals still on onboarding's Claude Code.
+        let mut s = state(Some(Engine::Codex), Some("claude-code"));
+        assert_eq!(terminal_follow_once(&mut s).as_deref(), Some("codex"));
+        assert_eq!(s.default_agent_id.as_deref(), Some("codex"));
+        // Never again: a later "Claude Code" pick in Projects stays.
+        s.default_agent_id = Some("claude-code".into());
+        assert_eq!(terminal_follow_once(&mut s), None);
+        assert_eq!(s.default_agent_id.as_deref(), Some("claude-code"));
+
+        let mut unset = state(Some(Engine::OpenCode), None);
+        assert_eq!(
+            terminal_follow_once(&mut unset).as_deref(),
+            Some("opencode")
+        );
+    }
+
+    #[test]
+    fn a_terminal_picked_on_purpose_or_no_engine_chosen_stays() {
+        let mut cursor = state(Some(Engine::Codex), Some("cursor"));
+        assert_eq!(terminal_follow_once(&mut cursor), None);
+        assert_eq!(cursor.default_agent_id.as_deref(), Some("cursor"));
+        assert_eq!(cursor.terminal_follows_agents, Some(true));
+
+        let mut none = state(None, Some("claude-code"));
+        assert_eq!(terminal_follow_once(&mut none), None);
+        assert_eq!(none.default_agent_id.as_deref(), Some("claude-code"));
+    }
 
     fn engine(id: Engine, ready: bool, models: &[&str]) -> EngineInfo {
         EngineInfo {

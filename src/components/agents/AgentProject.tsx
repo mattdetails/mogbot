@@ -18,7 +18,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { CheckIcon, ChevronIcon, FolderIcon, GlobeIcon } from '@/components/icons';
+import { CheckIcon, ChevronIcon, CommentIcon, FolderIcon, GlobeIcon } from '@/components/icons';
 import { Dropdown, DropdownDivider, DropdownItem } from '../primitives/Dropdown';
 import { MenuButton } from '../primitives/MenuButton';
 import { Button } from '../primitives/Button';
@@ -27,7 +27,7 @@ import { Tooltip } from '../primitives/Tooltip';
 import { Checkbox } from '../primitives/Checkbox';
 import { DiffModal } from '../branches/DiffModal';
 import { CopyActions, copyLine } from './AgentCopy';
-import { ResultCardView } from './AgentResult';
+import { ResultCardView, useResultAsk } from './AgentResult';
 import { useAgentPreview } from './AgentPreviewContext';
 import { WorkTimeline } from './AgentWork';
 import { AgentCard } from './AgentCard';
@@ -347,6 +347,7 @@ export const ChangeCard = memo(function ChangeCard({
                 Preview
               </TextButton>
             )}
+            {inResult && <AskInCard />}
             {toggle}
           </span>
         )
@@ -438,7 +439,8 @@ export const ChangeCard = memo(function ChangeCard({
       // or Keep / Discard would fold away with it.
       newest={newestResult || offering}
       onAskForChanges={newestResult ? onAskForChanges : undefined}
-      actionsInside={offering}
+      // The changes card is the card's footer: Ask for changes goes on its line.
+      actionsInside
       arrived={arrived}
       footer={
         message.work && (
@@ -457,3 +459,18 @@ export const ChangeCard = memo(function ChangeCard({
     </ResultCardView>
   );
 });
+
+/**
+ * In a result card, its Ask for changes, on the footer's line (the card's
+ * last), so nothing hangs under the footer. Its own component: the card's
+ * ask is lent to what renders inside the card.
+ */
+function AskInCard() {
+  const ask = useResultAsk();
+  if (!ask) return null;
+  return (
+    <TextButton tabIndex={0} leftIcon={<CommentIcon size={12} />} onClick={ask}>
+      Ask for changes
+    </TextButton>
+  );
+}

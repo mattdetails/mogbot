@@ -49,7 +49,7 @@ pub fn schema() -> Value {
         "properties": {
             "tool_or_pattern": { "type": "string", "description": "The card's tool name (mcp__app__tool), command (npm test) or site (example.com)." },
             "scope": { "type": "string", "enum": ["this agent", "team"], "description": "\"team\" only when they said every agent may. Default: this agent." },
-            "quote": { "type": "string", "description": "The user's words that said so, exactly as they typed them." }
+            "quote": { "type": "string", "description": "The user's words that said so, exactly as they typed them, including the part that says it's for good (always, from now on, every time…) and, for team, the words naming the team." }
         },
         "required": ["tool_or_pattern", "quote"]
     })
@@ -185,6 +185,60 @@ pub fn quoted(quote: &str, said: &str) -> bool {
     quote.chars().count() >= 4 && format!(" {} ", words(said)).contains(&format!(" {quote} "))
 }
 
+pub const NOT_FOR_GOOD: &str = "Their words don't say it's for good (\"always\", \"from now on\", \"every time\", \"without asking\"). Nothing was recorded; ask them, or they can choose Always allow on the card.";
+pub const NOT_TEAM_WORDS: &str = "Their words don't name the team (\"the team\", \"everyone\", \"all agents\"). Nothing was recorded for the team; record it for this agent, or ask them.";
+
+/// Words that make a yes last: without one, "do those" is a yes to this
+/// card, not a rule (CTO review 2026-11-14: any four letters of their
+/// message used to pass as the quote).
+const FOR_GOOD: &[&str] = &[
+    "always",
+    "from now on",
+    "every time",
+    "each time",
+    "any time",
+    "anytime",
+    "whenever",
+    "going forward",
+    "in future",
+    "in the future",
+    "from here on",
+    "forever",
+    "permanently",
+    "without asking",
+    "don t ask",
+    "dont ask",
+    "never ask",
+    "stop asking",
+    "no need to ask",
+    "don t need to ask",
+];
+
+/// Words that name the whole team, needed before a rule goes to every agent.
+const TEAM_WORDS: &[&str] = &[
+    "team",
+    "everyone",
+    "everybody",
+    "all agents",
+    "all the agents",
+    "every agent",
+    "all of you",
+    "all of them",
+];
+
+fn says_any(quote: &str, phrases: &[&str]) -> bool {
+    let quote = format!(" {} ", words(quote));
+    phrases.iter().any(|p| {
+        let needle = format!(" {p} ");
+        quote.match_indices(&needle).any(|(i, _)| {
+            // "not always", "don't always", "never always": negated, so not
+            // a lasting yes (CTO follow-up, 2026-11-14).
+            let before = quote[..i].split_whitespace().next_back().unwrap_or("");
+            !matches!(before, "not" | "t" | "no" | "never" | "nt")
+        })
+    })
+}
+
 /// The most recent card in this chat that offered to always allow `wanted`:
 /// by its tool name, its command or host, or its label.
 pub fn card_scope<'a>(log: &'a [AgentMessage], wanted: &str) -> Option<&'a Approval> {
@@ -199,7 +253,8 @@ pub fn card_scope<'a>(log: &'a [AgentMessage], wanted: &str) -> Option<&'a Appro
             a.always.as_ref().is_some_and(|s| {
                 s.value == wanted
                     || s.label.eq_ignore_ascii_case(wanted)
-                    || (s.kind == RuleKind::Tool && a.tool.as_deref() == Some(wanted))
+                    || (matches!(s.kind, RuleKind::Tool | RuleKind::AppReads)
+                        && a.tool.as_deref() == Some(wanted))
             })
         })
 }
@@ -223,11 +278,18 @@ pub fn plan(
     if !quoted(quote, said) {
         return Err(NOT_QUOTED.to_string());
     }
+    if !says_any(quote, FOR_GOOD) {
+        return Err(NOT_FOR_GOOD.to_string());
+    }
     let team = match arg("scope").to_ascii_lowercase().as_str() {
         "" | "this agent" | "this_agent" | "agent" | "me" => false,
         "team" | "the team" | "everyone" => true,
         _ => return Err("`scope` is \"this agent\" or \"team\". Nothing was recorded.".into()),
     };
+    // The agent picks the scope; the user's own words must name the team.
+    if team && !says_any(quote, TEAM_WORDS) {
+        return Err(NOT_TEAM_WORDS.to_string());
+    }
     let wanted = arg("tool_or_pattern");
     let no_card = || {
         format!("No card in this chat offered to always allow “{wanted}”. Use the tool name, command or site a card here asked for. Nothing was recorded.")
@@ -239,6 +301,10 @@ pub fn plan(
     let (tool, input) = match scope.kind {
         RuleKind::Tool => (
             scope.value.clone(),
+            card.input.clone().unwrap_or_else(|| json!({})),
+        ),
+        RuleKind::AppReads => (
+            card.tool.clone().unwrap_or_default(),
             card.input.clone().unwrap_or_else(|| json!({})),
         ),
         RuleKind::Command | RuleKind::CommandPrefix => {
@@ -266,6 +332,7 @@ pub fn phrase(scope: &Scope) -> String {
         RuleKind::Command | RuleKind::CommandPrefix => format!("run {}", scope.label),
         RuleKind::Domain => format!("open pages on {}", scope.label),
         RuleKind::Tool if scope.value == "WebSearch" => "search the web".to_string(),
+        RuleKind::AppReads => scope.label.replacen("reading", "read", 1),
         RuleKind::Tool => {
             let mut chars = scope.label.chars();
             match chars.next() {

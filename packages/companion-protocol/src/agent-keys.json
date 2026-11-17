@@ -29,6 +29,24 @@
     "pink": "pink",
     "gray": "graphite"
   },
+  "faces": [
+    { "id": "face-01", "name": "Calm", "aka": ["face", "mark", "slots", "calm"] },
+    { "id": "face-02", "name": "Feelers", "aka": ["face", "antenna", "dizzy"] },
+    { "id": "face-03", "name": "Top hat", "aka": ["face", "hat", "determined"] },
+    { "id": "face-04", "name": "Wizard", "aka": ["face", "magic", "stars", "starry"] },
+    { "id": "face-05", "name": "Propeller", "aka": ["face", "happy", "boxy"] },
+    { "id": "face-06", "name": "Crown", "aka": ["face", "king", "queen", "unimpressed"] },
+    { "id": "face-07", "name": "Horns", "aka": ["face", "devil", "focus"] },
+    { "id": "face-08", "name": "Bow", "aka": ["face", "love", "heart"] },
+    { "id": "face-09", "name": "Sad", "aka": ["face", "softie", "rings"] },
+    { "id": "face-10", "name": "Cap", "aka": ["face", "baseball", "surprised"] },
+    { "id": "face-11", "name": "Jester", "aka": ["face", "laughing", "fun"] },
+    { "id": "face-12", "name": "Visor", "aka": ["face", "calm", "goggles"] },
+    { "id": "face-13", "name": "Shocked", "aka": ["face", "surprised", "dots"] },
+    { "id": "face-14", "name": "Halo", "aka": ["face", "angel", "relieved"] },
+    { "id": "face-15", "name": "Determined", "aka": ["face", "boxy", "serious"] },
+    { "id": "face-16", "name": "Sprout", "aka": ["face", "plant", "sleepy", "leaf"] }
+  ],
   "icons": [
     { "id": "mogbot", "name": "Logo", "aka": ["logo", "mark", "brand"] },
     { "id": "star", "name": "Star" },
