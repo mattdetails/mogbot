@@ -45,9 +45,10 @@ git push origin <branch> && git push origin v1.0.1
 isn't sent to Apple again (the DMG is remade and notarized again, a few
 minutes).
 
-Steps 2 and 3 stop first unless CI on main is green: the newest completed run for
-the commit being released, else the newest completed main run (cancelled ones
-skipped). `--allow-red-ci` goes on anyway, with a loud warning.
+Steps 2 and 3 stop first unless CI on main is green for the commit being released:
+its own completed run, every job (Windows, Frontend and a11y included). Publishing
+has no override. `--allow-red-ci` only lets a local build go ahead while CI is red
+or still running; that build can't be published until CI on its commit is green.
 
 ### What `--publish` does, in order
 

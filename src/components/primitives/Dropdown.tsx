@@ -480,7 +480,10 @@ export function Dropdown({
       // the menu role moves to the list under it (ss-dropdown__items).
       role={presentation === 'menu' ? (search ? undefined : 'menu') : 'dialog'}
       aria-label={presentation === 'popover' ? ariaLabel : undefined}
-      tabIndex={-1}
+      // Focusable itself: a long menu scrolls, and one whose choices are all
+      // unavailable must still be reachable by keyboard (axe
+      // scrollable-region-focusable, agents-runs-on).
+      tabIndex={0}
       onKeyDown={presentation === 'menu' ? handleMenuKeyDown : undefined}
       onMouseEnter={openOnHover ? cancelHoverClose : undefined}
       onMouseLeave={openOnHover ? scheduleHoverClose : undefined}

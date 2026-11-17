@@ -8,7 +8,7 @@
 #   ./scripts/release-mac.sh --skip-build     # re-sign/notarize/verify the last build
 #   ./scripts/release-mac.sh --skip-notarize  # a dry run: everything but Apple's notarization
 #   ./scripts/release-mac.sh --publish        # ...then publish it (below). Never with --skip-notarize
-#   ./scripts/release-mac.sh --allow-red-ci   # go on although CI on main isn't green (loudly)
+#   ./scripts/release-mac.sh --allow-red-ci   # build although CI isn't green (never with --publish)
 #   ./scripts/release-mac.sh --skip-build --publish --mac-only   # publish without Windows/Linux (loudly)
 #
 # --publish also attaches the Windows and Linux installers from the
@@ -160,22 +160,26 @@ if [ "$SKIP_BUILD" = 0 ] || [ "$PUBLISH" = 1 ]; then
   fi
   CI_CONCLUSION="${CI_VERDICT%% *}"
   CI_SHA="${CI_VERDICT#* }"
-  if [ "$CI_CONCLUSION" = "success" ]; then
-    if [ "$CI_SHA" = "$HEAD_SHA" ]; then ok "CI on main is green for this commit (${HEAD_SHA:0:9})"
-    else ok "CI on main is green (newest completed run, ${CI_SHA:0:9}; none finished yet for ${HEAD_SHA:0:9})"; fi
+  # Publishing needs CI green on THIS commit, every job (Windows, Frontend,
+  # a11y included), with no override: 1.0.16 went out with three red jobs
+  # under --allow-red-ci (Chief, 2026-11-16). --allow-red-ci only lets a
+  # local build go ahead.
+  if [ "$CI_CONCLUSION" = "success" ] && [ "$CI_SHA" = "$HEAD_SHA" ]; then
+    ok "CI on main is green for this commit (${HEAD_SHA:0:9})"
   else
     if [ -z "$CI_VERDICT" ]; then
       CI_PROBLEM="couldn't read CI on main for ${CI_REPO:-<no repo>} (gh run list --workflow CI --branch main)"
+    elif [ "$CI_SHA" != "$HEAD_SHA" ]; then
+      CI_PROBLEM="CI hasn't finished for this commit (${HEAD_SHA:0:9}); the newest completed run is '$CI_CONCLUSION' for ${CI_SHA:0:9}"
     else
       CI_PROBLEM="CI on main is '$CI_CONCLUSION' for ${CI_SHA:0:9} (gh run list -R $CI_REPO --workflow CI --branch main)"
     fi
-    if [ "$ALLOW_RED_CI" = 1 ]; then
-      echo -e "${RED}${BOLD}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}"
-      warn "${BOLD}--allow-red-ci: releasing anyway.${NC} $CI_PROBLEM"
-      warn "Whatever is red on main ships to everyone who updates."
-      echo -e "${RED}${BOLD}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}"
+    if [ "$PUBLISH" = 1 ]; then
+      die "$CI_PROBLEM. Publishing needs CI green on this commit; there is no override"
+    elif [ "$ALLOW_RED_CI" = 1 ]; then
+      warn "${BOLD}--allow-red-ci: building anyway (it can't be published).${NC} $CI_PROBLEM"
     else
-      die "$CI_PROBLEM. Make main green, or pass --allow-red-ci to release anyway"
+      die "$CI_PROBLEM. Make main green, or pass --allow-red-ci to build (not publish) anyway"
     fi
   fi
 fi
