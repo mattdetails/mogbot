@@ -8,9 +8,10 @@
 //! never switched; nor is a tab whose workspace routes Claude Code elsewhere
 //! (`ANTHROPIC_BASE_URL`). With fewer than two signed-in accounts there is
 //! nothing to choose and nothing changes. Settings → Accounts & usage has the
-//! choice ([`Mode`], `tab-accounts.json` beside the wallet): **Switch on its
-//! own** (the default), **Ask me** (a bar on the tab, one click), or **Off**
-//! (tabs run on this Mac's sign-in, as before).
+//! choice ([`Mode`], `tab-accounts.json` beside the wallet): **Ask me** (the
+//! default: a bar on the tab, one click, so a restart is never a surprise),
+//! **Switch on its own**, or **Off** (tabs run on this Mac's sign-in, as
+//! before).
 //!
 //! **Starting.** [`pick`] runs as the tab's process is opened: the first
 //! signed-in account in the user's order that isn't out (`wallet::choose`,
@@ -63,9 +64,9 @@ pub const CONTINUE: &str = "Continue where you left off. Your last reply stopped
 #[serde(rename_all = "camelCase")]
 pub enum Mode {
     /// Switch to the next account on its own, with a line in the tab.
-    #[default]
     Auto,
-    /// A bar on the tab: "Continue on <account>?"
+    /// A bar on the tab: "Continue on <account>?" The default.
+    #[default]
     Ask,
     /// Tabs run on this Mac's own sign-in, as before.
     Off,

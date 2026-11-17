@@ -57,8 +57,8 @@ With two or more Claude Code accounts signed in, the agent tabs in your projects
   one an agent would use.
 - When a Claude Code tab runs out, it moves to your next account and carries on the same
   conversation: the tab restarts, picks up where it stopped, and says which account it moved to.
-- **Settings → Accounts & usage → When a terminal tab runs out** sets this: **Switch on its own**
-  (the default), **Ask me** (a bar on the tab offers **Continue on** the next account), or **Off**
+- **Settings → Accounts & usage → When a terminal tab runs out** sets this: **Ask me** (the
+  default: a bar on the tab offers **Continue on** the next account), **Switch on its own**, or **Off**
   (tabs use the account you signed in with on this computer, as before).
 - A project in another workspace keeps that workspace's own login and is never switched.
 - If every account is out, the tab says when the first one is back.

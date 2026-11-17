@@ -143,6 +143,26 @@
   gap: var(--spacing-xs);
 }
 
+/* "Claude Code · Opus ⌄" beside the mic: which model this chat runs on,
+   always in view, and one click to change it. Quiet text until hovered;
+   a long Codex model name is cut short rather than squeezing the field. */
+.agent-composer__model {
+  min-width: 0;
+  max-width: 220px; /* css-ok: cap so the text field keeps its room */
+}
+
+.agent-composer__model-button {
+  max-width: 100%;
+  color: var(--text-secondary);
+  font-size: var(--font-size-body-sm);
+}
+
+.agent-composer__model-words {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .agent-composer__attach,
 .agent-composer__send,
 .agent-composer__stop {

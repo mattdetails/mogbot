@@ -1,7 +1,7 @@
 /**
  * Settings → Accounts & usage, "When a terminal tab runs out": what a Claude
  * Code tab in a project does when its account reaches its usage limit
- * (`agents/tab_accounts.rs`). Switch on its own (the default), Ask me, or Off.
+ * (`agents/tab_accounts.rs`). Ask me (the default), Switch on its own, or Off.
  * Shown only with two or more Claude Code accounts signed in, since otherwise
  * there is nowhere to move to.
  *
@@ -18,8 +18,8 @@ import { getTabAccountMode, setTabAccountMode, type TabAccountMode } from '../..
 const HEADING = 'When a terminal tab runs out';
 
 const OPTIONS: { value: TabAccountMode; label: string }[] = [
-  { value: 'auto', label: 'Switch on its own' },
   { value: 'ask', label: 'Ask me' },
+  { value: 'auto', label: 'Switch on its own' },
   { value: 'off', label: 'Off' },
 ];
 

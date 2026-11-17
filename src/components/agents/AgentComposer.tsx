@@ -21,6 +21,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from 'react';
+import { AgentModelChip } from './AgentModelMenu';
 import { ArrowUpIcon, MicrophoneIcon, PaperclipIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
 import { TextArea } from '../primitives/TextField';
@@ -96,6 +97,8 @@ interface AgentComposerProps {
   unfilled?: string | null;
   /** The last message you sent in this chat, for ↑ in an empty composer. */
   lastSent?: () => string | null;
+  /** The agent whose model is shown as a switcher beside the mic (`AgentModelChip`). */
+  modelOf?: Agent;
 }
 
 /**
@@ -187,6 +190,7 @@ export const AgentComposer = memo(function AgentComposer({
   onPickFiles,
   unfilled,
   lastSent,
+  modelOf,
 }: AgentComposerProps) {
   const draft = useComposerDraft(agentId);
   const setDraft = useMemo(() => (text: string) => setComposerDraft(agentId, text), [agentId]);
@@ -372,6 +376,7 @@ export const AgentComposer = memo(function AgentComposer({
           </p>
         )}
         <div className="agent-composer__actions">
+          {!dictating && modelOf && <AgentModelChip agent={modelOf} />}
           <IconButton
             ref={micRef}
             tabIndex={0}

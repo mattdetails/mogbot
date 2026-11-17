@@ -468,7 +468,7 @@ export const baseCommands: CommandMap = {
   }),
   // Terminal tabs on the wallet's accounts (`agents::tab_accounts`): never
   // chosen (switch on its own), and no tab has run out.
-  tab_account_mode: 'auto',
+  tab_account_mode: 'ask',
   tab_account_set_mode: (args: Record<string, unknown>) => args.mode,
   tab_account_notice: null,
   tab_account_settle: null,
