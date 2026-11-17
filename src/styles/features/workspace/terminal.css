@@ -562,7 +562,7 @@
 
 .project-pick__line {
   margin: 0 0 var(--spacing-lg);
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-body-lg);
   color: var(--text-muted);
 }
 
@@ -622,8 +622,8 @@
 }
 
 .project-pick__name {
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-label);
   color: var(--text-primary);
 }
 
@@ -646,7 +646,7 @@
   justify-content: space-between;
   gap: var(--spacing-md);
   margin-top: var(--spacing-lg);
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-body-lg);
   color: var(--text-muted);
 }
 
@@ -655,7 +655,7 @@
   align-items: center;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-lg);
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-body-lg);
   color: var(--text-primary);
   cursor: pointer;
 }
