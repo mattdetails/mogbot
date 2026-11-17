@@ -509,6 +509,121 @@ pub fn where_line(t: &Owned) -> String {
     line
 }
 
+/// The ref name the gate is shown for a click by position whose control was
+/// found under the point ([`label_at`]).
+pub const AT_POINT_REF: &str = "@point";
+
+/// The label of the control under a click by position (`button "Next"`,
+/// `radio "Yes"`), read from the page's controls and their boxes. `None`
+/// when the click names a ref, has no point, or nothing is under it. Lets
+/// the gate judge a click by what it clicks: Julian, 2026-11-17, at Bold,
+/// clicks on radios and Next raised "goes out under your name" cards
+/// because they were made by position after typing.
+fn label_at(agent: &str, args: &Value) -> Option<String> {
+    if args.get("ref").is_some() {
+        return None;
+    }
+    let (x, y) = xy(args)?;
+    let conn = conn_for(agent).ok()?;
+    let tab = tab_for(agent, &conn, tab_arg(args)).ok()?;
+    let p = page(&conn, agent, &tab);
+    let r = axtree::render(&p.ax_nodes().ok()?, true);
+    let boxes: Vec<(String, Vec<f64>)> = r
+        .refs
+        .values()
+        .take(MAX_POINT_LOOKUPS)
+        .filter_map(|t| {
+            let bm = p
+                .cdp(
+                    "DOM.getBoxModel",
+                    json!({ "backendNodeId": t.backend_node_id }),
+                )
+                .ok()?;
+            let q: Vec<f64> = bm["model"]["border"]
+                .as_array()?
+                .iter()
+                .filter_map(Value::as_f64)
+                .collect();
+            Some((t.label.clone(), q))
+        })
+        .collect();
+    smallest_under(&boxes, x, y)
+}
+
+/// The roles a click by position may be named by.
+const POINT_ROLES: &[&str] = &[
+    "button",
+    "link",
+    "radio",
+    "checkbox",
+    "switch",
+    "tab",
+    "menuitem",
+    "menuitemradio",
+    "menuitemcheckbox",
+    "option",
+    "combobox",
+    "textbox",
+    "searchbox",
+    "listbox",
+    "slider",
+    "spinbutton",
+    "treeitem",
+];
+
+/// Controls looked at for one click by position.
+const MAX_POINT_LOOKUPS: usize = 400;
+
+/// The label of the smallest box (a CDP quad) holding the point. Pure.
+pub fn smallest_under(boxes: &[(String, Vec<f64>)], x: f64, y: f64) -> Option<String> {
+    // Only controls: a dialog or group holding the point says nothing about
+    // an unlabelled button inside it, which stays unknown.
+    let control = |label: &str| {
+        let role = label.split_whitespace().next().unwrap_or("");
+        POINT_ROLES.contains(&role)
+    };
+    boxes
+        .iter()
+        .filter(|(label, q)| q.len() == 8 && control(label))
+        .filter_map(|(label, q)| {
+            let xs = [q[0], q[2], q[4], q[6]];
+            let ys = [q[1], q[3], q[5], q[7]];
+            let (x0, x1) = (
+                xs.iter().cloned().fold(f64::MAX, f64::min),
+                xs.iter().cloned().fold(f64::MIN, f64::max),
+            );
+            let (y0, y1) = (
+                ys.iter().cloned().fold(f64::MAX, f64::min),
+                ys.iter().cloned().fold(f64::MIN, f64::max),
+            );
+            (x >= x0 && x <= x1 && y >= y0 && y <= y1 && x1 > x0 && y1 > y0)
+                .then(|| (label, (x1 - x0) * (y1 - y0)))
+        })
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(label, _)| label.clone())
+}
+
+/// What the gate judges for `args`: a click by position whose control was
+/// found is judged as a click on that control's ref.
+fn gated_args(agent: &str, name: &str, args: &Value, at: Option<&str>) -> Value {
+    match (name, at) {
+        ("click", Some(label)) => {
+            let label = label.to_string();
+            browser_gate::note_user_chrome_page(agent, |p| {
+                p.refs.insert(AT_POINT_REF.into(), label);
+            });
+            let mut a = args.clone();
+            if let Some(o) = a.as_object_mut() {
+                o.remove("x");
+                o.remove("y");
+                o.insert("ref".into(), json!(AT_POINT_REF));
+            }
+            a
+        }
+        _ => args.clone(),
+    }
+}
+
 fn xy(args: &Value) -> Option<(f64, f64)> {
     match (
         args.get("x").and_then(Value::as_f64),
@@ -1114,11 +1229,22 @@ pub async fn dispatch(
             }
             let tool = format!("{USER_CHROME_SERVER}{name}");
             let outside = crate::agents::runner::from_outside(agent_id);
-            match browser_gate::gate(agent, &tool, &args, outside) {
+            // A click by position: judged by the control under it.
+            let at = if name == "click" && args.get("ref").is_none() {
+                let (a, g) = (agent_id.to_string(), args.clone());
+                tokio::task::spawn_blocking(move || label_at(&a, &g))
+                    .await
+                    .ok()
+                    .flatten()
+            } else {
+                None
+            };
+            let judged = gated_args(agent_id, &name, &args, at.as_deref());
+            match browser_gate::gate(agent, &tool, &judged, outside) {
                 Gate::Allow | Gate::NotBrowser => {}
                 Gate::Refuse(why) => return ok(result(vec![text(why)], true)),
                 Gate::Ask => {
-                    if !take_cleared(agent_id, &tool, &args) && turn.is_some() {
+                    if !take_cleared(agent_id, &tool, &judged) && turn.is_some() {
                         let Some(app) = app else {
                             return ok(result(
                                 vec![text(
@@ -1128,7 +1254,7 @@ pub async fn dispatch(
                             ));
                         };
                         if let Err(why) =
-                            crate::agents::mcp::decide_agents_browser(app, agent_id, &tool, &args)
+                            crate::agents::mcp::decide_agents_browser(app, agent_id, &tool, &judged)
                                 .await
                         {
                             return ok(result(vec![text(why)], true));

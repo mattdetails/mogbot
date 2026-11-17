@@ -1355,3 +1355,41 @@ fn a_click_by_position_after_typing_asks_the_agent_to_click_by_ref() {
         &p
     ));
 }
+
+/// Julian, 2026-11-17, at Bold with the exact-text rule: clicks by position
+/// on a radio and Next after typing raised "goes out under your name" cards.
+/// Once the control under the point is known, it is judged by its label:
+/// a radio or Next runs, a Post still asks.
+#[test]
+fn a_click_found_under_the_point_is_judged_by_what_it_clicks() {
+    let a = agent();
+    let mut p = Page::default();
+    p.tabs
+        .insert(3, "https://console.example.com/app/content-rating".into());
+    on_call(
+        &mut p,
+        "computer",
+        &json!({ "action": "type", "text": "me@example.com", "tabId": 3 }),
+    );
+    let click = json!({ "action": "left_click", "ref": "@point", "tabId": 3 });
+    for (label, sends) in [
+        ("radio \"Yes\"", false),
+        ("button \"Next\"", false),
+        ("checkbox \"I agree\"", false),
+        ("button \"Save\"", false),
+        ("button \"Post\"", true),
+        ("button \"Send\"", true),
+    ] {
+        p.refs.insert("@point".into(), label.into());
+        assert_eq!(
+            outward_step_on(&a, "computer", &click, &p),
+            sends,
+            "{label}"
+        );
+        assert_eq!(
+            decide(Level::GoHard, &a, "computer", &click, &p) == Gate::Allow,
+            !sends,
+            "{label}"
+        );
+    }
+}
