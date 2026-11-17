@@ -1522,8 +1522,14 @@ pub fn workspace_connect_start(
         // in there, so an "added" account came back as the one they already
         // had, and switching accounts there signed the other out (Julian,
         // 2026-11-16). Claude Code opens the page with `$BROWSER`.
-        if let Some(helper) = fresh_window_browser() {
-            cmd.env("BROWSER", helper);
+        match fresh_window_browser() {
+            Some(helper) => {
+                tracing::info!(account = %id, helper = %helper.display(), "[Accounts] Claude sign-in opens a fresh window");
+                cmd.env("BROWSER", helper);
+            }
+            None => {
+                tracing::warn!(account = %id, "[Accounts] Claude sign-in has no fresh-window helper: the default browser opens")
+            }
         }
     }
     for (k, v) in env {
