@@ -846,6 +846,8 @@ pub fn run() {
             commands::agents_usage::tab_account_settle,
             commands::agents_usage::tab_account_mode,
             commands::agents_usage::tab_account_set_mode,
+            commands::agents_usage::tab_account_info,
+            commands::agents_usage::tab_account_choose,
             commands::agents::agents_account_add,
             commands::agents::agents_account_rename,
             commands::agents::agents_account_reorder,

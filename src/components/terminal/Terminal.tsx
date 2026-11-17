@@ -147,6 +147,8 @@ export interface TerminalHandle {
   isExited: () => boolean;
   /** Re-fit the terminal to its container (call after display changes) */
   fit: () => void;
+  /** Restart on another account with the conversation (the account chip). */
+  switchAccount?: (notice: TabAccountNotice) => void;
 }
 
 export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Terminal(
@@ -1360,6 +1362,13 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
         cleanup();
       },
       isExited: () => exitedRef.current,
+      switchAccount: (notice: TabAccountNotice) => {
+        // As a notice that switches on its own: now if attached, else as
+        // soon as the tab is (the spawn effect picks it up).
+        const run = switchAccountRef.current;
+        if (run && attachedRef.current) run(notice);
+        else pendingSwitchRef.current = notice;
+      },
       fit: () => {
         if (fitAddonRef.current && terminalRef.current && ptyRef.current) {
           fitAddonRef.current.fit();

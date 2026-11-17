@@ -467,11 +467,22 @@ export const baseCommands: CommandMap = {
     away: [],
   }),
   // Terminal tabs on the wallet's accounts (`agents::tab_accounts`): never
-  // chosen (switch on its own), and no tab has run out.
+  // chosen (ask first, the default), and no tab has run out.
   tab_account_mode: 'ask',
   tab_account_set_mode: (args: Record<string, unknown>) => args.mode,
   tab_account_notice: null,
   tab_account_settle: null,
+  // A tab's account chip (`tab_accounts::TabAccounts`): nothing to switch
+  // unless a scenario says so (`workspace-tab-account`).
+  tab_account_info: { accounts: [] },
+  tab_account_choose: (args: Record<string, unknown>) => ({
+    sessionId: args.sessionId,
+    kind: 'switch',
+    ask: false,
+    line: 'Continuing on Work…',
+    to: 'Work',
+    prompt: 'Continue where you left off.',
+  }),
   // The agent list's folders (`agents::folders`): changes answer as the Mac does.
   agents_folder_create: { id: 'f-new', name: 'SEO' },
   agents_folder_rename: { id: 'f-new', name: 'SEO' },

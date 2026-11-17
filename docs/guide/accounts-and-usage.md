@@ -60,6 +60,9 @@ With two or more Claude Code accounts signed in, the agent tabs in your projects
 - **Settings → Accounts & usage → When a terminal tab runs out** sets this: **Ask me** (the
   default: a bar on the tab offers **Continue on** the next account), **Switch on its own**, or **Off**
   (tabs use the account you signed in with on this computer, as before).
+- The terminal's header shows which account a Claude Code tab runs on (**Account  Work ⌄**). Click it
+  and pick another account to continue that chat there: the tab restarts on it with the same
+  conversation. It's there when two Claude Code accounts are signed in and switching isn't Off.
 - A project in another workspace keeps that workspace's own login and is never switched.
 - If every account is out, the tab says when the first one is back.
 - A Codex tab starts on an account with room, but isn't moved partway through: Codex tabs don't

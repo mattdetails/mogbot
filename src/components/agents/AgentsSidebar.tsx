@@ -39,6 +39,7 @@ import {
   BellOffIcon,
   ChevronRightIcon,
   CollaboratorsIcon,
+  FolderPlusIcon,
   PinIcon,
   RoutineIcon,
 } from '@/components/icons';
@@ -60,6 +61,8 @@ import {
   moveAgent,
   PINNED_KEY,
   sectionAgents,
+  setGroupMode,
+  startNamingGroup,
   toggleCollapsed,
   useAgentGroups,
   type AgentGroup,
@@ -520,7 +523,7 @@ export function AgentsSidebarActions({
   const newAgentTip = `New agent (${kbd('mod', 'N')})`;
   return (
     <div
-      className={`agents-foot__new${room && !collapsed ? ' button-group--split' : ''}`}
+      className={`agents-foot__new${!collapsed ? ' button-group--split' : ''}`}
       role="group"
       aria-label="Start something new"
     >
@@ -547,6 +550,20 @@ export function AgentsSidebarActions({
           <span className="agents-foot__new-label">New agent</span>
         </Button>
       )}
+      {/* Folders, in plain sight: one click opens the name field in the
+          list (agents are then dragged in, or filed from their menu). */}
+      <Tooltip content="New folder, to sort your agents">
+        <IconButton
+          variant={collapsed ? 'ghost' : 'default'}
+          className="agents-list__new-folder"
+          icon={<FolderPlusIcon size={14} />}
+          onClick={() => {
+            setGroupMode('custom');
+            startNamingGroup();
+          }}
+          aria-label="New folder"
+        />
+      </Tooltip>
       {room && (
         <Tooltip content={`New room. ${ROOM_WHAT}`}>
           <IconButton

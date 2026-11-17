@@ -51,6 +51,77 @@ export const featureScenarios: Scenario[] = [
     commands: { ...workspaceCommands },
   },
   {
+    id: 'workspace-tab-account',
+    requires: '.tab-account-chip',
+    steps: [{ click: '.sidebar-row-hit[aria-label="Claude Code 1"]' }],
+    title: 'Workspace — the terminal tab’s account chip',
+    looksRightWhen:
+      'The terminal header reads "Terminal  Claude Code" then a pill "Account  Work ⌄" beside it. Opening it lists "Continue this chat on" with "Personal · 12% left", "Work · 61% left" (ticked) and "Side · out until 4:30 PM".',
+    project: WORKSPACE_PROJECT,
+    commands: {
+      ...workspaceCommands,
+      tab_account_info: {
+        current: 'Work',
+        accounts: [
+          {
+            id: 'a1',
+            name: 'Personal',
+            label: 'Personal · 12% left',
+            leftPercent: 12,
+            out: false,
+            current: false,
+          },
+          {
+            id: 'a2',
+            name: 'Work',
+            label: 'Work · 61% left',
+            leftPercent: 61,
+            out: false,
+            current: true,
+          },
+          { id: 'a3', name: 'Side', label: 'Side · out until 4:30 PM', out: true, current: false },
+        ],
+      },
+    },
+  },
+  {
+    id: 'workspace-tab-account-menu',
+    requires: '.tab-account-chip__menu',
+    steps: [
+      { click: '.sidebar-row-hit[aria-label="Claude Code 1"]' },
+      { click: '.tab-account-chip__button' },
+    ],
+    title: 'Workspace — the terminal tab’s account chip, open',
+    looksRightWhen:
+      'The terminal header reads "Terminal  Claude Code" then a pill "Account  Work ⌄" beside it. Opening it lists "Continue this chat on" with "Personal · 12% left", "Work · 61% left" (ticked) and "Side · out until 4:30 PM".',
+    project: WORKSPACE_PROJECT,
+    commands: {
+      ...workspaceCommands,
+      tab_account_info: {
+        current: 'Work',
+        accounts: [
+          {
+            id: 'a1',
+            name: 'Personal',
+            label: 'Personal · 12% left',
+            leftPercent: 12,
+            out: false,
+            current: false,
+          },
+          {
+            id: 'a2',
+            name: 'Work',
+            label: 'Work · 61% left',
+            leftPercent: 61,
+            out: false,
+            current: true,
+          },
+          { id: 'a3', name: 'Side', label: 'Side · out until 4:30 PM', out: true, current: false },
+        ],
+      },
+    },
+  },
+  {
     id: 'dev-server-consent-new',
     requires: '.dev-consent',
     title: 'Preview — asks before running a project’s commands',

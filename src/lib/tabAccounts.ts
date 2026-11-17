@@ -58,3 +58,42 @@ export function onTabAccountNotice(
     handler(event.payload);
   });
 }
+
+/** One account on a terminal tab's chip (`tab_accounts::TabAccount`). */
+export interface TabAccountOption {
+  id: string;
+  /** Its name as shown everywhere. */
+  name: string;
+  /** Its line in the menu: "Work · 61% left", "Personal · out until 4 PM". */
+  label: string;
+  leftPercent?: number | null;
+  out: boolean;
+  current: boolean;
+}
+
+/** What a terminal tab's account chip shows (`tab_accounts::TabAccounts`). */
+export interface TabAccountInfo {
+  /** The account the tab runs on; absent: this Mac's own sign-in. */
+  current?: string | null;
+  /** Empty: the tab can't change accounts, and no chip is shown. */
+  accounts: TabAccountOption[];
+}
+
+export function tabAccountInfo(sessionId: string): Promise<TabAccountInfo> {
+  return invoke<TabAccountInfo>('tab_account_info', { sessionId });
+}
+
+/**
+ * Move a tab to another account: it starts there next, and the returned
+ * notice is run by the tab (restart with its conversation, as a switch is).
+ */
+export function chooseTabAccount(sessionId: string, accountId: string): Promise<TabAccountNotice> {
+  return invoke<TabAccountNotice>('tab_account_choose', { sessionId, accountId });
+}
+
+/** Any tab's account notice (the chip refreshes on one). */
+export function onAnyTabAccountNotice(
+  handler: (notice: TabAccountNotice) => void
+): Promise<UnlistenFn> {
+  return listen<TabAccountNotice>('tab-account', (event) => handler(event.payload));
+}

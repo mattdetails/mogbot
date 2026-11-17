@@ -171,6 +171,57 @@ fn runs() -> std::sync::MutexGuard<'static, HashMap<String, Run>> {
     RUNS.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// Tabs the account chip is offered on: opened in the Default workspace,
+/// not routed elsewhere, with switching not off and two accounts to choose
+/// between (what [`pick`] checks). Kept apart from [`RUNS`] so a tab still
+/// shows its chip while it restarts.
+static ELIGIBLE: LazyLock<Mutex<std::collections::HashSet<String>>> =
+    LazyLock::new(|| Mutex::new(std::collections::HashSet::new()));
+
+/// The account the user chose for a tab's next start (the chip's menu):
+/// taken once by [`pick`], ignored if that account isn't signed in by then.
+static PREFER: LazyLock<Mutex<HashMap<String, String>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn eligible() -> std::sync::MutexGuard<'static, std::collections::HashSet<String>> {
+    ELIGIBLE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+fn prefer() -> std::sync::MutexGuard<'static, HashMap<String, String>> {
+    PREFER.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Remember the user's choice for this tab's next start.
+pub fn set_preference(pty_session: &str, account_id: &str) {
+    prefer().insert(pty_session.to_string(), account_id.to_string());
+}
+
+/// The account to start on: the user's choice for this tab when it is
+/// signed in (taken either way, so it applies to one start only), else the
+/// wallet's.
+pub fn preferred_or_chosen(
+    pty_session: &str,
+    candidates: &[wallet::Candidate],
+    now: i64,
+) -> Option<Account> {
+    let wanted = prefer().remove(pty_session);
+    if let Some(c) = wanted.and_then(|id| {
+        candidates
+            .iter()
+            .find(|c| c.signed_in && c.account.id == id)
+    }) {
+        return Some(c.account.clone());
+    }
+    match wallet::choose(candidates, &[], now) {
+        Choice::Run(account) => Some(account),
+        // Every one is out: the first, and the engine says so in the tab.
+        Choice::AllOut { .. } => candidates
+            .iter()
+            .find(|c| c.signed_in)
+            .map(|c| c.account.clone()),
+    }
+}
+
 /// The Claude Code sessions project tabs are running now: they move
 /// accounts on their own, so the menu bar leaves them out (`tray_accounts`).
 pub fn tracked_sessions() -> std::collections::HashSet<String> {
@@ -223,20 +274,22 @@ pub async fn pick(
         || workspace_env.contains_key("ANTHROPIC_BASE_URL")
         || mode() == Mode::Off
     {
+        eligible().remove(pty_session);
+        prefer().remove(pty_session);
         return Picked::default();
     }
     let candidates = wallet::candidates(engine).await;
     if candidates.iter().filter(|c| c.signed_in).count() < 2 {
+        eligible().remove(pty_session);
+        prefer().remove(pty_session);
         return Picked::default();
     }
+    if engine == Engine::Claude {
+        eligible().insert(pty_session.to_string());
+    }
     let now = super::store::now_ms();
-    let account = match wallet::choose(&candidates, &[], now) {
-        Choice::Run(account) => account,
-        // Every one is out: the first, and the engine says so in the tab.
-        Choice::AllOut { .. } => match candidates.iter().find(|c| c.signed_in) {
-            Some(c) => c.account.clone(),
-            None => return Picked::default(),
-        },
+    let Some(account) = preferred_or_chosen(pty_session, &candidates, now) else {
+        return Picked::default();
     };
     let session = match (engine, session_arg(args)) {
         (Engine::Claude, Some((id, resume))) => {
@@ -292,6 +345,116 @@ pub fn pending(pty_session: &str) -> Option<Notice> {
 pub fn settle(pty_session: &str) {
     if let Some(run) = runs().get_mut(pty_session) {
         run.pending = None;
+    }
+}
+
+/// What the account chip on a terminal tab shows and offers.
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TabAccounts {
+    /// The account the tab runs on, as it is shown; none: this Mac's own
+    /// sign-in (or nothing known yet).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current: Option<String>,
+    /// Empty: the tab can't be switched (another workspace's login, a
+    /// routed base URL, switching off, or one account).
+    pub accounts: Vec<TabAccount>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TabAccount {
+    pub id: String,
+    /// Its name as shown everywhere.
+    pub name: String,
+    /// Its line in the menu: "Work · 61% left", "Personal · out until 4 PM".
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub left_percent: Option<u8>,
+    pub out: bool,
+    pub current: bool,
+}
+
+/// The chip's view for a tab, from the accounts as the menu bar reads them.
+pub async fn info(pty_session: &str) -> TabAccounts {
+    if !eligible().contains(pty_session) {
+        return TabAccounts::default();
+    }
+    let current_id = runs().get(pty_session).map(|r| r.account.id.clone());
+    let inv = super::inventory::read().await;
+    let now = super::store::now_ms();
+    view_of(&inv.accounts, current_id.as_deref(), &chrono::Local, now)
+}
+
+/// [`info`]'s view from the inventory's lines: Claude Code's signed-in
+/// accounts in the user's order.
+pub fn view_of<Tz: chrono::TimeZone>(
+    lines: &[super::inventory::AccountLine],
+    current_id: Option<&str>,
+    tz: &Tz,
+    now: i64,
+) -> TabAccounts
+where
+    Tz::Offset: std::fmt::Display,
+{
+    let accounts: Vec<TabAccount> = lines
+        .iter()
+        .filter(|l| l.engine == Engine::Claude && l.signed_in)
+        .map(|l| TabAccount {
+            id: l.id.clone(),
+            name: l.name.clone(),
+            label: super::tray_accounts::account_label(l, tz, now),
+            left_percent: if l.out {
+                None
+            } else {
+                super::tray_accounts::left_percent(&l.windows, now)
+            },
+            out: l.out,
+            current: current_id == Some(l.id.as_str()),
+        })
+        .collect();
+    if accounts.len() < 2 {
+        return TabAccounts::default();
+    }
+    TabAccounts {
+        current: accounts.iter().find(|a| a.current).map(|a| a.name.clone()),
+        accounts,
+    }
+}
+
+/// The user picked an account on the tab's chip: it starts there next, and
+/// the tab is told to restart with its conversation (as a switch is).
+pub async fn choose(pty_session: &str, account_id: &str) -> Result<Notice, CommandError> {
+    if !eligible().contains(pty_session) {
+        return Err(CommandError::expected(
+            "This tab can't change accounts.".to_string(),
+        ));
+    }
+    let candidates = wallet::candidates(Engine::Claude).await;
+    let Some(to) = candidates
+        .iter()
+        .find(|c| c.signed_in && c.account.id == account_id)
+        .map(|c| c.account.clone())
+    else {
+        return Err(CommandError::expected(
+            "That account isn't signed in. Sign it in again in Settings → Accounts & usage."
+                .to_string(),
+        ));
+    };
+    set_preference(pty_session, &to.id);
+    Ok(chosen_notice(pty_session, &to.name))
+}
+
+/// What the tab is told when the user moves it: restart, on `to`, with the
+/// conversation.
+pub fn chosen_notice(pty_session: &str, to: &str) -> Notice {
+    Notice {
+        session_id: pty_session.to_string(),
+        kind: NoticeKind::Switch,
+        ask: false,
+        line: format!("Continuing on {to}…"),
+        to: Some(to.to_string()),
+        prompt: Some(CONTINUE.to_string()),
     }
 }
 

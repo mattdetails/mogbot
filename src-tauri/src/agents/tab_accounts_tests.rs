@@ -154,3 +154,95 @@ fn modes_are_read_from_their_words() {
     assert_eq!(Mode::parse("off").unwrap(), Mode::Off);
     assert!(Mode::parse("sometimes").is_err());
 }
+
+/* ------------------------------------------------- the chip's choice */
+
+fn line(id: &str, name: &str) -> crate::agents::inventory::AccountLine {
+    crate::agents::inventory::AccountLine {
+        engine: Engine::Claude,
+        id: id.into(),
+        name: name.into(),
+        this_mac: false,
+        signed_in: true,
+        out: false,
+        out_until: None,
+        next: false,
+        plan: None,
+        windows: Vec::new(),
+        learned: Vec::new(),
+        pace: Vec::new(),
+        check: None,
+        same_as: None,
+        maybe_same_as: None,
+        org_name: None,
+        spent: Vec::new(),
+        changes: Vec::new(),
+    }
+}
+
+#[test]
+fn a_chosen_account_is_used_once_then_the_wallet_decides_again() {
+    let candidates = vec![
+        signed_in(account("a", "Personal")),
+        signed_in(account("b", "Work")),
+    ];
+    set_preference("chip-tab-1", "b");
+    let first = preferred_or_chosen("chip-tab-1", &candidates, now()).unwrap();
+    assert_eq!(first.id, "b");
+    // Taken: the next start is the wallet's own pick, the first in order.
+    let next = preferred_or_chosen("chip-tab-1", &candidates, now()).unwrap();
+    assert_eq!(next.id, "a");
+}
+
+#[test]
+fn a_chosen_account_that_isnt_signed_in_is_ignored_and_dropped() {
+    let mut out = signed_in(account("b", "Work"));
+    out.signed_in = false;
+    let candidates = vec![signed_in(account("a", "Personal")), out];
+    set_preference("chip-tab-2", "b");
+    assert_eq!(
+        preferred_or_chosen("chip-tab-2", &candidates, now())
+            .unwrap()
+            .id,
+        "a"
+    );
+    assert!(!prefer().contains_key("chip-tab-2"));
+}
+
+#[test]
+fn the_chip_lists_signed_in_claude_accounts_and_marks_the_current_one() {
+    let mut codex = line("c", "Codex");
+    codex.engine = Engine::Codex;
+    let mut gone = line("x", "Old");
+    gone.signed_in = false;
+    let mut out = line("b", "Work");
+    out.out = true;
+    let view = view_of(
+        &[line("a", "Personal"), out, codex, gone],
+        Some("a"),
+        &Utc,
+        now(),
+    );
+    assert_eq!(view.current.as_deref(), Some("Personal"));
+    let ids: Vec<&str> = view.accounts.iter().map(|a| a.id.as_str()).collect();
+    assert_eq!(ids, ["a", "b"]);
+    assert!(view.accounts[0].current && !view.accounts[1].current);
+    assert!(view.accounts[1].out);
+    assert!(view.accounts[1].label.starts_with("Work · out"));
+}
+
+#[test]
+fn one_account_offers_no_chip() {
+    let view = view_of(&[line("a", "Personal")], Some("a"), &Utc, now());
+    assert!(view.accounts.is_empty() && view.current.is_none());
+}
+
+#[test]
+fn moving_a_tab_restarts_it_with_its_conversation() {
+    let n = chosen_notice("chip-tab-3", "Work");
+    assert_eq!(n.kind, NoticeKind::Switch);
+    assert!(!n.ask);
+    assert_eq!(n.to.as_deref(), Some("Work"));
+    assert_eq!(n.prompt.as_deref(), Some(CONTINUE));
+    assert_eq!(n.line, "Continuing on Work…");
+}

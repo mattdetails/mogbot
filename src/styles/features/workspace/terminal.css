@@ -23,6 +23,53 @@
   font-size: var(--font-size-body-lg);
 }
 
+/* "Account  Work ⌄" beside the tab's agent: which Claude Code account this
+   tab runs on, and one click to continue the chat on another. A bordered
+   pill so it reads as a control, not as more of the heading. */
+.terminal-agent-header__identity > .tab-account-chip {
+  align-self: center;
+  min-width: 0;
+  margin-left: var(--spacing-xs);
+}
+
+.tab-account-chip__button {
+  max-width: 240px; /* css-ok: cap so a long account name never pushes the header's actions off */
+  border: var(--stroke-1) solid var(--border-default);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-body-sm);
+}
+
+.tab-account-chip__words {
+  display: inline-flex;
+  gap: var(--spacing-xs);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-account-chip__key {
+  color: var(--text-muted);
+}
+
+.tab-account-chip__menu .tab-account-chip__heading {
+  margin: 0;
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-body-sm);
+  color: var(--text-muted);
+}
+
+.tab-account-chip__menu .tab-account-chip__label {
+  flex: 1;
+}
+
+.tab-account-chip__menu .tab-account-chip__check {
+  display: inline-flex;
+  justify-content: flex-end;
+  width: var(--spacing-lg);
+  color: var(--text-secondary);
+}
+
 .terminal-agent-header__actions {
   display: flex;
   align-items: center;
