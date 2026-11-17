@@ -42,7 +42,7 @@ own voice and three things you can tap to start.
 
 **Edit agent** is one sheet, laid out like Settings. At the top is the agent's key (click it to
 change its colour, its face or icon, and its shortcut key), its name, and what it runs on. Under
-Colour, **Face** or **Icon** picks which it wears: one of 16 faces, or any of over 2,000 icons. Three tabs sit under
+Colour, **Face** or **Icon** picks which it wears: one of 34 faces, or any of over 2,000 icons. Three tabs sit under
 it: **Agent**, **Memory** and **Usage**.
 
 On **Agent**, the rows are grouped:

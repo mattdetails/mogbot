@@ -124,7 +124,7 @@ describe('faces', () => {
   it('draws every face the Mac knows, filled, in the key face’s box', async () => {
     const { KEY_FACE_IDS, isKeyFace, isKeyIcon, iconName, legendDrawing } =
       await import('./agentKeys');
-    expect(KEY_FACE_IDS).toHaveLength(16);
+    expect(KEY_FACE_IDS).toHaveLength(34);
     for (const id of KEY_FACE_IDS) {
       const d = legendDrawing(id);
       expect(d?.fill).toBe(true);
@@ -133,6 +133,6 @@ describe('faces', () => {
       expect(isKeyFace(id) && isKeyIcon(id)).toBe(true);
     }
     expect(iconName('face-05')).toBe('Propeller');
-    expect(isKeyIcon('face-17')).toBe(false);
+    expect(isKeyIcon('face-35')).toBe(false);
   });
 });
