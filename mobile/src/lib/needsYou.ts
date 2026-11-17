@@ -92,6 +92,22 @@ export function keepCard(agent: Agent, messages: AgentMessage[] | undefined) {
  */
 const cardsCache = new WeakMap<AgentMessage[], { m: AgentMessage; card: Approval }[]>();
 
+/**
+ * The cached cards the Mac still counts as waiting. A card that expired or
+ * was answered while this phone was away stays "pending" in its cached chat,
+ * and tapping it said "Already answered: Closed" (Julian, 2026-11-17). The
+ * agent list is fresher than a chat, so its count wins: none waiting, none
+ * shown; fewer than cached, the newest that many.
+ */
+export function stillWaiting<T extends { card: Approval }>(cards: T[], agent: Agent): T[] {
+  const count = agent.pendingApprovals;
+  // Skill offers aren't in the Mac's count (`count_pending`): they stay.
+  const asks = cards.filter((c) => !c.card.skill);
+  if (typeof count !== 'number' || asks.length <= count) return cards;
+  const kept = new Set(count <= 0 ? [] : asks.slice(-count));
+  return cards.filter((c) => c.card.skill || kept.has(c));
+}
+
 function waitingCards(messages: AgentMessage[]): { m: AgentMessage; card: Approval }[] {
   const hit = cardsCache.get(messages);
   if (hit) return hit;
@@ -154,7 +170,7 @@ function buildFeed(
   for (const agent of visible) {
     const messages = chats[agent.id]?.messages;
     let asks = 0;
-    for (const { m, card } of messages ? waitingCards(messages) : []) {
+    for (const { m, card } of messages ? stillWaiting(waitingCards(messages), agent) : []) {
       const here = answerableHere(card, reviewHere);
       items.push({
         key: `${here ? 'ask' : 'mac'}:${m.id}`,

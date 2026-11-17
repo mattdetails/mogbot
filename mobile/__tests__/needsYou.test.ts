@@ -258,7 +258,7 @@ describe('answering a row', () => {
 
 describe('feedItems is cheap to ask again', () => {
   it('answers the same inputs with the same list, and a changed chat afresh', () => {
-    const agents = [a('site')];
+    const agents = [a('site', { pendingApprovals: undefined })];
     const chats = { site: { messages: [ask('s1', 'site', 5)] } };
     const first = feedItems(agents, chats, null);
     // The tab bar, the landing and the tab ask in turn on every store change.
@@ -283,5 +283,20 @@ describe('a skill offer’s line', () => {
       'When you ask to reconcile payouts. 1 personal detail or secret removed.'
     );
     expect(skillSummary(approval('x'))).toBeNull();
+  });
+});
+
+describe('cards that closed on the Mac while the phone was away', () => {
+  const chats = {
+    cto: { messages: [ask('old1', 'cto', 1), ask('old2', 'cto', 2), ask('new', 'cto', 3)] },
+  };
+  it('drops them when the Mac counts none waiting', () => {
+    expect(keys(feedItems([a('cto', { pendingApprovals: 0 })], chats, null))).toEqual([]);
+  });
+  it('keeps only the newest the Mac still counts', () => {
+    expect(keys(feedItems([a('cto', { pendingApprovals: 1 })], chats, null))).toEqual(['ask:new']);
+  });
+  it('trusts the cache when the Mac gave no count', () => {
+    expect(feedItems([a('cto', { pendingApprovals: undefined })], chats, null)).toHaveLength(3);
   });
 });
