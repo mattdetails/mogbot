@@ -209,7 +209,7 @@ export function AccountSignIn({
         <div className="connect-modal-terminal-phase">
           <p className="connect-modal-instructions">
             {account.engine === 'claude'
-              ? 'A browser window opens: sign in to Claude there. If it shows a code, paste it into the terminal below and press Enter.'
+              ? 'A new, empty Chrome window opens, not your usual one: sign in to Claude there with the account you’re adding. If it shows a code, paste it into the terminal below and press Enter.'
               : 'A browser window opens: sign in to ChatGPT there. This finishes on its own.'}
           </p>
           <div className="agents-panel-terminal-body">
