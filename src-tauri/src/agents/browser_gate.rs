@@ -1143,7 +1143,16 @@ pub fn gate(agent: &Agent, tool: &str, input: &Value, outside: bool) -> Gate {
             &page_of(&agents_key(&agent.id)),
         );
         let g = held_for_exact_text(g, agent, tool, input);
-        return unless_same_send(g, agent, tool, input);
+        let g = unless_same_send(g, agent, tool, input);
+        let page = page_of(&agents_key(&agent.id));
+        let (n, i) = agents_equivalent(name, input);
+        if g == Gate::Ask
+            && only_unlabelled_click(level, agent, super::outward::required(agent), &n, &i, &page)
+            && first_try(&agent.id, input)
+        {
+            return Gate::Refuse(UNLABELLED_CLICK.into());
+        }
+        return g;
     }
     if let Some(name) = tool.strip_prefix(USER_CHROME_SERVER) {
         // The user's own Chrome, through the app's extension: the same
@@ -1165,11 +1174,18 @@ pub fn gate(agent: &Agent, tool: &str, input: &Value, outside: bool) -> Gate {
         let g = held_for_exact_text(g, agent, tool, input);
         let g = unless_same_send(g, agent, tool, input);
         let (n, i) = agents_equivalent(name, input);
+        let exact = super::outward::required(agent);
         if g == Gate::Ask
-            && only_unlabelled_enter(level, agent, super::outward::required(agent), &n, &i, &page)
+            && only_unlabelled_enter(level, agent, exact, &n, &i, &page)
             && first_try(&agent.id, input)
         {
             return Gate::Refuse(UNLABELLED_ENTER.into());
+        }
+        if g == Gate::Ask
+            && only_unlabelled_click(level, agent, exact, &n, &i, &page)
+            && first_try(&agent.id, input)
+        {
+            return Gate::Refuse(UNLABELLED_CLICK.into());
         }
         return g;
     }
@@ -1199,6 +1215,19 @@ pub fn gate(agent: &Agent, tool: &str, input: &Value, outside: bool) -> Gate {
         && first_try(&agent.id, input)
     {
         return Gate::Refuse(UNLABELLED_ENTER.into());
+    }
+    if g == Gate::Ask
+        && only_unlabelled_click(
+            level,
+            agent,
+            super::outward::required(agent),
+            name,
+            input,
+            &page,
+        )
+        && first_try(&agent.id, input)
+    {
+        return Gate::Refuse(UNLABELLED_CLICK.into());
     }
     g
 }
@@ -1249,6 +1278,34 @@ pub fn only_unlabelled_enter(
         on_call(&mut page, n, i);
     }
     found
+}
+
+/// What an agent is told when a click by position after typing would ask.
+pub const UNLABELLED_CLICK: &str = "Nothing ran: this clicks by position after you typed on the page, and the app can't tell that from a Send or Post button, so it would have put a \"goes out under your name\" card to the user. Find the control first (find \"<its words>\", or read_page) and click it by its ref: a radio, checkbox, tab, menu or Next then runs on its own, and a Send or Post asks with the exact words. If it has no ref, send the same click again and it goes to the user on a card.";
+
+/// Whether the only thing a call would ask about is a click by position
+/// after typing, held by the exact-text rule ([`outward_step_on`]) though
+/// the level lets it through. Observed (Julian, 2026-11-17, Play Console):
+/// an email typed into a form, then a radio button clicked by position,
+/// raised "Goes out under your name, exactly: “<the email>”". Asking the
+/// agent to click by ref costs one call and answers what the card couldn't.
+/// Pure.
+pub fn only_unlabelled_click(
+    level: Level,
+    agent: &Agent,
+    exact_text: bool,
+    name: &str,
+    input: &Value,
+    page: &Page,
+) -> bool {
+    let action = input.get("action").and_then(Value::as_str).unwrap_or("");
+    exact_text
+        && name == "computer"
+        && CLICKS.contains(&action)
+        && !page.typed.is_empty()
+        && target_of(page, input).is_none()
+        && !money_page(url_for(page, input).as_deref())
+        && decide(level, agent, name, input, page) == Gate::Allow
 }
 
 static REDIRECTED: Mutex<Option<std::collections::HashSet<String>>> = Mutex::new(None);

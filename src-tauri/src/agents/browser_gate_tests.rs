@@ -1280,3 +1280,78 @@ fn bold_uploads_the_agents_own_pictures_and_asks_for_anything_else() {
     // Below Bold, uploads always ask.
     assert_eq!(up(Level::Judgement, vec![own("a.png")]), Gate::Ask);
 }
+
+/// Observed (Julian, 2026-11-17, Play Console): an email typed into a form,
+/// then a radio button clicked by position, raised "Goes out under your
+/// name, exactly: “<the email>”" under the exact-text rule. Now the agent is
+/// told to click by ref first; a labelled radio runs, a labelled Send still
+/// asks, and the exact-text rule off or nothing typed is not this case.
+#[test]
+fn a_click_by_position_after_typing_asks_the_agent_to_click_by_ref() {
+    let a = agent();
+    let mut p = Page::default();
+    p.tabs
+        .insert(3, "https://console.example.com/app/content-rating".into());
+    let typed = json!({ "action": "type", "text": "me@example.com", "tabId": 3 });
+    let click = json!({ "action": "left_click", "coordinate": [114, 683], "tabId": 3 });
+    // Nothing typed yet: a plain click, not this case.
+    assert!(!only_unlabelled_click(
+        Level::GoHard,
+        &a,
+        true,
+        "computer",
+        &click,
+        &p
+    ));
+    on_call(&mut p, "computer", &typed);
+    assert!(only_unlabelled_click(
+        Level::GoHard,
+        &a,
+        true,
+        "computer",
+        &click,
+        &p
+    ));
+    assert!(only_unlabelled_click(
+        Level::FullSend,
+        &a,
+        true,
+        "computer",
+        &click,
+        &p
+    ));
+    // Without the exact-text rule the click already runs.
+    assert!(!only_unlabelled_click(
+        Level::GoHard,
+        &a,
+        false,
+        "computer",
+        &click,
+        &p
+    ));
+    // At "Check with me often" the click asks anyway.
+    assert!(!only_unlabelled_click(
+        Level::Often,
+        &a,
+        true,
+        "computer",
+        &click,
+        &p
+    ));
+    // By ref: a radio runs at Go hard; a Send button is a real send.
+    on_answer(
+        &mut p,
+        "radio \"All Other App Types\" [ref_1]\nbutton \"Send\" [ref_2]",
+    );
+    let by_ref = |r: &str| json!({ "action": "left_click", "ref": r, "tabId": 3 });
+    assert!(!outward_step_on(&a, "computer", &by_ref("ref_1"), &p));
+    assert!(outward_step_on(&a, "computer", &by_ref("ref_2"), &p));
+    assert!(!only_unlabelled_click(
+        Level::GoHard,
+        &a,
+        true,
+        "computer",
+        &by_ref("ref_2"),
+        &p
+    ));
+}
