@@ -926,7 +926,10 @@ fn own_media(agent_id: &str, input: &Value) -> bool {
                 .extension()
                 .and_then(|e| e.to_str())
                 .is_some_and(|e| OWN_MEDIA.contains(&e.to_ascii_lowercase().as_str()));
-            media && real(path).is_some_and(|r| r.starts_with(&home) && r != home)
+            // `..` by either separator: in a Windows verbatim path (`\\?\C:\…`)
+            // `/` isn't a separator, so `components()` alone misses `../x`.
+            let climbs = p.split(['/', '\\']).any(|s| s == "..");
+            media && !climbs && real(path).is_some_and(|r| r.starts_with(&home) && r != home)
         })
 }
 
