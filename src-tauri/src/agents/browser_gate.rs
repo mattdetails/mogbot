@@ -873,11 +873,12 @@ fn uploads_secret(input: &Value) -> bool {
     }
     let mut all = Vec::new();
     strings(input, &mut all);
-    all.iter().any(|s| {
+    // Windows paths use `\`: judge them with `/` like the rest.
+    all.iter().map(|s| s.replace('\\', "/")).any(|s| {
         s.contains("/.ssh/")
             || s.contains("Keychains")
             || s.contains("/.gnupg/")
-            || (s.contains('/') && super::autoallow::sensitive_name(std::path::Path::new(s)))
+            || (s.contains('/') && super::autoallow::sensitive_name(std::path::Path::new(&s)))
     })
 }
 
