@@ -75,18 +75,13 @@ pub(super) async fn settle_narration(
     use super::narration::Fate;
     match fate {
         None => {}
-        Some(Fate::Fold(held)) => {
-            super::work::on_step(
-                agent_id,
-                super::work::StepKind::Note,
-                &super::narration::note_label(&held.text),
-                store::now_ms(),
-            );
-            if let Some(id) = &held.draft_id {
-                emit_draft(app, agent_id, id, "");
-            }
-        }
-        Some(Fate::Keep(held)) => {
+        // A line the agent wrote and then went on working is the user's
+        // news of what it's doing ("On it…", "Found it, fixing it"): it stays
+        // in the chat. Folding it into the timeline hid every progress line
+        // the agents were told to post (Julian, 2026-11-16/17: "it just
+        // doesn't say it's working on anything"). Notifications still come
+        // once per turn (`notify::Coalescer`).
+        Some(Fate::Fold(held)) | Some(Fate::Keep(held)) => {
             *said_anything = true;
             record_reply(app, agent_id, held.draft_id, held.text).await;
         }

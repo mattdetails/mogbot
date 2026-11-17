@@ -7597,14 +7597,13 @@ nothing in their own `CLAUDE.md` touched.
 - **Checkpoints.** `checkpoint: true` records the card at once, marked
   "Partway through"; the same turn's next `share_result` becomes its next
   version (`results::continue_checkpoint`), so a turn still ends on one card.
-- **Narration folds into the timeline.** A short reply (no question, link,
-  list, code block, wait on the user or setback told to them; one paragraph,
-  ≤420 chars) is held. Inline code and a setback the agent works past ("can't
-  read the logs here, so reading the code") don't stop it: a debugging turn
-  put seventeen such lines in the chat. If the turn writes again or
-  calls a tool, it becomes a `note` step and its streamed draft is withdrawn
-  (an empty draft event). If the turn ends on it, it is the reply; a turn
-  that only narrated still ends on its last line. Nothing goes silent.
+- **Progress lines stay in the chat.** Agents are told to say "On it" and
+  post a short line as each step lands; those lines are the user's only news
+  of what an agent is doing, so every one is recorded as a reply. They used
+  to fold into the timeline as `note` steps, which hid exactly the updates
+  the agents were told to give (Julian, 2026-11-17: "it just doesn't say
+  it's working on anything"). Notifications still come once per turn, with
+  its latest line (`notify::Coalescer`).
 - **Local links.** `http://localhost:…` (and 127.0.0.1, 0.0.0.0, [::1]) in a
   reply is taken out of the text into `localLinks`. A port the app knows
   serves a project (a preview proxy, a server the turn left in a project or
