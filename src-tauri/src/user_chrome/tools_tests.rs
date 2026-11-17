@@ -230,3 +230,23 @@ fn the_extension_relays_exactly_the_page_logics_methods_and_expressions() {
         );
     }
 }
+
+#[test]
+fn the_smallest_control_under_a_click_names_it() {
+    let q = |x0: f64, y0: f64, x1: f64, y1: f64| vec![x0, y0, x1, y0, x1, y1, x0, y1];
+    let boxes = vec![
+        ("group \"Form\"".to_string(), q(0.0, 0.0, 500.0, 500.0)),
+        ("radio \"Yes\"".to_string(), q(100.0, 670.0, 130.0, 700.0)),
+        ("button \"Next\"".to_string(), q(400.0, 450.0, 480.0, 480.0)),
+    ];
+    assert_eq!(
+        smallest_under(&boxes, 114.0, 683.0).as_deref(),
+        Some("radio \"Yes\"")
+    );
+    assert_eq!(
+        smallest_under(&boxes, 420.0, 460.0).as_deref(),
+        Some("button \"Next\"")
+    );
+    assert_eq!(smallest_under(&boxes, 50.0, 50.0), None);
+    assert_eq!(smallest_under(&boxes, 900.0, 900.0), None);
+}
