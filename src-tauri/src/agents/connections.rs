@@ -769,6 +769,13 @@ pub fn agents_browser_for_turn(agent: &store::Agent, outside: bool) -> bool {
     if super::browser::for_turn(agent, outside) {
         return false;
     }
+    // And without it, not either (Julian, 2026-11-17: "stop showing this
+    // browser"): the user's Chrome (Mogbot for Chrome or Claude in Chrome)
+    // is the browser; a turn with neither asks for it with `request_login`.
+    if !AGENTS_BROWSER_FOR_TURNS {
+        crate::agent_browser::log_unavailable(&agent.id, "the user's Chrome is the browser");
+        return false;
+    }
     let available = crate::agent_browser::available();
     let policy = available && super::policy::effective(agent).browser;
     let why = agents_browser_refusal(available, policy, agent, outside);
@@ -782,6 +789,9 @@ pub fn agents_browser_for_turn(agent: &store::Agent, outside: bool) -> bool {
     }
     why.is_none()
 }
+
+/// Off: turns never get the agents' browser (see [`agents_browser_for_turn`]).
+pub const AGENTS_BROWSER_FOR_TURNS: bool = false;
 
 const UNAVAILABLE: &str = concat!("not available on this ", crate::computer::noun!());
 
