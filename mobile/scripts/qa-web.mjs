@@ -1336,6 +1336,13 @@ const LIVE = [
     check:
       'Every message kind: receipts, failure cards, diff tints span the box, To/From Ops, folded result line wraps',
   },
+  {
+    name: 'chat-groceries-order',
+    route: '/chat/groceries',
+    ready: 'Place order',
+    pages: 1,
+    check: 'Groceries: the order request, two progress lines, and the card “Click “Place order” on walmart.com” with its spend line, Deny and Allow',
+  },
   // Blocks (`show`): every kind, in one chat (dev/mock-blocks.ts).
   {
     name: 'blocks-chat',

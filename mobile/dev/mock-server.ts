@@ -1049,6 +1049,40 @@ export function createMockServer(opts: MockOptions = {}) {
     unread: 0,
   });
   messages.set('blocks', blocksMessages(now, attach));
+  // A grocery order in the user's Chrome, ending on the card for the one
+  // click that spends money (Social Posts' clip; the desk's
+  // `agents-walmart-order` harness view has the same chat).
+  agents.push({
+    ...structuredClone(sample),
+    id: 'groceries',
+    name: 'Groceries',
+    role: 'Does the weekly Walmart order',
+    colorway: 'sage',
+    icon: 'face-07',
+    pinned: false,
+    hidden: true,
+    status: { state: 'working', activity: 'Using your Chrome · walmart.com', since: now - 4 * 60_000 },
+    pendingApprovals: 1,
+    unread: 0,
+  });
+  messages.set('groceries', [
+    { id: 'gr_1', ts: now - 4 * 60_000, kind: 'user', text: 'can you do this week’s Walmart order? same list as last week' },
+    { id: 'gr_2', ts: now - 4 * 60_000 + 5000, kind: 'agent', text: 'On it: opening Walmart in your Chrome.' },
+    { id: 'gr_3', ts: now - 60_000, kind: 'agent', text: 'Last week’s 14 items are in the cart. Thursday pickup is open, so I picked it.' },
+    {
+      id: 'gr_4',
+      ts: now - 50_000,
+      kind: 'approval',
+      text: '',
+      approval: {
+        requestId: 'walmart-order',
+        title: 'Click “Place order” on walmart.com',
+        summary: 'This would spend your money, in your signed-in Chrome.\n\n14 items, pickup Thursday.',
+        detail: 'left_click ref_42 (“Place order”) on walmart.com/checkout',
+        status: 'pending',
+      },
+    },
+  ] as AgentMessage[]);
   // The morning brief as blocks (`brief::compose_blocks`), under one agent.
   agents.push({
     ...structuredClone(sample),
