@@ -979,7 +979,10 @@
    have an obvious add target. */
 .sidebar-section-add-footer-row {
   list-style: none;
-  padding: var(--space-08) 0 0;
+  /* Room for the button's ring and drop shadow: the list clips its overflow
+     (it scrolls), so a button flush with its edges lost its outline and
+     shadow on the left, right and bottom. */
+  padding: var(--space-08) var(--space-02) var(--space-04);
 }
 
 /* Wrapper that turns the footer "+" button + chevron caret into a single

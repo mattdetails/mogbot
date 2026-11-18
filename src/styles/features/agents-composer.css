@@ -415,3 +415,44 @@
   font-size: var(--font-size-caption);
   color: var(--text-secondary);
 }
+
+/* Wrapped: the words take the box's whole width on a row of their own and
+   the tools sit in a row underneath, as on the phone: attach and the model
+   on the left, the mic and Send on the right. One line stays one row. */
+.agent-composer[data-wrapped][data-dictation='idle'] {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__input {
+  grid-column: 1 / -1;
+  order: 1;
+}
+
+.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__bar > .agent-composer__attach {
+  grid-column: 1;
+  order: 2;
+  align-self: center;
+}
+
+.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__actions {
+  display: contents;
+}
+
+.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__model {
+  grid-column: 2;
+  order: 3;
+  justify-self: start;
+  align-self: center;
+}
+
+.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__mic {
+  grid-column: 3;
+  order: 4;
+  align-self: center;
+}
+
+.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__send,
+.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__stop {
+  grid-column: 4;
+  order: 5;
+}

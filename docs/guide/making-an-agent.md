@@ -50,8 +50,10 @@ On **Agent**, the rows are grouped:
 - **What it does**: its name and its one line.
 - **What it should know**: its briefing.
 - **How it runs**: Claude Code, Codex or OpenCode (a choice once two are set up), the model, and
-  the project it works in. The model is also named under the message box ("Claude Code · Opus"):
-  click it to switch the model or effort from its next message.
+  the project it works in. The model is also named in the message box ("Claude Code · Opus"):
+  click it to switch the model or effort from its next message. A one-line message keeps the
+  box on one row; once it wraps, the words get the box's full width and the paperclip, the model,
+  the microphone and Send move to a row underneath.
 - **On its own**: its independence, what it may always do beyond its level, and the Admin switch.
 - **What it can use**: its apps and access, and its skills.
 
