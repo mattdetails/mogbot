@@ -166,7 +166,12 @@ pub fn transcribe_with(
         .map(|n| n.get().min(8))
         .unwrap_or(4) as i32;
     params.set_n_threads(threads);
-    params.set_language(Some("auto"));
+    // The language is found first, from the audio alone, then set: left to
+    // "auto" with the names hint below, a short clip in Serbian or
+    // Ukrainian came back as English-sounding gibberish (Julian, Pash,
+    // 2026-11-17), the English names pulling the decoder into English.
+    let lang = spoken_language(&mut state, samples_16k, threads as usize);
+    params.set_language(Some(lang.unwrap_or("auto")));
     params.set_translate(false);
     params.set_no_context(true);
     params.set_suppress_blank(true);
@@ -174,7 +179,13 @@ pub fn transcribe_with(
     params.set_print_progress(false);
     params.set_print_realtime(false);
     params.set_print_timestamps(false);
-    let prompt = hint(names);
+    // The names hint only for English: in another language it is what
+    // pulled the words into English.
+    let prompt = if matches!(lang, Some("en") | None) {
+        hint(names)
+    } else {
+        String::new()
+    };
     if !prompt.is_empty() {
         params.set_initial_prompt(&prompt);
     }
@@ -186,6 +197,20 @@ pub fn transcribe_with(
         text.push_str(&piece);
     }
     Ok(clean(&text))
+}
+
+/// The language spoken, from the audio alone (Whisper's own detection
+/// over the first 30 seconds). `None` when it couldn't tell.
+fn spoken_language(
+    state: &mut whisper_rs::WhisperState,
+    samples_16k: &[f32],
+    threads: usize,
+) -> Option<&'static str> {
+    state.pcm_to_mel(samples_16k, threads.max(1)).ok()?;
+    let (id, _) = state.lang_detect(0, threads.max(1)).ok()?;
+    let lang = whisper_rs::get_lang_str(id)?;
+    tracing::info!(lang, "[Dictation] language heard");
+    Some(lang)
 }
 
 /// Whisper's spacing, and what it writes for no speech at all.
