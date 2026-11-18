@@ -836,7 +836,7 @@ mod tests {
             "`project_list` and pick; never ask the user",
             "Otherwise the user's own Chrome",
             "for every site, kept for the whole task",
-            "Only with no",
+            "No Chrome",
         ] {
             assert!(plain.contains(needed), "missing: {needed}");
         }

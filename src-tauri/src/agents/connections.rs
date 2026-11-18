@@ -1489,11 +1489,11 @@ mod tests {
                 .build()
                 .unwrap();
             let h = rt.block_on(for_turn(&recruiter, 4321, false));
-            // Its one granted connection, and the agents' browser.
-            assert_eq!(h.servers.len(), 2);
+            // Its one granted connection; never the agents' browser (the
+            // user's Chrome is the browser).
+            assert_eq!(h.servers.len(), 1);
             assert_eq!(h.servers[0].url, "http://127.0.0.1:4321/mcp/conn/linear");
-            assert_eq!(h.servers[1].key, "browser");
-            assert_eq!(h.servers[1].url, "http://127.0.0.1:4321/mcp/browser");
+            assert!(h.servers.iter().all(|s| s.key != "browser"));
             // Never for outside text.
             let outside = rt.block_on(for_turn(&recruiter, 4321, true));
             assert!(outside.servers.iter().all(|s| s.key != "browser"));
@@ -1526,12 +1526,7 @@ mod tests {
                     r#"mcp_servers.linear={{url="http://127.0.0.1:4321/mcp/conn/linear",bearer_token_env_var="SHIPSTUDIO_AGENTS_BRIDGE_TOKEN",tool_timeout_sec={wait},default_tools_approval_mode="approve"}}"#
                 )
             );
-            assert_eq!(
-                config[1],
-                format!(
-                    r#"mcp_servers.browser={{url="http://127.0.0.1:4321/mcp/browser",bearer_token_env_var="SHIPSTUDIO_AGENTS_BRIDGE_TOKEN",tool_timeout_sec={wait},default_tools_approval_mode="approve"}}"#
-                )
-            );
+            assert!(config.iter().all(|c| !c.contains("mcp_servers.browser")));
             // The relay gets it, for a granted agent only.
             let t = rt.block_on(relay_target(&recruiter.id, "linear")).unwrap();
             assert_eq!(t.token, "lin_turn_token_998877");
@@ -1541,11 +1536,8 @@ mod tests {
             assert!(rt.block_on(relay_target(&recruiter.id, "nope")).is_err());
 
             let s = rt.block_on(for_turn(&social, 4321, false));
-            // No connection of its own: only the agents' browser.
-            assert_eq!(
-                s.servers.iter().map(|x| x.key.as_str()).collect::<Vec<_>>(),
-                vec!["browser"]
-            );
+            // No connection of its own, and no agents' browser either.
+            assert!(s.servers.is_empty());
             assert!(!s.blocked.contains(&"mcp__claude_ai_Gmail".to_string()));
             assert!(s.prompt.contains("mcp__claude_ai_Gmail__*"));
         });

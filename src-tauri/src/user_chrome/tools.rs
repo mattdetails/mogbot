@@ -525,9 +525,18 @@ fn label_at(agent: &str, args: &Value) -> Option<String> {
     }
     let (x, y) = xy(args)?;
     let why = |step: &str, e: &str| {
-        tracing::info!(agent, step, error = e, x, y, "[UserChrome] point lookup failed");
+        tracing::info!(
+            agent,
+            step,
+            error = e,
+            x,
+            y,
+            "[UserChrome] point lookup failed"
+        );
     };
-    let conn = conn_for(agent).map_err(|e| why("conn", &e.to_string())).ok()?;
+    let conn = conn_for(agent)
+        .map_err(|e| why("conn", &e.to_string()))
+        .ok()?;
     let tab = tab_for(agent, &conn, tab_arg(args))
         .map_err(|e| why("tab", &e.to_string()))
         .ok()?;
