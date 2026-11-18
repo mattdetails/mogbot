@@ -1657,7 +1657,27 @@ pub fn identity_of(account: &Account) -> super::identity::Identity {
     match account.engine {
         Engine::Claude => {
             let mut who = identity::read(claude_config_for(account).as_deref(), identity::claude);
-            if !account.is_this_mac() && who.email.is_none() {
+            if account.is_this_mac() {
+                return who;
+            }
+            // The folder's file can be stale: a Claude Code still running in
+            // it rewrites `.claude.json` with the account it started as, after
+            // a new sign-in changed the token. What the token itself answered
+            // (`usage_read` → `usage_plan::set_org`) is who it is.
+            let key = super::usage_plan::account_key(Engine::Claude, &account.id);
+            let mut stale = false;
+            if let Some(answered) = super::usage_plan::records().orgs.get(&key).cloned() {
+                if who.org.as_deref() != Some(answered.as_str()) {
+                    let others: Vec<identity::Identity> = list()
+                        .iter()
+                        .filter(|a| a.engine == Engine::Claude && a.id != account.id)
+                        .map(|a| identity::read(claude_config_for(a).as_deref(), identity::claude))
+                        .collect();
+                    who = identity::answered_by_token(&answered, &others);
+                    stale = true;
+                }
+            }
+            if !stale && who.email.is_none() {
                 who.email = accounts::claude_email_for(&account.id);
             }
             who

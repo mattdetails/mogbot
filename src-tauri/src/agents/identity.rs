@@ -38,6 +38,20 @@ pub struct Identity {
     pub org_name: Option<String>,
 }
 
+/// Who a sign-in is when its token answered for `org` but its file names
+/// another: that organization, with the email and names of another sign-in
+/// on this Mac whose file names it, else no email (never the stale one).
+pub fn answered_by_token(org: &str, others: &[Identity]) -> Identity {
+    others
+        .iter()
+        .find(|o| o.org.as_deref() == Some(org))
+        .cloned()
+        .unwrap_or(Identity {
+            org: Some(org.to_string()),
+            ..Identity::default()
+        })
+}
+
 /// A non-empty string field, trimmed.
 fn text(v: Option<&Value>) -> Option<String> {
     let s = v?.as_str()?.trim();
@@ -279,5 +293,30 @@ mod tests {
         let gone = std::env::temp_dir().join("no-such-dir-identity/.claude.json");
         assert_eq!(read(Some(&gone), claude), Identity::default());
         assert_eq!(read(None, claude), Identity::default());
+    }
+}
+
+#[cfg(test)]
+mod answered_tests {
+    use super::*;
+
+    #[test]
+    fn a_token_that_answered_for_another_org_takes_that_sign_ins_identity() {
+        let gmail = Identity {
+            email: Some("me@gmail.com".into()),
+            org: Some("claude-org:g".into()),
+            ..Identity::default()
+        };
+        let work = Identity {
+            email: Some("me@work.com".into()),
+            org: Some("claude-org:w".into()),
+            ..Identity::default()
+        };
+        let who = answered_by_token("claude-org:g", &[work.clone(), gmail.clone()]);
+        assert_eq!(who, gmail);
+        // No other sign-in names it: the org alone, never the stale email.
+        let who = answered_by_token("claude-org:x", &[work]);
+        assert_eq!(who.org.as_deref(), Some("claude-org:x"));
+        assert!(who.email.is_none());
     }
 }
