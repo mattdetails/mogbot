@@ -99,6 +99,18 @@ const STACKED_INVENTORY = {
       check: { at: now - 2 * MIN, outcome: 'read', via: 'headers' },
     },
     {
+      engine: 'claude',
+      id: 's1',
+      name: 'Studio',
+      thisMac: false,
+      signedIn: true,
+      out: false,
+      next: false,
+      windows: [win('five_hour', 8, 5 * H), win('seven_day', 22, 5 * 24 * H)],
+      learned: [],
+      check: { at: now - 2 * MIN, outcome: 'read', via: 'headers' },
+    },
+    {
       ...CODEX,
       name: 'ChatGPT Plus',
       out: false,
@@ -146,7 +158,7 @@ export const agentsLimitsScenarios: Scenario[] = [
     id: 'settings-limits-stacked',
     title: 'Settings — Accounts & usage: Personal out, Work next, Codex after',
     looksRightWhen:
-      'Accounts in order: 1 Personal, Out of usage; 2 Work, Starts new work; 3 ChatGPT Plus (Codex). Every name readable, none squeezed to a letter.',
+      'Accounts in order: Claude Code 1 Personal, Out of usage; 2 Work, Starts new work; 3 Studio; then Codex ChatGPT Plus. Every name readable, none squeezed to a letter.',
     command: 'settings.page.accounts',
     requires: '.usage-panel .usage-row',
     afterCommand: [{ scroll: '.usage-rows__list' }],
@@ -165,5 +177,19 @@ export const agentsLimitsScenarios: Scenario[] = [
     openSelector: AGENTS_TAB,
     steps: [{ click: '[data-agent-id="site"]' }],
     commands: { agents_overview: SITE_TEAM, agents_messages: chat(CARRIED_CHAT) },
+  },
+  {
+    id: 'settings-limits-local',
+    title: 'Settings — Accounts & usage: OpenCode and local models, under Other compute',
+    looksRightWhen:
+      'Other compute on this computer: OpenCode, and Ollama running with its models, with the line that agents reach them through OpenCode.',
+    command: 'settings.page.accounts',
+    requires: '#usage-local',
+    afterCommand: [{ scroll: '#usage-local' }],
+    commands: {
+      agents_overview: CODEX_TEAM,
+      ...usageCommands(STACKED_INVENTORY),
+      agents_crossover: { claude: 'carry', codex: 'ask', away: [] },
+    },
   },
 ];
