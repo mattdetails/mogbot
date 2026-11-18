@@ -524,21 +524,35 @@ fn label_at(agent: &str, args: &Value) -> Option<String> {
         return None;
     }
     let (x, y) = xy(args)?;
-    let conn = conn_for(agent).ok()?;
-    let tab = tab_for(agent, &conn, tab_arg(args)).ok()?;
+    let why = |step: &str, e: &str| {
+        tracing::info!(agent, step, error = e, x, y, "[UserChrome] point lookup failed");
+    };
+    let conn = conn_for(agent).map_err(|e| why("conn", &e.to_string())).ok()?;
+    let tab = tab_for(agent, &conn, tab_arg(args))
+        .map_err(|e| why("tab", &e.to_string()))
+        .ok()?;
     let p = page(&conn, agent, &tab);
-    let r = axtree::render(&p.ax_nodes().ok()?, true);
+    let nodes = p.ax_nodes().map_err(|e| why("ax", &e)).ok()?;
+    let r = axtree::render(&nodes, true);
+    let mut failed = 0usize;
     let boxes: Vec<(String, Vec<f64>)> = r
         .refs
         .values()
         .take(MAX_POINT_LOOKUPS)
         .filter_map(|t| {
-            let bm = p
-                .cdp(
-                    "DOM.getBoxModel",
-                    json!({ "backendNodeId": t.backend_node_id }),
-                )
-                .ok()?;
+            let bm = match p.cdp(
+                "DOM.getBoxModel",
+                json!({ "backendNodeId": t.backend_node_id }),
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    if failed == 0 {
+                        why("box", &e);
+                    }
+                    failed += 1;
+                    return None;
+                }
+            };
             let q: Vec<f64> = bm["model"]["border"]
                 .as_array()?
                 .iter()
@@ -547,7 +561,20 @@ fn label_at(agent: &str, args: &Value) -> Option<String> {
             Some((t.label.clone(), q))
         })
         .collect();
-    smallest_under(&boxes, x, y)
+    let found = smallest_under(&boxes, x, y);
+    tracing::info!(
+        agent,
+        nodes = nodes.len(),
+        refs = r.refs.len(),
+        boxes = boxes.len(),
+        failed,
+        x,
+        y,
+        found = found.as_deref().unwrap_or("-"),
+        sample = ?boxes.iter().take(3).collect::<Vec<_>>(),
+        "[UserChrome] point lookup"
+    );
+    found
 }
 
 /// The roles a click by position may be named by.
