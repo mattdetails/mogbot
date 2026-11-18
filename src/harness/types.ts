@@ -34,6 +34,8 @@ export interface ScenarioStep {
   fill?: string;
   /** Choose this value from a native select once it exists. */
   select?: string;
+  /** Scroll this to the middle of its scroller once it exists, with no focus ring. */
+  scroll?: string;
   /** Focus this once it exists, so a following `key` step lands on it. */
   focus?: string;
   /** The text `fill` types. */

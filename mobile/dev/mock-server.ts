@@ -1083,6 +1083,33 @@ export function createMockServer(opts: MockOptions = {}) {
       },
     },
   ] as AgentMessage[]);
+  // A turn that runs out of usage mid-task (Social Posts' clip; the desk's
+  // `agents-limits-out` harness view has the same chat).
+  agents.push({
+    ...structuredClone(sample),
+    id: 'website',
+    name: 'Website',
+    role: 'Builds and looks after the company site',
+    colorway: 'ocean',
+    icon: 'face-03',
+    pinned: false,
+    hidden: true,
+    status: { state: 'idle', activity: null, since: null },
+    failure: { kind: 'usage_limit', resetsAt: now + 2 * 3_600_000 + 13 * 60_000 },
+    pendingApprovals: 0,
+    unread: 0,
+  });
+  messages.set('website', [
+    { id: 'si_1', ts: now - 9 * 60_000, kind: 'user', text: 'Build the new pricing page and check it on mobile.' },
+    { id: 'si_2', ts: now - 9 * 60_000 + 5000, kind: 'agent', text: 'On it: three tiers, monthly and yearly, with the FAQ under them.' },
+    {
+      id: 'si_3',
+      ts: now - 8 * 60_000,
+      kind: 'error',
+      text: 'Claude Code is out of usage.',
+      failure: { kind: 'usage_limit', resetsAt: now + 2 * 3_600_000 + 13 * 60_000 },
+    },
+  ] as AgentMessage[]);
   // The morning brief as blocks (`brief::compose_blocks`), under one agent.
   agents.push({
     ...structuredClone(sample),

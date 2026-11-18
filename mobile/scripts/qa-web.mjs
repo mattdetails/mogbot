@@ -1343,6 +1343,13 @@ const LIVE = [
     pages: 1,
     check: 'Groceries: the order request, two progress lines, and the card “Click “Place order” on walmart.com” with its spend line, Deny and Allow',
   },
+  {
+    name: 'chat-site-limit',
+    route: '/chat/website',
+    ready: 'pricing page',
+    pages: 1,
+    check: 'Website: the pricing-page ask, “On it…”, then the usage-limit line with when it refills',
+  },
   // Blocks (`show`): every kind, in one chat (dev/mock-blocks.ts).
   {
     name: 'blocks-chat',

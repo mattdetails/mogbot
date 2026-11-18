@@ -240,7 +240,13 @@ async function runSteps(list?: ScenarioStep[]): Promise<void> {
       continue;
     }
     const selector =
-      step.click ?? step.rightClick ?? step.hover ?? step.fill ?? step.select ?? step.focus;
+      step.click ??
+      step.rightClick ??
+      step.hover ??
+      step.fill ??
+      step.select ??
+      step.focus ??
+      step.scroll;
     if (!selector) continue;
     const el = await waitFor(selector, undefined, step.text);
     const named = step.text ? `${selector} “${step.text}”` : selector;
@@ -289,6 +295,9 @@ async function runSteps(list?: ScenarioStep[]): Promise<void> {
     } else if (step.focus) {
       el.focus();
       stepLog.push(`focused ${selector}`);
+    } else if (step.scroll) {
+      el.scrollIntoView({ block: 'center', inline: 'nearest' });
+      stepLog.push(`scrolled to ${selector}`);
     } else if (step.fill) {
       fillInput(el, step.value ?? '');
       stepLog.push(`filled ${selector}`);
