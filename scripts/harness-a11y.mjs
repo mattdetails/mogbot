@@ -159,6 +159,15 @@ const RUN_AXE = `(async () => {
   })));
 })()`;
 
+/** Every finite animation and transition, finished: the screen as it settles. */
+const SETTLE = `(() => {
+  for (const a of document.getAnimations()) {
+    const t = a.effect && a.effect.getComputedTiming();
+    if (t && Number.isFinite(t.endTime)) a.finish();
+  }
+  return true;
+})()`;
+
 /** One page's scan may take this long; past it the page counts as unsettled. */
 const SCAN_MS = 60_000;
 
@@ -189,6 +198,12 @@ async function scanPage(s, theme) {
     const ready = await waitReady(page, 25_000);
     // Let entrance transitions finish: a fading card measures as low contrast.
     await sleep(500);
+    // A tab that isn't in front doesn't advance its animations, so a sheet's
+    // fade-in can sit half done however long we wait (v1.0.22's CI: the recipe
+    // sheet's buttons measured at partial opacity, 2.34:1 and 3.15:1, and never
+    // reproduced alone). Finish every finite animation and transition: what is
+    // measured is the screen as it settles. Loops are left for MOTION_CHECK.
+    await page.eval(SETTLE);
     await page.eval(AXE_SOURCE + ';true');
     let axeFound = JSON.parse(await page.eval(RUN_AXE));
     // A slow CI runner can still be mid-fade at 500 ms (main run 43497996791:
@@ -196,6 +211,7 @@ async function scanPage(s, theme) {
     // failure is still there a moment later, so a contrast find is read twice.
     if (axeFound.some((v) => v.id === 'color-contrast')) {
       await sleep(1500);
+      await page.eval(SETTLE);
       axeFound = JSON.parse(await page.eval(RUN_AXE));
     }
     const violations = [
