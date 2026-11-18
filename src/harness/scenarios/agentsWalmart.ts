@@ -21,7 +21,7 @@ const GROCERIES = agent('groceries', 'Groceries', {
   icon: 'face-07',
   minutesAgo: 1,
   role: 'Does the weekly Walmart order from your list.',
-  preview: 'Ready to place the order: 14 items, pickup Thursday.',
+  preview: 'Ready to place the order: 6 items, pickup Thursday.',
 });
 
 const TURN = {
@@ -43,7 +43,7 @@ const CHAT = [
     agentId: 'groceries',
   }),
   msg('agent', 'On it: opening Walmart in your Chrome.', 4, { agentId: 'groceries' }),
-  msg('agent', 'Last week’s 14 items are in the cart. Thursday pickup is open, so I picked it.', 1, {
+  msg('agent', 'Last week’s 6 items are in the cart. Thursday pickup is open, so I picked it.', 1, {
     agentId: 'groceries',
   }),
   msg('approval', '', 1, {
@@ -51,7 +51,7 @@ const CHAT = [
     approval: {
       requestId: 'walmart-order',
       title: 'Click “Place order” on walmart.com',
-      summary: 'This would spend your money, in your signed-in Chrome.\n\n14 items, pickup Thursday.',
+      summary: 'This would spend your money, in your signed-in Chrome.\n\n6 items, pickup Thursday.',
       detail: 'left_click ref_42 (“Place order”) on walmart.com/checkout',
       tool: 'mcp__user_chrome__click',
       status: 'pending',
@@ -82,7 +82,7 @@ export const agentsWalmartScenarios: Scenario[] = [
     id: 'agents-walmart-order',
     title: 'Agents — Groceries places the Walmart order in your Chrome',
     looksRightWhen:
-      'Groceries’ chat: “can you do this week’s Walmart order? same list as last week”, then “On it: opening Walmart in your Chrome.”, “Last week’s 14 items are in the cart…”, and the card “Click “Place order” on walmart.com” with “This would spend your money, in your signed-in Chrome.” and “14 items, pickup Thursday.”, Deny and Allow (neutral).',
+      'Groceries’ chat: “can you do this week’s Walmart order? same list as last week”, then “On it: opening Walmart in your Chrome.”, “Last week’s 6 items are in the cart…”, and the card “Click “Place order” on walmart.com” with “This would spend your money, in your signed-in Chrome.” and “6 items, pickup Thursday.”, Deny and Allow (neutral).',
     requires: '.agent-approval',
     openSelector: AGENTS_TAB,
     commands,

@@ -1068,7 +1068,7 @@ export function createMockServer(opts: MockOptions = {}) {
   messages.set('groceries', [
     { id: 'gr_1', ts: now - 4 * 60_000, kind: 'user', text: 'can you do this week’s Walmart order? same list as last week' },
     { id: 'gr_2', ts: now - 4 * 60_000 + 5000, kind: 'agent', text: 'On it: opening Walmart in your Chrome.' },
-    { id: 'gr_3', ts: now - 60_000, kind: 'agent', text: 'Last week’s 14 items are in the cart. Thursday pickup is open, so I picked it.' },
+    { id: 'gr_3', ts: now - 60_000, kind: 'agent', text: 'Last week’s 6 items are in the cart. Thursday pickup is open, so I picked it.' },
     {
       id: 'gr_4',
       ts: now - 50_000,
@@ -1077,7 +1077,7 @@ export function createMockServer(opts: MockOptions = {}) {
       approval: {
         requestId: 'walmart-order',
         title: 'Click “Place order” on walmart.com',
-        summary: 'This would spend your money, in your signed-in Chrome.\n\n14 items, pickup Thursday.',
+        summary: 'This would spend your money, in your signed-in Chrome.\n\n6 items, pickup Thursday.',
         detail: 'left_click ref_42 (“Place order”) on walmart.com/checkout',
         status: 'pending',
       },
