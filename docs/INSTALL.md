@@ -763,7 +763,7 @@ Expo's bundled module list, and how each one is guarded in `mobile/src/lib/`):
 
 | Feature | In Expo Go | Why |
 | --- | --- | --- |
-| Push notifications (alerts while the app is closed) | No | Needs the official build's push entitlement and relay, which isn't deployed yet (`src/lib/push.ts`; docs/push-relay.md). No self-build gets it either. Alerts arrive only while the app is open |
+| Push notifications (alerts while the app is closed) | No | Needs the official build's push entitlement and the push relay (live for iPhone; `src/lib/push.ts`; docs/push-relay.md). No self-build gets it either. Alerts arrive only while the app is open |
 | "Send to agent…" in the share sheet | No | A native share extension (`expo-share-intent`), and only in builds made with `SHIPSTUDIO_SHARE_EXTENSION=1` by a paid Apple team. Not built or tried on a device yet |
 | Dictation's on-phone recognizer | No | `expo-speech-recognition` isn't in Expo Go. The mic button points to the keyboard's own dictation instead (`src/lib/dictation.ts`) |
 | Home Screen quick actions (long-press the icon) | No | `expo-quick-actions` isn't in Expo Go. Silently off (`src/lib/quickActions.ts`) |
