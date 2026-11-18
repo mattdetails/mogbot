@@ -35,12 +35,12 @@ import { engineName } from '../lib/agents';
 import { makeStyles, useColors } from '../lib/appearance';
 import { haptic } from '../lib/haptics';
 import { useQuotas } from '../lib/quota';
-import { call, canCall, describeError, setAgentAccount } from '../lib/session';
+import { call, canCall, describeError, lastRead, setAgentAccount } from '../lib/session';
 import { asOverview } from '../lib/wellFormed';
 import { setApp, useApp } from '../lib/store';
 import { iconSize, keySize, space } from '../lib/theme';
 import { usePolling } from '../lib/usePolling';
-import { accountBlocks, computeView, contextMeter, usageSheet } from '../lib/usageSheet';
+import { accountBlocks, computeView, contextMeter, keepReadings, usageSheet } from '../lib/usageSheet';
 import { useComputer } from '../lib/computer';
 
 export default function Usage() {
@@ -52,11 +52,17 @@ export default function Usage() {
   const connected = useApp((s) => s.link.kind === 'connected');
   const { quotas, now, read: readQuotas } = useQuotas();
   const servesPlan = canCall('agents.usagePlan');
-  const [inventory, setInventory] = useState<UsageInventory | null>(null);
+  // Opens on the last reading from any screen, never an empty or half-read
+  // sheet; each new read keeps an account's last real figures until it has
+  // its own (`keepReadings`).
+  const [inventory, setInventory] = useState<UsageInventory | null>(
+    () => (servesPlan && lastRead('agents.usagePlan', {})) || null
+  );
   const readPlan = useCallback(async () => {
     if (!servesPlan) return;
     try {
-      setInventory(await call('agents.usagePlan', {}));
+      const next = await call('agents.usagePlan', {});
+      setInventory((prev) => keepReadings(prev, next));
     } catch {
       // Unanswered: keep what was last read.
     }
