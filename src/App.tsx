@@ -861,12 +861,15 @@ function AppContents({ initialProjectPath }: AppProps) {
     ]
   );
 
+  // Side by side, the project half is its terminals only (Focus): the
+  // preview and code stay where they were for when it's one side again.
+  const sideBySide = modeNav.sideBySide;
   const layoutProps = useMemo(
     () => ({
       showHealthLogs,
       setShowHealthLogs,
-      isPreviewHidden,
-      setIsPreviewHidden,
+      isPreviewHidden: sideBySide || isPreviewHidden,
+      setIsPreviewHidden: sideBySide ? noopSetPreviewHidden : setIsPreviewHidden,
       workspaceTab,
       setWorkspaceTab,
     }),
@@ -877,6 +880,7 @@ function AppContents({ initialProjectPath }: AppProps) {
       setIsPreviewHidden,
       workspaceTab,
       setWorkspaceTab,
+      sideBySide,
     ]
   );
 
@@ -1189,9 +1193,12 @@ function AppContents({ initialProjectPath }: AppProps) {
         thumbnailConsentProps={thumbnailConsentProps}
         quitConfirmModal={quitConfirmModal}
         agentPreviewServer={agentPreviewServer}
+        sideBySide={sideBySide}
       />
     </>
   );
 }
+
+const noopSetPreviewHidden = (_hidden: boolean) => {};
 
 export default App;

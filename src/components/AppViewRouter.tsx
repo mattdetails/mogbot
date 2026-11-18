@@ -16,6 +16,7 @@ import { WorkspaceNavigation, WorkspaceTitlebar } from './workspace/WorkspaceHea
 import { WorkspaceSidebar } from './workspace/WorkspaceSidebar';
 import type { WorkspaceView } from './workspace/WorkspaceView';
 import { Spinner } from './primitives/Spinner';
+import { SideBySideLayout } from './SideBySideLayout';
 import { AreaBoundary } from './primitives/AreaBoundary';
 import type { Project, WorkspaceInfo } from '../lib/project';
 import type { AppView } from '../lib/types';
@@ -92,6 +93,8 @@ export interface AppViewRouterProps {
   quitConfirmModal: ReactNode;
   /** The window's dev servers, for the Agents preview pane. */
   agentPreviewServer?: AgentPreviewServer;
+  /** Agents on the left and the project side on the right (lib/sideBySide). */
+  sideBySide?: boolean;
 }
 
 const EMPTY_TAB_TITLES = new Map<number, string>();
@@ -116,6 +119,7 @@ export function AppViewRouter({
   thumbnailConsentProps,
   quitConfirmModal,
   agentPreviewServer,
+  sideBySide = false,
 }: AppViewRouterProps) {
   useWarmViewChunks(view);
   if (view === 'loading') {
@@ -151,42 +155,134 @@ export function AppViewRouter({
     );
   }
 
+  const monorepoPicker = pendingMonorepoPick && (
+    <Suspense fallback={null}>
+      <LazyMonorepoPicker
+        projectName={pendingMonorepoPick.project.name}
+        workspaces={pendingMonorepoPick.workspaces}
+        selectedPick={pendingMonorepoPick.selectedPick}
+        onSelect={onSelectMonorepoPick}
+        onConfirm={onConfirmMonorepoPick}
+        onCancel={onCancelMonorepoPick}
+      />
+    </Suspense>
+  );
+
+  const projectsNode = () => (
+    <>
+      <div className="app workspace workspace-home">
+        <div className={`projects-with-rail${isCompact ? ' is-compact' : ''}`} key="view-projects">
+          {/* The sidebar and the projects in their own boundaries: one that
+              throws leaves the other (and the way back to Agents) working. */}
+          {isCompact ? (
+            <CompactModeToggle mode="projects" onAgents={homeSidebarProps.onGoAgents} floating />
+          ) : (
+            <AreaBoundary where="projects:sidebar">
+              <HomeSidebar {...homeSidebarProps} activeNav="home" />
+            </AreaBoundary>
+          )}
+          <AreaBoundary where="projects:list">
+            <Suspense fallback={null}>
+              <LazyProjectsView {...projectsViewProps} />
+            </Suspense>
+          </AreaBoundary>
+        </div>
+      </div>
+      {monorepoPicker}
+    </>
+  );
+
+  const showCompactWorkspaceTitlebar = !isCompact && compactWorkspaceToolbarEnabled;
+  const projectLoadingNode = () => (
+    <div
+      className={`app workspace workspace-home${
+        showCompactWorkspaceTitlebar ? ' has-workspace-titlebar workspace--compact-toolbar' : ''
+      }`}
+    >
+      {showCompactWorkspaceTitlebar && (
+        <WorkspaceTitlebar>
+          <WorkspaceNavigation
+            onGoHome={homeSidebarProps.onGoHome}
+            isSidebarHidden={homeSidebarProps.isSidebarHidden}
+            onToggleSidebar={homeSidebarProps.onToggleSidebar}
+          />
+        </WorkspaceTitlebar>
+      )}
+      <div className="projects-with-rail" key="view-project-loading">
+        <WorkspaceSidebar
+          {...homeSidebarProps}
+          key="sidebar-project-loading"
+          isHomeActive={false}
+          showNavigationControls={!compactWorkspaceToolbarEnabled}
+          currentProjectPath={currentProject?.path ?? null}
+          currentProjectName={currentProject?.name ?? null}
+          terminalTabs={[]}
+          activeTerminalTab={0}
+          tabTitles={EMPTY_TAB_TITLES}
+          attentionTabs={EMPTY_ATTENTION_TABS}
+          maxTabs={5}
+          onSelectTab={noop}
+          onAddTab={noop}
+          onCloseTab={noop}
+          hasDevServer={false}
+          isRestartingDevServer={false}
+          devServerRunning={false}
+        />
+        <div className="project-loading-body">
+          <Spinner size="lg" />
+          <p>Opening {currentProject?.name}...</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const workspaceNode = () => {
+    const project = workspaceViewProps.currentProject;
+    return project ? (
+      <>
+        <Suspense fallback={viewFallback}>
+          <LazyWorkspaceView {...workspaceViewProps} currentProject={project} />
+        </Suspense>
+        <ThumbnailConsentModal {...thumbnailConsentProps} />
+      </>
+    ) : (
+      <div className="app loading">
+        <Spinner size="lg" />
+      </div>
+    );
+  };
+
+  const agentsNode = () => (
+    <AgentsView
+      isCompact={isCompact}
+      sidebarProps={homeSidebarProps}
+      previewServer={agentPreviewServer}
+    />
+  );
+
+  // Side by side: Agents on the left, and on the right whichever project
+  // view the window is on (the list, a project opening, its terminals).
+  if (sideBySide && !isCompact) {
+    const right =
+      view === 'projects'
+        ? projectsNode()
+        : view === 'project-loading'
+          ? projectLoadingNode()
+          : view === 'workspace'
+            ? workspaceNode()
+            : viewFallback;
+    return (
+      <>
+        <SideBySideLayout left={agentsNode()} right={right} />
+        {quitConfirmModal}
+      </>
+    );
+  }
+
   if (view === 'projects') {
     return (
       <>
-        <div className="app workspace workspace-home">
-          <div
-            className={`projects-with-rail${isCompact ? ' is-compact' : ''}`}
-            key="view-projects"
-          >
-            {/* The sidebar and the projects in their own boundaries: one that
-                throws leaves the other (and the way back to Agents) working. */}
-            {isCompact ? (
-              <CompactModeToggle mode="projects" onAgents={homeSidebarProps.onGoAgents} floating />
-            ) : (
-              <AreaBoundary where="projects:sidebar">
-                <HomeSidebar {...homeSidebarProps} activeNav="home" />
-              </AreaBoundary>
-            )}
-            <AreaBoundary where="projects:list">
-              <Suspense fallback={null}>
-                <LazyProjectsView {...projectsViewProps} />
-              </Suspense>
-            </AreaBoundary>
-          </div>
-        </div>
-        {pendingMonorepoPick && (
-          <Suspense fallback={null}>
-            <LazyMonorepoPicker
-              projectName={pendingMonorepoPick.project.name}
-              workspaces={pendingMonorepoPick.workspaces}
-              selectedPick={pendingMonorepoPick.selectedPick}
-              onSelect={onSelectMonorepoPick}
-              onConfirm={onConfirmMonorepoPick}
-              onCancel={onCancelMonorepoPick}
-            />
-          </Suspense>
-        )}
+        {projectsNode()}
         {quitConfirmModal}
       </>
     );
@@ -196,72 +292,16 @@ export function AppViewRouter({
   if (view === 'agents') {
     return (
       <>
-        <AgentsView
-          isCompact={isCompact}
-          sidebarProps={homeSidebarProps}
-          previewServer={agentPreviewServer}
-        />
+        {agentsNode()}
         {quitConfirmModal}
       </>
     );
   }
 
   if (view === 'project-loading') {
-    const showCompactWorkspaceTitlebar = !isCompact && compactWorkspaceToolbarEnabled;
     return (
       <>
-        <div
-          className={`app workspace workspace-home${
-            showCompactWorkspaceTitlebar ? ' has-workspace-titlebar workspace--compact-toolbar' : ''
-          }`}
-        >
-          {showCompactWorkspaceTitlebar && (
-            <WorkspaceTitlebar>
-              <WorkspaceNavigation
-                onGoHome={homeSidebarProps.onGoHome}
-                isSidebarHidden={homeSidebarProps.isSidebarHidden}
-                onToggleSidebar={homeSidebarProps.onToggleSidebar}
-              />
-            </WorkspaceTitlebar>
-          )}
-          <div className="projects-with-rail" key="view-project-loading">
-            <WorkspaceSidebar
-              {...homeSidebarProps}
-              key="sidebar-project-loading"
-              isHomeActive={false}
-              showNavigationControls={!compactWorkspaceToolbarEnabled}
-              currentProjectPath={currentProject?.path ?? null}
-              currentProjectName={currentProject?.name ?? null}
-              terminalTabs={[]}
-              activeTerminalTab={0}
-              tabTitles={EMPTY_TAB_TITLES}
-              attentionTabs={EMPTY_ATTENTION_TABS}
-              maxTabs={5}
-              onSelectTab={noop}
-              onAddTab={noop}
-              onCloseTab={noop}
-              hasDevServer={false}
-              isRestartingDevServer={false}
-              devServerRunning={false}
-            />
-            <div className="project-loading-body">
-              <Spinner size="lg" />
-              <p>Opening {currentProject?.name}...</p>
-            </div>
-          </div>
-        </div>
-        {quitConfirmModal}
-      </>
-    );
-  }
-
-  const project = workspaceViewProps.currentProject;
-  if (!project) {
-    return (
-      <>
-        <div className="app loading">
-          <Spinner size="lg" />
-        </div>
+        {projectLoadingNode()}
         {quitConfirmModal}
       </>
     );
@@ -269,10 +309,7 @@ export function AppViewRouter({
 
   return (
     <>
-      <Suspense fallback={viewFallback}>
-        <LazyWorkspaceView {...workspaceViewProps} currentProject={project} />
-      </Suspense>
-      <ThumbnailConsentModal {...thumbnailConsentProps} />
+      {workspaceNode()}
       {quitConfirmModal}
     </>
   );

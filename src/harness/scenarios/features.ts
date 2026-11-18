@@ -122,6 +122,40 @@ export const featureScenarios: Scenario[] = [
     },
   },
   {
+    id: 'workspace-side-by-side',
+    requires: '.side-by-side',
+    steps: [{ click: '.sidebar-row-hit[aria-label="Claude Code 1"]' }],
+    title: 'Side by side — Agents left, the project’s terminals right',
+    looksRightWhen:
+      'One window split in half by a hairline: on the left the Agents view (agent list, then the Chief of Staff’s chat with its message box and the model chip); on the right the open project acme-marketing with its sidebar and the Claude Code terminal, its "Account Work ⌄" pill in the terminal header. No Preview / Focus / Code tabs on the right, and no preview pane. In both sidebars, beside Agents | Projects, a square split-view button, pressed.',
+    project: WORKSPACE_PROJECT,
+    storage: { 'shipstudio.sideBySide': JSON.stringify({ on: true, share: 0.5 }) },
+    commands: {
+      ...workspaceCommands,
+      tab_account_info: {
+        current: 'Work',
+        accounts: [
+          {
+            id: 'a1',
+            name: 'Personal',
+            label: 'Personal · 12% left',
+            leftPercent: 12,
+            out: false,
+            current: false,
+          },
+          {
+            id: 'a2',
+            name: 'Work',
+            label: 'Work · 61% left',
+            leftPercent: 61,
+            out: false,
+            current: true,
+          },
+        ],
+      },
+    },
+  },
+  {
     id: 'dev-server-consent-new',
     requires: '.dev-consent',
     title: 'Preview — asks before running a project’s commands',

@@ -40,6 +40,11 @@ const MAX_DOCKED_FRACTION = 0.75;
 interface WorkspaceDockProps {
   preview: ReactNode;
   focusMode?: boolean;
+  /**
+   * Side by side (lib/sideBySide): the terminals alone fill the dock, the
+   * preview column kept mounted but not shown. Implies focus mode.
+   */
+  terminalsOnly?: boolean;
   children?: ReactNode;
 }
 
@@ -49,7 +54,12 @@ interface RenderPanelColumn {
   panels: PanelPlacement[];
 }
 
-export function WorkspaceDock({ preview, focusMode = false, children }: WorkspaceDockProps) {
+export function WorkspaceDock({
+  preview,
+  focusMode = false,
+  terminalsOnly = false,
+  children,
+}: WorkspaceDockProps) {
   const { projectPath, layout, measureRef, previewFullscreen, setDragDisabled, slots } =
     usePanelDock();
   const present = usePresentPanels();
@@ -214,6 +224,7 @@ export function WorkspaceDock({ preview, focusMode = false, children }: Workspac
           panels={column.panels}
           dockedColumnCount={dockedColumnCount}
           focusMode={focusMode}
+          terminalsOnly={terminalsOnly}
           focusRailWidth={railWidth}
           projectPath={projectPath}
         />
@@ -227,6 +238,7 @@ export function WorkspaceDock({ preview, focusMode = false, children }: Workspac
           previewColumn && 'preview' in previewColumn ? previewColumn.sourceIndex : -1
         }
         data-preview="true"
+        hidden={terminalsOnly || undefined}
         style={{
           order: focusMode
             ? 1
@@ -249,6 +261,7 @@ interface WorkspaceDockColumnProps {
   panels: PanelPlacement[];
   dockedColumnCount: number;
   focusMode: boolean;
+  terminalsOnly?: boolean;
   focusRailWidth: number;
   projectPath: string;
 }
@@ -259,6 +272,7 @@ function WorkspaceDockColumn({
   panels,
   dockedColumnCount,
   focusMode,
+  terminalsOnly = false,
   focusRailWidth,
   projectPath,
 }: WorkspaceDockColumnProps) {
@@ -510,24 +524,30 @@ function WorkspaceDockColumn({
       className="workspace-dock__column"
       data-rail-column
       data-column-index={sourceIndex}
-      style={{
-        order: displayOrder,
-        width: renderedWidth,
-        minWidth: renderedWidth,
-        maxWidth: renderedWidth,
-      }}
+      style={
+        terminalsOnly
+          ? { order: displayOrder, flex: '1 1 auto', minWidth: 0 }
+          : {
+              order: displayOrder,
+              width: renderedWidth,
+              minWidth: renderedWidth,
+              maxWidth: renderedWidth,
+            }
+      }
     >
       {panels.map(renderPanel)}
-      <PanelResizeHandle
-        value={renderedWidth}
-        min={minWidth}
-        max={maxWidthForColumn}
-        label={`Resize ${panels.map((placement) => PANEL_META[placement.panel].label).join(' and ')} column`}
-        onResize={resizeWidthTo}
-        onResizeBy={resizeWidthBy}
-        onDragChange={commitWidth}
-        className={`workspace-dock__resize workspace-dock__resize--${displaySide}`}
-      />
+      {!terminalsOnly && (
+        <PanelResizeHandle
+          value={renderedWidth}
+          min={minWidth}
+          max={maxWidthForColumn}
+          label={`Resize ${panels.map((placement) => PANEL_META[placement.panel].label).join(' and ')} column`}
+          onResize={resizeWidthTo}
+          onResizeBy={resizeWidthBy}
+          onDragChange={commitWidth}
+          className={`workspace-dock__resize workspace-dock__resize--${displaySide}`}
+        />
+      )}
     </div>
   );
 }
