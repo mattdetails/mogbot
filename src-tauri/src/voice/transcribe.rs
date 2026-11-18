@@ -135,16 +135,33 @@ pub fn dictated_within(ago: Duration) -> bool {
         .is_some_and(|at| at.elapsed() <= ago)
 }
 
+/// Beams Whisper searches with (1: greedy).
+pub const BEAMS: i32 = 5;
+
 pub fn transcribe(model: &Path, samples_16k: &[f32], names: &[String]) -> Result<String, String> {
+    transcribe_with(model, samples_16k, names, BEAMS)
+}
+
+/// [`transcribe`] with `beams` beams (1: greedy, the fastest).
+pub fn transcribe_with(
+    model: &Path,
+    samples_16k: &[f32],
+    names: &[String],
+    beams: i32,
+) -> Result<String, String> {
     *LAST_DICTATION.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
     let mut slot = held();
     let loaded = ensure(&mut slot, model, true)?;
     let mut state = loaded.ctx.create_state().map_err(|e| e.to_string())?;
 
-    let mut params = FullParams::new(SamplingStrategy::BeamSearch {
-        beam_size: 5,
-        patience: -1.0,
-    });
+    let mut params = if beams > 1 {
+        FullParams::new(SamplingStrategy::BeamSearch {
+            beam_size: beams,
+            patience: -1.0,
+        })
+    } else {
+        FullParams::new(SamplingStrategy::Greedy { best_of: 1 })
+    };
     let threads = std::thread::available_parallelism()
         .map(|n| n.get().min(8))
         .unwrap_or(4) as i32;

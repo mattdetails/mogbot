@@ -158,4 +158,21 @@ mod tests {
         println!("{:?} in {:?}", out, started.elapsed());
         assert!(!out.text.is_empty());
     }
+
+    /// Whisper alone, by beams: `MOGBOT_DICTATION_WAV=<file> cargo test
+    /// voice::tests::whisper_by_beams -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn whisper_by_beams() {
+        let path = std::env::var("MOGBOT_DICTATION_WAV").expect("MOGBOT_DICTATION_WAV");
+        let samples = super::pcm::parse_wav(&std::fs::read(path).unwrap()).unwrap();
+        let model = super::model::ready_path().expect("model");
+        let names = vec!["Mogbot".to_string(), "Mogbot Builder".to_string()];
+        let _ = super::transcribe::transcribe_with(&model, &samples, &names, 1);
+        for beams in [5, 2, 1, 5, 2, 1] {
+            let t = std::time::Instant::now();
+            let out = super::transcribe::transcribe_with(&model, &samples, &names, beams).unwrap();
+            println!("beams {beams}: {:?} {out}", t.elapsed());
+        }
+    }
 }
