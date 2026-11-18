@@ -567,6 +567,9 @@ fn carry(app: &AppHandle, session: &str, account_id: &str) {
     tauri::async_runtime::spawn(async move {
         let (to, session) = (account.clone(), found.session.clone());
         let carried = tokio::task::spawn_blocking(move || {
+            // Setup done and the folder trusted there too, or Claude Code
+            // opens on its first-run screens instead of the chat.
+            wallet::prepare(&to);
             wallet::carry_session(&to, &session);
             wallet::session_in(&[wallet::folder(&to)], Engine::Claude, &session)
         })
