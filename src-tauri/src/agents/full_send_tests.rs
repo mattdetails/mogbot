@@ -82,15 +82,18 @@ fn any_agent_reads_and_copies_out_of_the_team_folder_at_go_hard() {
             format!("echo hi >> \"{other}/CLAUDE.md\""),
             "cat ~/Library/Keychains/login.keychain-db".to_string(),
         ] {
-            assert!(bash_card(level, &c), "should still ask at {level:?}: {c}");
+            assert_eq!(bash_card(level, &c), level != Level::FullSend, "asks at Go hard, runs at Unleashed: {c}");
         }
-        assert!(card_at(
-            level,
-            false,
-            "Write",
-            &json!({ "file_path": format!("{other}/CLAUDE.md") }),
-            &ctx()
-        ));
+        assert_eq!(
+            card_at(
+                level,
+                false,
+                "Write",
+                &json!({ "file_path": format!("{other}/CLAUDE.md") }),
+                &ctx()
+            ),
+            level != Level::FullSend
+        );
     }
     // Below Go hard, nothing changes: another agent's folder is the app's data.
     assert!(card_at(
@@ -137,7 +140,8 @@ fn looking_at_production_is_not_deploying_to_it() {
         "vercel deploy --prod",
         "vercel --target production",
     ] {
-        assert!(bash_card(Level::FullSend, c), "still asks: {c}");
+        assert!(!bash_card(Level::FullSend, c), "runs at Unleashed: {c}");
+        assert!(bash_card(Level::GoHard, c), "asks at Go hard: {c}");
     }
 }
 
@@ -162,9 +166,9 @@ fn full_send_lets_sending_through() {
     }
 }
 
-/// The floor: what still asks at "Full send".
+/// "Unleashed" asks for one thing: spending money. Go hard still asks for all of these.
 #[test]
-fn the_floor_still_asks_at_full_send() {
+fn unleashed_asks_only_before_spending_money() {
     for c in [
         // Credentials.
         "sudo ls /var/root",
@@ -209,10 +213,9 @@ fn the_floor_still_asks_at_full_send() {
         "crontab -e",
         "defaults write com.apple.dock autohide -bool true",
     ] {
-        assert!(
-            bash_card(Level::FullSend, c),
-            "should ask at Full send: {c}"
-        );
+        // Unleashed asks only before spending money (18 Nov 2026).
+        let money = c.contains("stripe");
+        assert_eq!(bash_card(Level::FullSend, c), money, "Unleashed: {c}");
         assert!(bash_card(Level::GoHard, c), "should ask at Go hard: {c}");
     }
     for (tool, input) in [
@@ -227,8 +230,8 @@ fn the_floor_still_asks_at_full_send() {
         ),
     ] {
         assert!(
-            card_at(Level::FullSend, false, tool, &input, &ctx()),
-            "{tool} {input}"
+            !card_at(Level::FullSend, false, tool, &input, &ctx()),
+            "runs at Unleashed: {tool} {input}"
         );
     }
     for tool in [
@@ -241,16 +244,17 @@ fn the_floor_still_asks_at_full_send() {
         "mcp__vault__get_password",
         "mcp__vault__reveal_secret",
     ] {
-        // Reading a secret through a connector asks too.
-        assert!(
+        let money = tool.ends_with("create_payment") || tool.ends_with("place_order");
+        assert_eq!(
             card_at(Level::FullSend, false, tool, &json!({}), &ctx()),
-            "should ask at Full send: {tool}"
+            money,
+            "Unleashed asks only for money: {tool}"
         );
     }
 }
 
 #[test]
-fn a_bare_push_asks_only_on_a_protected_branch() {
+fn a_bare_push_runs_at_unleashed_even_to_main() {
     let dir = tempfile::tempdir().unwrap();
     let repo = dir.path().join("site");
     std::fs::create_dir_all(repo.join(".git/refs/remotes/origin")).unwrap();
@@ -267,15 +271,15 @@ fn a_bare_push_asks_only_on_a_protected_branch() {
         card_at(Level::FullSend, false, "Bash", &bash("git push"), &c)
     };
     assert!(!at("fix/copy"));
-    assert!(at("main"));
-    assert!(at("master"));
+    assert!(!at("main"));
+    assert!(!at("master"));
     // The remote's default branch, whatever it's called.
     std::fs::write(
         repo.join(".git/refs/remotes/origin/HEAD"),
         "ref: refs/remotes/origin/develop\n",
     )
     .unwrap();
-    assert!(at("develop"));
+    assert!(!at("develop"));
     assert!(!at("feature/x"));
     // A detached HEAD, or no working copy: it can't tell, so it asks.
     std::fs::write(repo.join(".git/HEAD"), "3e1f00\n").unwrap();
@@ -283,7 +287,7 @@ fn a_bare_push_asks_only_on_a_protected_branch() {
         cwd: repo.clone(),
         ..ctx()
     };
-    assert!(card_at(
+    assert!(!card_at(
         Level::FullSend,
         false,
         "Bash",
@@ -294,7 +298,7 @@ fn a_bare_push_asks_only_on_a_protected_branch() {
         cwd: dir.path().join("nowhere"),
         ..ctx()
     };
-    assert!(card_at(
+    assert!(!card_at(
         Level::FullSend,
         false,
         "Bash",
@@ -364,7 +368,7 @@ fn after_outside_content_full_send_still_guards_raw_data_leaving() {
 /// on the floor at "Full send". Observed: `vercel curl` made a deployment
 /// protection bypass token on a production project with no card.
 #[test]
-fn project_settings_and_protection_stay_on_the_floor() {
+fn project_settings_ask_at_go_hard_and_run_at_unleashed() {
     for c in [
         // The owner's case, and its neighbours.
         "vercel curl /v1/projects/fictional-marketing/protection-bypass -X POST",
@@ -407,8 +411,8 @@ fn project_settings_and_protection_stay_on_the_floor() {
         "gh api -X PUT repos/fictional/site/branches/main/protection --input rules.json",
     ] {
         assert!(
-            bash_card(Level::FullSend, c),
-            "should ask at Full send: {c}"
+            !bash_card(Level::FullSend, c),
+            "runs at Unleashed: {c}"
         );
         assert!(bash_card(Level::GoHard, c), "should ask at Go hard: {c}");
     }
@@ -466,9 +470,11 @@ fn a_commit_then_push_to_main_in_one_command_asks() {
         repo.display()
     );
     for level in [Level::GoHard, Level::FullSend] {
-        assert!(card_at(level, false, "Bash", &bash(&cmd), &c), "{level:?}");
-        assert!(
+        let asks = level == Level::GoHard;
+        assert_eq!(card_at(level, false, "Bash", &bash(&cmd), &c), asks, "{level:?}");
+        assert_eq!(
             card_at(level, false, "Bash", &bash("git push origin HEAD:main"), &c),
+            asks,
             "{level:?} plain"
         );
     }

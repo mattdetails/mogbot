@@ -718,13 +718,9 @@ fn at_go_hard_a_compose_address_alone_never_asks() {
 
 #[test]
 fn full_send_still_asks_for_money_accounts_and_secrets_in_the_browser() {
-    for r in ["ref_8", "ref_10"] {
-        assert_eq!(
-            in_editor(Level::FullSend, "computer", click(r)),
-            Gate::Ask,
-            "{r}"
-        );
-    }
+    // Buy credits asks; Delete account runs (Unleashed asks only for money).
+    assert_eq!(in_editor(Level::FullSend, "computer", click("ref_8")), Gate::Ask);
+    assert_eq!(in_editor(Level::FullSend, "computer", click("ref_10")), Gate::Allow);
     // Any click on a checkout page, or a pay host.
     let checkout = json!({"action": "left_click", "coordinate": [10, 10], "tabId": 4});
     assert_eq!(in_editor(Level::FullSend, "computer", checkout), Gate::Ask);
@@ -751,7 +747,7 @@ fn full_send_still_asks_for_money_accounts_and_secrets_in_the_browser() {
             "computer",
             json!({"action": "left_click", "ref": "ref_8", "tabId": 7})
         ),
-        Gate::Ask,
+        Gate::Allow,
         "Delete project"
     );
     // Uploads: what it posts runs; a key file asks.
@@ -858,14 +854,14 @@ fn final_submit_tells_the_last_step_from_the_ones_before_it() {
         "button \"Send\"",
         "button \"Schedule\"",
         "button \"Delete post\"",
+        "button \"Delete account\"",
+        "button \"Delete repository\"",
     ] {
         assert!(final_submit(l, Level::FullSend).is_none(), "{l}");
     }
     for l in [
         "button \"Buy now\"",
         "button \"Place order\"",
-        "button \"Delete account\"",
-        "button \"Delete repository\"",
         "button \"Subscribe\"",
     ] {
         assert!(final_submit(l, Level::FullSend).is_some(), "{l}");

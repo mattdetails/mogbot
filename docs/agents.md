@@ -1536,10 +1536,9 @@ left end and "Just does it" at the right:
 | **Careful** | `often` | Reads and looks around; asks before bigger changes. |
 | **Steady** (the default before 1.0.14; still where an older install that never moved the slider runs) | `judgement` | Reads and edits; asks before running changes or anything leaving this Mac. |
 | **Bold** (a new install starts here, `independence::NEW_INSTALL`) | `go_hard` | Does local work on this Mac; asks before anything leaves it. |
-| **Unleashed** | `full_send` | Sends, posts and pushes too; only stops for money, logins, deleting for good or going live. |
+| **Unleashed** | `full_send` | Does anything; only stops before spending money. |
 
-Under it, at every stop: "Always asks before spending money, using your
-passwords, or deleting for good." The names were "Check with me often", "Use
+Under it, at every stop: "Always asks before spending money." The names were "Check with me often", "Use
 good judgement", "Go hard" and "Full send" until the slider; the stored ids,
 the protocol and the tools kept the old ids, and the Chief still reads the old
 names as the same levels (`Level::parse`). Each line is held to what the level
@@ -1634,37 +1633,22 @@ calls):
 | Careful | nothing (as before) |
 | Steady | reads |
 | Bold | everything except its short ask list (`agents/go_hard.rs`) |
-| Unleashed | everything except the floor below (`go_hard::full_send_program`, `connector_floor`) |
+| Unleashed | everything except spending money (`go_hard::spends`, `browser_gate::floor_control`) |
 
-**Unleashed** (the owner: "I want to be able to make it just rip"). Sending,
-posting, scheduling, commenting, emailing and publishing as the user run
-without a card: mail and chat CLIs, `git send-email`, `gh` issues, pull
-requests, comments and reviews, network writes, preview deploys, connector
-sends and posts, and every browser click but the floor's. What still asks, in
-Rust: **money** (Stripe live, writes to payment APIs, connectors that pay,
-buy, order or subscribe, clicks on pay/buy/checkout controls or pages),
-**credentials** (secret stores, the Keychain, `security`, `sudo`, `gh auth
-token`, secrets and env vars, password boxes, connectors named after secrets),
-**destruction for good** (`rm -r` outside projects, agent homes and temp;
-`gh repo delete`; deleting, forcing or mirroring a remote branch; "Delete
-account / repository / project"), **production and protected branches**
-(pushing `main`, `master`, `production`, `release`… or the remote's default
-branch, a bare `git push` on one or where it can't tell, tags, `gh pr merge`,
-releases, workflow runs, `vercel --prod` / promote, other production deploys,
-package publishing), **settings that change what others see or how a project
-is protected** (`vercel` domains, DNS, certificates, aliases, env, project,
-team and Git-link changes, deployment protection and bypass secrets, and
-`vercel curl` / `vercel api` writes or requests about protection, bypass,
-env, domains, tokens or settings; `gh repo edit`, a new public repo, `gh api`
-writes to a repo's or org's settings, webhooks, Pages, environments, members
-or visibility; observed: `vercel curl` made a protection bypass token on a
-production project with no card) and **system persistence** (launch agents,
-shell profiles, `crontab`, `launchctl`, `defaults write`). Each send leaves
+**Unleashed** (the owner, 18 Nov 2026: "Unleashed will do anything except
+for spend money without your permission. That's all it should ask for").
+Sending, posting, publishing, pushing to any branch, production deploys,
+deleting for good, credentials and system changes all run without a card.
+The one thing that asks is **money** (`go_hard::spends`): a write to a
+payment API, the `stripe` CLI changing anything, a connector that pays,
+charges, buys, refunds or moves money, and in the browser a click on a
+pay/buy/checkout control or page (`browser_gate::floor_control`). Turning it
+on carries a clear warning. Each send leaves
 "Sent without asking — Unleashed · …" in "What it did", and the turn ends on
 one chat line naming what happened ("Without asking (Unleashed): posted on
-x.com 3 times, pushed branch fix/copy, created a Vercel bypass token on
-<project>", `agents/full_send.rs`), read from the command or tool and its
-arguments, else the command's first words; there are no Undo or Open links
+x.com 3 times, pushed branch fix/copy", `agents/full_send.rs`), read from the
+command or tool and its arguments, else the command's first words; there are no
+Undo or Open links
 yet. The exact-text switch below holds sends even here. After outside
 content only raw data leaving this Mac and new packages ask
 (`go_hard::moves_data_off_mac`). **Outside text never gets Unleashed**: such a

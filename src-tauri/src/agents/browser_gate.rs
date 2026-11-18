@@ -658,15 +658,9 @@ pub fn floor_control(label: &str) -> Option<&'static str> {
     if ws.iter().any(|w| MONEY_WORDS.contains(&w.as_str())) && !is_field(label) {
         return Some("spend your money");
     }
-    // Things that don't come back: the account, a repository, a project.
-    let account = ws.iter().any(|w| ACCOUNT_THINGS.contains(&w.as_str()));
-    let ends = ws.iter().any(|w| {
-        matches!(
-            w.as_str(),
-            "delete" | "close" | "deactivate" | "terminate" | "erase" | "remove" | "destroy"
-        )
-    });
-    (account && ends && !is_field(label)).then_some("delete something for good")
+    // "Unleashed" asks for nothing but money (the user's own words, 18 Nov
+    // 2026): closing an account or deleting a repository runs too.
+    None
 }
 
 /// A box for a password or a card's security code: typing there is the
