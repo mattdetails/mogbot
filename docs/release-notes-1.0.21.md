@@ -1,6 +1,6 @@
-# Mogbot 1.0.20
+# Mogbot 1.0.21
 
-## What's new in 1.0.20
+## What's new in 1.0.21
 
 - **Switch a terminal tab's account** - A project's Claude Code tab shows the account it runs on in its header. Pick another under "Continue this chat on" and the chat carries on there.
 - **New folder in the sidebar** - A New folder button sits at the foot of the Agents sidebar, between New agent and New room.

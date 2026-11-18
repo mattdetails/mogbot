@@ -52,6 +52,13 @@
   color: var(--text-muted);
 }
 
+/* On the hovered or open chip's raised background a dimmed label falls
+   below 4.5:1 in dark, so it takes the button's own text colour there. */
+.tab-account-chip__button:hover .tab-account-chip__key,
+.tab-account-chip__button[aria-expanded='true'] .tab-account-chip__key {
+  color: inherit;
+}
+
 .tab-account-chip__menu .tab-account-chip__heading {
   margin: 0;
   padding: var(--spacing-xs) var(--spacing-md);
