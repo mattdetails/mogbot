@@ -1745,8 +1745,16 @@ async fn the_phone_lists_the_dictation_words_and_can_remove_one() {
     {
         let mut store = stub.words.lock().unwrap();
         store.words = vec![
-            Word { word: "Mogbot".into(), learned: false, added: 1 },
-            Word { word: "Tailscale".into(), learned: true, added: 2 },
+            Word {
+                word: "Mogbot".into(),
+                learned: false,
+                added: 1,
+            },
+            Word {
+                word: "Tailscale".into(),
+                learned: true,
+                added: 2,
+            },
         ];
         store.fixes = vec![crate::voice::words::Fix {
             heard: "tail scale".into(),
@@ -1756,15 +1764,24 @@ async fn the_phone_lists_the_dictation_words_and_can_remove_one() {
         }];
     }
     let me = caller("dev_a");
-    let listed = dispatch(&c, &me, "dictation.words", json!({})).await.unwrap();
+    let listed = dispatch(&c, &me, "dictation.words", json!({}))
+        .await
+        .unwrap();
     assert_eq!(listed["words"][0]["word"], "Mogbot");
     assert_eq!(listed["words"][0]["learned"], false);
     assert_eq!(listed["words"][1]["heardAs"][0], "tail scale");
-    let after = dispatch(&c, &me, "dictation.removeWord", json!({ "word": "Tailscale" }))
-        .await
-        .unwrap();
+    let after = dispatch(
+        &c,
+        &me,
+        "dictation.removeWord",
+        json!({ "word": "Tailscale" }),
+    )
+    .await
+    .unwrap();
     assert_eq!(after["words"].as_array().unwrap().len(), 1);
-    assert!(dispatch(&c, &me, "dictation.removeWord", json!({})).await.is_err());
+    assert!(dispatch(&c, &me, "dictation.removeWord", json!({}))
+        .await
+        .is_err());
     // Reading isn't audited; removing is.
     assert!(READ_ONLY_METHODS.contains(&"dictation.words"));
     assert!(!READ_ONLY_METHODS.contains(&"dictation.removeWord"));
