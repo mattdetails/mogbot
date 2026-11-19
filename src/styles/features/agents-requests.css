@@ -615,41 +615,44 @@
   }
 }
 
-/* The sidebar's first row: Catch up and how many wait. */
+/* The sidebar's first row: Catch up and how many wait. The Search bar's
+   geometry (same inset, height, radius and type), so the two line up as one
+   column; selected like an agent row, never a filled block. */
 .agents-catchup-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: calc(100% - var(--spacing-md));
-  margin: var(--spacing-xs) var(--spacing-xs) var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  width: calc(100% - var(--spacing-sm) * 2);
+  height: var(--control-height-standard);
+  margin: var(--spacing-sm) var(--spacing-sm) var(--spacing-xs);
+  padding: 0 var(--space-06) 0 var(--space-09);
   border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--surface-control);
+  border-radius: var(--radius-card);
+  background: var(--surface-app);
   color: var(--text-primary);
   font: inherit;
-  font-weight: var(--font-weight-heading);
+  font-size: var(--font-size-11);
   cursor: pointer;
 }
 
+.agents-catchup-row:hover {
+  background: var(--surface-control);
+}
+
 .agents-catchup-row.is-active {
-  background: var(--surface-inverse);
-  color: var(--surface-app);
+  background: var(--surface-control);
 }
 
 .agents-catchup-row__count {
-  min-width: var(--spacing-xl);
-  padding: 0 var(--spacing-sm);
+  min-width: var(--spacing-lg);
+  padding: 0 var(--spacing-xs);
   border-radius: var(--radius-pill);
   background: var(--surface-inverse);
   color: var(--surface-app);
   text-align: center;
   font-size: var(--font-size-body-sm);
-}
-
-.agents-catchup-row.is-active .agents-catchup-row__count {
-  background: var(--surface-app);
-  color: var(--text-primary);
+  font-weight: var(--font-weight-heading);
+  font-variant-numeric: tabular-nums;
 }
 
 .agents-catchup-row__clear {

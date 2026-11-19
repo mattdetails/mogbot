@@ -83,8 +83,12 @@
   width: 100%;
 }
 
+.mode-toggle-row > .tabs,
 .mode-toggle-row > .tabs__list {
-  flex: 1 1 auto;
+  /* Full width, like Search under it. The Tabs primitive wraps its list in
+     a .tabs div, so the row's child is that wrapper: it must fill, or the
+     pair hugs its labels. */
+  flex: 1 1 0;
   min-width: 0;
 }
 
