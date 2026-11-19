@@ -518,7 +518,10 @@
      their own frame), so Copy and the time beside it stay inside the column
      in a narrow window instead of being pushed off its edge. */
   min-width: 0;
-  background: var(--surface-control);
+  /* Outlined on the panel colour, where yours is a filled bubble: told apart
+     by more than the side it sits on. */
+  background: var(--surface-panel);
+  border: var(--border-width-default) solid var(--border-strong);
   border-bottom-left-radius: var(--radius-sm);
 }
 

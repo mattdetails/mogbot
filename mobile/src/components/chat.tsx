@@ -15,6 +15,7 @@ import {
   splitQuotes,
   viaLabel,
   checkInHead,
+  draftOf,
   attachmentsOutsideBlocks,
   readBlocks,
   type Agent,
@@ -22,7 +23,7 @@ import {
   type ResultRef,
 } from '@shipstudio/companion-protocol';
 import { memo, useEffect, useState, type ReactNode } from 'react';
-import { type LayoutChangeEvent, Pressable, View } from 'react-native';
+import { type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { arriving } from './Arrive';
 import { useRouter } from 'expo-router';
@@ -70,6 +71,7 @@ import {
 } from './ApprovalCard';
 import { PromptCard } from './PromptCard';
 import { SecretCard } from './SecretCard';
+import { DraftCard } from './DraftCard';
 import { LoginCard } from './LoginCard';
 import { servesLogins } from '../lib/logins';
 import { useTaskName } from './session';
@@ -335,6 +337,10 @@ export const MessageRow = memo(function MessageRow({
             onError={onError}
           />
         );
+      }
+      // One message to send as you, still waiting: a draft to edit, discard or send.
+      if (message.approval?.status === 'pending' && draftOf(message.approval)) {
+        return <DraftCard message={message} agent={agent} onError={onError} />;
       }
       return message.approval ? (
         <ApprovalCard
@@ -983,7 +989,10 @@ const useStyles = makeStyles((colors) => ({
   agentBubble: {
     alignSelf: 'flex-start',
     maxWidth: '92%',
-    backgroundColor: colors.surfaceControl,
+    // Outlined, where yours is a filled bubble: told apart by more than the side.
+    backgroundColor: colors.surfaceApp,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.borderStrong,
     borderRadius: composer.corner,
     borderBottomLeftRadius: radius.sm,
     paddingHorizontal: space.md + space['2xs'],
