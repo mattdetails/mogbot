@@ -5,7 +5,7 @@
 //! ordinary message to the Chief, which turns it into asks on the agents
 //! that own them.
 //!
-//! - **On by default** (17:30), off with one switch: Settings → Agents →
+//! - **On by default** (18:00), off with one switch: Settings → Agents →
 //!   Notifications, or by telling the Chief ("stop the end-of-day
 //!   check-in", `set_end_of_day`).
 //! - **No model turn.** Composed here from the task lists, like the morning
@@ -13,9 +13,11 @@
 //!   nothing closed or open still asks its question, once.
 //! - **Missed, not late.** The Mac asleep or the app closed more than
 //!   [`LATE_MS`] past the time: that day's is skipped, never posted at night.
-//! - **Not over the user.** If they wrote to the Chief within
-//!   [`QUIET_AFTER_USER_MS`] of the time, it waits that long, up to
-//!   [`LATE_MS`] after the time, so it never cuts across a conversation.
+//! - **Not over the user.** If they wrote to the Chief in the last
+//!   [`QUIET_AFTER_USER_MS`] (an hour) it waits, up to [`LATE_MS`] after the
+//!   time, so it never cuts across a conversation.
+//! - **Nothing ran, nothing posted.** A day with nothing closed and nothing
+//!   open is settled without a message.
 
 use chrono::{NaiveDate, TimeZone};
 use serde::{Deserialize, Serialize};
@@ -26,12 +28,12 @@ use super::tasks;
 use crate::errors::CommandError;
 
 const MINUTE_MS: i64 = 60_000;
-/// 17:30.
-pub const DEFAULT_AT: u32 = 17 * 60 + 30;
+/// 18:00.
+pub const DEFAULT_AT: u32 = 18 * 60;
 /// Past its time by more than this, the day's check-in is skipped.
 pub const LATE_MS: i64 = 3 * 60 * MINUTE_MS;
 /// The user wrote to the Chief this recently: wait.
-pub const QUIET_AFTER_USER_MS: i64 = 10 * MINUTE_MS;
+pub const QUIET_AFTER_USER_MS: i64 = 60 * MINUTE_MS;
 /// Every check-in starts with this, so the app can tell them apart.
 pub const HEAD: &str = "End of day.";
 pub const EVENT: &str = "agents-end-of-day-changed";
@@ -159,6 +161,8 @@ pub struct Facts {
     /// Asks closed today, per agent.
     pub closed: Vec<(String, usize)>,
     pub open: usize,
+    /// How many open lines wait on the user.
+    pub waiting: usize,
     /// (agent, ask) for each stuck ask.
     pub stuck: Vec<(String, String)>,
     pub overloaded: Vec<String>,
@@ -168,6 +172,11 @@ pub fn gather(loads: &[tasks::Load], closed: Vec<(String, usize)>) -> Facts {
     Facts {
         closed,
         open: loads.iter().map(|l| l.open.len()).sum(),
+        waiting: loads
+            .iter()
+            .flat_map(|l| l.open.iter())
+            .filter(|t| t.state == tasks::State::Waiting)
+            .count(),
         stuck: loads
             .iter()
             .flat_map(|l| {
@@ -198,10 +207,15 @@ fn list(items: &[String]) -> String {
     }
 }
 
-/// The message. Pure.
+/// The message, without its question (the chips carry it). Pure.
 pub fn compose(f: &Facts) -> String {
-    let mut parts: Vec<String> = Vec::new();
     let total: usize = f.closed.iter().map(|(_, n)| n).sum();
+    let mut head = format!("{HEAD} Today · {total} done");
+    if f.waiting > 0 {
+        head.push_str(&format!(", {} waits on you", f.waiting));
+    }
+    head.push('.');
+    let mut parts = vec![head];
     if total > 0 {
         let who: Vec<String> = f
             .closed
@@ -209,11 +223,7 @@ pub fn compose(f: &Facts) -> String {
             .take(4)
             .map(|(a, n)| format!("{a} {n}"))
             .collect();
-        parts.push(format!(
-            "The team closed {} today ({}).",
-            plural(total, "ask", "asks"),
-            list(&who)
-        ));
+        parts.push(format!("{}.", list(&who)));
     }
     if f.open > 0 {
         let mut s = format!("{} still open.", plural(f.open, "ask is", "asks are"));
@@ -225,14 +235,30 @@ pub fn compose(f: &Facts) -> String {
             ));
         }
         if !f.overloaded.is_empty() {
-            s.push_str(&format!(" {} overloaded.", list(&f.overloaded)));
+            s.push_str(&format!(" {} busy.", list(&f.overloaded)));
         }
         parts.push(s);
-    } else {
-        parts.push("Nothing is open on any agent's list.".into());
     }
-    parts.push("Anything to hand off tonight, or chase tomorrow?".into());
-    format!("{HEAD} {}", parts.join(" "))
+    parts.join(" ")
+}
+
+/// The question and its three chips, as a block. Pure.
+pub fn question_blocks(text: &str) -> Option<serde_json::Value> {
+    let set = super::blocks::parse(&serde_json::json!({
+        "text": text,
+        "blocks": [{
+            "kind": "choices",
+            "question": "Did anything today miss the mark?",
+            "options": ["All good", "Something missed", "Not tonight"]
+        }]
+    }))
+    .ok()?;
+    serde_json::to_value(set).ok()
+}
+
+/// Nothing ran and nothing is open: no check-in. Pure.
+pub fn empty_day(f: &Facts) -> bool {
+    f.closed.is_empty() && f.open == 0
 }
 
 fn chief() -> Result<store::Agent, CommandError> {
@@ -283,10 +309,15 @@ pub fn tick(app: &tauri::AppHandle) {
                 .unwrap_or(now - 24 * 60 * MINUTE_MS)
         };
         let facts = gather(&tasks::all_loads(now), tasks::closed_since(since));
-        let message = super::runner::new_message(&chief.id, MessageKind::Agent, compose(&facts));
-        if let Err(e) = super::runner::record(app, message) {
-            tracing::warn!(error = %e, "end-of-day check-in");
-            return;
+        if !empty_day(&facts) {
+            let text = compose(&facts);
+            let mut message =
+                super::runner::new_message(&chief.id, MessageKind::Agent, text.clone());
+            message.blocks = question_blocks(&text);
+            if let Err(e) = super::runner::record(app, message) {
+                tracing::warn!(error = %e, "end-of-day check-in");
+                return;
+            }
         }
     }
     let _ = save_state(|s| {
@@ -297,7 +328,7 @@ pub fn tick(app: &tauri::AppHandle) {
     });
 }
 
-pub const DESCRIPTION: &str = "The end-of-day check-in, the app's own: once a day at the user's time (17:30 unless set) you post a short message in your chat, composed by the app from the team's task lists, ending in one question about what to hand off or chase tomorrow. On by default. Call it when the user says when (\"check in at 6\"), or to stop it (`off: true`) or bring it back (`on: true`). It applies at once: say what's set in a line.";
+pub const DESCRIPTION: &str = "The end-of-day check-in, the app's own: once a day at the user's time (18:00 unless set) you post a short message in your chat, composed by the app from the team's task lists, ending in the question \"Did anything today miss the mark?\" with three chips. On by default. Call it when the user says when (\"check in at 6\"), or to stop it (`off: true`) or bring it back (`on: true`). It applies at once: say what's set in a line.";
 
 pub fn schema() -> serde_json::Value {
     serde_json::json!({
