@@ -35,7 +35,6 @@ import { announce } from '../lib/a11y';
 import { haptic } from '../lib/haptics';
 import { useInFlight } from '../lib/once';
 import { answerApproval, describeError, loadLatest, setOpenChat } from '../lib/session';
-import { highRisk } from '../lib/needsYou';
 import { useApp } from '../lib/store';
 import { keySize, iconSize, space } from '../lib/theme';
 import { useComputer } from '../lib/computer';
@@ -269,8 +268,9 @@ function Shown({
             />
             <Button
               title={action.allow}
-              // Risky, as the Mac said it: Allow in the danger style.
-              variant={highRisk(approval) ? 'danger' : 'answer'}
+              // Allow is the neutral answer, risky or not: a risky one is told
+              // apart by the warning icon and its words, never by a red Allow.
+              variant="answer"
               size="large"
               busy={busy === 'allow'}
               disabled={!!busy || !connected}

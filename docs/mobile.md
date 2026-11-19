@@ -596,7 +596,8 @@ request, the diff and the photo viewer push over them. At
     and has **Review**, and so does a card the Mac didn't classify (an older
     Mac, a card from before) and one that doesn't fit whole (`fitsWhole`:
     over 160 characters or 3 lines, a plan over 3 steps). Review opens it in
-    full, where a risky Allow is in the danger style. The phone never works
+    full, where Allow is the same neutral answer as every Allow (a risky one is told apart by
+    its warning icon and words, never by a red button). The phone never works
     risk out from a command's words. A key, a login or a question has its one
     action ("Enter key", "Sign in", "Answer") beside the words, opening it
     where it's answered; changes in a copy have Discard (confirmed) · Keep

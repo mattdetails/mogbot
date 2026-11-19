@@ -961,7 +961,7 @@ const PROBE = [
     ready: 'Request',
     act: () => sleep(1200),
     check:
-      'A request the Mac marked risky, in full: the warning icon on the card, “rm -r ~/Exports/2024”, Deny outlined and Allow in the danger style (never the neutral answer)',
+      'A request the Mac marked risky, in full: the warning icon on the card, “rm -r ~/Exports/2024”, Deny outlined and Allow the neutral answer, as on every request (the warning icon says it is risky, never a red Allow)',
   },
   {
     name: 'probe-request-long',
