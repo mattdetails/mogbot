@@ -220,6 +220,9 @@
   --radius-sm: var(--radius-4);
   --radius-lg: var(--radius-12);
   --radius-pill: var(--radius-999);
+  /* A message bubble (Grok Bot's 18) and its small corner toward the speaker. */
+  --radius-bubble: var(--radius-18);
+  --radius-bubble-tail: var(--radius-6);
 
   --mask-opaque: var(--color-black);
 

@@ -508,36 +508,43 @@
   user-select: text;
 }
 
-/* The agent's reply is a bubble too, like yours but on the other side: a
-   quieter fill, the tail corner toward the agent, a reading measure, and the
-   same left edge as the column. Blocks (`show`) and cards keep their own
-   frames and are not bubbles. */
+/* The agent's reply is a bubble, Grok Bot's: a 7% tint of the reading text
+   over the page (quieter than yours), an 18px corner with a 6px one toward the
+   agent, hugging its words up to 78% of the column. Blocks (`show`) and cards
+   keep their own frames and are not bubbles. */
 .agent-bubble--agent {
-  max-width: min(var(--agents-prose-measure), 100%);
+  max-width: min(var(--agents-prose-measure), 78%);
   /* May shrink below its widest line (a code block, a table: both scroll in
      their own frame), so Copy and the time beside it stay inside the column
      in a narrow window instead of being pushed off its edge. */
   min-width: 0;
-  /* Filled, no border, as GrokBot's and as the design's hi-fi (Designer's
-     draft-email shots): the same neutral fill as yours, the small corner on
-     the other side, so who spoke is the side and the corner. */
-  background: var(--surface-selected);
-  border-bottom-left-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  border-radius: var(--radius-bubble);
+  border-bottom-left-radius: var(--radius-bubble-tail);
 }
 
-/* A bubble hugs its words, up to the measure; a code panel or a table scrolls
+/* A bubble hugs its words, up to its measure; a code panel or a table scrolls
    in its own frame inside it. */
 .agent-chat__row--agent > .agent-bubble--agent {
   width: fit-content;
 }
 
-/* Yours is one neutral colour for every agent: identity lives in the badge,
-   and a tinted bubble borrowed the meaning of the app's status colours. */
+/* Yours is strong and inverted, one neutral colour for every agent (identity
+   lives in the key): near-white on dark, near-black on light, with its own ink.
+   An 18px corner with a 6px one toward you. */
 .agent-bubble--user {
   white-space: pre-wrap;
-  background: var(--surface-selected);
-  /* The site's message: rounded, with a small tail corner toward you. */
-  border-bottom-right-radius: var(--radius-sm);
+  background: var(--surface-inverse);
+  color: var(--text-on-inverse);
+  border-radius: var(--radius-bubble);
+  border-bottom-right-radius: var(--radius-bubble-tail);
+}
+
+/* A quoted passage inside your inverted bubble reads in the bubble's own ink. */
+.agent-bubble--user .agent-bubble__quote {
+  color: inherit;
+  opacity: 0.8;
+  border-left-color: currentColor;
 }
 
 /* A message and its quiet actions on one line: Copy and the time sit beside

@@ -3985,6 +3985,29 @@ export const agentsScenarios: Scenario[] = [
       agents_interrupt: true,
     },
   },
+  ...[
+    { id: 'agents-chat', title: 'desk, 1440 wide', viewport: { width: 1440, height: 900 } },
+    { id: 'agents-chat-narrow', title: '390 wide', viewport: { width: 390, height: 844 } },
+  ].map(
+    ({ id, title, viewport }): Scenario => ({
+      id,
+      title: `Agents — the chat’s bubbles, ${title}`,
+      looksRightWhen:
+        'Grok Bot’s bubbles: yours are strong and inverted (near-white with dark ink on dark, near-black with white ink on light), the agent’s a quiet 7% tint of the reading text; both an 18px corner with a 6px one toward the speaker (yours bottom-right, the agent’s bottom-left); the agent’s hugs its words up to 78% of the column. Neutral, never an agent colour.',
+      openSelector: AGENTS_TAB,
+      requires: '.agent-bubble--agent',
+      // Narrow, the list is behind the switcher: the Chief's chat opens by itself.
+      steps: viewport.width < 600 ? [] : [{ click: '[data-agent-id="acme"]' }],
+      viewport,
+      commands: {
+        agents_overview: acmeWith({ status: status('working', 'Editing PricingTable.tsx') }),
+        agents_messages: (args: Record<string, unknown>) =>
+          args.agentId === 'acme' || (viewport.width < 600 && args.agentId === 'chief')
+            ? QUEUED_CHAT
+            : messagesFor(args),
+      },
+    })
+  ),
   {
     id: 'agents-message-handed',
     title: 'Agents — messages you send while it works go into its turn',

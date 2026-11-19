@@ -34,6 +34,14 @@ export interface Palette {
   meterTrack: string;
   /** Your own messages. Dark lifts them to the selected grey; light keeps them a quiet step off white, as iMessage's grey is. */
   surfaceBubble: string;
+  /**
+   * Your bubble, as Grok Bot's: the inverse (near-white on dark, near-black on
+   * light) with its own ink, the desk's `--surface-inverse` / `--text-on-inverse`.
+   */
+  surfaceBubbleUser: string;
+  textOnBubbleUser: string;
+  /** The agent's bubble: 7% of the reading text over the page, the desk's `color-mix(text-primary 7%, transparent)`. */
+  surfaceBubbleAgent: string;
   /** The strongest text: titles, names, what must be read first. White in dark, near-black in light. */
   textStrong: string;
   /** What people read: message bodies, a step stronger than the chrome. */
@@ -152,6 +160,9 @@ const dark: Palette = {
   surfaceSelected: '#3a3835',
   meterTrack: 'rgba(255, 255, 255, 0.15)',
   surfaceBubble: '#3a3835',
+  surfaceBubbleUser: '#f4f2ee',
+  textOnBubbleUser: '#151413',
+  surfaceBubbleAgent: 'rgba(214, 210, 202, 0.07)',
   textStrong: '#ffffff',
   // A reply is read in near-white with a warm cast: a whole reply in the
   // chrome's grey read dim next to Grok's and iMessage's bodies.
@@ -231,6 +242,9 @@ const light: Palette = {
   surfaceSelected: '#e3dfd8',
   meterTrack: 'rgba(0, 0, 0, 0.1)',
   surfaceBubble: '#f1efeb',
+  surfaceBubbleUser: '#1c1c1c',
+  textOnBubbleUser: '#ffffff',
+  surfaceBubbleAgent: 'rgba(28, 28, 28, 0.07)',
   // The desk's ink (--color-ink-900, -800, -700, -600, -525).
   textStrong: '#1c1c1c',
   textBody: '#2c2a27',
@@ -572,6 +586,8 @@ export const composer = {
   line: 20,
   /** The bubble's corner. */
   corner: 18,
+  /** The small corner toward the speaker (yours bottom-right, the agent's bottom-left). */
+  tail: 6,
   /** The field's 17pt text (`type.field`) on a 22pt line. */
   fieldLine: 22,
   /** Above and below the text, so one line is 48. */

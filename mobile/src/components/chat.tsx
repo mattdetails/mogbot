@@ -47,7 +47,6 @@ import {
   fonts,
   iconSize,
   lineHeight,
-  radius,
   space,
   type,
   PRESSED,
@@ -196,7 +195,7 @@ export const MessageRow = memo(function MessageRow({
             >
               {message.revises && (
                 <View style={[styles.bubbleQuote, { marginBottom: space.xs }]}>
-                  <T variant="small" color={colors.textSecondary} numberOfLines={2}>
+                  <T variant="small" color={colors.textOnBubbleUser} numberOfLines={2}>
                     {revisingLabel(message.revises)}
                   </T>
                 </View>
@@ -425,7 +424,7 @@ function Bubble({ text }: { text: string }) {
   const parts = splitQuotes(text);
   if (parts.length === 1 && parts[0].kind === 'text') {
     return (
-      <T color={colors.textBody} style={styles.bubbleText}>
+      <T color={colors.textOnBubbleUser} style={styles.bubbleText}>
         {text}
       </T>
     );
@@ -435,12 +434,12 @@ function Bubble({ text }: { text: string }) {
       {parts.map((p, i) =>
         p.kind === 'quote' ? (
           <View key={i} style={styles.bubbleQuote}>
-            <T variant="small" color={colors.textSecondary} numberOfLines={4}>
+            <T variant="small" color={colors.textOnBubbleUser} numberOfLines={4}>
               {p.text}
             </T>
           </View>
         ) : (
-          <T key={i} color={colors.textBody} style={styles.bubbleText}>
+          <T key={i} color={colors.textOnBubbleUser} style={styles.bubbleText}>
             {p.text}
           </T>
         )
@@ -963,17 +962,18 @@ const useStyles = makeStyles((colors) => ({
   // stays 18 however many lines, and never wider than 80% of the column.
   userBubble: {
     maxWidth: '80%',
-    backgroundColor: colors.surfaceBubble,
+    backgroundColor: colors.surfaceBubbleUser,
     borderRadius: composer.corner,
+    borderBottomRightRadius: composer.tail,
     paddingHorizontal: space.md + space['2xs'],
     paddingVertical: space.sm + space['2xs'],
   },
   bubbleText: { fontSize: type.read, lineHeight: lineHeight(type.read, 1.4) },
-  held: { backgroundColor: colors.surfaceControlHover },
+  held: { opacity: 0.85 },
   heldProse: { opacity: 0.7 },
   bubbleQuote: {
     borderLeftWidth: 2,
-    borderLeftColor: colors.textMuted,
+    borderLeftColor: colors.textOnBubbleUser,
     paddingLeft: space.sm,
   },
   meta: { marginRight: space.xs },
@@ -988,14 +988,15 @@ const useStyles = makeStyles((colors) => ({
   agentRow: { gap: space.sm },
   agentBubble: {
     alignSelf: 'flex-start',
-    maxWidth: '92%',
-    // Filled like yours, no border (the hi-fi): the small corner is on this side.
-    backgroundColor: colors.surfaceBubble,
+    maxWidth: '85%',
+    // Grok Bot's: 7% of the reading ink over the page, quieter than yours.
+    backgroundColor: colors.surfaceBubbleAgent,
     borderRadius: composer.corner,
-    borderBottomLeftRadius: radius.sm,
-    paddingHorizontal: space.md + space['2xs'],
+    borderBottomLeftRadius: composer.tail,
+    paddingHorizontal: space.lg,
     paddingVertical: space.sm + space['2xs'],
   },
+
   count: { fontVariant: ['tabular-nums'] },
   stats: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.md },
   peer: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
