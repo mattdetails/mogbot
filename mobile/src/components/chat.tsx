@@ -990,7 +990,7 @@ const useStyles = makeStyles((colors) => ({
   // A system line, not a message: no fill, no rule, the muted ink.
   peerBody: { flex: 1, gap: space['2xs'] },
   peerHead: { flexDirection: 'row', alignItems: 'center', gap: space.tight },
-  working: { paddingVertical: space.xs },
+  working: { paddingVertical: space['2xs'] },
   workingRow: {
     flexDirection: 'row',
     alignItems: 'center',

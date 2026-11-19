@@ -1139,6 +1139,8 @@ const ItemView = memo(function ItemView({
         grouped && styles.itemGrouped,
         attached && styles.itemAttached,
         tight && styles.itemAfterLine,
+        // The working line sits 10 under the last bubble, as on the desk, not a paragraph away.
+        item.kind === 'working' && styles.itemWorking,
         // An opened fold reads as past: one rule down the left, from the
         // "Rewound" row to "End of what was rewound", its lines muted.
         (item.past || item.kind === 'rewound-end' || (item.kind === 'rewound' && item.open)) &&
@@ -1580,6 +1582,8 @@ const useStyles = makeStyles((colors) => ({
   itemAttached: { paddingTop: space.tight },
   // A Line under a Line: their own padding is the gap.
   itemAfterLine: { paddingTop: space.xs },
+  // 8 here and 2 inside `WorkingRow`: 10 from the bubble above.
+  itemWorking: { paddingTop: space.sm },
   glow: {
     position: 'absolute',
     top: 0,

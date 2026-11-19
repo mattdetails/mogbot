@@ -1,7 +1,7 @@
 /**
  * A message the agent wants to send as you, on the phone (the desk's
  * `AgentDraftCard`, same rules, `draftCard.ts` in the protocol): who it goes
- * to, the exact words, then Discard · Edit · Send, the neutral Send last. Edit
+ * to, the exact words, then Send (neutral, full width) with Edit · Discard · Draft in Gmail under it. Edit
  * changes the words (and an email's CC and subject); "Draft in Gmail" opens
  * your Gmail with the draft filled in and sends nothing. A Slack reply posts
  * your edit itself; anything else goes back to the agent as a declined draft
@@ -20,7 +20,7 @@ import {
 import type { Agent, AgentMessage } from '@shipstudio/companion-protocol';
 import { useState, type ReactNode } from 'react';
 import { Linking, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { Card, ACTION_PAIR } from './surfaces';
+import { Card } from './surfaces';
 import { Button, T } from './ui';
 import { useArmed } from './ApprovalCard';
 import { useColors, makeStyles } from '../lib/appearance';
@@ -122,48 +122,54 @@ export function DraftCard({
       title={draftTitle(draft, approval)}
       testID="draft-card"
       actions={
-        <>
-          <Button
-            title="Discard"
-            variant="ghost"
-            disabled={off}
-            focusable={armed}
-            onPress={() => void answer(false)}
-            style={ACTION_PAIR}
-          />
-          <Button
-            title={editing ? 'Cancel edit' : 'Edit'}
-            variant="outline"
-            disabled={off}
-            onPress={() => {
-              if (editing) {
-                setSubject(draft.subject);
-                setCc(draft.cc);
-                setBody(draft.body);
-              }
-              setEditing(!editing);
-            }}
-            style={ACTION_PAIR}
-          />
-          {isEmail && (
-            <Button
-              title="Draft in Gmail"
-              variant="outline"
-              disabled={off}
-              onPress={() => void Linking.openURL(gmailUrl(now))}
-              accessibilityHint="Opens it in Gmail to finish there. Nothing is sent."
-              style={ACTION_PAIR}
-            />
-          )}
+        <View style={styles.actionsCol}>
+          {/* The one answer takes the width; the rest sit in a row under it. */}
           <Button
             title={changed && !draft.direct ? 'Send my version' : 'Send'}
             variant="answer"
+            size="large"
             disabled={off || !body.trim()}
             focusable={armed}
             onPress={() => void send()}
-            style={ACTION_PAIR}
           />
-        </>
+          <View style={styles.actionsRow}>
+            <Button
+              title={editing ? 'Cancel edit' : 'Edit'}
+              variant="outline"
+              size="compact"
+              disabled={off}
+              onPress={() => {
+                if (editing) {
+                  setSubject(draft.subject);
+                  setCc(draft.cc);
+                  setBody(draft.body);
+                }
+                setEditing(!editing);
+              }}
+              style={styles.rowAction}
+            />
+            <Button
+              title="Discard"
+              variant="ghost"
+              size="compact"
+              disabled={off}
+              focusable={armed}
+              onPress={() => void answer(false)}
+              style={styles.rowAction}
+            />
+            {isEmail && (
+              <Button
+                title="Draft in Gmail"
+                variant="ghost"
+                size="compact"
+                disabled={off}
+                onPress={() => void Linking.openURL(gmailUrl(now))}
+                accessibilityHint="Opens it in Gmail to finish there. Nothing is sent."
+                style={styles.rowWide}
+              />
+            )}
+          </View>
+        </View>
       }
     >
       <View style={styles.block}>
@@ -193,7 +199,14 @@ export function DraftCard({
           </ScrollView>
         )}
       </View>
-      <T variant="small" color={colors.textMuted}>
+      {/* One line, as on the desk: shrunk a little to fit, never wrapped to two. */}
+      <T
+        variant="caption"
+        color={colors.textMuted}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
         {`${draftFrom(draft, approval)}. ${DRAFT_NOTE}`}
       </T>
     </Card>
@@ -201,6 +214,11 @@ export function DraftCard({
 }
 
 const useStyles = makeStyles((colors) => ({
+  actionsCol: { gap: space.sm, flexBasis: '100%' },
+  actionsRow: { flexDirection: 'row', gap: space.sm },
+  rowAction: { flex: 1 },
+  // Its words in full: it takes what it needs, the other two share the rest.
+  rowWide: { flexShrink: 0 },
   block: {
     borderRadius: radius.control,
     backgroundColor: colors.surfaceApp,
