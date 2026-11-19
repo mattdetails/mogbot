@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockIPC } from '@tauri-apps/api/mocks';
+
+// agentGroups refreshes the store with a fire-and-forget dynamic import; on a slow
+// runner the real store's module graph was still loading when the file's
+// environment tore down (CI 44460251493). A stub resolves at once.
+vi.mock('./agentsStore', () => ({ refreshAgents: vi.fn() }));
 import {
   addGroup,
   inYourOrder,
