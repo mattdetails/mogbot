@@ -17,10 +17,14 @@ import {
   INDEPENDENCE_TITLE,
   independenceStep,
   independenceValueText,
+  UNLEASHED_WARNING_BODY,
+  UNLEASHED_WARNING_CANCEL,
+  UNLEASHED_WARNING_CONFIRM,
+  UNLEASHED_WARNING_TITLE,
   type AgentIndependence,
 } from '@shipstudio/companion-protocol';
 import { useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { makeStyles, useColors } from '../lib/appearance';
 import { PRESSED, chromeScale, fonts, levelSlider, space } from '../lib/theme';
 import { T } from './ui';
@@ -51,7 +55,16 @@ export function IndependenceSlider({
 
   const commit = (level: AgentIndependence) => {
     const { value: now, disabled: off, onChange: change } = live.current;
-    if (!off && level !== now) change(level);
+    if (off || level === now) return;
+    // Moving up onto Unleashed is the one move that asks first.
+    if (level === 'full_send') {
+      Alert.alert(UNLEASHED_WARNING_TITLE, UNLEASHED_WARNING_BODY, [
+        { text: UNLEASHED_WARNING_CANCEL, style: 'cancel' },
+        { text: UNLEASHED_WARNING_CONFIRM, style: 'destructive', onPress: () => change(level) },
+      ]);
+      return;
+    }
+    change(level);
   };
 
   /** The stop nearest `x` along the rail (inset by half a thumb each side). */

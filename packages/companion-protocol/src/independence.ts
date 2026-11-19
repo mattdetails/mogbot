@@ -52,6 +52,17 @@ export const INDEPENDENCE_DETAIL: Record<AgentIndependence, string> = {
     'Does anything you ask; only stops before spending money.',
 };
 
+/**
+ * Shown before anything is put on Unleashed: the slider's confirm (desk and
+ * phone) and the settings card the Chief raises. Same words as
+ * `UNLEASHED_WARNING` in `agents/policy_card.rs` (a test holds them equal).
+ */
+export const UNLEASHED_WARNING_TITLE = 'Turn on Unleashed?';
+export const UNLEASHED_WARNING_BODY =
+  "Unleashed does what it's asked without checking with you: it sends and posts as you, pushes and deploys, deletes files and uses your logins. The only thing it still asks before is spending money. The app can't undo any of that. Use it for agents you trust; Bold keeps sends and pushes behind a card.";
+export const UNLEASHED_WARNING_CONFIRM = 'Turn on Unleashed';
+export const UNLEASHED_WARNING_CANCEL = 'Keep it as is';
+
 /** A stop's line, naming the computer the agents run on (`computer.ts`). */
 export function independenceDetail(level: AgentIndependence, kind?: ComputerKind | null): string {
   return INDEPENDENCE_DETAIL[level].replace('this Mac', thisComputer(kind));

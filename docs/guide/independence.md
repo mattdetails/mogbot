@@ -24,6 +24,17 @@ from "Asks a lot" to "Just does it".
 If you sound tired of being asked, or unhappy that something went ahead, the Chief may offer a
 change once, in one line. You can ignore it.
 
+## Turning on Unleashed
+
+Moving to Unleashed (on the slider, on the phone, or by asking the Chief) first shows a warning:
+Unleashed sends and posts as you, pushes and deploys, deletes files and uses your logins without a
+card, and only asking before spending money stays. You confirm with **Turn on Unleashed**, or keep
+the level as it was. Lowering a level never asks.
+
+At Bold and Unleashed, opening something in your browser (a LinkedIn post, a Slack message, a GitHub
+issue, a tab) never asks, even when its name has a word like "Post" or "Merge" in it. Only the
+button that does the send asks, and only at Bold.
+
 ## What always asks
 
 At every stop, agents ask before:

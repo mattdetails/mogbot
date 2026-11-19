@@ -168,3 +168,18 @@
   font-size: var(--font-size-body-sm);
   color: var(--text-muted);
 }
+
+/* The warning before Unleashed is turned on. */
+.independence-slider__warning {
+  max-width: 420px;
+}
+.independence-slider__warning p {
+  margin: 0 0 var(--spacing-lg);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.independence-slider__warning-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}
