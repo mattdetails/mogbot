@@ -4479,6 +4479,12 @@ async function main() {
         name: 'project-preview-desktop',
         check: 'The desktop picture, wide, on the same card',
       });
+      await page.clickText('Show the site');
+      await sleep(2500);
+      await screen(page, theme, {
+        name: 'project-preview-notrunning',
+        check: 'A site that isn’t running: one plain sentence and Try again, on its own card',
+      });
     }
   }
 

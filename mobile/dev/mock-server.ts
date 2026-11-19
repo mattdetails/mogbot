@@ -4469,6 +4469,13 @@ export function createMockServer(opts: MockOptions = {}) {
     'preview.screenshot': (p, c) => {
       const project = projects.find((x) => x.path === p.project);
       if (!project) return fail({ type: 'Other', message: 'No such project.' });
+      // One project's site is not running, as a real Mac says it.
+      if (project.name === 'pricing-test') {
+        return fail({
+          type: 'Other',
+          message: "Open Preview on the Mac first — the site isn't running there.",
+        });
+      }
       const bytes = siteScreenshot();
       const blobId = `blob_${randomUUID().replace(/-/g, '')}`;
       const ref: BlobRef = {

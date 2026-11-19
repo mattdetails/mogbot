@@ -383,6 +383,7 @@ export function IconButton({
   size = iconSize.button,
   fallback,
   disabled = false,
+  compact = false,
 }: {
   name: SFName;
   label: string;
@@ -392,6 +393,8 @@ export function IconButton({
   fallback?: string;
   /** Takes no tap while something it would change is already on its way. */
   disabled?: boolean;
+  /** 32 pt, a row's action, not the 44 pt bar button. */
+  compact?: boolean;
 }) {
   const colors = useColors();
   const styles = useStyles();
@@ -408,6 +411,7 @@ export function IconButton({
       android_ripple={{ ...ripple, borderless: true, radius: 22 }}
       style={({ pressed }) => [
         styles.iconButton,
+        compact && styles.iconButtonCompact,
         pressed && { backgroundColor: colors.surfaceControl },
         disabled && PRESSED,
       ]}
@@ -636,10 +640,13 @@ export function Segmented<V extends string>({
   value,
   options,
   onChange,
+  compact = false,
 }: {
   value: V;
   options: { value: V; label: string }[];
   onChange: (v: V) => void;
+  /** A row's height (32 with its tray), not a page's (40). */
+  compact?: boolean;
 }) {
   const colors = useColors();
   const styles = useStyles();
@@ -657,7 +664,7 @@ export function Segmented<V extends string>({
               onChange(o.value);
             }}
             hitSlop={4}
-            style={[styles.segment, on && styles.segmentOn]}
+            style={[styles.segment, compact && styles.segmentCompact, on && styles.segmentOn]}
           >
             <T
               variant="small"
@@ -717,10 +724,12 @@ const useStyles = makeStyles((colors) => ({
   segment: {
     flex: 1,
     minHeight: 36,
+    paddingHorizontal: space.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.inner,
   },
+  segmentCompact: { minHeight: 28 },
   segmentOn: { backgroundColor: depthOf(colors).keyFill, boxShadow: depthOf(colors).key },
   button: {
     flexDirection: 'row',
@@ -749,6 +758,7 @@ const useStyles = makeStyles((colors) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconButtonCompact: { width: 32, height: 32 },
   section: { marginBottom: space.xl },
   sectionTitle: { marginLeft: space.lg, marginBottom: space.sm },
   // Groups sit on a sheet or a grouped screen (surfacePanel): a fill and the
