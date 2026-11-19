@@ -540,6 +540,7 @@ mod tests {
             login: None,
             set_aside: None,
             expiry: None,
+            answered_from: None,
             from_outside: None,
             front: None,
             settings: None,

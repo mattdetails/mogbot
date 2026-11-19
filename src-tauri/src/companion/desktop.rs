@@ -469,7 +469,7 @@ impl Backend for DesktopBackend {
     }
 
     async fn answer_approval(&self, a: ApprovalAnswer) -> Result<(), CommandError> {
-        cmd::agents_answer_approval(
+        cmd::answer_approval_from(
             self.app.clone(),
             a.agent_id,
             a.request_id,
@@ -477,6 +477,11 @@ impl Backend for DesktopBackend {
             a.always,
             a.note,
             a.choice,
+            if a.lock_screen {
+                crate::agents::answer_gate::Source::PhoneLockScreen
+            } else {
+                crate::agents::answer_gate::Source::Phone
+            },
         )
         .await
     }

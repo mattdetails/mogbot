@@ -482,8 +482,12 @@ pub async fn call(app: &AppHandle, caller: &Agent, turn: Option<u64>, args: &Val
                 continue;
             };
             // The user answering it right now keeps their answer.
-            let Some(_claim) = super::answer_gate::try_claim(&caller.id, &id, "Always allowed")
-            else {
+            let Some(_claim) = super::answer_gate::try_claim_from(
+                &caller.id,
+                &id,
+                "Always allowed",
+                super::answer_gate::Source::Rule,
+            ) else {
                 continue;
             };
             match store::allow_always(&caller.id, &id, &plan.scope) {

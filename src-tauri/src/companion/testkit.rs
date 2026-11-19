@@ -3095,6 +3095,7 @@ pub fn settings_card() -> crate::agents::store::AgentMessage {
         login: None,
         set_aside: None,
         expiry: None,
+        answered_from: None,
         from_outside: None,
         front: None,
         settings: Some(proposal),
@@ -3202,6 +3203,7 @@ pub fn login_card() -> crate::agents::store::AgentMessage {
     m.approval = Some(Approval {
         request_id: "q12".into(),
         expiry: None,
+        answered_from: None,
         front: None,
         title: "Finance needs your Gmail (work)".into(),
         detail: "Read invoices that arrive by email".into(),

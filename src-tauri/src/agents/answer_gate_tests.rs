@@ -489,3 +489,76 @@ fn the_winning_answer_reads_in_plain_words() {
     assert_eq!(said(false, true, None), "Denied");
     assert_eq!(said(true, false, Some("Wait")), "Wait");
 }
+
+/// The answer's source is written with the answer and read back on the card,
+/// for every path that gives one.
+#[test]
+fn every_path_records_where_its_answer_came_from() {
+    in_scratch(|agent| {
+        let paths = [
+            (Source::Desk, "desk"),
+            (Source::Phone, "phone"),
+            (Source::PhoneLockScreen, "phoneLockScreen"),
+            (Source::Plan, "plan"),
+            (Source::Auto, "auto"),
+            (Source::Admin, "admin"),
+            (Source::Rule, "rule"),
+        ];
+        for (i, (source, wire)) in paths.into_iter().enumerate() {
+            let id = post(agent, plain(&format!("src-{i}")));
+            let held = claim_from(agent, &id, "Allowed", Some(source)).unwrap();
+            assert_eq!(source_of(&id), Some(source));
+            store::set_approval_status(agent, &id, ApprovalStatus::Allowed)
+                .unwrap()
+                .unwrap();
+            drop(held);
+            let card = store::find_approval(agent, &id).unwrap().unwrap();
+            assert_eq!(card.answered_from, Some(source), "{wire}");
+            // On the wire, the name the phone's mirror uses.
+            let json = serde_json::to_value(&card).unwrap();
+            assert_eq!(json["answeredFrom"], wire);
+            // And in approvals.jsonl, once, beside the answer.
+            let raw = std::fs::read_to_string(store::answers_path(agent).unwrap()).unwrap();
+            let line = raw.lines().find(|l| l.contains(&id)).unwrap();
+            assert!(line.contains(&format!("\"answeredFrom\":\"{wire}\"")), "{line}");
+        }
+    });
+}
+
+#[test]
+fn an_answer_that_doesnt_say_or_isnt_one_records_no_source() {
+    in_scratch(|agent| {
+        // A path that doesn't say: unknown, never guessed.
+        let id = post(agent, plain("silent"));
+        let held = claim(agent, &id, "Allowed").unwrap();
+        store::set_approval_status(agent, &id, ApprovalStatus::Allowed).unwrap();
+        drop(held);
+        let card = store::find_approval(agent, &id).unwrap().unwrap();
+        assert_eq!(card.answered_from, None);
+        // Expiry is nobody's answer, even while a source is held.
+        let id = post(agent, plain("late"));
+        let _held = claim_from(agent, &id, "Allowed", Some(Source::Phone)).unwrap();
+        store::set_approval_status(agent, &id, ApprovalStatus::Expired).unwrap();
+        let card = store::find_approval(agent, &id).unwrap().unwrap();
+        assert_eq!(card.answered_from, None);
+        // Pending cards carry none.
+        let id = post(agent, plain("open"));
+        let card = store::find_approval(agent, &id).unwrap().unwrap();
+        assert!(serde_json::to_value(&card).unwrap().get("answeredFrom").is_none());
+    });
+}
+
+#[test]
+fn a_loser_never_overwrites_the_winners_source() {
+    in_scratch(|agent| {
+        let id = post(agent, plain("race"));
+        let held = claim_from(agent, &id, "Allowed", Some(Source::Phone)).unwrap();
+        assert!(claim_from(agent, &id, "Denied", Some(Source::Desk)).is_err());
+        assert!(try_claim_from(agent, &id, "Allowed", Source::Auto).is_none());
+        assert_eq!(source_of(&id), Some(Source::Phone));
+        store::set_approval_status(agent, &id, ApprovalStatus::Allowed).unwrap();
+        drop(held);
+        let card = store::find_approval(agent, &id).unwrap().unwrap();
+        assert_eq!(card.answered_from, Some(Source::Phone));
+    });
+}

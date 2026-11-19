@@ -3401,6 +3401,7 @@ pub(crate) fn new_card(
         login: None,
         set_aside: None,
         expiry: None,
+        answered_from: None,
         from_outside: None,
         front: None,
         settings: None,
@@ -4419,9 +4420,12 @@ pub fn sweep_auto_allowed(app: &AppHandle) -> usize {
             }
             let level = receipt_level(chosen, !inside);
             // The user answering it right now keeps their answer.
-            let Some(_claim) =
-                super::answer_gate::try_claim(&agent.id, &card.request_id, "Allowed")
-            else {
+            let Some(_claim) = super::answer_gate::try_claim_from(
+                &agent.id,
+                &card.request_id,
+                "Allowed",
+                super::answer_gate::Source::Auto,
+            ) else {
                 continue;
             };
             let Ok(Some(updated)) =

@@ -1301,7 +1301,7 @@ fn answer_request(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value
         return error(why);
     }
     let done = match answer {
-        Answer::Allow | Answer::Deny => crate::commands::agents::answer_card(
+        Answer::Allow | Answer::Deny => crate::commands::agents::answer_card_from(
             app,
             &target.id,
             &card.request_id,
@@ -1309,6 +1309,7 @@ fn answer_request(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value
             None,
             note.clone(),
             None,
+            Some(super::answer_gate::Source::Admin),
         ),
         Answer::NotNeeded => put_away(app, &target.id, &card, NOT_NEEDED, false),
         Answer::MaybeLater => put_away(
@@ -1338,7 +1339,12 @@ fn put_away(
 ) -> Result<(), CommandError> {
     // One answer per card (`answer_gate`): the user's own answer at the
     // same moment wins or loses as a whole.
-    let _claim = super::answer_gate::claim(agent_id, &card.request_id, line)?;
+    let _claim = super::answer_gate::claim_from(
+        agent_id,
+        &card.request_id,
+        line,
+        Some(super::answer_gate::Source::Admin),
+    )?;
     if card.login.is_some() {
         super::logins::clear_flow(&card.request_id);
     }

@@ -664,6 +664,8 @@ export interface Approval {
   always?: PermissionScope;
   /** Allowed by an "Always allow" rule rather than once. */
   alwaysAllowed?: boolean;
+  /** Where the answer came from (desk, phone, phoneLockScreen, plan, auto, admin, rule); absent while pending. */
+  answeredFrom?: 'desk' | 'phone' | 'phoneLockScreen' | 'plan' | 'auto' | 'admin' | 'rule';
   /** What you told the agent when you declined. */
   note?: string;
   /** A secure input card: what the agent asked for. */
