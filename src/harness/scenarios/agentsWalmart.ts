@@ -51,7 +51,8 @@ const CHAT = [
     approval: {
       requestId: 'walmart-order',
       title: 'Click “Place order” on walmart.com',
-      summary: 'This would spend your money, in your signed-in Chrome.\n\n6 items, pickup Thursday.',
+      summary:
+        'This would spend your money, in your signed-in Chrome.\n\n6 items, pickup Thursday.',
       detail: 'left_click ref_42 (“Place order”) on walmart.com/checkout',
       tool: 'mcp__user_chrome__click',
       status: 'pending',

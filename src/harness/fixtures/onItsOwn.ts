@@ -115,8 +115,7 @@ export function chiefOnItsOwn(agentId: string, agentName: string): OnItsOwn {
     agentName,
     level: 'full_send',
     ownLevel: true,
-    levelLine:
-      'Does anything you ask; only stops before spending money.',
+    levelLine: 'Does anything you ask; only stops before spending money.',
     alwaysAsks: [ALWAYS],
     items: [
       {

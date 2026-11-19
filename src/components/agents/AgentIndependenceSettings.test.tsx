@@ -45,11 +45,7 @@ describe('AgentIndependenceSettings', () => {
     for (const name of ['Careful', 'Steady', 'Bold', 'Unleashed']) {
       expect(screen.getByText(name)).toBeInTheDocument();
     }
-    expect(
-      screen.getByText(
-        'Always asks before spending money.'
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText('Always asks before spending money.')).toBeInTheDocument();
   });
 
   it('shows the saved level and saves a click on a stop', async () => {
@@ -108,9 +104,7 @@ describe('AgentIndependenceSettings', () => {
     store.value = { loaded: true, independence: 'full_send' };
     render(<AgentIndependenceSettings />);
     expect(slider()).toHaveAttribute('aria-valuenow', '3');
-    expect(
-      screen.getByText(/only stops before spending money/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/only stops before spending money/)).toBeInTheDocument();
   });
 
   it('a failed save says why and goes back to what is saved', async () => {

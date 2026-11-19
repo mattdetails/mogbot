@@ -428,7 +428,9 @@
   order: 1;
 }
 
-.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__bar > .agent-composer__attach {
+.agent-composer[data-wrapped][data-dictation='idle']
+  .agent-composer__bar
+  > .agent-composer__attach {
   grid-column: 1;
   order: 2;
   align-self: center;

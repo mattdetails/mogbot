@@ -244,7 +244,9 @@ export const AgentComposer = memo(function AgentComposer({
     } else if (!wrapped) {
       const style = getComputedStyle(el);
       const oneLine =
-        parseFloat(style.lineHeight) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+        parseFloat(style.lineHeight) +
+        parseFloat(style.paddingTop) +
+        parseFloat(style.paddingBottom);
       if (el.scrollHeight > oneLine * 1.5) setWrapped(true);
     }
     // Text added that still fits changes nothing: leave the height alone. Its

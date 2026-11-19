@@ -290,7 +290,9 @@ describe('which way agents use, and why', () => {
     );
     render(<AgentsUserChromeSettings />);
     expect(await screen.findByText('Agents use now')).toBeTruthy();
-    expect(screen.getByText(/Mogbot for Chrome is the only way agents reach your Chrome/)).toBeTruthy();
+    expect(
+      screen.getByText(/Mogbot for Chrome is the only way agents reach your Chrome/)
+    ).toBeTruthy();
   });
 });
 
