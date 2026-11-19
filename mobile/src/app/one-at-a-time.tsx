@@ -16,7 +16,14 @@ import type { Agent, Approval } from '@shipstudio/companion-protocol';
 import { previewText } from '@shipstudio/companion-protocol';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import {
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import Animated, {
   FadeIn,
   FadeInRight,
@@ -73,6 +80,7 @@ import {
   iconSize,
   lineHeight,
   radius,
+  PRESSED,
   READ_LINE,
   space,
   type,
@@ -127,10 +135,14 @@ export default function CatchUp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fresh = useMemo(
+  const all = useMemo(
     () => (overview ? buildItems(overview.agents, chats, setup, reviewHere) : []),
     [overview, chats, setup, reviewHere]
   );
+  // Decisions first, one card each. What only happened (a result, a routine's
+  // run) isn't a decision: it's the one last card, "You're caught up".
+  const fresh = useMemo(() => all.filter((i) => i.kind !== 'reply'), [all]);
+  const happened = useMemo(() => all.filter((i) => i.kind === 'reply'), [all]);
   const [queue, setQueue] = useState<CatchQueue | null>(null);
   useEffect(() => {
     if (ready) setQueue((q) => (q ? syncQueue(q, fresh) : startQueue(fresh)));
@@ -159,13 +171,20 @@ export default function CatchUp() {
   }
 
   if (isDone(queue) || !item) {
-    return <AllCaughtUp onBack={() => router.back()} />;
+    return (
+      <AllCaughtUp
+        onBack={() => router.back()}
+        happened={happened}
+        agents={overview?.agents ?? []}
+        onOpen={(id) => router.push({ pathname: '/chat/[id]', params: { id } })}
+      />
+    );
   }
 
   const agent = overview?.agents.find((a) => a.id === item.agentId);
   const { n, of, offer } = progressOf(queue);
   // A skill offer comes after what blocks, and is not counted in "3 of 8".
-  const where = offer || of === 0 ? OFFER_PROGRESS : `${n} of ${of}`;
+  const where = offer || of === 0 ? OFFER_PROGRESS : `${of - n + 1} left`;
   return (
     <View style={[styles.page, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -417,14 +436,14 @@ function Shown({
         <View style={styles.quiet}>
           {!chatIsMain && (
             <Button
-              title="Chat"
+              title="Open chat"
               variant="ghost"
               size="compact"
-              icon="bubble.left"
               onPress={() => onChat(card?.id)}
             />
           )}
-          {!nextIsMain && <Button title="Next" variant="ghost" size="compact" onPress={goNext} />}
+          {/* Later moves it to the back: it comes back the next time you catch up. */}
+          {!nextIsMain && <Button title="Later" variant="ghost" size="compact" onPress={goNext} />}
         </View>
         {pending && action.kind === 'answer' ? (
           <Animated.View
@@ -443,8 +462,9 @@ function Shown({
             />
             <Button
               title={action.allow}
-              // Risky, as the Mac said it: Allow in the danger style.
-              variant={highRisk(card?.approval) ? 'danger' : 'answer'}
+              // Allow is black and white, never a colour: a risky one is told
+              // apart by the danger line above it, not by turning Allow red.
+              variant="answer"
               size="large"
               busy={busy === 'allow'}
               disabled={!!busy || !connected}
@@ -463,7 +483,7 @@ function Shown({
           />
         ) : (
           <Button
-            title="Next"
+            title={item.kind === 'reply' ? 'Next' : 'Later'}
             variant="answer"
             size="large"
             onPress={goNext}
@@ -479,24 +499,78 @@ function Shown({
 const askIcon = (a: Approval) =>
   a.login || a.secret ? 'lock.fill' : a.connector ? 'square.and.arrow.down' : 'checkmark.shield';
 
-function AllCaughtUp({ onBack }: { onBack: () => void }) {
+function AllCaughtUp({
+  onBack,
+  happened,
+  agents,
+  onOpen,
+}: {
+  onBack: () => void;
+  happened: CatchItem[];
+  agents: Agent[];
+  onOpen: (agentId: string) => void;
+}) {
   const styles = useStyles();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const rows = happened
+    .map((h) => ({ item: h, agent: agents.find((a) => a.id === h.agentId) }))
+    .filter((r): r is { item: CatchItem; agent: Agent } => !!r.agent);
   return (
-    <View style={[styles.page, styles.center, { paddingTop: insets.top }]}>
-      <Animated.View entering={FadeIn.duration(300)} style={styles.done}>
-        <View style={styles.check}>
-          <Icon name="checkmark" size={iconSize.hero} color={colors.textSecondary} />
-        </View>
-        <T variant="title" color={colors.textStrong} accessibilityRole="header">
-          All caught up
+    <View style={[styles.page, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <IconButton name="xmark" label="Close" onPress={onBack} />
+        <T variant="headline" color={colors.textStrong} accessibilityRole="header">
+          Catch up
         </T>
-        <T color={colors.textSecondary} style={styles.doneText}>
-          Nothing else is waiting on you.
-        </T>
-        <Button title="Done" variant="secondary" size="large" onPress={onBack} />
-      </Animated.View>
+        <View style={styles.count} />
+      </View>
+      <ScrollView contentContainerStyle={styles.doneScroll}>
+        <Animated.View entering={FadeIn.duration(300)} style={styles.done}>
+          <View style={styles.check}>
+            <Icon name="checkmark" size={iconSize.hero} color={colors.textSecondary} />
+          </View>
+          <T variant="title" color={colors.textStrong} accessibilityRole="header">
+            You’re caught up
+          </T>
+          <T color={colors.textSecondary} style={styles.doneText}>
+            {rows.length ? 'While you were away' : 'Nothing else is waiting on you.'}
+          </T>
+        </Animated.View>
+        {rows.length > 0 && (
+          <View style={styles.happened}>
+            {rows.map(({ item, agent }) => (
+              <Pressable
+                key={item.key}
+                accessibilityRole="button"
+                accessibilityLabel={`${agent.name}: ${previewText(agent.preview)}`}
+                onPress={() => onOpen(agent.id)}
+                style={({ pressed }) => [styles.happenedRow, pressed && PRESSED]}
+              >
+                <AgentKey id={agent.id} name={agent.name} color={agent.color} size={keySize.md} />
+                <View style={styles.grow}>
+                  <T color={colors.textStrong} numberOfLines={1}>
+                    {previewText(agent.preview) || 'Something new'}
+                  </T>
+                  <T variant="caption" color={colors.textSecondary} numberOfLines={1}>
+                    {agent.name}
+                  </T>
+                </View>
+                <Icon name="chevron.right" size={iconSize.inline} color={colors.textMuted} />
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+      <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
+        <Button
+          title="Done"
+          variant="answer"
+          size="large"
+          onPress={onBack}
+          style={styles.bigSingle}
+        />
+      </View>
     </View>
   );
 }
@@ -539,7 +613,12 @@ const useStyles = makeStyles((colors) => ({
   },
   row: { flexDirection: 'row', gap: space.sm },
   grow: { flex: 1 },
-  done: { alignItems: 'center', gap: space.md, paddingHorizontal: space.xl },
+  done: {
+    alignItems: 'center',
+    gap: space.md,
+    paddingHorizontal: space.xl,
+    paddingTop: space['2xl'],
+  },
   check: {
     width: heroMark,
     height: heroMark,
@@ -549,6 +628,19 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.surfaceControl,
   },
   doneText: { textAlign: 'center' },
+  doneScroll: { paddingBottom: space.lg, gap: space.lg },
+  happened: {
+    marginHorizontal: space.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.surfaceControl,
+    overflow: 'hidden',
+  },
+  happenedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    padding: space.md,
+  },
 }));
 
 /** A throw while drawing stays on this screen, with the way back. */

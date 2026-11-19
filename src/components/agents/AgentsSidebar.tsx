@@ -313,6 +313,41 @@ export function InFlightBell({
   );
 }
 
+/**
+ * Catch up, the list's first row, always there with how many decisions wait:
+ * the one count the sidebar shows. The count's pill is neutral (black on
+ * white), never an agent's colour.
+ */
+export function CatchUpRow({
+  count,
+  open,
+  collapsed,
+  onOpen,
+}: {
+  count: number;
+  open: boolean;
+  collapsed: boolean;
+  onOpen: () => void;
+}) {
+  if (collapsed) return null;
+  return (
+    <button
+      type="button"
+      tabIndex={0}
+      className={`agents-catchup-row${open ? ' is-active' : ''}`}
+      aria-current={open ? 'page' : undefined}
+      onClick={onOpen}
+    >
+      <span className="agents-catchup-row__label">Catch up</span>
+      {count > 0 ? (
+        <span className="agents-catchup-row__count">{count > 99 ? '99+' : count}</span>
+      ) : (
+        <span className="agents-catchup-row__clear">All clear</span>
+      )}
+    </button>
+  );
+}
+
 export function AgentsSidebar({
   agents,
   selectedId,

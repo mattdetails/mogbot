@@ -659,20 +659,23 @@ request, the diff and the photo viewer push over them. At
 - **One at a time** (`app/one-at-a-time.tsx`, `lib/catchUp.ts`), from
   Catch up's **One at a time**: everything waiting, one card
   at a time, full screen. Setting up your team first, then every request
-  this phone can answer (oldest first), then each agent with something new
-  to read or a turn that needs you. A card is the agent, what it said since
+  this phone can answer (oldest first). What only happened (an agent's new
+  result, a routine's run, a failed turn) isn't a decision, so it isn't a card:
+  it is the one last card, "You're caught up", listing it under "While you were
+  away" (a tap opens that chat). A card is the agent, what it said since
   you last spoke (up to three messages, markdown and pictures as in the
-  chat) and the request, with Deny · Allow as two big buttons at the bottom (Chat and Next quiet above them; the card's own
+  chat) and the request, with Deny · Allow as two big buttons at the bottom (Open chat and Later quiet above them; Allow is always black and white, never red: a risky request is told apart by its warning icon; the card's own
   answers hidden, the same 400 ms arming); a login, a key or a task's
   question has one action instead ("Sign in", "Enter key", "Answer") that
-  opens it in its chat. **Chat** opens the agent's chat at the card, and back
-  returns to the same card; **Next** or a swipe left moves on. Swiping right
+  opens it in its chat. **Open chat** opens the agent's chat at the card, and back
+  returns to the same card; **Later** or a swipe left moves it on, and it
+  comes back the next time you catch up. Swiping right
   never allows: an Allow can't be undone and a command scrolls sideways
-  under the same finger. "3 of 8" and a thin bar; success haptic on Allow,
+  under the same finger. "5 left" and a thin bar; success haptic on Allow,
   light on Next. A card on screen counts as read (`setOpenChat`). Passed
   cards stay counted, cards ahead answered or read elsewhere drop out, new
   ones join the end; the card in front of you, answered on the desk or
-  expired, says so for a beat and moves on. Done: "All caught up" and Done,
+  expired, says so for a beat and moves on. Done: "You're caught up" and Done,
   back to Catch up. Chats the cards need are loaded once before it starts (up to
   5 s; offline it uses what's cached), so the order doesn't shift.
 - **Chat.** An inverted list: newest on the composer, older pages loaded on

@@ -86,7 +86,7 @@ const CARD_LINES = 400;
  * The recent lines of every chat that isn't loaded in the store, refetched
  * when its row says something happened there.
  */
-function useRecentLines(agents: Agent[], loaded: Record<string, AgentMessage[]>) {
+export function useRecentLines(agents: Agent[], loaded: Record<string, AgentMessage[]>) {
   const [fetched, setFetched] = useState<Record<string, { key: string; lines: AgentMessage[] }>>(
     {}
   );

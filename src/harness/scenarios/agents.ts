@@ -2281,6 +2281,18 @@ export const agentsScenarios: Scenario[] = [
     },
   },
   {
+    id: 'agents-catch-up',
+    title: 'Agents — Catch up, one decision at a time',
+    looksRightWhen:
+      'The Agents sidebar starts with a “Catch up” row and its count. The main pane is Catch up: a header with “N left” and a thin bar; one card in the middle (the agent, how long ago, a tag, the request as a line, why in two lines, and for a send the exact words) with a Deny and a neutral black-and-white Allow, then Open chat and Later quieter; “Up next” on the right lists what comes after. Allow is never an accent colour.',
+    command: 'agents.catchUp',
+    requires: '.agents-catchup__card',
+    commands: {
+      agents_overview: liveOverview,
+      agents_messages: messagesFor,
+    },
+  },
+  {
     id: 'agents-approval',
     title: 'Agents — an approval waiting in the chat',
     looksRightWhen:

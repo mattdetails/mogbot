@@ -3070,6 +3070,9 @@ export function mentionRuns(
 /** The "What's in flight" overview's place in the selection, beside agent ids (⌘K only). */
 export const TEAM_ID = '__team';
 
+/** Catch up's place in the selection: what waits on you, one at a time (sidebar top row, the bell, ⌘K). */
+export const CATCHUP_ID = '__catchup';
+
 /** A reply's first line as plain words, for a one-line row. */
 export function replyPreview(text: string): string {
   const line =

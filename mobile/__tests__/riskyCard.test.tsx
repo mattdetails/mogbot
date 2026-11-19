@@ -1,8 +1,8 @@
 /**
  * A request the Mac marked risky (`approval.risk`, desktop `mcp::risk_of`:
  * Bold's floor) reads as dangerous on the phone, as on the desk: the warning
- * icon, and Allow in the danger style. A low-risk one keeps the neutral
- * answer. The phone never works risk out from the words.
+ * icon. Allow is neutral either way (black and white, never red: a red Allow read
+ * as the way out of the danger). The phone never works risk out from the words.
  */
 
 import type { AgentMessage, Approval } from '@shipstudio/companion-protocol';
@@ -84,8 +84,8 @@ const allowInk = async (risk: Approval['risk']) => {
 
 const danger = [palettes.light.accentErrorLight, palettes.dark.accentErrorLight];
 
-it('a risky request’s Allow is the danger style', async () => {
-  expect(danger).toContain(await allowInk('high'));
+it('a risky request’s Allow is still the neutral answer, never the danger colour', async () => {
+  expect(danger).not.toContain(await allowInk('high'));
 });
 
 it('a low-risk request keeps the neutral answer', async () => {
