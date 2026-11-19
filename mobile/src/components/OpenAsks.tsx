@@ -15,7 +15,7 @@ import { useServed } from '../lib/store';
 import { makeStyles, useColors } from '../lib/appearance';
 import { space } from '../lib/theme';
 
-const RHYTHM = pageRhythm();
+const RHYTHM = pageRhythm(space.md);
 
 export function OpenAsks({ agentId }: { agentId: string }) {
   const colors = useColors();

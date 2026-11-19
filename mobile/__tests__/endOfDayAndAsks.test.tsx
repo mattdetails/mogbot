@@ -91,7 +91,7 @@ describe('the end-of-day check-in on the phone', () => {
 
   it('shows the Mac’s time, and sets an evening or off from the sheet', async () => {
     await render(<EndOfDaySetting />);
-    expect(await screen.findByText('18:00')).toBeTruthy();
+    expect(await screen.findByText('6:00 PM')).toBeTruthy();
     fireEvent.press(screen.getAllByText('End-of-day check-in')[1]);
     const [title, choices] = mockChoose.mock.calls[0] as [
       string,
@@ -99,12 +99,12 @@ describe('the end-of-day check-in on the phone', () => {
     ];
     expect(title).toBe('End-of-day check-in');
     expect(choices.map((c) => c.label)).toEqual([
-      '16:30',
-      '17:00',
-      '17:30',
-      '18:00',
-      '18:30',
-      '19:00',
+      '4:30 PM',
+      '5:00 PM',
+      '5:30 PM',
+      '6:00 PM',
+      '6:30 PM',
+      '7:00 PM',
       'Turn off',
     ]);
     // The one already set writes nothing.
@@ -114,7 +114,7 @@ describe('the end-of-day check-in on the phone', () => {
       choices[4].run();
     });
     expect(mockCall).toHaveBeenCalledWith('agents.setEndOfDay', { on: true, at: 1110 });
-    expect(screen.getByText('18:30')).toBeTruthy();
+    expect(screen.getByText('6:30 PM')).toBeTruthy();
   });
 
   it('is absent on a Mac that doesn’t serve it', async () => {
@@ -124,8 +124,10 @@ describe('the end-of-day check-in on the phone', () => {
     expect(mockCall).not.toHaveBeenCalled();
   });
 
-  it('words the time as the desk does', () => {
-    expect(endOfDayLabel({ on: true, at: 1080 })).toBe('18:00');
+  it('words the time on the 12-hour clock', () => {
+    expect(endOfDayLabel({ on: true, at: 1080 })).toBe('6:00 PM');
+    expect(endOfDayLabel({ on: true, at: 0 })).toBe('12:00 AM');
+    expect(endOfDayLabel({ on: true, at: 750 })).toBe('12:30 PM');
     expect(endOfDayLabel({ on: false, at: 1080 })).toBe('Off');
   });
 });

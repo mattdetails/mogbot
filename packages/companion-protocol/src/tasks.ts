@@ -63,12 +63,12 @@ export const END_OF_DAY_TIMES: number[] = [
   19 * 60,
 ];
 
-const pad = (n: number) => String(n).padStart(2, '0');
-
-/** "18:00", or "Off". */
+/** "6:00 PM", or "Off": the 12-hour clock a phone reads. */
 export function endOfDayLabel(e: Pick<EndOfDay, 'on' | 'at'> | null | undefined): string {
   if (!e || !e.on) return 'Off';
-  return `${pad(Math.floor(e.at / 60) % 24)}:${pad(e.at % 60)}`;
+  const h = Math.floor(e.at / 60) % 24;
+  const m = String(e.at % 60).padStart(2, '0');
+  return `${h % 12 === 0 ? 12 : h % 12}:${m} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
 /** The state's word in a list. */
