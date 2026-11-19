@@ -95,7 +95,10 @@ fn an_item_is_a_file_or_a_link_never_both() {
     ))
     .contains("not both"));
     assert!(err(args(json!({ "items": [{ "label": "x" }] }))).contains("needs a `path`"));
-    assert!(err(args(json!({ "items": ["a.pdf"] }))).contains("object"));
+    // A bare path stands for a file item rather than being refused.
+    let bare = parse(&args(json!({ "items": ["a.pdf"] }))).unwrap();
+    assert!(matches!(&bare.items[0], DraftItem::File { path, .. } if path == "a.pdf"));
+    assert!(err(args(json!({ "items": [3] }))).contains("object"));
     assert!(err(args(
         json!({ "items": [{ "path": "a.png", "role": "during" }] })
     ))
@@ -637,4 +640,39 @@ fn a_checkpoint_is_forgotten_when_the_next_turn_starts() {
     assert_eq!(checkpoint_of("a-cp").as_deref(), Some("r-cp"));
     discard("a-cp");
     assert_eq!(checkpoint_of("a-cp"), None);
+}
+
+#[test]
+fn files_sent_as_json_text_or_under_files_still_reach_the_card() {
+    // The Designer card of 18 Nov: `files` as one JSON string of paths.
+    let draft = parse(&json!({
+        "title": "Designs",
+        "summary": "Three mocks.",
+        "files": "[\"/a/tasks-dark.png\",\"/a/train-dark.png\"]",
+    }))
+    .unwrap();
+    assert_eq!(draft.items.len(), 2);
+    assert!(matches!(&draft.items[0], DraftItem::File { path, .. } if path == "/a/tasks-dark.png"));
+
+    let draft = parse(&json!({
+        "title": "Designs",
+        "summary": "Mocks and a link.",
+        "items": "[{\"path\": \"/a/x.png\"}]",
+        "links": ["https://example.com/spec"],
+    }))
+    .unwrap();
+    assert_eq!(draft.items.len(), 2);
+    assert!(matches!(&draft.items[1], DraftItem::Link { .. }));
+}
+
+#[test]
+fn an_unknown_key_is_refused_not_dropped() {
+    let err = parse(&json!({
+        "title": "Designs",
+        "summary": "Mocks.",
+        "attachments": ["/a/x.png"],
+    }))
+    .unwrap_err();
+    assert!(err.contains("`attachments`"), "{err}");
+    assert!(err.contains("Nothing was shared"), "{err}");
 }

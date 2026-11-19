@@ -23,7 +23,7 @@
 //!   log (append-only); the UI shows only the newest version in full.
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
@@ -282,17 +282,74 @@ fn item(entry: &Value) -> Result<DraftItem, String> {
     }
 }
 
+const KNOWN_KEYS: &[&str] = &[
+    "title",
+    "summary",
+    "items",
+    "files",
+    "links",
+    "checked",
+    "not_verified",
+    "revises",
+    "changes",
+    "project",
+    "checkpoint",
+];
+
+/// `items` (or the `files` / `links` an agent sometimes writes instead) as a
+/// list of item objects. Engines sometimes send a list as JSON text, and a
+/// bare path or link stands for an item of its own.
+fn item_list(value: Option<&Value>, key: &str) -> Result<Vec<Value>, String> {
+    let list = match value {
+        None | Some(Value::Null) => return Ok(Vec::new()),
+        Some(Value::Array(list)) => list.clone(),
+        Some(Value::String(s)) => match serde_json::from_str::<Value>(s.trim()) {
+            Ok(Value::Array(list)) => list,
+            Ok(one @ Value::Object(_)) => vec![one],
+            _ if s.trim().is_empty() => return Ok(Vec::new()),
+            _ => vec![Value::String(s.trim().to_string())],
+        },
+        Some(one @ Value::Object(_)) => vec![one.clone()],
+        Some(_) => return Err(format!("`{key}` must be a list.")),
+    };
+    Ok(list
+        .into_iter()
+        .map(|entry| match entry {
+            Value::String(s) => {
+                let s = s.trim().to_string();
+                if s.starts_with("http://") || s.starts_with("https://") {
+                    json!({ "url": s })
+                } else {
+                    json!({ "path": s })
+                }
+            }
+            other => other,
+        })
+        .collect())
+}
+
 /// Check everything that can be checked without the disk.
 pub fn parse(args: &Value) -> Result<Draft, String> {
     let title = capped(string(args, "title")?, "title", MAX_TITLE)?
         .ok_or("`title` is required: a few words naming what you made.")?;
     let summary = capped(string(args, "summary")?, "summary", MAX_SUMMARY)?
         .ok_or("`summary` is required: two or three sentences on what it is.")?;
-    let items = match args.get("items") {
-        None | Some(Value::Null) => Vec::new(),
-        Some(Value::Array(list)) => list.iter().map(item).collect::<Result<Vec<_>, _>>()?,
-        Some(_) => return Err("`items` must be a list.".into()),
-    };
+    // Never drop what the agent sent: a key the card doesn't know is refused,
+    // so the agent hears about it instead of the user getting a card with no
+    // files (a Designer card arrived with `files` and nothing on it, 18 Nov).
+    if let Some(map) = args.as_object() {
+        if let Some(unknown) = map.keys().find(|k| !KNOWN_KEYS.contains(&k.as_str())) {
+            return Err(format!(
+                "`{unknown}` isn't part of a result. Put files and links in `items` ([{{\"path\": …}}, {{\"url\": …}}]). Nothing was shared."
+            ));
+        }
+    }
+    let mut items = Vec::new();
+    for key in ["items", "files", "links"] {
+        for entry in item_list(args.get(key), key)? {
+            items.push(item(&entry)?);
+        }
+    }
     if items.len() > MAX_ITEMS {
         return Err(format!(
             "{} items is too many for one result; keep it to {MAX_ITEMS} (zip files together if you need to).",
