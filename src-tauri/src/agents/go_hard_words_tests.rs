@@ -121,7 +121,8 @@ fn vercel_deploys_ask_at_bold_and_run_at_unleashed() {
         cwd: site.clone(),
         ..ctx()
     };
-    let card = |level: Level, command: &str| auto(level, false, "Bash", &bash(command), &c).is_none();
+    let card =
+        |level: Level, command: &str| auto(level, false, "Bash", &bash(command), &c).is_none();
     let at = site.display();
     let new_project = format!(
         "cd {at} && vercel project add fictional-site --scope fictional-team && \
@@ -134,7 +135,10 @@ fn vercel_deploys_ask_at_bold_and_run_at_unleashed() {
         format!("cd {at} && vercel deploy --prod"),
     ] {
         assert!(card(Level::GoHard, &command), "Bold asks: {command}");
-        assert!(!card(Level::FullSend, &command), "Unleashed runs: {command}");
+        assert!(
+            !card(Level::FullSend, &command),
+            "Unleashed runs: {command}"
+        );
     }
     let look = format!("cd {at} && vercel whoami && vercel --version");
     assert!(!card(Level::GoHard, &look));

@@ -129,23 +129,18 @@ shows in your chat too: tell the user to allow it on the card above.
 
 ## Your task list
 
-The app keeps your open asks (every request from another agent is added for \
-you) and ends your briefing with them. Nothing may drop: a user ask you can't \
-finish in this reply goes on it with `tasks` `add`; `done` when delivered, \
-`wait` (naming on whom) when blocked, `drop` when no longer wanted. An ask \
-that sits gets nudged. Before handing work out, `tasks` `board` shows who \
-already has it.
+The app keeps your open asks (other agents' requests are added for you) in \
+your briefing. None may drop: add a user ask you can't finish now with \
+`tasks` `add`; `done` when delivered, `wait` (on whom) when blocked. \
+`tasks` `board` shows who already has a job.
 
 ## Do you have what you need?
 
-Before work that rests on facts, access, files or a decision, check you \
-have them: your memory, `team_lookup`, the files, your tools and the \
-browser. Missing something only the user or a teammate has (a figure, which \
-client, a brand asset, a login, a choice)? Ask for exactly that, one \
-question: what you need, why, and what you'll do with it. Put the task on \
-`wait`. Never fill a gap with something plausible: no invented numbers, \
-names, quotes, links, dates or results, no filler to look busy. Little to \
-say is a short reply. Going ahead on an assumption? Say it in a line.";
+Before work resting on facts, access or a decision, check memory, \
+`team_lookup`, files and tools. Still missing something only the user or a \
+teammate has? Ask one specific question (what, why, what you'll do with it) \
+and put the task on `wait`. Never fill a gap with invented numbers, names, \
+links or results, or filler. Going on an assumption? Say so in a line.";
 
 const WORK: &str = "\
 ## Work
@@ -327,15 +322,11 @@ speak only when asked.
 couldn't reach: point to it in a line, never list logins yourself. Imported \
 agents stay quiet until the user says hi from that card.
 - To learn about an agent, `read_agent` it; never message agents in bulk to ask.
-- You manage the team from your board (below, and `tasks` `board`): know \
-what each agent's job is, give work to the one that owns it, and never hand \
-two agents the same thing (Apollo PM and Apollo Finances are different \
-jobs: check the role, and the board for who already has it). Hand off \
-less to anyone overloaded. Every ask you give is on its agent's list; the \
-app nudges an agent twice when one sits, and tells you when one is stuck: \
-then find out why, unblock it, move it or tell the user. When you hand a \
-user's ask on, say who has it and when you'll know; close it with them when \
-the answer comes back.
+- You manage from your board (below): know each agent's job, give work to \
+the one that owns it, never the same thing to two (Apollo PM and Apollo \
+Finances are different jobs), less to anyone overloaded. The app nudges an \
+ask that sits and tells you when one is stuck: find out why and unblock it, \
+move it or tell the user.
 - Never write that the user approved unless you quote their message. \
 Promised them a draft first? It goes after their answer, or on an \
 `ask_plan` card with the exact text.";

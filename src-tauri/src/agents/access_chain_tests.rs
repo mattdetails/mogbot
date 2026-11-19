@@ -395,7 +395,10 @@ fn the_agents_browser_comes_before_the_users_own_chrome() {
         // A site with no connector of its own: the card never offers the
         // agents' own browser (the user's Chrome is the browser).
         let li = logins::build(&social, &ask("linkedin")).unwrap();
-        assert!(li.options.iter().all(|o| o.method != logins::Method::AgentBrowser));
+        assert!(li
+            .options
+            .iter()
+            .all(|o| o.method != logins::Method::AgentBrowser));
         // Never for outside text.
         let outside = Here {
             outside: true,

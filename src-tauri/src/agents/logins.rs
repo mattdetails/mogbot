@@ -3018,7 +3018,10 @@ mod tests {
             let gmail = build(&recruiter, &ask("gmail", &["read", "send"])).unwrap();
             // The user's own Chrome first, never the agents' own browser;
             // claude.ai's connector is the extra, last.
-            assert!(gmail.options.iter().all(|o| o.method != Method::AgentBrowser));
+            assert!(gmail
+                .options
+                .iter()
+                .all(|o| o.method != Method::AgentBrowser));
             assert_eq!(gmail.options[0].method, Method::Browser);
             assert_eq!(gmail.options[0].label, "Use my browser");
             assert_eq!(gmail.options[1].method, Method::ClaudeAi);

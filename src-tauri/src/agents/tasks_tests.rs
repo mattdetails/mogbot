@@ -74,7 +74,7 @@ fn overload_is_a_plain_rule() {
     let old: Vec<Task> = (0..3)
         .map(|i| task(&format!("job {i}"), None, now - 30 * H))
         .collect();
-    assert!(overload(&old, now).unwrap().contains("oldest 1d"));
+    assert!(overload(&old, now).unwrap().contains("oldest 30h"));
     let two_old: Vec<Task> = (0..2)
         .map(|i| task(&format!("job {i}"), None, now - 30 * H))
         .collect();

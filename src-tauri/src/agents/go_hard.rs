@@ -126,14 +126,34 @@ pub fn spends(tool: &str, input: &Value) -> bool {
 }
 
 const MONEY_TOOL_WORDS: &[&str] = &[
-    "pay", "payment", "payout", "charge", "purchase", "buy", "checkout", "refund", "transfer",
-    "withdraw", "donate", "subscribe", "order",
+    "pay",
+    "payment",
+    "payout",
+    "charge",
+    "purchase",
+    "buy",
+    "checkout",
+    "refund",
+    "transfer",
+    "withdraw",
+    "donate",
+    "subscribe",
+    "order",
 ];
-const READ_TOOL_WORDS: &[&str] = &["get", "list", "search", "retrieve", "read", "find", "show", "view"];
+const READ_TOOL_WORDS: &[&str] = &[
+    "get", "list", "search", "retrieve", "read", "find", "show", "view",
+];
 
 fn connector_spends(tool: &str) -> bool {
-    let name = tool.rsplit("__").next().unwrap_or(tool).to_ascii_lowercase();
-    let words: Vec<&str> = name.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()).collect();
+    let name = tool
+        .rsplit("__")
+        .next()
+        .unwrap_or(tool)
+        .to_ascii_lowercase();
+    let words: Vec<&str> = name
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect();
     if words.first().is_some_and(|w| READ_TOOL_WORDS.contains(w)) {
         return false;
     }
@@ -157,7 +177,17 @@ fn command_spends(command: &str) -> bool {
                 "stripe" => args.iter().any(|a| {
                     matches!(
                         *a,
-                        "create" | "update" | "post" | "delete" | "pay" | "capture" | "confirm" | "refunds" | "payouts" | "transfers" | "charges"
+                        "create"
+                            | "update"
+                            | "post"
+                            | "delete"
+                            | "pay"
+                            | "capture"
+                            | "confirm"
+                            | "refunds"
+                            | "payouts"
+                            | "transfers"
+                            | "charges"
                     )
                 }),
                 "curl" | "wget" | "http" | "https" | "xh" | "xhs" => {
