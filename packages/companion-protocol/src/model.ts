@@ -230,6 +230,8 @@ export interface Agent {
   independence?: AgentIndependence;
   pinned: boolean;
   hidden: boolean;
+  /** The folder it is filed in on the agent list, by id (`agents::folders`). Absent: none. */
+  folder?: string;
   sessionId: string | null;
   createdAt: number;
   lastActivityAt: number;
@@ -663,6 +665,25 @@ export interface AgentsOverview {
   importChoice?: ImportChoice;
   /** This Mac shows a 24-hour clock (`agents::clock`). Older Macs never send it. */
   hour24?: boolean;
+  /** The agent list's folders (`agents::folders`). Older Macs never send it. */
+  folders?: AgentFolders;
+}
+
+/** One folder on the agent list. Mirrors `agents::folders::Folder`. */
+export interface AgentFolder {
+  id: string;
+  name: string;
+}
+
+/** Where pinned agents sit when there are folders. Mirrors `agents::folders::Pinned`. */
+export type PinnedPlacement = 'top' | 'inFolder';
+
+/** Mirrors `agents::folders::View`: the folders in the user's order. */
+export interface AgentFolders {
+  folders: AgentFolder[];
+  pinned: PinnedPlacement;
+  /** A desk window's own groups were brought onto the Mac (once). */
+  broughtIn?: boolean;
 }
 
 /** Mirrors `agents::import_choice::Choice`. */

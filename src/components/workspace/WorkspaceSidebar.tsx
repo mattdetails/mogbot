@@ -75,6 +75,7 @@ import type { TerminalTab } from '../../hooks/useTerminalManagement';
 import type { ProjectDevServerSnapshot } from '../../hooks/useDevServer';
 import type { PinnedProjectRow } from '../../hooks/usePinnedProjects';
 import { ModeToggle } from './ModeToggle';
+import { SideBySideToggle } from './SideBySideToggle';
 import { useActiveAccount } from '../../hooks/useActiveAccount';
 import { useCommands } from '../../commands/useCommands';
 import { kbd } from '../../lib/shortcuts';
@@ -1854,12 +1855,15 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
 
         <div className="workspace-sidebar-search-panel">
           {onGoAgents && (
-            <ModeToggle
-              mode={activeNav === 'agents' ? 'agents' : 'projects'}
-              onProjects={onGoProjects ?? onGoHome}
-              onAgents={onGoAgents}
-              layout={isSidebarHidden ? 'stacked' : 'labels'}
-            />
+            <div className={`mode-toggle-row${isSidebarHidden ? ' mode-toggle-row--stacked' : ''}`}>
+              <ModeToggle
+                mode={activeNav === 'agents' ? 'agents' : 'projects'}
+                onProjects={onGoProjects ?? onGoHome}
+                onAgents={onGoAgents}
+                layout={isSidebarHidden ? 'stacked' : 'labels'}
+              />
+              <SideBySideToggle />
+            </div>
           )}
           {/* The Projects side's twin of Agents' "Search conversations": same
               row, same place. It searches projects — the palette's Projects tab

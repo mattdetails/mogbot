@@ -99,11 +99,7 @@ const chatCommands = {
 /** Acme Site bound to lumen-site, Finance on another project, nobody at work. */
 const boundTeam = () =>
   TEAM.map((a) =>
-    a.id === 'acme'
-      ? { ...a, project: SITE }
-      : a.id === 'finance'
-        ? { ...a, project: ACME }
-        : a
+    a.id === 'acme' ? { ...a, project: SITE } : a.id === 'finance' ? { ...a, project: ACME } : a
   );
 
 const pickCommands = {

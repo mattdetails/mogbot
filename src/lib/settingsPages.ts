@@ -145,8 +145,8 @@ export const SETTINGS_PAGES: readonly SettingsPageInfo[] = [
   {
     id: 'chrome',
     title: 'Chrome',
-    lead: 'The agents’ own browser, and your Chrome when you let them use it.',
-    keywords: ['browser', 'agents’ browser', 'your chrome', 'extension', 'signed in', 'google'],
+    lead: 'Your Chrome, where your agents reach your accounts.',
+    keywords: ['browser', 'your chrome', 'extension', 'signed in', 'google'],
   },
   {
     id: 'apps',

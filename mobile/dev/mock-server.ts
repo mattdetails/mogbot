@@ -220,6 +220,8 @@ export interface MockOptions {
    * minutes after pairing, and the shortest list Home can have.
    */
   solo?: boolean;
+  /** Agents filed in folders made on the Mac (Website, Design, Ops). */
+  folders?: boolean;
   /** How long a sign-in "on the Mac" takes before the card says it's connected. */
   loginAfterMs?: number;
   /**
@@ -1047,6 +1049,67 @@ export function createMockServer(opts: MockOptions = {}) {
     unread: 0,
   });
   messages.set('blocks', blocksMessages(now, attach));
+  // A grocery order in the user's Chrome, ending on the card for the one
+  // click that spends money (Social Posts' clip; the desk's
+  // `agents-walmart-order` harness view has the same chat).
+  agents.push({
+    ...structuredClone(sample),
+    id: 'groceries',
+    name: 'Groceries',
+    role: 'Does the weekly Walmart order',
+    colorway: 'sage',
+    icon: 'face-07',
+    pinned: false,
+    hidden: true,
+    status: { state: 'working', activity: 'Using your Chrome · walmart.com', since: now - 4 * 60_000 },
+    pendingApprovals: 1,
+    unread: 0,
+  });
+  messages.set('groceries', [
+    { id: 'gr_1', ts: now - 4 * 60_000, kind: 'user', text: 'can you do this week’s Walmart order? same list as last week' },
+    { id: 'gr_2', ts: now - 4 * 60_000 + 5000, kind: 'agent', text: 'On it: opening Walmart in your Chrome.' },
+    { id: 'gr_3', ts: now - 60_000, kind: 'agent', text: 'Last week’s 6 items are in the cart. Thursday pickup is open, so I picked it.' },
+    {
+      id: 'gr_4',
+      ts: now - 50_000,
+      kind: 'approval',
+      text: '',
+      approval: {
+        requestId: 'walmart-order',
+        title: 'Click “Place order” on walmart.com',
+        summary: 'This would spend your money, in your signed-in Chrome.\n\n6 items, pickup Thursday.',
+        detail: 'left_click ref_42 (“Place order”) on walmart.com/checkout',
+        status: 'pending',
+      },
+    },
+  ] as AgentMessage[]);
+  // A turn that runs out of usage mid-task (Social Posts' clip; the desk's
+  // `agents-limits-out` harness view has the same chat).
+  agents.push({
+    ...structuredClone(sample),
+    id: 'website',
+    name: 'Website',
+    role: 'Builds and looks after the company site',
+    colorway: 'ocean',
+    icon: 'face-03',
+    pinned: false,
+    hidden: true,
+    status: { state: 'idle', activity: null, since: null },
+    failure: { kind: 'usage_limit', resetsAt: now + 2 * 3_600_000 + 13 * 60_000 },
+    pendingApprovals: 0,
+    unread: 0,
+  });
+  messages.set('website', [
+    { id: 'si_1', ts: now - 9 * 60_000, kind: 'user', text: 'Build the new pricing page and check it on mobile.' },
+    { id: 'si_2', ts: now - 9 * 60_000 + 5000, kind: 'agent', text: 'On it: three tiers, monthly and yearly, with the FAQ under them.' },
+    {
+      id: 'si_3',
+      ts: now - 8 * 60_000,
+      kind: 'error',
+      text: 'Claude Code is out of usage.',
+      failure: { kind: 'usage_limit', resetsAt: now + 2 * 3_600_000 + 13 * 60_000 },
+    },
+  ] as AgentMessage[]);
   // The morning brief as blocks (`brief::compose_blocks`), under one agent.
   agents.push({
     ...structuredClone(sample),
@@ -1570,12 +1633,32 @@ export function createMockServer(opts: MockOptions = {}) {
   /** Why `key` can't be this agent's: someone else has it. */
   const keyTaken = (key: string, self: string) =>
     agents.find((o) => o.id !== self && o.boundKey === key);
+  // Folders made on the Mac (`agents::folders`), with the Designer pinned at the top.
+  const FOLDERS = opts.folders
+    ? {
+        folders: [
+          { id: 'f-web', name: 'Website' },
+          { id: 'f-design', name: 'Design' },
+          { id: 'f-ops', name: 'Operations' },
+        ],
+        pinned: 'top' as const,
+        broughtIn: true,
+      }
+    : undefined;
+  const FILED: Record<string, string> = { site: 'f-web', qa: 'f-web', design: 'f-design', ops: 'f-ops' };
+  if (opts.folders) {
+    for (const a of agents) {
+      if (FILED[a.id]) a.folder = FILED[a.id];
+      if (a.id === 'design') a.pinned = true;
+    }
+  }
   const overview = (): AgentsOverview => ({
     agents: (fillKeys(), structuredClone(agents)),
     engineReady: !opts.codexOnly,
     engines: engines(),
     defaults: defaults(),
     independence,
+    ...(FOLDERS ? { folders: FOLDERS } : {}),
   });
   // What each agent remembers (its CLAUDE.md `## Memory`), and secrets saved.
   const memories = new Map<string, MemoryEntry[]>([

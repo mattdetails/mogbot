@@ -51,6 +51,111 @@ export const featureScenarios: Scenario[] = [
     commands: { ...workspaceCommands },
   },
   {
+    id: 'workspace-tab-account',
+    requires: '.tab-account-chip',
+    steps: [{ click: '.sidebar-row-hit[aria-label="Claude Code 1"]' }],
+    title: 'Workspace — the terminal tab’s account chip',
+    looksRightWhen:
+      'The terminal header reads "Terminal  Claude Code" then a pill "Account  Work ⌄" beside it. Opening it lists "Continue this chat on" with "Personal · 12% left", "Work · 61% left" (ticked) and "Side · out until 4:30 PM".',
+    project: WORKSPACE_PROJECT,
+    commands: {
+      ...workspaceCommands,
+      tab_account_info: {
+        current: 'Work',
+        accounts: [
+          {
+            id: 'a1',
+            name: 'Personal',
+            label: 'Personal · 12% left',
+            leftPercent: 12,
+            out: false,
+            current: false,
+          },
+          {
+            id: 'a2',
+            name: 'Work',
+            label: 'Work · 61% left',
+            leftPercent: 61,
+            out: false,
+            current: true,
+          },
+          { id: 'a3', name: 'Side', label: 'Side · out until 4:30 PM', out: true, current: false },
+        ],
+      },
+    },
+  },
+  {
+    id: 'workspace-tab-account-menu',
+    requires: '.tab-account-chip__menu',
+    steps: [
+      { click: '.sidebar-row-hit[aria-label="Claude Code 1"]' },
+      { click: '.tab-account-chip__button' },
+    ],
+    title: 'Workspace — the terminal tab’s account chip, open',
+    looksRightWhen:
+      'The terminal header reads "Terminal  Claude Code" then a pill "Account  Work ⌄" beside it. Opening it lists "Continue this chat on" with "Personal · 12% left", "Work · 61% left" (ticked) and "Side · out until 4:30 PM".',
+    project: WORKSPACE_PROJECT,
+    commands: {
+      ...workspaceCommands,
+      tab_account_info: {
+        current: 'Work',
+        accounts: [
+          {
+            id: 'a1',
+            name: 'Personal',
+            label: 'Personal · 12% left',
+            leftPercent: 12,
+            out: false,
+            current: false,
+          },
+          {
+            id: 'a2',
+            name: 'Work',
+            label: 'Work · 61% left',
+            leftPercent: 61,
+            out: false,
+            current: true,
+          },
+          { id: 'a3', name: 'Side', label: 'Side · out until 4:30 PM', out: true, current: false },
+        ],
+      },
+    },
+  },
+  {
+    id: 'workspace-side-by-side',
+    requires: '.side-by-side',
+    steps: [{ click: '.sidebar-row-hit[aria-label="Claude Code 1"]' }],
+    title: 'Side by side — Agents left, the project’s terminals right',
+    looksRightWhen:
+      'One window split in half by a hairline: on the left the Agents view (agent list, then the Chief of Staff’s chat with its message box and the model chip); on the right the open project acme-marketing with its sidebar and the Claude Code terminal, its "Account Work ⌄" pill in the terminal header. No Preview / Focus / Code tabs on the right, and no preview pane. In both sidebars, beside Agents | Projects, a square split-view button, pressed.',
+    project: WORKSPACE_PROJECT,
+    storage: { 'shipstudio.sideBySide': JSON.stringify({ on: true, share: 0.5 }) },
+    commands: {
+      ...workspaceCommands,
+      tab_account_info: {
+        current: 'Work',
+        accounts: [
+          {
+            id: 'a1',
+            name: 'Personal',
+            label: 'Personal · 12% left',
+            leftPercent: 12,
+            out: false,
+            current: false,
+          },
+          {
+            id: 'a2',
+            name: 'Work',
+            label: 'Work · 61% left',
+            leftPercent: 61,
+            out: false,
+            current: true,
+          },
+        ],
+      },
+    },
+  },
+  {
     id: 'dev-server-consent-new',
     requires: '.dev-consent',
     title: 'Preview — asks before running a project’s commands',

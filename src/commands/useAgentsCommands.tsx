@@ -35,6 +35,7 @@ import { openLogs } from '../lib/agentDesk';
 import { composerDraft, setComposerDraft } from '../lib/composerDraft';
 import {
   setGroupMode,
+  setPinnedPlacement,
   setSortMode,
   startNamingGroup,
   useAgentGroups,
@@ -45,11 +46,11 @@ import { asCommandError, formatCommandError } from '../lib/errors';
 /** What went wrong, in words: never `String(e)`'s "Error: …" or "[object Object]". */
 const errorText = (e: unknown) => formatCommandError(asCommandError(e));
 
-/** ⌘K switches for the agent list's optional groups. */
+/** ⌘K switches for how the agent list is arranged ("in folders" only once there are some). */
 const GROUP_COMMANDS: { mode: GroupMode; title: string; keywords: string[] }[] = [
-  { mode: 'project', title: 'Group agents by project', keywords: ['client', 'bound', 'folder'] },
-  { mode: 'custom', title: 'Group agents into your own groups', keywords: ['client', 'folder'] },
-  { mode: 'off', title: 'Stop grouping agents', keywords: ['flat', 'ungroup', 'one list'] },
+  { mode: 'project', title: 'Group agents by project', keywords: ['client', 'bound'] },
+  { mode: 'custom', title: 'Show agents in folders', keywords: ['folder', 'folders', 'group'] },
+  { mode: 'off', title: 'Show agents in one list', keywords: ['flat', 'ungroup', 'one list'] },
 ];
 import {
   checkTeamReach,
@@ -202,6 +203,8 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
   const groupMode = groupSettings.mode;
   const sortMode = groupSettings.sort;
   const hasOwnOrder = groupSettings.order.length > 0;
+  const hasFolders = groupSettings.groups.length > 0;
+  const pinnedPlacement = groupSettings.pinned;
   // Whether the other app has agents on this Mac, asked once from its
   // registry alone (not the preview, which reads every agent's folder): it
   // gates the palette's "Import agents from …", which only means something then.
@@ -574,7 +577,7 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
         title: c.title,
         icon: <AgentsIcon size={14} />,
         category: 'navigation' as const,
-        when: () => groupMode !== c.mode,
+        when: () => groupMode !== c.mode && (c.mode !== 'custom' || hasFolders),
         keywords: ['agents', 'group', 'groups', 'sidebar', 'organise', 'organize', ...c.keywords],
         run: () => {
           setGroupMode(c.mode);
@@ -607,12 +610,29 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
       },
       {
         id: 'agents.groups.new',
-        title: 'New agent group…',
+        title: 'New agent folder…',
         icon: <PlusIcon size={14} />,
         category: 'navigation',
-        keywords: ['agents', 'group', 'client', 'folder', 'sidebar', 'organise', 'organize'],
+        keywords: ['agents', 'folder', 'group', 'client', 'sidebar', 'organise', 'organize'],
         run: () => {
           startNamingGroup();
+          setView('agents');
+        },
+      },
+      {
+        id: 'agents.groups.pinned',
+        title:
+          pinnedPlacement === 'inFolder'
+            ? 'Show pinned agents at the top'
+            : 'Show pinned agents in their folder',
+        icon: <AgentsIcon size={14} />,
+        category: 'navigation',
+        when: () => hasFolders,
+        keywords: ['agents', 'pinned', 'pin', 'folder', 'top', 'sidebar'],
+        run: () => {
+          setPinnedPlacement(pinnedPlacement === 'inFolder' ? 'top' : 'inFolder').catch(
+            (e: unknown) => showToast(`Couldn’t move pinned agents: ${errorText(e)}`, 'error')
+          );
           setView('agents');
         },
       },
@@ -667,6 +687,8 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
       groupMode,
       sortMode,
       hasOwnOrder,
+      hasFolders,
+      pinnedPlacement,
     ]
   );
 }

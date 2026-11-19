@@ -1536,10 +1536,9 @@ left end and "Just does it" at the right:
 | **Careful** | `often` | Reads and looks around; asks before bigger changes. |
 | **Steady** (the default before 1.0.14; still where an older install that never moved the slider runs) | `judgement` | Reads and edits; asks before running changes or anything leaving this Mac. |
 | **Bold** (a new install starts here, `independence::NEW_INSTALL`) | `go_hard` | Does local work on this Mac; asks before anything leaves it. |
-| **Unleashed** | `full_send` | Sends, posts and pushes too; only stops for money, logins, deleting for good or going live. |
+| **Unleashed** | `full_send` | Does anything; only stops before spending money. |
 
-Under it, at every stop: "Always asks before spending money, using your
-passwords, or deleting for good." The names were "Check with me often", "Use
+Under it, at every stop: "Always asks before spending money." The names were "Check with me often", "Use
 good judgement", "Go hard" and "Full send" until the slider; the stored ids,
 the protocol and the tools kept the old ids, and the Chief still reads the old
 names as the same levels (`Level::parse`). Each line is held to what the level
@@ -1634,37 +1633,22 @@ calls):
 | Careful | nothing (as before) |
 | Steady | reads |
 | Bold | everything except its short ask list (`agents/go_hard.rs`) |
-| Unleashed | everything except the floor below (`go_hard::full_send_program`, `connector_floor`) |
+| Unleashed | everything except spending money (`go_hard::spends`, `browser_gate::floor_control`) |
 
-**Unleashed** (the owner: "I want to be able to make it just rip"). Sending,
-posting, scheduling, commenting, emailing and publishing as the user run
-without a card: mail and chat CLIs, `git send-email`, `gh` issues, pull
-requests, comments and reviews, network writes, preview deploys, connector
-sends and posts, and every browser click but the floor's. What still asks, in
-Rust: **money** (Stripe live, writes to payment APIs, connectors that pay,
-buy, order or subscribe, clicks on pay/buy/checkout controls or pages),
-**credentials** (secret stores, the Keychain, `security`, `sudo`, `gh auth
-token`, secrets and env vars, password boxes, connectors named after secrets),
-**destruction for good** (`rm -r` outside projects, agent homes and temp;
-`gh repo delete`; deleting, forcing or mirroring a remote branch; "Delete
-account / repository / project"), **production and protected branches**
-(pushing `main`, `master`, `production`, `release`… or the remote's default
-branch, a bare `git push` on one or where it can't tell, tags, `gh pr merge`,
-releases, workflow runs, `vercel --prod` / promote, other production deploys,
-package publishing), **settings that change what others see or how a project
-is protected** (`vercel` domains, DNS, certificates, aliases, env, project,
-team and Git-link changes, deployment protection and bypass secrets, and
-`vercel curl` / `vercel api` writes or requests about protection, bypass,
-env, domains, tokens or settings; `gh repo edit`, a new public repo, `gh api`
-writes to a repo's or org's settings, webhooks, Pages, environments, members
-or visibility; observed: `vercel curl` made a protection bypass token on a
-production project with no card) and **system persistence** (launch agents,
-shell profiles, `crontab`, `launchctl`, `defaults write`). Each send leaves
+**Unleashed** (the owner, 18 Nov 2026: "Unleashed will do anything except
+for spend money without your permission. That's all it should ask for").
+Sending, posting, publishing, pushing to any branch, production deploys,
+deleting for good, credentials and system changes all run without a card.
+The one thing that asks is **money** (`go_hard::spends`): a write to a
+payment API, the `stripe` CLI changing anything, a connector that pays,
+charges, buys, refunds or moves money, and in the browser a click on a
+pay/buy/checkout control or page (`browser_gate::floor_control`). Turning it
+on carries a clear warning. Each send leaves
 "Sent without asking — Unleashed · …" in "What it did", and the turn ends on
 one chat line naming what happened ("Without asking (Unleashed): posted on
-x.com 3 times, pushed branch fix/copy, created a Vercel bypass token on
-<project>", `agents/full_send.rs`), read from the command or tool and its
-arguments, else the command's first words; there are no Undo or Open links
+x.com 3 times, pushed branch fix/copy", `agents/full_send.rs`), read from the
+command or tool and its arguments, else the command's first words; there are no
+Undo or Open links
 yet. The exact-text switch below holds sends even here. After outside
 content only raw data leaving this Mac and new packages ask
 (`go_hard::moves_data_off_mac`). **Outside text never gets Unleashed**: such a
@@ -1719,9 +1703,11 @@ below; it asks only for:
   `createPost`, `send_email` and `publishPost` ask, while `capturePost`,
   `upsertSocialPosts` and `listPosts` run ("post" there names posts). Code
   hosts' and databases' writes ask too; uploads in the browser, except a
-  picture, video or PDF inside the agent's own home (`browser_gate::own_media`:
-  the post's words already had their OK, and a card per picture was twelve
-  extra cards for twelve posts)
+  picture, video or PDF inside the agent's own home, or a picture or video in
+  the projects folder unless that folder is the home folder or above it
+  (`browser_gate::own_media`: the post's words already had their OK, and a
+  card per picture was twelve extra cards for twelve posts; a rendered video
+  in a project asked again, 2026-11-18)
 - a network request with a secret in its address, query or headers
   (`agents/egress.rs`, below): `curl` (and its `-u` / `-b` /
   `--oauth2-bearer`), `wget`, `http`, `gh api`, a `git` remote with a
@@ -3768,7 +3754,7 @@ The backend decides, since it knows when a message is recorded and when a turn e
 - A reply or error off screen notifies with the agent's name and the first line. Inside a turn they are held and posted once when it ends, with the latest text. An approval posts at once, with a sound.
 - Bursts across agents are capped (3 per 20s); the rest stay silent but still count. An approval is never capped, on the desk or a phone: the agent is blocked on it.
 - **Mute** (row context menu) stops OS notifications for that agent; a bell-off mark shows in its row. Unread and the badge still count it.
-- **Phones** hear each alert the desk decides on: over the socket of each connected phone that posts alerts (`companion/alerts.rs`) and through the push relay when it is on (it isn't yet: `links.pushRelay` in `brand.json` is null, so a phone hears alerts only while the app is connected). Not while the user is **at the desk** (`at_desk`: one of the app's windows has focus), where the banner here is enough. Mute and quiet hours apply to phones as here (docs/mobile.md, "Notifications").
+- **Phones** hear each alert the desk decides on: over the socket of each connected phone that posts alerts (`companion/alerts.rs`) and through the push relay (`links.pushRelay` in `brand.json`; live for iPhone, not yet for Android), so a phone hears alerts even with the app closed. Not while the user is **at the desk** (`at_desk`: one of the app's windows has focus), where the banner here is enough. Mute and quiet hours apply to phones as here (docs/mobile.md, "Notifications").
 - **Dock badge** = how many agents need you, the same count as the sidebar bell, the review bar in the Chief's chat and the phone's icon badge (the phone's Catch up tab counts its rows instead, see "Needs you: one place per surface") (`needsYouCount`, `packages/companion-protocol/src/attention.ts`; Rust mirrors it in `notify::needs_you`, and both run `attention-cases.json`). The Chief counts like anyone; unread replies and usage limits don't. The mode toggle's badge is on whenever any non-hidden agent is waiting or unread. Approval cards don't add to unread; they count as pending until answered. It is refreshed whenever an agent's state changes, so a failed turn counts the moment it goes idle (its error line lands while it is still working).
 - Clicking a notification focuses a window and emits `agents://open`; the app switches to Agents and opens that agent. Focusing a window clears the unread of the agent it shows.
 - Uses `tauri-plugin-notification` (2.8, click reporting on macOS). Not verified in a real build yet: the dev binary posts under another app's identity, so click-through should be checked in a signed build.
@@ -6063,6 +6049,7 @@ and `agents://registry`:
 - **Needs you** (up to 5): `Name · Needs your OK` (`· 3 need your OK`).
 - **Working** (up to 5): `Name · <activity line>`, cut to one short line. An agent waiting for a free slot is listed after the running ones and isn't counted as working: the tooltip says `2 working, 1 waiting for a slot` (`runner::queued`).
 - Overflow is counted (`2 more`), not listed. Hidden agents aren't listed; idle ones aren't either.
+- **Accounts** (`agents/tray_accounts.rs`), once there are any: each Claude Code and Codex account in the user's order (Claude's first; Codex's named so when both are there), as `Name · 38% left` (the tightest current window, from the engine's last reading), `Name · out until 6:00 PM` (the reset it reported), `Name · not signed in`, or just the name with no reading; `· runs next` on the one the next turn uses. Each opens Use this one first (`wallet::use_first`) and Accounts & usage…. Then **Continue a Terminal chat**: the 5 newest Claude Code chats from the last day that run in the user's own Terminal (every signed-in Claude account's folder; not agent homes, `.worktrees` or other hidden folders, nor a project tab's, which moves on its own), each `folder · time · "first thing typed"` with Continue on <account> for every other signed-in account, those with room first. A click copies the chat into that account's folder (`wallet::carry_session`) and opens it in a new Terminal window: `cd <folder> && env -u … CLAUDE_CONFIG_DIR=<its folder> claude --resume <id> "<continue>"`, never a token (an account kept only as an older build's Keychain token isn't offered). Read every minute; every 20s, chats touched in the last 30 minutes are read from where they were last read, and Claude Code's own usage-limit entry marks that account out (`wallet::mark_out_with_twins`, so agents skip it too) and posts one notification naming where to continue (held during quiet hours). Mogbot can't restart another app's Terminal, so this is the one step left to a click.
 - Then Open <name>, New message to Chief… (quick entry), Keep this Mac awake / Keep running when closed (checkmarks, the same `set_stay_on`), Quit <name> (`brand::NAME`).
 - Clicking an agent opens its chat (`notify::open_agent`, the notification click's path), showing a window that a close hid.
 - The Dock icon's menu shows the same "Needs you" rows, then New Agent…, Open *the Chief* and Quick Message… (`dock_menu.rs`; the menu bar and every key: docs/keyboard-shortcuts.md).
@@ -6768,19 +6755,34 @@ cards.
   1.8s per step, "Thinking" only after 2.5s) and its time sits in a fixed
   column of tabular figures. Other lists
   (switcher, Quick Entry) still use `sortAgents` (pinned, then recency).
-- **Groups** (`lib/agentGroups.ts`, `AgentGroupParts.tsx`), off by default:
-  ⌘K → Group agents by project, Group agents into your own groups, New
-  agent group…, Stop grouping agents. The Chief stays first, outside any;
-  each group is a folding header (chevron, name, count) with its rows in the
-  attention order above. Your own groups take a dragged row (or the row's
-  menu: Move to …, Remove from group); an empty one says "Drag agents here";
-  right-click its header to remove it (its agents go back to Ungrouped). A
-  per-window convenience in localStorage (`shipstudio.agents.groups`), never
-  the registry or the phone. The **Rooms** section uses the same header and
-  folds the same way (its fold is kept with the groups'); folded, the open
-  room and any that is unread or waiting on you still show.
-- **One column.** Every label in the list (names, the Hidden and group
-  headers, an empty group's line, a room's name) starts on the names'
+- **Folders** (`agents/folders.rs`, `lib/agentGroups.ts`, `AgentGroupParts.tsx`),
+  optional: nothing shows until the first folder is made ("Website", "SEO",
+  "Outreach"). Made from any agent's right-click menu (**New folder…**, which
+  files that agent in it), a folder header's menu, ⌘K → New agent folder…, or
+  by asking the Chief (`file_agent`, Chief-only: no folder lists them, "none"
+  takes an agent out, a new name makes the folder). They live on this Mac in
+  `agents/folders.json` (the folders, in order, and where pinned agents sit),
+  each agent's folder in its registry entry (`Agent.folder`), so the desk, the
+  phone (the overview's `folders`) and the Chief see the same ones; every
+  change is said with `agents://registry`. The Chief stays first, outside any
+  (`folders::file` refuses it). Each folder is a folding header (chevron,
+  name, count) with its rows in the attention order; a dragged row or the
+  row's menu (Move to …, Remove from folder) files an agent; an empty folder
+  says "Drag agents here"; a header's menu has Rename…, New folder…, the
+  pinned choice and Remove folder (its agents go to "Not in a folder").
+  **Pinned agents** sit in a "Pinned" section above the folders, or first in
+  their own folder (the header menu or ⌘K → Show pinned agents in their
+  folder / at the top). ⌘K → Group agents by project groups by bound project
+  instead, and Show agents in one list turns folders off in that window
+  (Show agents in folders brings them back). The view choice, folds and sort
+  order stay per window in localStorage (`shipstudio.agents.groups`); a
+  window's own groups from before folders lived on the Mac are brought there
+  once by name (`agents_folders_bring_in`, `broughtIn`). The **Rooms**
+  section uses the same header and folds the same way (its fold is kept with
+  the folders'); folded, the open room and any that is unread or waiting on
+  you still show.
+- **One column.** Every label in the list (names, the Hidden and folder
+  headers, an empty folder's line, a room's name) starts on the names'
   column: the row's inset, the md key (`--agent-key-size-md`), the gap. Room
   badges are the key's size. The New agent / New room actions under the list
   share the footer rows' column instead, since they sit with Routines and

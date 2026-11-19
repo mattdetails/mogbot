@@ -73,7 +73,11 @@ pub fn auto(chosen: Level, outside: bool, tool: &str, input: &Value, ctx: &Ctx) 
     // a turn answering it runs at "Go hard"'s rules.
     if chosen.goes_hard() {
         let full = chosen == Level::FullSend && !outside;
-        let asks = if full != ctx.full_send {
+        // "Unleashed" asks for nothing but money (the user's own words, 18
+        // Nov 2026): deletes, credentials, pushes and system changes run.
+        let asks = if full {
+            super::go_hard::spends(tool, input)
+        } else if full != ctx.full_send {
             let mut c = ctx.clone();
             c.full_send = full;
             super::go_hard::asks(tool, input, &c, outside)

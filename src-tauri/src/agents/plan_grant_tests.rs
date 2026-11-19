@@ -301,7 +301,8 @@ fn the_floor_is_never_covered() {
         "npm unpublish shippy",
         "git push origin main > ~/.zshrc",
     ] {
-        for level in [Level::GoHard, Level::FullSend, Level::Judgement] {
+        // Unleashed asks only for money, so there's nothing for a plan to cover there.
+        for level in [Level::GoHard, Level::Judgement] {
             assert!(!covers(id, level, &m, command), "{command} at {level:?}");
         }
     }

@@ -956,6 +956,22 @@
   white-space: nowrap;
 }
 
+/* Settings' column with an action in the list: the action's column left the
+   name a letter wide, so the bar and refill give way first; the name, room,
+   state and action stay. */
+@container usage-panel (max-width: 48rem) {
+  .usage-rows__list:has(.usage-row__action) .usage-row {
+    grid-template-columns:
+      var(--usage-cap-size) minmax(0, 1fr) var(--usage-row-left-width)
+      var(--usage-row-state-width) var(--usage-row-action-width) var(--usage-row-chevron);
+  }
+
+  .usage-rows__list:has(.usage-row__action) .usage-row__bar,
+  .usage-rows__list:has(.usage-row__action) .usage-row__refill {
+    display: none;
+  }
+}
+
 /* Narrow: the bar and refill give way; name, room and state stay. */
 @container usage-panel (max-width: 34rem) {
   .usage-row {

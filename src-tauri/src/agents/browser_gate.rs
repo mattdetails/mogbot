@@ -658,15 +658,9 @@ pub fn floor_control(label: &str) -> Option<&'static str> {
     if ws.iter().any(|w| MONEY_WORDS.contains(&w.as_str())) && !is_field(label) {
         return Some("spend your money");
     }
-    // Things that don't come back: the account, a repository, a project.
-    let account = ws.iter().any(|w| ACCOUNT_THINGS.contains(&w.as_str()));
-    let ends = ws.iter().any(|w| {
-        matches!(
-            w.as_str(),
-            "delete" | "close" | "deactivate" | "terminate" | "erase" | "remove" | "destroy"
-        )
-    });
-    (account && ends && !is_field(label)).then_some("delete something for good")
+    // "Unleashed" asks for nothing but money (the user's own words, 18 Nov
+    // 2026): closing an account or deleting a repository runs too.
+    None
 }
 
 /// A box for a password or a card's security code: typing there is the
@@ -889,16 +883,33 @@ const OWN_MEDIA: &[&str] = &[
 ];
 
 /// Every file an upload names is a picture, video or PDF inside the agent's
-/// own home (where it makes a post's image), judged where a link lands. "Go
-/// hard" uploads those without a card: one OK on the post's words covers
-/// the post, and asking again for its picture was a card per post (Social
-/// Posts, 12 posts, 2026-11-16). Anything else (the user's own files, a
-/// file that isn't media, no path at all) still asks.
+/// own home (where it makes a post's image), or a picture or video in the
+/// projects folder (where agents make and render work: Social Posts' Walmart
+/// video, 2026-11-18), judged where a link lands. "Go hard" uploads those
+/// without a card: one OK on the post's words covers the post, and asking
+/// again for its picture was a card per post (Social Posts, 12 posts,
+/// 2026-11-16). Anything else (the user's other files, a PDF outside its
+/// home, a file that isn't media, no path at all) still asks.
 fn own_media(agent_id: &str, input: &Value) -> bool {
-    use std::path::{Component, Path, PathBuf};
     let Ok(home) = super::store::agent_home(agent_id) else {
         return false;
     };
+    own_media_in(&home, crate::utils::projects_root().ok().as_deref(), input)
+}
+
+/// Pictures and videos only from the projects folder: a PDF there may be the
+/// user's own document.
+const PROJECT_MEDIA: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "heic", "mp4", "mov", "m4v", "webm",
+];
+
+/// [`own_media`] with its folders given, for tests.
+pub fn own_media_in(
+    home: &std::path::Path,
+    projects: Option<&std::path::Path>,
+    input: &Value,
+) -> bool {
+    use std::path::{Component, Path, PathBuf};
     let real = |p: &Path| -> Option<PathBuf> {
         if let Ok(c) = p.canonicalize() {
             return Some(c);
@@ -907,9 +918,15 @@ fn own_media(agent_id: &str, input: &Value) -> bool {
         (p.is_absolute() && !p.components().any(|c| c == Component::ParentDir))
             .then(|| p.to_path_buf())
     };
-    let Some(home) = real(&home) else {
+    let Some(home) = real(home) else {
         return false;
     };
+    // A projects folder set to the home folder (or above it) would make
+    // every picture on this computer the agent's own: then only its home counts.
+    let user_home = dirs::home_dir().and_then(|h| real(&h));
+    let projects = projects
+        .and_then(|p| real(p))
+        .filter(|p| user_home.as_ref().is_none_or(|h| !h.starts_with(p)));
     let mut paths = Vec::new();
     for key in ["paths", "path", "filePath", "file"] {
         match input.get(key) {
@@ -923,14 +940,19 @@ fn own_media(agent_id: &str, input: &Value) -> bool {
     !paths.is_empty()
         && paths.iter().all(|p| {
             let path = Path::new(p);
-            let media = path
+            let ext = path
                 .extension()
                 .and_then(|e| e.to_str())
-                .is_some_and(|e| OWN_MEDIA.contains(&e.to_ascii_lowercase().as_str()));
+                .map(str::to_ascii_lowercase)
+                .unwrap_or_default();
             // `..` by either separator: in a Windows verbatim path (`\\?\C:\…`)
             // `/` isn't a separator, so `components()` alone misses `../x`.
             let climbs = p.split(['/', '\\']).any(|s| s == "..");
-            media && !climbs && real(path).is_some_and(|r| r.starts_with(&home) && r != home)
+            let inside = |root: &Path| real(path).is_some_and(|r| r.starts_with(root) && r != root);
+            !climbs
+                && ((OWN_MEDIA.contains(&ext.as_str()) && inside(&home))
+                    || (PROJECT_MEDIA.contains(&ext.as_str())
+                        && projects.as_deref().is_some_and(inside)))
         })
 }
 
@@ -1586,6 +1608,8 @@ pub fn agents_equivalent(name: &str, input: &Value) -> (String, Value) {
         "find" => ("find".into(), i),
         "get_text" => ("get_page_text".into(), i),
         "close_tab" => ("tabs_close_mcp".into(), i),
+        // A picture pasted from this Mac is an upload: the same rules.
+        "attach_image" => ("upload_image".into(), i),
         "browsers" => ("list_connected_browsers".into(), i),
         "use_browser" => ("select_browser".into(), i),
         "hover" => {

@@ -35,7 +35,7 @@ vi.mock('../../contexts/ToastContext', () => ({
   useOptionalToast: () => ({ showToast: vi.fn() }),
 }));
 
-import { AgentModelItems } from './AgentModelMenu';
+import { AgentModelChip, AgentModelItems, modelChipWords } from './AgentModelMenu';
 
 const finance = { id: 'a1', name: 'Finance', engine: 'claude', model: 'opus' } as Agent;
 
@@ -83,5 +83,34 @@ describe('AgentModelItems routines', () => {
     expect(screen.getByText('Routines · the model for its scheduled work')).toBeInTheDocument();
     expect(screen.queryByText(/^Routines run on/)).toBeNull();
     expect(screen.getByRole('menuitem', { name: /^Automatic/ })).toHaveTextContent('Fastest');
+  });
+});
+
+describe('AgentModelChip', () => {
+  const engines = [
+    {
+      id: 'claude',
+      label: 'Claude Code',
+      installed: true,
+      signedIn: true,
+      asks: true,
+      models: [{ value: 'opus', label: 'Opus' }],
+    },
+  ] as Parameters<typeof modelChipWords>[1];
+
+  it('names the engine and the model by its own name, and the effort when chosen', () => {
+    expect(modelChipWords(finance, engines)).toBe('Claude Code · Opus');
+    expect(modelChipWords({ ...finance, effort: 'high' }, engines)).toBe(
+      'Claude Code · Opus · High'
+    );
+    expect(modelChipWords({ ...finance, model: null }, engines)).toBe('Claude Code · Default');
+  });
+
+  it('shows the model under the message box and opens the same menu', () => {
+    render(<AgentModelChip agent={finance} />);
+    const chip = screen.getByRole('button', { name: /Model for Finance: Claude Code · Opus/ });
+    expect(chip).toHaveTextContent('Claude Code · Opus');
+    fireEvent.click(chip);
+    expect(screen.getByText('Effort · how hard it thinks')).toBeInTheDocument();
   });
 });

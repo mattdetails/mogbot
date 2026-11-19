@@ -6,7 +6,7 @@
 
 import type { OnItsOwn, OnItsOwnTeam } from '../../../packages/companion-protocol/src/onItsOwn';
 
-const ALWAYS = 'Always asks before spending money, using your passwords, or deleting for good.';
+const ALWAYS = 'Always asks before spending money.';
 const BOLD = 'Does local work on this Mac; asks before anything leaves it.';
 
 /** A plan that ends 42 minutes after the harness's page load. */
@@ -116,7 +116,7 @@ export function chiefOnItsOwn(agentId: string, agentName: string): OnItsOwn {
     level: 'full_send',
     ownLevel: true,
     levelLine:
-      'Sends, posts and pushes too; only stops for money, logins, deleting for good or going live.',
+      'Does anything you ask; only stops before spending money.',
     alwaysAsks: [ALWAYS],
     items: [
       {

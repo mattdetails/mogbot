@@ -14,6 +14,7 @@ import type { TerminalTab } from '../../hooks/useTerminalManagement';
 import { Terminal } from '../terminal/Terminal';
 import type { AgentStatus, TerminalHandle } from '../terminal/Terminal';
 import { StaleEnvBanner } from '../terminal/StaleEnvBanner';
+import { TabAccountChip } from '../terminal/TabAccountChip';
 import { DevServerLogs } from '../terminal/DevServerLogs';
 import { Button } from '../primitives/Button';
 import { IconButton } from '../primitives/IconButton';
@@ -180,6 +181,7 @@ export function WorkspaceTerminalPane(props: WorkspaceTerminalPaneProps) {
     picker,
   } = props;
   const picking = chatAgentId === PICK_AGENT;
+  const activeTab = terminalTabs.find((t) => t.id === activeTerminalTab);
   const chatting = Boolean(chatAgentId);
 
   // The rail: which slot this panel's placeholder belongs in, and where to
@@ -209,6 +211,16 @@ export function WorkspaceTerminalPane(props: WorkspaceTerminalPaneProps) {
               <span className="terminal-agent-header__identity">
                 <span className="panel-heading-pair-title workspace-panel-title">Terminal</span>
                 <span className="panel-heading-pair-meta">{getActiveTabAgent().displayName}</span>
+                {activeTab?.agentId === 'claude-code' && !isSplitActive && (
+                  <TabAccountChip
+                    sessionId={activeTab.sessionId}
+                    onSwitch={(notice) =>
+                      terminalRefsMap.current
+                        .get(`${currentProject.path}::${activeTab.id}`)
+                        ?.switchAccount?.(notice)
+                    }
+                  />
+                )}
               </span>
               {!isPreviewHidden && (
                 <span className="terminal-agent-header__actions">

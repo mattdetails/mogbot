@@ -60,9 +60,7 @@ describe('AgentsDiskSettings', () => {
         'This Mac has 1.8 GB free. Agents ask before installing packages or cloning.'
       )
     ).toBeTruthy();
-    expect(
-      screen.getByText('Its folder uses 39 GB, 37 GB of it safe to free.')
-    ).toBeTruthy();
+    expect(screen.getByText('Its folder uses 39 GB, 37 GB of it safe to free.')).toBeTruthy();
     expect(screen.getByText('Its folder uses 1.4 GB.')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /Free up space/ })).toHaveLength(1);
   });

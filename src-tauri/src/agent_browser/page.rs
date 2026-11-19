@@ -86,10 +86,38 @@ pub fn scroll_step_js(direction: &str) -> Option<&'static str> {
 /// queue stuck behind it.
 pub const SCROLL_WITHIN_FN: &str = "function (dx, dy) { let e = this && this.nodeType === 1 ? this : this && this.parentElement; for (let i = 0; e && i < 64; i++) { if (e.nodeType === 1 && e !== document.body && e !== document.documentElement) { const s = getComputedStyle(e); const y = dy !== 0 && /(auto|scroll|overlay)/.test(s.overflowY) && e.scrollHeight > e.clientHeight; const x = dx !== 0 && /(auto|scroll|overlay)/.test(s.overflowX) && e.scrollWidth > e.clientWidth; if (x || y) { const t = e.scrollTop, l = e.scrollLeft; e.scrollBy({ left: dx, top: dy, behavior: 'instant' }); return e.scrollTop !== t || e.scrollLeft !== l ? 'moved' : 'end'; } } const r = e.getRootNode && e.getRootNode(); e = e.parentElement || (r && r.host) || null; } return 'none'; }";
 
-/// Every function the app calls on a page's node (`Runtime.callFunctionOn`,
-/// numbers as its only arguments). The extension holds a copy and refuses
-/// anything else.
-pub const FUNCTIONS: &[&str] = &[SCROLL_WITHIN_FN];
+/// Collects one piece of a picture's base64 on the page, for
+/// [`ATTACH_FILE_FN`]: a message to the extension carries at most 1 MB, so
+/// a picture goes over in pieces. Arguments: an id, the piece's index and
+/// the piece.
+pub const ATTACH_CHUNK_FN: &str = "function (id, i, part) { const k = '__mogbotAttach'; const s = window[k] || (window[k] = {}); if (i === 0) s[id] = []; if (!s[id]) return -1; s[id][i] = part; return s[id].length; }";
+
+/// Hands the collected picture to the page as a file, for sites that ignore
+/// a pasted picture (LinkedIn): onto the page's picture `input[type=file]`
+/// (the node itself when it is one, else the first that takes images, open
+/// shadow roots included) with a change event; else, with `mayDrop`, dropped
+/// on the node. Returns 'input', 'drop', 'none' or 'lost'.
+pub const ATTACH_FILE_FN: &str = "function (id, name, type, mayDrop) { const s = window['__mogbotAttach'] || {}; const parts = s[id]; delete s[id]; if (!parts) return 'lost'; const b = atob(parts.join('')); const bytes = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) bytes[i] = b.charCodeAt(i); const dt = new DataTransfer(); dt.items.add(new File([bytes], name, { type: type })); const ext = '.' + type.split('/')[1]; const fits = (e) => { const a = (e.accept || '').toLowerCase(); return !e.disabled && (a === '' || a.includes('image') || a.includes(type) || a.includes(ext)); }; const me = this && this.nodeType === 1 ? this : null; const all = []; const walk = (root) => { for (const e of root.querySelectorAll('input[type=file]')) all.push(e); for (const h of root.querySelectorAll('*')) if (h.shadowRoot) walk(h.shadowRoot); }; if (me && me.tagName === 'INPUT' && (me.type || '').toLowerCase() === 'file') all.push(me); else walk(document); const input = all.find((e) => fits(e) && (e.accept || '') !== '') || all.find(fits); if (input) { input.files = dt.files; input.dispatchEvent(new Event('input', { bubbles: true, composed: true })); input.dispatchEvent(new Event('change', { bubbles: true, composed: true })); return 'input'; } if (!mayDrop || !me) return 'none'; for (const t of ['dragenter', 'dragover', 'drop']) me.dispatchEvent(new DragEvent(t, { bubbles: true, cancelable: true, composed: true, dataTransfer: dt })); return 'drop'; }";
+
+/// The largest piece of base64 sent in one call (under the extension's 1 MB
+/// message cap, with room for the envelope).
+pub const ATTACH_CHUNK: usize = 512 * 1024;
+
+/// Every function the app calls on a page's node (`Runtime.callFunctionOn`).
+/// The extension holds a copy and refuses anything else, and checks each
+/// one's arguments (numbers only, except the attach functions' own).
+pub const FUNCTIONS: &[&str] = &[SCROLL_WITHIN_FN, ATTACH_CHUNK_FN, ATTACH_FILE_FN];
+
+/// What [`PageCdp::attach_file`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Attached {
+    /// Set on the page's file input.
+    Input,
+    /// Dropped on the node.
+    Dropped,
+    /// Nothing on the page takes a file there.
+    Nothing,
+}
 
 /// What [`PageCdp::scroll_within`] did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -298,6 +326,23 @@ pub trait PageCdp {
             .map(|_| ())
     }
 
+    /// Paste what's on the clipboard where the cursor is, as ⌘V would:
+    /// Chrome's own paste command, so a page gets a real paste event with
+    /// the clipboard's files (an image a site's composer attaches).
+    fn paste(&self) -> Result<(), String> {
+        let ev = |t: &str| {
+            json!({
+                "type": t, "key": "v", "code": "KeyV", "modifiers": 4,
+                "windowsVirtualKeyCode": 86, "nativeVirtualKeyCode": 86,
+            })
+        };
+        let mut down = ev("keyDown");
+        down["commands"] = json!(["paste"]);
+        self.cdp("Input.dispatchKeyEvent", down)?;
+        self.cdp("Input.dispatchKeyEvent", ev("keyUp"))?;
+        Ok(())
+    }
+
     fn key(&self, key: Key) -> Result<(), String> {
         let (down, up) = key.events();
         self.cdp("Input.dispatchKeyEvent", down)?;
@@ -337,6 +382,89 @@ pub trait PageCdp {
             Some("end") => Scrolled::AtEnd,
             _ => Scrolled::Nothing,
         })
+    }
+
+    /// Give the page `bytes` as a file named `name` ([`ATTACH_FILE_FN`]),
+    /// starting from the node `backend_node_id`. An extension too old to
+    /// know the attach functions refuses the first call: that error comes
+    /// back as it is, so the caller can paste instead.
+    fn attach_file(
+        &self,
+        backend_node_id: i64,
+        bytes: &[u8],
+        name: &str,
+        mime: &str,
+        may_drop: bool,
+    ) -> Result<Attached, String> {
+        use base64::Engine as _;
+        let gone = "That control isn't on the page any more. Read the page again.";
+        let node = self
+            .cdp(
+                "DOM.resolveNode",
+                json!({ "backendNodeId": backend_node_id }),
+            )
+            .map_err(|_| gone.to_string())?;
+        let object = node["object"]["objectId"]
+            .as_str()
+            .ok_or_else(|| gone.to_string())?
+            .to_string();
+        let b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+        let id = format!(
+            "a{:x}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        );
+        let call = |f: &str, args: Value| {
+            let r = self.cdp(
+                "Runtime.callFunctionOn",
+                json!({
+                    "objectId": object,
+                    "functionDeclaration": f,
+                    "arguments": args,
+                    "returnByValue": true,
+                    "silent": true,
+                }),
+            )?;
+            if r.get("exceptionDetails").is_some() {
+                return Err("The page didn't take the picture.".to_string());
+            }
+            Ok(r["result"]["value"].clone())
+        };
+        // base64 is ASCII, so byte offsets are char boundaries.
+        let pieces: Vec<&str> = if b64.is_empty() {
+            vec![""]
+        } else {
+            b64.as_bytes()
+                .chunks(ATTACH_CHUNK)
+                .map(|c| std::str::from_utf8(c).unwrap_or(""))
+                .collect()
+        };
+        for (i, piece) in pieces.iter().enumerate() {
+            let got = call(
+                ATTACH_CHUNK_FN,
+                json!([{ "value": id }, { "value": i }, { "value": piece }]),
+            )?;
+            if got.as_i64() != Some(i as i64 + 1) {
+                return Err("The page didn't take the picture.".into());
+            }
+        }
+        let got = call(
+            ATTACH_FILE_FN,
+            json!([
+                { "value": id },
+                { "value": name },
+                { "value": mime },
+                { "value": if may_drop { 1 } else { 0 } },
+            ]),
+        )?;
+        match got.as_str() {
+            Some("input") => Ok(Attached::Input),
+            Some("drop") => Ok(Attached::Dropped),
+            Some("none") => Ok(Attached::Nothing),
+            _ => Err("The page didn't take the picture.".into()),
+        }
     }
 
     fn wheel(&self, x: f64, y: f64, dx: f64, dy: f64) -> Result<(), String> {
@@ -537,6 +665,50 @@ mod tests {
             .contains("Read the page again"));
         // Never smooth: a tab Chrome isn't painting never animates.
         assert!(SCROLL_WITHIN_FN.contains("behavior: 'instant'"));
+    }
+
+    #[test]
+    fn a_picture_goes_over_in_pieces_then_as_a_file() {
+        let f = fake(|m, p| match m {
+            "DOM.resolveNode" => Ok(json!({ "object": { "objectId": "o-1" } })),
+            _ if p["functionDeclaration"] == ATTACH_CHUNK_FN => Ok(
+                json!({ "result": { "value": p["arguments"][1]["value"].as_i64().unwrap() + 1 } }),
+            ),
+            _ => Ok(json!({ "result": { "value": "input" } })),
+        });
+        let bytes = vec![7u8; ATTACH_CHUNK * 2];
+        assert_eq!(
+            f.attach_file(4, &bytes, "post.png", "image/png", true)
+                .unwrap(),
+            Attached::Input
+        );
+        let sent = f.sent.borrow();
+        let calls: Vec<_> = sent
+            .iter()
+            .filter(|(m, _)| m == "Runtime.callFunctionOn")
+            .collect();
+        // base64 of 1 MB is ~1.4 MB: three pieces, then the file.
+        assert_eq!(calls.len(), 4);
+        assert!(calls[..3]
+            .iter()
+            .all(|(_, p)| p["arguments"][2]["value"].as_str().unwrap().len() <= ATTACH_CHUNK));
+        let last = &calls[3].1;
+        assert_eq!(last["functionDeclaration"], ATTACH_FILE_FN);
+        assert_eq!(last["arguments"][1]["value"], "post.png");
+        assert_eq!(last["arguments"][3]["value"], 1);
+        // An extension that doesn't know the functions: its refusal comes back as is.
+        let old = fake(|m, _| match m {
+            "DOM.resolveNode" => Ok(json!({ "object": { "objectId": "o-1" } })),
+            _ => Err("The extension refused that (only the app’s own functions run).".into()),
+        });
+        assert!(old
+            .attach_file(4, b"x", "a.png", "image/png", true)
+            .unwrap_err()
+            .starts_with("The extension refused"));
+        // No double quotes or backslashes: the extension's copy is the same literal.
+        for f in [ATTACH_CHUNK_FN, ATTACH_FILE_FN] {
+            assert!(!f.contains('"') && !f.contains('\\'));
+        }
     }
 
     #[test]

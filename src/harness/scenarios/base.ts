@@ -466,6 +466,31 @@ export const baseCommands: CommandMap = {
     codex: args.engine === 'codex' ? args.mode : 'ask',
     away: [],
   }),
+  // Terminal tabs on the wallet's accounts (`agents::tab_accounts`): never
+  // chosen (ask first, the default), and no tab has run out.
+  tab_account_mode: 'ask',
+  tab_account_set_mode: (args: Record<string, unknown>) => args.mode,
+  tab_account_notice: null,
+  tab_account_settle: null,
+  // A tab's account chip (`tab_accounts::TabAccounts`): nothing to switch
+  // unless a scenario says so (`workspace-tab-account`).
+  tab_account_info: { accounts: [] },
+  tab_account_choose: (args: Record<string, unknown>) => ({
+    sessionId: args.sessionId,
+    kind: 'switch',
+    ask: false,
+    line: 'Continuing on Work…',
+    to: 'Work',
+    prompt: 'Continue where you left off.',
+  }),
+  // The agent list's folders (`agents::folders`): changes answer as the Mac does.
+  agents_folder_create: { id: 'f-new', name: 'SEO' },
+  agents_folder_rename: { id: 'f-new', name: 'SEO' },
+  agents_folder_delete: null,
+  agents_folders_reorder: { folders: [], pinned: 'top' },
+  agents_set_folder: null,
+  agents_folders_set_pinned: { folders: [], pinned: 'top' },
+  agents_folders_bring_in: { folders: [], pinned: 'top', broughtIn: true },
   // How much agents do on their own (`agents::independence`): never chosen.
   agents_independence: 'judgement',
   agents_set_independence: (args: Record<string, unknown>) => args.level,

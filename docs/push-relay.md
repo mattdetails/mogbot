@@ -218,8 +218,8 @@ $5 a month. APNs and FCM are free.
 
 **Not verified:**
 
-- No real APNs or FCM delivery. The key doesn't exist yet.
-- That Workers' `fetch` reaches APNs over HTTP/2. MausBot runs the same
-  design in a Worker, but we haven't seen it ourselves.
+- FCM (Android): no key yet, so no Android delivery.
+- Verified since 12 Nov 2026: real APNs delivery from the Worker to an iPhone
+  (the Mac logs `[Companion] push outcome sent` and the phone shows it).
 - The phone side on a device: getting the token and opening the chat from a
   real push. These are covered by unit tests only.

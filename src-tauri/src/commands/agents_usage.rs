@@ -184,3 +184,65 @@ pub async fn agents_set_crossover(
     changed(&app);
     Ok(view)
 }
+
+/* ------------------------------------------------- terminal tabs' accounts */
+
+/// The notice a terminal tab hasn't acted on yet: its account ran out while
+/// no tab was showing it (`agents::tab_accounts`).
+#[tauri::command]
+#[tracing::instrument]
+pub fn tab_account_notice(
+    session_id: String,
+) -> Result<Option<agents::tab_accounts::Notice>, CommandError> {
+    Ok(agents::tab_accounts::pending(&session_id))
+}
+
+/// The tab switched, or the user put its notice away.
+#[tauri::command]
+#[tracing::instrument]
+pub fn tab_account_settle(session_id: String) -> Result<(), CommandError> {
+    agents::tab_accounts::settle(&session_id);
+    Ok(())
+}
+
+/// The account chip on a terminal tab: what it runs on and what it can move to.
+#[tauri::command]
+#[tracing::instrument]
+pub async fn tab_account_info(
+    session_id: String,
+) -> Result<agents::tab_accounts::TabAccounts, CommandError> {
+    Ok(agents::tab_accounts::info(&session_id).await)
+}
+
+/// The user moved a terminal tab to another account from its chip: the tab
+/// restarts there with its conversation (the returned notice says how).
+#[tauri::command]
+#[tracing::instrument]
+pub async fn tab_account_choose(
+    session_id: String,
+    account_id: String,
+) -> Result<agents::tab_accounts::Notice, CommandError> {
+    agents::tab_accounts::choose(&session_id, &account_id).await
+}
+
+/// Switch on its own, ask, or off: what a terminal tab does when its
+/// account runs out.
+#[tauri::command]
+#[tracing::instrument]
+pub async fn tab_account_mode() -> Result<agents::tab_accounts::Mode, CommandError> {
+    tokio::task::spawn_blocking(agents::tab_accounts::mode)
+        .await
+        .map_err(agents::err_other)
+}
+
+#[tauri::command]
+#[tracing::instrument]
+pub async fn tab_account_set_mode(
+    mode: String,
+) -> Result<agents::tab_accounts::Mode, CommandError> {
+    let mode = agents::tab_accounts::Mode::parse(&mode)?;
+    tokio::task::spawn_blocking(move || agents::tab_accounts::set_mode(mode))
+        .await
+        .map_err(agents::err_other)??;
+    Ok(mode)
+}

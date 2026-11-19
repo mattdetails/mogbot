@@ -49,7 +49,7 @@ export const INDEPENDENCE_DETAIL: Record<AgentIndependence, string> = {
   judgement: 'Reads and edits; asks before running changes or anything leaving this Mac.',
   go_hard: 'Does local work on this Mac; asks before anything leaves it.',
   full_send:
-    'Sends, posts and pushes too; only stops for money, logins, deleting for good or going live.',
+    'Does anything you ask; only stops before spending money.',
 };
 
 /** A stop's line, naming the computer the agents run on (`computer.ts`). */
@@ -59,7 +59,7 @@ export function independenceDetail(level: AgentIndependence, kind?: ComputerKind
 
 /** Always under the slider: true at every stop. */
 export const INDEPENDENCE_ALWAYS_ASKS =
-  'Always asks before spending money, using your passwords, or deleting for good.';
+  'Always asks before spending money.';
 
 /** What still asks at each level: the same line at every stop. */
 export const INDEPENDENCE_STILL_ASKS: Record<AgentIndependence, string> = {

@@ -21,7 +21,7 @@
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder};
+use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 
@@ -323,6 +323,11 @@ fn schedule(app: &AppHandle) {
     });
 }
 
+/// Rebuild the menu soon (the Accounts section read something new).
+pub fn refresh_soon(app: &AppHandle) {
+    schedule(app);
+}
+
 /// Add or remove the icon to match [`wanted`], then bring it up to date.
 pub fn sync(app: &AppHandle) {
     let present = app.tray_by_id(TRAY_ID).is_some();
@@ -403,6 +408,64 @@ fn section<'a>(
     Ok(menu.separator())
 }
 
+/// Accounts in the user's order (each: use first, or open Settings), then
+/// Terminal chats to continue on another account; nothing before the first read.
+fn accounts_section<'a>(
+    app: &AppHandle,
+    menu: Builder<'a>,
+    model: &super::tray_accounts::Model,
+) -> tauri::Result<Builder<'a>> {
+    if model.accounts.is_empty() {
+        return Ok(menu);
+    }
+    let mut menu = menu.item(&MenuItemBuilder::new("Accounts").enabled(false).build(app)?);
+    for a in &model.accounts {
+        let engine = serde_json::to_value(a.engine)
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_string))
+            .unwrap_or_default();
+        let title = if a.next {
+            format!("{} · runs next", a.label)
+        } else {
+            a.label.clone()
+        };
+        let sub = SubmenuBuilder::new(app, truncate(&title))
+            .item(
+                &MenuItemBuilder::with_id(format!("first:{engine}:{}", a.id), "Use this one first")
+                    .enabled(!a.next)
+                    .build(app)?,
+            )
+            .item(&MenuItemBuilder::with_id("accounts", "Accounts & usage…").build(app)?)
+            .build()?;
+        menu = menu.item(&sub);
+    }
+    if !model.chats.is_empty() {
+        let mut chats = SubmenuBuilder::new(app, "Continue a Terminal chat");
+        for c in &model.chats {
+            let mut sub = SubmenuBuilder::new(app, truncate(&c.label));
+            if c.targets.is_empty() {
+                sub = sub.item(
+                    &MenuItemBuilder::new("No other account signed in")
+                        .enabled(false)
+                        .build(app)?,
+                );
+            }
+            for t in &c.targets {
+                sub = sub.item(
+                    &MenuItemBuilder::with_id(
+                        format!("carry:{}:{}", c.session, t.account_id),
+                        truncate(&t.label),
+                    )
+                    .build(app)?,
+                );
+            }
+            chats = chats.item(&sub.build()?);
+        }
+        menu = menu.item(&chats.build()?);
+    }
+    Ok(menu.separator())
+}
+
 fn build_menu(app: &AppHandle, model: &TrayModel) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     let stay = crate::commands::remote_access::get_stay_on().ok();
     let mut menu = MenuBuilder::new(app);
@@ -414,6 +477,7 @@ fn build_menu(app: &AppHandle, model: &TrayModel) -> tauri::Result<tauri::menu::
         model.needs_you_more,
     )?;
     menu = section(app, menu, "Working", &model.working, model.working_more)?;
+    menu = accounts_section(app, menu, &super::tray_accounts::model())?;
     menu = menu
         .item(&MenuItemBuilder::with_id("open", format!("Open {}", crate::brand::NAME)).build(app)?)
         .item(&MenuItemBuilder::with_id("quick", "New message to Chief…").build(app)?)
@@ -443,6 +507,9 @@ fn build_menu(app: &AppHandle, model: &TrayModel) -> tauri::Result<tauri::menu::
 }
 
 fn on_menu(app: &AppHandle, id: &str) {
+    if super::tray_accounts::on_menu(app, id) {
+        return;
+    }
     if let Some(agent_id) = id.strip_prefix("agent:") {
         super::notify::open_agent(app, agent_id);
         return;

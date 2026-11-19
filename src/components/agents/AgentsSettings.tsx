@@ -42,7 +42,6 @@ import { Row, Toggle } from './AgentSettingsRows';
 import { SectionBoundary } from './AgentsErrorBoundary';
 import { AgentTeamPolicySettings } from './AgentTeamPolicySettings';
 import { OnItsOwnTeamSettings } from './AgentOnItsOwn';
-import { AgentsBrowserSettings } from './AgentsBrowserSettings';
 import { AgentsUserChromeSettings } from './AgentsUserChromeSettings';
 import { AgentsSlackSettings } from './AgentsSlackSettings';
 import { AgentPreviewFixSetting } from './AgentPreviewFixSetting';
@@ -303,9 +302,6 @@ export function NotificationsPage() {
 export function ChromePage() {
   return (
     <div className="agents-settings">
-      <SectionBoundary name="browser">
-        <AgentsBrowserSettings />
-      </SectionBoundary>
       <SectionBoundary name="user-chrome">
         <AgentsUserChromeSettings />
       </SectionBoundary>

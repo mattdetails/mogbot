@@ -196,7 +196,8 @@ fn bold_and_unleashed_ask_for_a_write_a_link_carries_out_of_the_project() {
         let Landing::Redirected { input: real, .. } = landing(tool, &written, &proj, &home) else {
             panic!("{rel}: not redirected");
         };
-        for level in [Level::GoHard, Level::FullSend] {
+        // Unleashed asks only for money now, so this is Bold's rule.
+        for level in [Level::GoHard] {
             // As written, it passed: the gap.
             assert!(
                 auto(level, false, tool, &written, &ctx).is_some(),

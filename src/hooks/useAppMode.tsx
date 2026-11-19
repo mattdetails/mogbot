@@ -26,7 +26,8 @@
 
 import { menuOwnsShortcuts, onMenuAction } from '../lib/nativeMenu';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { AgentsIcon, FolderOpenIcon } from '@/components/icons';
+import { AgentsIcon, FolderOpenIcon, SplitViewIcon } from '@/components/icons';
+import { toggleSideBySide, useSideBySide } from '../lib/sideBySide';
 import { useCommands } from '../commands/useCommands';
 import { useAgentsNavCommands } from '../commands/useAgentsCommands';
 import { MODE_TOGGLE_SHORTCUT } from '../components/workspace/ModeToggle';
@@ -75,6 +76,14 @@ export function useAppMode({
   }, []);
   useAgentsNavCommands({ setView: navigate });
 
+  // Side by side (lib/sideBySide): Agents always shows on the left, so the
+  // window's view is the project side's, and switching modes changes nothing.
+  const { on: sideBySide } = useSideBySide();
+  const sideBySideRef = useRef(sideBySide);
+  useEffect(() => {
+    sideBySideRef.current = sideBySide;
+  }, [sideBySide]);
+
   const lastProjectsPlace = useRef<Place>({ view: 'projects', projectPath: null });
   useEffect(() => {
     if (!PROJECTS_SIDE.includes(view)) return;
@@ -109,9 +118,15 @@ export function useAppMode({
   }, [navigate]);
 
   const goAgents = useCallback(() => {
+    // Side by side, Agents is already on screen: the project side stays.
+    if (sideBySideRef.current) return;
     side.current = { ...side.current, agents: true };
     navigate('agents');
   }, [navigate]);
+
+  useEffect(() => {
+    if (sideBySide && view === 'agents') goProjects();
+  }, [sideBySide, view, goProjects]);
 
   const inMode = inAgents || PROJECTS_SIDE.includes(view);
   const toggle = useCallback(
@@ -129,7 +144,7 @@ export function useAppMode({
       if (menuOwnsShortcuts()) return;
       if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.altKey) return;
       if (event.code !== 'KeyA' || event.repeat) return;
-      if (!latest.current.inMode) return;
+      if (!latest.current.inMode || sideBySideRef.current) return;
       // A dialog owns the keyboard; switching the window under it would strand it.
       if (document.querySelector('[aria-modal="true"]')) return;
       event.preventDefault();
@@ -137,7 +152,7 @@ export function useAppMode({
     };
     window.addEventListener('keydown', onKeyDown, { capture: true });
     const offMenu = onMenuAction((action) => {
-      if (action !== 'toggle_mode' || !latest.current.inMode) return;
+      if (action !== 'toggle_mode' || !latest.current.inMode || sideBySideRef.current) return;
       if (document.querySelector('[aria-modal="true"]')) return;
       latest.current.toggle();
     });
@@ -156,15 +171,24 @@ export function useAppMode({
         category: 'navigation',
         keywords: ['mode', 'toggle', 'projects', 'agents', 'switch'],
         shortcut: MODE_TOGGLE_SHORTCUT,
-        when: () => inMode,
+        when: () => inMode && !sideBySide,
         run: toggle,
       },
+      {
+        id: 'agents.sideBySide',
+        title: sideBySide ? 'Show one side at a time' : 'Show Agents and Projects side by side',
+        icon: <SplitViewIcon size={14} />,
+        category: 'navigation',
+        keywords: ['split', 'side by side', 'both', 'terminals', 'agents', 'projects', '50/50'],
+        when: () => inMode,
+        run: toggleSideBySide,
+      },
     ],
-    [inAgents, inMode, toggle]
+    [inAgents, inMode, toggle, sideBySide]
   );
 
   return useMemo(
-    () => ({ onGoProjects: goProjects, onGoAgents: goAgents, navigate }),
-    [goProjects, goAgents, navigate]
+    () => ({ onGoProjects: goProjects, onGoAgents: goAgents, navigate, sideBySide }),
+    [goProjects, goAgents, navigate, sideBySide]
   );
 }

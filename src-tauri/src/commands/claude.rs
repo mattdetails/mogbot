@@ -43,10 +43,17 @@ pub fn claude_session_exists(project_path: String, session_id: String) -> bool {
         .map(|c| if c == '/' || c == '\\' { '-' } else { c })
         .collect();
     let project_dir = claude_dir.join("projects").join(&sanitized);
-    if !project_dir.is_dir() {
-        return false;
+    if project_dir.is_dir() && session_transcript_exists(&project_dir, &session_id) {
+        return true;
     }
-    session_transcript_exists(&project_dir, &session_id)
+    // A Default-workspace tab may have last run on another of the wallet's
+    // accounts (`agents::tab_accounts`): its transcript is in that account's
+    // folder, and is carried over when the tab resumes.
+    account_id == crate::commands::accounts::DEFAULT_ACCOUNT_ID
+        && crate::agents::wallet::session_on_disk(
+            crate::agents::engine::Engine::Claude,
+            &session_id,
+        )
 }
 
 /// Whether Claude has a resumable transcript for `session_id` in `project_dir`.

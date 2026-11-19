@@ -110,6 +110,74 @@ pub fn asks(tool: &str, input: &Value, ctx: &Ctx, outside: bool) -> bool {
     }
 }
 
+/// The one thing "Unleashed" still asks for: spending or moving money.
+/// Payment APIs written to by a command (`curl -d … api.stripe.com`, the
+/// `stripe` CLI changing anything), and connector tools whose name says they
+/// pay, charge, buy, refund or move money. The browser's money clicks are the
+/// browser gate's (`browser_gate::final_submit`).
+pub fn spends(tool: &str, input: &Value) -> bool {
+    let field = |k: &str| input.get(k).and_then(Value::as_str).unwrap_or("");
+    match tool {
+        "Bash" => command_spends(field("command")),
+        t if t.starts_with(super::browser_gate::SERVER) => false,
+        t if t.starts_with("mcp__") => connector_spends(t),
+        _ => false,
+    }
+}
+
+const MONEY_TOOL_WORDS: &[&str] = &[
+    "pay", "payment", "payout", "charge", "purchase", "buy", "checkout", "refund", "transfer",
+    "withdraw", "donate", "subscribe", "order",
+];
+const READ_TOOL_WORDS: &[&str] = &["get", "list", "search", "retrieve", "read", "find", "show", "view"];
+
+fn connector_spends(tool: &str) -> bool {
+    let name = tool.rsplit("__").next().unwrap_or(tool).to_ascii_lowercase();
+    let words: Vec<&str> = name.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()).collect();
+    if words.first().is_some_and(|w| READ_TOOL_WORDS.contains(w)) {
+        return false;
+    }
+    words.iter().any(|w| {
+        MONEY_TOOL_WORDS
+            .iter()
+            .any(|m| *w == *m || w.strip_suffix('s') == Some(m))
+    })
+}
+
+fn command_spends(command: &str) -> bool {
+    command
+        .split(['\n', ';', '|', '&'])
+        .map(|seg| seg.split_whitespace().collect::<Vec<_>>())
+        .any(|ws| {
+            let Some(prog) = ws.first().map(|p| p.rsplit('/').next().unwrap_or(p)) else {
+                return false;
+            };
+            let args = &ws[1..];
+            match prog {
+                "stripe" => args.iter().any(|a| {
+                    matches!(
+                        *a,
+                        "create" | "update" | "post" | "delete" | "pay" | "capture" | "confirm" | "refunds" | "payouts" | "transfers" | "charges"
+                    )
+                }),
+                "curl" | "wget" | "http" | "https" | "xh" | "xhs" => {
+                    let writes = args.iter().any(|a| {
+                        a.starts_with("-d")
+                            || a.starts_with("--data")
+                            || *a == "-F"
+                            || a.starts_with("--form")
+                            || a.eq_ignore_ascii_case("POST")
+                            || a.eq_ignore_ascii_case("-XPOST")
+                            || *a == "--json"
+                            || matches!(prog, "http" | "https" | "xh" | "xhs") && a.contains('=')
+                    });
+                    writes && args.iter().any(|a| pay_api(a.trim_matches(['\'', '"'])))
+                }
+                _ => false,
+            }
+        })
+}
+
 /// What no rule remembered from chat ever covers (`remember`), whatever it
 /// says: commands and file work on Go hard's own ask list (pushing,
 /// publishing, deploys, sending, `sudo`, deleting outside the work folders,
