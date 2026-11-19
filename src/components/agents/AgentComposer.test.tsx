@@ -193,3 +193,52 @@ describe('↵ queues, ⌘↵ sends now, while it works', () => {
     expect(box).toHaveAccessibleDescription(/Command Enter interrupts Ops/);
   });
 });
+
+describe('the bar: Send, Dictate, Stop', () => {
+  it('leaves the model to the header, and shows Dictate only while the box is empty', () => {
+    render(<Chat id="a1" onSend={() => {}} renders={() => {}} />);
+    expect(screen.queryByRole('button', { name: /^Model for/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Dictate' })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message Ops' }), {
+      target: { value: 'hi' },
+    });
+    expect(screen.queryByRole('button', { name: 'Dictate' })).toBeNull();
+  });
+
+  it('keeps Send neutral (never the agent colour) and off until there is something to send', () => {
+    render(<Chat id="a1" onSend={() => {}} renders={() => {}} />);
+    const send = screen.getByRole('button', { name: 'Send' });
+    expect(send).toBeDisabled();
+    expect(send.className).toMatch(/strong/);
+    expect(send.className).not.toMatch(/primary/);
+  });
+
+  it('turns Send into Stop while it works with nothing typed, and Stop stops the turn', () => {
+    const onStop = vi.fn();
+    render(
+      <AgentComposer
+        agentId="a2"
+        agentName="Ops"
+        inputRef={createRef()}
+        micRef={createRef()}
+        dictation={dictation}
+        mentionSet={[]}
+        staged={[]}
+        onRemoveStaged={() => {}}
+        onPaste={() => {}}
+        quotes={[]}
+        onRemoveQuote={() => {}}
+        revising={null}
+        onClearRevising={() => {}}
+        busy
+        working
+        onStop={onStop}
+        onSend={() => {}}
+        onPickFiles={() => {}}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Stop Ops' }));
+    expect(onStop).toHaveBeenCalledTimes(1);
+  });
+});

@@ -143,30 +143,16 @@
   gap: var(--spacing-xs);
 }
 
-/* "Claude Code · Opus ⌄" beside the mic: which model this chat runs on,
-   always in view, and one click to change it. Quiet text until hovered;
-   a long Codex model name is cut short rather than squeezing the field. */
-.agent-composer__model {
-  min-width: 0;
-  max-width: 220px; /* css-ok: cap so the text field keeps its room */
-}
-
-.agent-composer__model-button {
-  max-width: 100%;
-  color: var(--text-secondary);
-  font-size: var(--font-size-body-sm);
-}
-
-.agent-composer__model-words {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .agent-composer__attach,
 .agent-composer__send,
 .agent-composer__stop {
   flex: 0 0 auto;
+}
+
+/* Send is the neutral strong button (never the agent's colour), and an empty
+   box leaves it at 30%: there is nothing to send yet. */
+.agent-composer__send:disabled {
+  opacity: 0.3; /* css-ok: disabled Send, the composer audit's 30% */
 }
 
 /* A square, as every media Stop is: at 8px with a 4px radius it was a dot. */
@@ -417,8 +403,8 @@
 }
 
 /* Wrapped: the words take the box's whole width on a row of their own and
-   the tools sit in a row underneath, as on the phone: attach and the model
-   on the left, the mic and Send on the right. One line stays one row. */
+   the tools sit in a row underneath, as on the phone: attach on the
+   left, the mic and Send on the right. One line stays one row. */
 .agent-composer[data-wrapped][data-dictation='idle'] {
   grid-template-columns: auto minmax(0, 1fr) auto auto;
 }
@@ -438,13 +424,6 @@
 
 .agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__actions {
   display: contents;
-}
-
-.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__model {
-  grid-column: 2;
-  order: 3;
-  justify-self: start;
-  align-self: center;
 }
 
 .agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__mic {

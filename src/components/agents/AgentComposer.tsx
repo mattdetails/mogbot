@@ -21,7 +21,6 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from 'react';
-import { AgentModelChip } from './AgentModelMenu';
 import { ArrowUpIcon, MicrophoneIcon, PaperclipIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
 import { TextArea } from '../primitives/TextField';
@@ -97,8 +96,6 @@ interface AgentComposerProps {
   unfilled?: string | null;
   /** The last message you sent in this chat, for ↑ in an empty composer. */
   lastSent?: () => string | null;
-  /** The agent whose model is shown as a switcher beside the mic (`AgentModelChip`). */
-  modelOf?: Agent;
 }
 
 /**
@@ -193,7 +190,6 @@ export const AgentComposer = memo(function AgentComposer({
   onPickFiles,
   unfilled,
   lastSent,
-  modelOf,
 }: AgentComposerProps) {
   const draft = useComposerDraft(agentId);
   const setDraft = useMemo(() => (text: string) => setComposerDraft(agentId, text), [agentId]);
@@ -240,15 +236,16 @@ export const AgentComposer = memo(function AgentComposer({
   const [wrapped, setWrapped] = useState(false);
   // Under about 480px the model chip takes the row: the placeholder shortens to
   // "Message" so it stays on one line.
-  const formRef = useRef<HTMLFormElement>(null);
+  const [form, setForm] = useState<HTMLFormElement | null>(null);
   const [narrow, setNarrow] = useState(false);
   useLayoutEffect(() => {
-    const el = formRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const watch = new ResizeObserver(() => setNarrow(el.clientWidth < NARROW_COMPOSER_PX));
-    watch.observe(el);
+    if (!form || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setNarrow(form.clientWidth < NARROW_COMPOSER_PX);
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(form);
     return () => watch.disconnect();
-  }, []);
+  }, [form]);
   useLayoutEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -288,7 +285,7 @@ export const AgentComposer = memo(function AgentComposer({
 
   return (
     <form
-      ref={formRef}
+      ref={setForm}
       className="agent-composer"
       data-wrapped={wrapped || undefined}
       data-queueing={(queueing && !learned) || undefined}
@@ -408,19 +405,24 @@ export const AgentComposer = memo(function AgentComposer({
           </p>
         )}
         <div className="agent-composer__actions">
-          {!dictating && modelOf && <AgentModelChip agent={modelOf} />}
-          <IconButton
-            ref={micRef}
-            tabIndex={0}
-            variant="ghost"
-            className="agent-composer__mic"
-            icon={<MicrophoneIcon size={14} />}
-            onClick={dictation.toggle}
-            disabled={dictation.phase === 'finishing' || dictation.phase === 'tidying'}
-            aria-pressed={dictating}
-            aria-label={dictating ? 'Stop dictating' : 'Dictate'}
-            title={dictating ? 'Stop dictating (Esc to discard)' : 'Dictate (⌘⇧D, or hold ⌥Space)'}
-          />
+          {/* Dictate is for an empty box: once there's text it steps aside
+              (and stays while dictating, which is what fills the box). */}
+          {(dictating || draft.trim().length === 0) && (
+            <IconButton
+              ref={micRef}
+              tabIndex={0}
+              variant="ghost"
+              className="agent-composer__mic"
+              icon={<MicrophoneIcon size={14} />}
+              onClick={dictation.toggle}
+              disabled={dictation.phase === 'finishing' || dictation.phase === 'tidying'}
+              aria-pressed={dictating}
+              aria-label={dictating ? 'Stop dictating' : 'Dictate'}
+              title={
+                dictating ? 'Stop dictating (Esc to discard)' : 'Dictate (⌘⇧D, or hold ⌥Space)'
+              }
+            />
+          )}
           {working && !canSend && !blank && !dictating ? (
             <IconButton
               tabIndex={0}
@@ -436,7 +438,7 @@ export const AgentComposer = memo(function AgentComposer({
             <IconButton
               tabIndex={0}
               type="submit"
-              variant={!sendDisabled(dictation.phase, canSend) ? 'primary' : 'secondary'}
+              variant="strong"
               className="agent-composer__send"
               icon={<ArrowUpIcon size={14} />}
               disabled={sendDisabled(dictation.phase, canSend)}

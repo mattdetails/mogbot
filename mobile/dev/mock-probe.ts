@@ -22,7 +22,7 @@
  * Every name, address and number is made up.
  */
 
-import type { Agent, AgentMessage, UsageAccount } from '@shipstudio/companion-protocol';
+import type { Agent, AgentMessage, TurnWork, UsageAccount } from '@shipstudio/companion-protocol';
 import { resetPhrase } from '@shipstudio/companion-protocol';
 
 type Base = (id: string, name: string, role: string, color: string, extra: Partial<Agent>) => Agent;
@@ -307,6 +307,65 @@ export function addProbeAccount(
         text: 'On it. Gift-card field first, then the balance check.',
       },
       { ts: now - MIN, kind: 'user', text: 'Also check the checkout totals.' },
+    ]
+  );
+
+  // The working indicator: one phrase from the observed step, a timer after 8s,
+  // "Still working" when quiet.
+  const turn = (startedAgo: number, over: Record<string, unknown> = {}): TurnWork => ({
+    startedAt: now - startedAgo,
+    stepCount: 1,
+    fileCount: 0,
+    steps: [{ at: now - startedAgo + 1000, kind: 'web' as const, label: 'Read northwind.example' }],
+    lastSignAt: now - 1500,
+    ...over,
+  });
+  put(
+    base('worker', 'Lead Gen', 'Finds and writes to leads', 'teal', {
+      status: {
+        state: 'working',
+        activity: 'In Chrome on linkedin.com',
+        since: now - 21_000,
+        work: turn(21_000, {
+          doing: 'In Chrome on linkedin.com',
+          current: {
+            kind: 'tool',
+            label: 'In Chrome on linkedin.com',
+            startedAt: now - 4000,
+            streams: false,
+            canStop: false,
+            chrome: true,
+          },
+        }),
+      },
+      lastActivityAt: now - 21_000,
+    }),
+    [
+      {
+        ts: now - 3 * MIN,
+        kind: 'user',
+        text: 'Research Northwind Studio and draft the intro emails.',
+      },
+      {
+        ts: now - 2 * MIN,
+        kind: 'agent',
+        text: 'On it. I’ll start with their site, then LinkedIn.',
+      },
+    ]
+  );
+  put(
+    base('quietw', 'Finance', 'Pays and tracks bills', 'orange', {
+      status: {
+        state: 'working',
+        activity: 'Reading the Apollo invoices',
+        since: now - 100_000,
+        work: turn(100_000, { lastSignAt: now - 100_000 }),
+      },
+      lastActivityAt: now - 100_000,
+    }),
+    [
+      { ts: now - 3 * MIN, kind: 'user', text: 'Reconcile the Apollo invoices.' },
+      { ts: now - 2 * MIN, kind: 'agent', text: 'Starting with the October ones.' },
     ]
   );
 

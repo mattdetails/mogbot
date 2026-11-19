@@ -134,6 +134,8 @@ export interface LiveCall {
   output?: string[];
   /** The engine streams this call's output; when false it appears only once it finishes. */
   streams: boolean;
+  /** "3 of 8": only when the step itself reports it (a test run, a batch); never worked out. */
+  progress?: { done: number; total: number };
   /** Its process was using the CPU at the last look; absent when not found. */
   busy?: boolean;
   /** "Stop this step" can find its process. */

@@ -385,8 +385,18 @@
   color: var(--accent-error, var(--text-primary));
 }
 
+.agent-draft__text[data-scrolls] {
+  /* More below: the last line fades out over 24px instead of being cut mid-line. */
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 24px),
+    transparent
+  ); /* css-ok: a mask's opacity ramp, not a colour */
+}
+
 .agent-draft__from {
-  margin: 0;
+  /* 8px of card gap + 6 = 14px from the words' block. */
+  margin: var(--spacing-tight) 0 0;
   font-size: var(--font-size-body-sm);
   color: var(--text-muted);
 }
@@ -540,7 +550,8 @@
   margin-left: var(--spacing-xs);
   font: inherit;
   font-size: var(--font-size-body-sm);
-  opacity: 0.6;
+  /* A text role, not opacity: 0.6 over the button's ink fell under 4.5:1 (axe). */
+  color: var(--text-secondary);
 }
 
 .agents-catchup__next {

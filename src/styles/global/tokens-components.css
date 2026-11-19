@@ -394,6 +394,11 @@
   /* The working line's height (agents-work.css, .agent-working__line): one
      reading line. A reply's first streamed line holds this height so the line
      hands off in place. */
+  /* The working row (AgentWorkingIndicator): 40px tall, 10px under the last bubble or card, and
+     a phrase that swaps in over 150ms. */
+  --agents-working-height: 40px;
+  --agents-working-gap: 10px;
+  --agents-working-swap: 150ms;
   --agents-motion-working-height: calc(var(--font-size-subhead) * 1.4);
   /* The working line's lead column (and the steps' icon column): the agent's
      key (AgentKey, size sm) sits in it, pressed while it works. */

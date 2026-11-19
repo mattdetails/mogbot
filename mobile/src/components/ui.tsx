@@ -198,6 +198,8 @@ const buttonColorsOf = (
 
 /** Every disabled control, filled or not. */
 export const DISABLED_OPACITY = 0.4;
+/** Send with nothing to send: fainter than the rest, so it reads as not yet (the composer audit's 30%). */
+export const SEND_OFF_OPACITY = 0.3;
 
 export function Button({
   title,

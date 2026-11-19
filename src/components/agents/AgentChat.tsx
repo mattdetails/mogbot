@@ -65,6 +65,7 @@ import { AgentAccountChip } from './AccountSwitcher';
 import { AgentFilesModal } from './AgentFilesModal';
 import { RememberModal } from './AgentRemember';
 import { useArrivals, useFollowBottom, usePresence, useRecently } from './useAgentMotion';
+import { useNextLine } from './useNextLine';
 import { useRowAnchoring } from './useRowAnchoring';
 import { useDictation } from './useDictation';
 import {
@@ -123,6 +124,7 @@ import {
   WorkingIndicator,
 } from './AgentChatItems';
 import { DecideCards } from './AgentAdmin';
+import { needsOkLine } from '../../../packages/companion-protocol/src/workIndicator';
 import { AgentProjectChip, ChangeCard, useAgentProjects } from './AgentProject';
 import { ResultCardView, ResultChatProvider } from './AgentResult';
 import { AgentGalleryProvider } from './AgentGallery';
@@ -1197,7 +1199,25 @@ export const AgentChat = memo(function AgentChat({
   // has lasted a moment: a blink of the working line between two blocks was
   // the flash that made streaming read as janky.
   const wroteJustNow = useRecently(!!streaming, WORKING_AFTER_REPLY_MS);
-  const indicator = usePresence(working && !wroteJustNow);
+  // Waiting on a card of this chat, the row says "Needs your OK on N" with a real
+  // Review in place of the status, and the bar above the composer stays out of it.
+  // What waits on you, said on the working row with a real Review: it brings
+  // the first waiting card into view.
+  const needsOk = useMemo(() => {
+    const pending = (messages ?? []).filter((m) => m.approval?.status === 'pending');
+    if (pending.length === 0) return undefined;
+    return {
+      line: needsOkLine(pending.map((m) => m.approval!)),
+      onReview: () => {
+        const row = messagesRef.current?.querySelector<HTMLElement>(
+          `[data-message-ids~="${CSS.escape(pending[0].id)}"]`
+        );
+        row?.scrollIntoView({ block: 'center', behavior: scrollMotion() });
+      },
+    };
+  }, [messages]);
+  const waitingHere = agent.status.state === 'waiting' && !!needsOk;
+  const indicator = usePresence((working || waitingHere) && !wroteJustNow);
   const jump = usePresence(!atBottom);
   // What it's doing now goes above what's waiting: the indicator sits before
   // the run of queued messages at the end, not under them.
@@ -1235,6 +1255,7 @@ export const AgentChat = memo(function AgentChat({
     atBottomRef
   );
   useRowAnchoring(scrollRef, messagesRef, atBottomRef);
+  useNextLine(messagesRef);
 
   // Follow new content only if the reader was already at the bottom: glide
   // to a new line, land on the bottom (before paint) on first render. A reply
@@ -2043,6 +2064,7 @@ export const AgentChat = memo(function AgentChat({
           work={work}
           agent={rowAgent}
           bare={importTalking}
+          needsOk={needsOk}
           place={
             inRoom ? (
               <RoomWorkingPlace roomId={inRoom} onOpenRoom={onOpenAgent} />
@@ -2306,7 +2328,7 @@ export const AgentChat = memo(function AgentChat({
                       { id: 'stepIn', node: <StepInBar agent={agent} messages={allLines ?? []} /> },
                       {
                         id: 'waiting',
-                        node: (
+                        node: needsOk ? null : (
                           <WaitingForYouBar
                             agent={agent}
                             messages={allLines ?? []}
@@ -2433,7 +2455,6 @@ export const AgentChat = memo(function AgentChat({
                     onPickFiles={pickFiles}
                     unfilled={unfilled}
                     lastSent={lastSent}
-                    modelOf={agent}
                   />
                 ) : (
                   <div className="agent-composer agent-composer--blocked" role="status">
