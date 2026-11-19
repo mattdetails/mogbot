@@ -636,7 +636,13 @@ export const composer = {
  * newest end, so at the bottom the fade sits on empty space, never on the
  * last message.
  */
-export const chatFade = { height: 28, bands: 14 } as const;
+export const chatFade = {
+  height: 28,
+  bands: 14,
+  /** The header's edge: capped at 12pt, in the page colour only, so it never smears grey over a filled bubble. */
+  top: 12,
+  topBands: 6,
+} as const;
 
 /**
  * The dictation waveform (`components/Waveform.tsx`), in the dictation card's
