@@ -332,7 +332,7 @@ export const agentsInFlightScenarios: Scenario[] = [
   {
     id: 'agents-inflight-asks',
     title: 'Agents — What’s in flight, open asks per agent',
-    looksRightWhen: `${LOOK} A quiet “Team tasks · 3” section between Paused and Everyone else: Finance first with an Busy pill, its first two asks in the line, “6 open · 30h” at the right; Recruiter with a “1 stuck” pill; Research with its one ask.`,
+    looksRightWhen: `${LOOK} “Team tasks · 3 agents” sits right after Needs you, before Working now: Finance first with an amber Busy pill, its first ask and “+5 more”, “6 open · oldest 30h” at the right; Recruiter with an amber “1 stuck” pill; Research with its one ask. No red.`,
     command: 'agents.team',
     requires: '.agents-team__section[aria-label^="Team tasks"]',
     viewport: { width: 1440, height: 1000 },

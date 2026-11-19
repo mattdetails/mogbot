@@ -37,9 +37,9 @@ describe('agent task board', () => {
     ]);
     expect(got.map((l) => l.name)).toEqual(['C', 'A']);
   });
-  it('shows two asks and counts the rest', () => {
+  it('shows the first ask and counts the rest', () => {
     expect(asksLine(load('A', [task('one'), task('two'), task('three'), task('four')]))).toBe(
-      'one · two · 2 more'
+      'one · +3 more'
     );
     expect(asksLine(load('A', [task('one')]))).toBe('one');
   });
