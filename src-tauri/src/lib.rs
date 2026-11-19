@@ -634,6 +634,7 @@ pub fn run() {
             commands::agents::agents_task_board,
             commands::agents::agents_missions,
             commands::agents::agents_mission_act,
+            commands::agents::agents_mission_setup,
             commands::agents::agents_end_of_day,
             commands::agents::agents_set_end_of_day,
             commands::agents::agents_with_projects,

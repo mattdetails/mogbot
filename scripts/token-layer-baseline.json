@@ -293,13 +293,13 @@
     {
       "path": "src/styles/features/agents-mission.css",
       "token": "--font-size-12",
-      "count": 9,
+      "count": 10,
       "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
     },
     {
       "path": "src/styles/features/agents-mission.css",
       "token": "--font-size-14",
-      "count": 6,
+      "count": 7,
       "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
     },
     {

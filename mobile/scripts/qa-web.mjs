@@ -1169,6 +1169,20 @@ const PROBE = [
       'Red-outlined banner “Can’t read Native OS” saying who it affects and that usage isn’t being spent, with Reconnect Native OS and Pause mission',
   },
   {
+    name: 'probe-mission-new',
+    route: '/mission-new',
+    ready: 'What do you want to be true?',
+    check:
+      'One question to a screen: “Question 1 of 5”, “What do you want to be true?”, one box, Next; no other fields on the screen',
+  },
+  {
+    name: 'probe-mission-new-summary',
+    route: '/mission-new?id=m-draft',
+    ready: 'Start mission',
+    check:
+      'A saved draft reopened on its summary card: the goal, two criteria, “Codex: about 40% of its week”, then Start mission, Save for later and, if Start is off, the reason in a muted line',
+  },
+  {
     name: 'probe-mission-done',
     route: '/missions?id=m-done',
     ready: 'Usage to spend',

@@ -1741,6 +1741,19 @@ export function createMockServer(opts: MockOptions = {}) {
     },
     {
       ...missionBase,
+      id: 'm-draft',
+      goal: 'Clean up the support inbox and answer the easy ones',
+      state: 'draft',
+      startedAt: Date.now() - 3 * H,
+      criteria: [
+        { id: 'c1', text: 'Inbox under 20 unread', kind: 'check', status: 'not_started' },
+        { id: 'c2', text: 'Every reply asks you first', kind: 'check', status: 'not_started' },
+      ],
+      shares: [{ engine: 'codex', kind: 'usage', pct: 40, usedPct: 0, spentMs: 0 }],
+      agents: [],
+    },
+    {
+      ...missionBase,
       id: 'm-blocked',
       goal: "Get Native's pipeline to 20 qualified leads this month",
       state: 'blocked',
@@ -4082,6 +4095,29 @@ export function createMockServer(opts: MockOptions = {}) {
     'agents.quietHours': () => ({ window: quietWindow }),
     'agents.morningBrief': () => morningBrief,
     'agents.missions': () => missions,
+    'agents.missions.setup': (p) => {
+      const d = (p.draft ?? {}) as Record<string, unknown>;
+      if (p.action === 'save') {
+        const draft: MockMission = {
+          ...missionBase,
+          id: typeof d.id === 'string' ? d.id : `m-${missions.length + 1}`,
+          goal: String(d.goal ?? ''),
+          state: 'draft',
+          startedAt: Date.now(),
+          criteria: ((d.criteria as { text: string }[]) ?? []).map((c, i) => ({
+            id: `c${i + 1}`,
+            text: c.text,
+            kind: 'check' as const,
+            status: 'not_started' as const,
+          })),
+          shares: [],
+        };
+        missions = [draft, ...missions.filter((x) => x.id !== draft.id)];
+      } else if (p.action === 'start' && typeof d.id === 'string') {
+        missions = missions.map((x) => (x.id === d.id ? { ...x, state: 'starting' as const } : x));
+      }
+      return { said: String(p.action) };
+    },
     'agents.missions.act': (p) => {
       const m = missions.find((x) => x.id === p.id);
       if (!m) return fail({ type: 'Validation', field: 'id', reason: 'No such mission' });

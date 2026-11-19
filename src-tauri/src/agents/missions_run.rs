@@ -29,7 +29,7 @@ pub fn schema() -> Value {
     json!({
         "type": "object",
         "properties": {
-            "action": { "type": "string", "enum": ["list", "start", "judge", "progress", "event", "summary", "agent", "ask", "ask_done", "blocked", "unblocked", "judged", "add_more", "stop", "pause", "resume", "accept"] },
+            "action": { "type": "string", "enum": ["list", "start", "save", "discard", "judge", "progress", "event", "summary", "agent", "ask", "ask_done", "blocked", "unblocked", "judged", "add_more", "stop", "pause", "resume", "accept"] },
             "id": { "type": "string", "description": "The mission's id." },
             "goal": { "type": "string" },
             "criteria": { "type": "array", "items": { "type": "object", "properties": {
@@ -99,7 +99,23 @@ pub fn end_of(date: &str) -> Option<i64> {
 
 /// A new mission from the tool's arguments. Pure apart from `now`.
 pub fn from_args(args: &Value, now: i64) -> Result<Mission, String> {
-    let goal = s(args, "goal").ok_or("`goal` is required.")?;
+    parse_args(args, now, true)
+}
+
+/// The same, for the set-up screen: a draft may be incomplete (no goal yet,
+/// fewer criteria, no share), so only what is given is checked.
+pub fn draft_from_args(args: &Value, now: i64) -> Result<Mission, String> {
+    let mut m = parse_args(args, now, false)?;
+    m.state = State::Draft;
+    Ok(m)
+}
+
+fn parse_args(args: &Value, now: i64, strict: bool) -> Result<Mission, String> {
+    let goal = match s(args, "goal") {
+        Some(g) => g,
+        None if !strict => "",
+        None => return Err("`goal` is required.".into()),
+    };
     let mut criteria = Vec::new();
     for (i, c) in args
         .get("criteria")
@@ -108,7 +124,12 @@ pub fn from_args(args: &Value, now: i64) -> Result<Mission, String> {
         .flatten()
         .enumerate()
     {
-        let text = s(c, "text").ok_or("Each criterion needs `text`.")?;
+        let Some(text) = s(c, "text") else {
+            if strict {
+                return Err("Each criterion needs `text`.".into());
+            }
+            continue;
+        };
         let target = n(c, "target");
         let kind = match s(c, "kind") {
             Some("reduce") => CriterionKind::Reduce,
@@ -151,7 +172,9 @@ pub fn from_args(args: &Value, now: i64) -> Result<Mission, String> {
             }
         }
     }
-    check(goal, &criteria, &shares)?;
+    if strict {
+        check(goal, &criteria, &shares)?;
+    }
     let mut m = Mission::new(goal, criteria, shares, now);
     m.end_at = s(args, "end_date").and_then(end_of);
     m.asks_first = args
@@ -346,7 +369,9 @@ pub fn mark_blocked(m: &Mission, args: &Value) -> Result<Mission, String> {
 }
 
 /// What the user decides (their own message, or a button on the desk).
-const USERS_CALL: &[&str] = &["start", "add_more", "stop", "pause", "resume", "accept"];
+const USERS_CALL: &[&str] = &[
+    "start", "save", "discard", "add_more", "stop", "pause", "resume", "accept",
+];
 
 fn describe(m: &Mission) -> String {
     let mut out = format!("[{}] {} ({:?})", m.id, m.goal, m.state);
@@ -354,6 +379,19 @@ fn describe(m: &Mission) -> String {
         out.push_str(&format!("\n  {}: {} — {:?}", c.id, c.text, c.status));
     }
     out
+}
+
+/// Start a saved draft: checked as any start is, then Starting from now. Pure.
+pub fn start_draft(m: &Mission, now: i64) -> Result<Mission, String> {
+    if m.state != State::Draft {
+        return Err("Only a draft can be started.".into());
+    }
+    check(&m.goal, &m.criteria, &m.shares)?;
+    let mut next = m.clone();
+    next.state = State::Starting;
+    next.started_at = now;
+    next.heartbeat_at = None;
+    Ok(next)
 }
 
 /// Run one `mission` action. `user`: the call is the user's own (their
@@ -372,6 +410,42 @@ pub fn act(action: &str, args: &Value, user: bool, now: i64) -> Result<String, S
         } else {
             all.iter().map(describe).collect::<Vec<_>>().join("\n")
         });
+    }
+    if action == "save" {
+        let mut m = draft_from_args(args, now)?;
+        if let Some(id) = s(args, "id") {
+            match get(id) {
+                Some(old) if old.state == State::Draft => {
+                    m.id = old.id;
+                    m.started_at = old.started_at;
+                }
+                Some(_) => return Err("Only a draft can be saved over.".into()),
+                None => {}
+            }
+        }
+        let id = m.id.clone();
+        put(m).map_err(|e| e.to_string())?;
+        return Ok(format!("Saved the draft {id}."));
+    }
+    if action == "discard" {
+        let id = s(args, "id").ok_or("`id` is required.")?;
+        match get(id) {
+            Some(m) if m.state == State::Draft => {
+                remove(id).map_err(|e| e.to_string())?;
+                return Ok("Discarded the draft.".into());
+            }
+            Some(_) => return Err("Only a draft can be discarded.".into()),
+            None => return Err(format!("No mission {id}.")),
+        }
+    }
+    if action == "start"
+        && s(args, "id").is_some_and(|id| get(id).is_some_and(|m| m.state == State::Draft))
+    {
+        let id = s(args, "id").unwrap_or_default();
+        let m = get(id).ok_or("That draft is gone.")?;
+        let next = start_draft(&m, now)?;
+        put(next).map_err(|e| e.to_string())?;
+        return Ok(format!("Started mission {id}."));
     }
     if action == "start" {
         let m = from_args(args, now)?;

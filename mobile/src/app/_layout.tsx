@@ -135,6 +135,7 @@ function Screens() {
               />
               <Stack.Screen name="usage" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen name="missions" options={sheet(colors, [0.75, 1])} />
+              <Stack.Screen name="mission-new" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen name="usage-account" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen name="controls" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen

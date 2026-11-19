@@ -128,6 +128,24 @@ pub async fn agents_missions() -> Result<Vec<agents::missions::Mission>, Command
     blocking(|| Ok(agents::missions::list())).await
 }
 
+/// The set-up screen's "Save for later" and "Start": the user's own call
+/// (`agents::missions_run::act` with `save`, `start`, `discard`).
+#[tauri::command]
+#[tracing::instrument(skip(app, draft))]
+pub async fn agents_mission_setup(
+    app: AppHandle,
+    action: String,
+    draft: serde_json::Value,
+) -> Result<String, CommandError> {
+    let said = blocking(move || {
+        agents::missions_run::act(&action, &draft, true, agents::store::now_ms())
+            .map_err(CommandError::expected)
+    })
+    .await?;
+    let _ = app.emit(agents::missions_run::EVENT, ());
+    Ok(said)
+}
+
 /// A button on a mission page: the user's own call (add more, stop, pause,
 /// resume, accept).
 #[tauri::command]

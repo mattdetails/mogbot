@@ -24,6 +24,7 @@ import {
 import { useCommands } from './useCommands';
 import { kbd } from '../lib/shortcuts';
 import { onMenuAction } from '../lib/nativeMenu';
+import { requestMissionSetup } from '../lib/missions';
 import { useOptionalToast } from '../contexts/ToastContext';
 import { setStayOn, type StayOnChange } from '../lib/remoteAccess';
 import { useAgentsSelector, type AgentsState } from '../lib/agentsStore';
@@ -442,6 +443,18 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
           'status',
         ],
         run: () => {
+          requestAgentsIntent({ kind: 'open', agentId: TEAM_ID });
+          setView('agents');
+        },
+      },
+      {
+        id: 'missions.new',
+        title: 'Start a mission…',
+        icon: <PlusIcon size={14} />,
+        category: 'action' as const,
+        keywords: ['mission', 'goal', 'usage', 'share', 'new'],
+        run: () => {
+          requestMissionSetup();
           requestAgentsIntent({ kind: 'open', agentId: TEAM_ID });
           setView('agents');
         },

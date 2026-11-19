@@ -20,9 +20,20 @@ Tell your Chief of Staff the goal. It asks a few short questions, then shows one
 
 Say yes and the mission starts. Open it from **What's in flight → Missions**.
 
+## Setting one up yourself
+
+Usually your Chief of Staff drafts the card from its questions. You can also do it by hand: press ⌘K
+and choose **Start a mission…** (or **+ New mission** under Missions in What's in flight, or **New
+mission** on your phone, one question to a screen). **Start mission** stays off until there is a goal,
+at least one thing that counts as done and a share, and the line under the buttons says which is
+missing. If a chosen engine hasn't reported its usage yet, you're asked once, in the dialog: "Codex
+hasn't reported its usage yet, so its share is about 40% once it's read. Start anyway?".
+**Save for later** keeps a draft in the Missions list, labelled "Draft" with its date; open it to carry
+on with the fields filled.
+
 ## The page
 
-The page shows the goal, one number for progress, how much of each share is used, what waits on
+The page shows the goal and its day ("Day 2", or "Day 2 of about 3" once there are two readings and 15% is done; it says "running longer than expected" if it passes the estimate), one number for progress, how much of each share is used, what waits on
 you, each criterion, who is on it and what happened. A banner appears only for state: amber when it
 paused at its share, red when something it needs is broken, neutral when it's ready for your review.
 

@@ -12,6 +12,7 @@
  */
 
 export type MissionState =
+  | 'draft'
   | 'starting'
   | 'running'
   | 'paused_cap'
@@ -521,6 +522,7 @@ export function reconnectMessage(m: Mission): string {
 
 /** The heading chip for a state, always words. */
 export const STATE_WORD: Record<MissionState, string> = {
+  draft: 'Draft',
   starting: 'Starting',
   running: 'Running',
   paused_cap: 'Paused at its share',
@@ -535,4 +537,96 @@ export const STATE_WORD: Record<MissionState, string> = {
 export function ordered(all: Mission[]): Mission[] {
   const open = (m: Mission) => (m.state === 'done' || m.state === 'stopped' ? 1 : 0);
   return [...all].sort((a, b) => open(a) - open(b) || b.startedAt - a.startedAt);
+}
+
+/* ------------------------------------------------------------ set-up */
+
+/** What the set-up screen holds before Start (or Save for later). */
+export interface MissionDraft {
+  /** The draft being reopened. */
+  id?: string;
+  goal: string;
+  criteria: {
+    text: string;
+    kind?: CriterionKind;
+    target?: number;
+    start?: number;
+    unit?: string;
+  }[];
+  /** Per engine: `percent` of its week, or `hours` for one with no usage numbers. */
+  shares: { engine: EngineId; percent?: number; hours?: number }[];
+  /** YYYY-MM-DD, local. */
+  endDate?: string;
+  asksFirst: string[];
+  updates: { whenBlocked: boolean; eachMilestone: boolean; dailyAt?: number };
+}
+
+export const NEW_DRAFT: MissionDraft = {
+  goal: '',
+  criteria: [],
+  shares: [{ engine: 'claude', percent: 30 }],
+  asksFirst: [],
+  updates: { whenBlocked: true, eachMilestone: true },
+};
+
+export interface SetupGate {
+  canStart: boolean;
+  /** Why Start is off, as a muted line under the buttons (never a tooltip). */
+  reason: string | null;
+  /** Engines with a usage share but no usage reading yet. */
+  unread: EngineId[];
+}
+
+/**
+ * Start is off until a goal, at least one criterion and at least one share
+ * exist; the reason says which. A chosen engine with no reading is not a
+ * blocker: Start asks once, inline ("Start anyway?"). Pure.
+ */
+export function setupGate(d: MissionDraft, hasReading: (e: EngineId) => boolean): SetupGate {
+  const unread = d.shares
+    .filter((s) => s.percent !== undefined && !hasReading(s.engine))
+    .map((s) => s.engine);
+  const reason = !d.goal.trim()
+    ? 'Add a goal'
+    : d.criteria.filter((c) => c.text.trim()).length === 0
+      ? 'Add what counts as done'
+      : d.shares.length === 0
+        ? 'Choose how much usage to spend'
+        : null;
+  return { canStart: reason === null, reason, unread };
+}
+
+/** The one inline note when a chosen engine hasn't reported usage. Pure. */
+export function startAnywayNote(d: MissionDraft, unread: EngineId[]): string {
+  const e = unread[0];
+  const pct = d.shares.find((s) => s.engine === e)?.percent ?? 0;
+  return `${ENGINE_NAME[e]} hasn't reported its usage yet, so its share is about ${pct}% once it's read. Start anyway?`;
+}
+
+/** "Draft · 19 Nov", for the Missions list. */
+export function draftLabel(m: Mission): string {
+  return `Draft · ${new Date(m.startedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+}
+
+/** A saved draft as the set-up screen holds it again. */
+export function missionDraftOf(m: Mission): MissionDraft {
+  return {
+    id: m.id,
+    goal: m.goal,
+    criteria: m.criteria.map((c) => ({
+      text: c.text,
+      kind: c.kind,
+      target: c.target,
+      start: c.start,
+      unit: c.unit,
+    })),
+    shares: m.shares.map((s) =>
+      s.kind === 'time'
+        ? { engine: s.engine, hours: Math.round((s.capMs ?? 0) / 3_600_000) }
+        : { engine: s.engine, percent: s.pct }
+    ),
+    endDate: m.endAt ? new Date(m.endAt).toISOString().slice(0, 10) : undefined,
+    asksFirst: m.asksFirst,
+    updates: m.updates,
+  };
 }

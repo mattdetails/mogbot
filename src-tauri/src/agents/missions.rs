@@ -49,6 +49,8 @@ pub const MAX_CRITERIA: usize = 8;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum State {
+    /// Saved from the set-up screen, not started: nothing runs or is spent.
+    Draft,
     /// Agreed, the Chief is splitting the work.
     Starting,
     Running,
@@ -178,6 +180,11 @@ pub fn observe(share: &Share, reading: Reading) -> Share {
     s.last_resets_at = reading.resets_at.or(s.last_resets_at);
     s.read_at = Some(reading.observed_at);
     s
+}
+
+/// Remove one mission (a discarded draft).
+pub fn remove(id: &str) -> Result<(), CommandError> {
+    edit(|all| all.retain(|m| m.id != id))
 }
 
 /// Add points to a usage share (the user's yes). Pure.
@@ -724,6 +731,7 @@ pub fn briefing(all: &[Mission]) -> Option<String> {
     );
     for m in open.iter().take(4) {
         let state = match m.state {
+            State::Draft => "a draft, not started",
             State::Starting => "starting",
             State::Running => "running",
             State::PausedCap => "paused at its share, waiting on the user",

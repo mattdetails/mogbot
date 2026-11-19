@@ -5,6 +5,11 @@ import {
   banner,
   bottomNote,
   criterionWord,
+  draftLabel,
+  missionDraftOf,
+  NEW_DRAFT,
+  setupGate,
+  startAnywayNote,
   dayLabel,
   duration,
   fmt,
@@ -250,5 +255,61 @@ describe('the note and the day (rule 9)', () => {
     expect(dayLabel(base({ state: 'ready', startedAt: 0, finishedAt: 54 * 3_600_000 }), 0)).toBe(
       'Took 2 days 6 hours'
     );
+  });
+});
+
+describe('the set-up screen', () => {
+  const ready = {
+    ...NEW_DRAFT,
+    goal: 'Get 20 leads',
+    criteria: [{ text: '20 leads with a call booked', kind: 'count' as const, target: 20 }],
+  };
+  const read = () => true;
+  it('starts with Claude 30% and nothing else', () => {
+    expect(NEW_DRAFT.shares).toEqual([{ engine: 'claude', percent: 30 }]);
+  });
+  it('keeps Start off until a goal, a criterion and a share, and says which', () => {
+    expect(setupGate(NEW_DRAFT, read)).toEqual({
+      canStart: false,
+      reason: 'Add a goal',
+      unread: [],
+    });
+    expect(setupGate({ ...NEW_DRAFT, goal: 'x' }, read).reason).toBe('Add what counts as done');
+    expect(setupGate({ ...NEW_DRAFT, goal: 'x', criteria: [{ text: '  ' }] }, read).reason).toBe(
+      'Add what counts as done'
+    );
+    expect(setupGate({ ...ready, shares: [] }, read).reason).toBe('Choose how much usage to spend');
+    expect(setupGate(ready, read)).toEqual({ canStart: true, reason: null, unread: [] });
+  });
+  it('asks once, inline, when a chosen engine has no usage reading', () => {
+    const d = { ...ready, shares: [{ engine: 'codex' as const, percent: 40 }] };
+    const g = setupGate(d, (e) => e !== 'codex');
+    expect(g.canStart).toBe(true);
+    expect(g.unread).toEqual(['codex']);
+    expect(startAnywayNote(d, g.unread)).toBe(
+      "Codex hasn't reported its usage yet, so its share is about 40% once it's read. Start anyway?"
+    );
+    // A time-capped share has no reading to wait for.
+    expect(
+      setupGate({ ...ready, shares: [{ engine: 'opencode', hours: 24 }] }, () => false).unread
+    ).toEqual([]);
+  });
+  it('labels a draft with its date and reopens it filled', () => {
+    const m = base({
+      state: 'draft',
+      goal: 'g',
+      startedAt: new Date(2026, 10, 19, 12).getTime(),
+      shares: [
+        usage('claude', 30, 0),
+        { engine: 'opencode', kind: 'time', pct: 0, usedPct: 0, capMs: 24 * 3_600_000, spentMs: 0 },
+      ],
+    });
+    expect(draftLabel(m)).toBe('Draft · 19 Nov');
+    const d = missionDraftOf(m);
+    expect(d.id).toBe('m1');
+    expect(d.shares).toEqual([
+      { engine: 'claude', percent: 30 },
+      { engine: 'opencode', hours: 24 },
+    ]);
   });
 });

@@ -600,6 +600,18 @@ export interface Methods {
    */
   'agents.missions': { params: Record<string, never>; result: Mission[] };
   /**
+   * The set-up screen's own calls: `save` a draft (a `MissionDraft`, `id` to
+   * save over one), `start` it (`{ id }`, or a whole draft), or `discard` one.
+   * Audited. Newer Macs only.
+   */
+  'agents.missions.setup': {
+    params: {
+      action: 'save' | 'start' | 'discard';
+      draft: Record<string, unknown>;
+    };
+    result: { said: string };
+  };
+  /**
    * The user's own call on a mission: pause, resume, stop, add_more (an
    * `engine` and `points`, 10 by default) or accept. Starting one is the Chief's.
    * Audited. Newer Macs only.

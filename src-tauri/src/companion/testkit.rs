@@ -2207,6 +2207,10 @@ impl Backend for Stub {
         Ok(json!({ "said": action }))
     }
 
+    async fn mission_setup(&self, action: &str, _draft: Value) -> Result<Value, CommandError> {
+        Ok(json!({ "said": action }))
+    }
+
     async fn morning_brief(&self) -> Result<Value, CommandError> {
         Ok(
             json!({ "on": true, "at": 8 * 60, "always": false, "lastPostedAt": 1_762_675_200_000_i64 }),

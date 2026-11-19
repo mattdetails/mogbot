@@ -856,6 +856,11 @@ impl Backend for DesktopBackend {
         Ok(serde_json::json!({ "said": said }))
     }
 
+    async fn mission_setup(&self, action: &str, draft: Value) -> Result<Value, CommandError> {
+        let said = cmd::agents_mission_setup(self.app.clone(), action.to_string(), draft).await?;
+        Ok(serde_json::json!({ "said": said }))
+    }
+
     async fn import_status(&self) -> Result<Value, CommandError> {
         import_status_now().await
     }

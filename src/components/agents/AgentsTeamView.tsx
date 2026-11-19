@@ -36,8 +36,20 @@ import {
   type AgentLoad,
 } from '../../lib/agentTasks';
 import { usePolling } from '../../hooks/usePolling';
-import { getMissions, missionKey, ordered, STATE_WORD, metCount } from '../../lib/missions';
+import {
+  getMissions,
+  draftLabel,
+  metCount,
+  missionDraftOf,
+  missionKey,
+  MISSION_SETUP_EVENT,
+  ordered,
+  stateWord,
+  takeMissionSetupRequest,
+  type MissionDraft,
+} from '../../lib/missions';
 import { useMissions } from './MissionPage';
+import { MissionSetup } from './MissionSetup';
 import { AgentWorkingLine } from './AgentWorkingLine';
 import { AgentEngineBadge } from './AgentEngine';
 import { ApprovalCard, ErrorLine } from './AgentChatItems';
@@ -430,6 +442,18 @@ export function AgentsTeamView({
   );
   const asks = useMemo(() => withOpenAsks(loads), [loads]);
   const missions = useMissions(getMissions);
+  const [setupOpen, setSetupOpen] = useState(() => takeMissionSetupRequest());
+  const [setupDraft, setSetupDraft] = useState<MissionDraft | undefined>(undefined);
+  useEffect(() => {
+    const open = () => {
+      if (takeMissionSetupRequest()) {
+        setSetupDraft(undefined);
+        setSetupOpen(true);
+      }
+    };
+    window.addEventListener(MISSION_SETUP_EVENT, open);
+    return () => window.removeEventListener(MISSION_SETUP_EVENT, open);
+  }, []);
   const openMissions = useMemo(
     () => ordered(missions).filter((m) => m.state !== 'done' && m.state !== 'stopped'),
     [missions]
@@ -870,26 +894,42 @@ export function AgentsTeamView({
               {openMissions.map((m) => {
                 const chief = agents.find((a) => a.isMain);
                 if (!chief) return null;
+                const draft = m.state === 'draft';
                 return (
                   <ActionColumn key={m.id}>
                     <Row
                       agent={chief}
-                      line={m.goal}
+                      line={m.goal || 'Untitled mission'}
                       pill={
                         m.state === 'paused_cap' || m.state === 'blocked' || m.state === 'ready'
                           ? {
                               tone:
                                 m.state === 'blocked' ? ('failed' as const) : ('waiting' as const),
-                              label: STATE_WORD[m.state],
+                              label: stateWord(m, Date.now()),
                             }
                           : undefined
                       }
-                      meta={`${metCount(m)} of ${m.criteria.length} met`}
-                      onOpen={() => onOpenAgent(missionKey(m.id))}
+                      meta={draft ? draftLabel(m) : `${metCount(m)} of ${m.criteria.length} met`}
+                      onOpen={() => {
+                        if (draft) {
+                          setSetupDraft(missionDraftOf(m));
+                          setSetupOpen(true);
+                        } else {
+                          onOpenAgent(missionKey(m.id));
+                        }
+                      }}
                     />
                   </ActionColumn>
                 );
               })}
+              <TextButton
+                onClick={() => {
+                  setSetupDraft(undefined);
+                  setSetupOpen(true);
+                }}
+              >
+                + New mission
+              </TextButton>
             </Section>
           )}
 
@@ -1060,6 +1100,7 @@ export function AgentsTeamView({
           <AgentsSpareNote />
         </div>
       </div>
+      <MissionSetup open={setupOpen} initial={setupDraft} onClose={() => setSetupOpen(false)} />
     </section>
   );
 }

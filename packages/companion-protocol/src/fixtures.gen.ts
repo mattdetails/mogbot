@@ -607,6 +607,9 @@ export const agentsMissions = [
 export const agentsMissionsAct = {
   "said": "pause"
 } satisfies Result<'agents.missions.act'>;
+export const agentsMissionsSetup = {
+  "said": "save"
+} satisfies Result<'agents.missions.setup'>;
 export const agentsSetImportChoice = {
   "choice": "declined"
 } satisfies Result<'agents.setImportChoice'>;

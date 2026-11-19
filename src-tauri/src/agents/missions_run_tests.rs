@@ -136,3 +136,33 @@ fn sleep_is_said_in_hours_or_minutes() {
     assert_eq!(sleep_phrase(70 * 60_000), "an hour");
     assert_eq!(sleep_phrase(8 * 3_600_000), "8 hours");
 }
+
+#[test]
+fn a_draft_may_be_thin_and_starts_only_when_whole() {
+    // Nothing but a goal: saved as a draft, not started.
+    let d = draft_from_args(&json!({ "goal": "Get 20 leads" }), 5).unwrap();
+    assert_eq!(d.state, State::Draft);
+    assert!(d.criteria.is_empty() && d.shares.is_empty());
+    assert!(start_draft(&d, 9).unwrap_err().contains("two to five"));
+    // Not even a goal is refused for a draft.
+    assert!(draft_from_args(&json!({}), 5).is_ok());
+    // A whole one starts from now, as Starting.
+    let mut whole = draft_from_args(&args(), 5).unwrap();
+    whole.state = State::Draft;
+    let started = start_draft(&whole, 99).unwrap();
+    assert_eq!(started.state, State::Starting);
+    assert_eq!(started.started_at, 99);
+    // Only a draft can be started this way.
+    assert!(start_draft(&started, 100).is_err());
+}
+
+#[test]
+fn a_drafts_blank_criteria_are_skipped_not_refused() {
+    let d = draft_from_args(
+        &json!({ "goal": "g", "criteria": [{ "text": "  " }, { "text": "a real one" }] }),
+        0,
+    )
+    .unwrap();
+    assert_eq!(d.criteria.len(), 1);
+    assert_eq!(d.criteria[0].text, "a real one");
+}

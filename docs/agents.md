@@ -7798,8 +7798,18 @@ but the budget is a share of the user's own engines, not dollars).
   `packages/companion-protocol/src/missions.ts`, shared by the desk page and the phone card
   (`MissionCard`, `app/missions.tsx`, a "Missions" line on the Agents list). qa:web:
   `probe-mission-{running,over-cap,asleep,blocked,done}`.
-- **Not built:** a setup screen and Save for later (the Chief's card starts it), a forecast for "Day N
-  of about M", Finish with the other engine as a button that acts.
+- **Day N of about M.** The Mac logs each new reading of the headline number (`progress_log`) and fixes
+  `estimated_days` the first time there are two readings and 15% done (elapsed over the share done,
+  rounded up, never below today); `dayLabel` says "of about M" only then, and "running longer than
+  expected" past it. Never invented.
+- **Set-up** (`MissionSetup`, `app/mission-new.tsx`): a draft is a mission in the `draft` state
+  (nothing runs or is spent). `agents_mission_setup` / `agents.missions.setup` save, start
+  (`start_draft`, checked as any start is) or discard it. Start is off until a goal, a criterion and a
+  share exist (`setupGate`, the reason shown as a muted line); a chosen engine with no reading is one
+  inline "Start anyway?". ⌘K `missions.new`; drafts are rows in What's in flight with "Draft · date".
+  The phone asks one question per screen, then a summary card.
+- **Not built:** Finish with the other engine as a button that acts; Weekdays-style schedules for
+  updates.
 
 ## Known limits / next
 

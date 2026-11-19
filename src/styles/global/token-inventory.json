@@ -5011,7 +5011,7 @@
       "layer": "core",
       "owner": "global/core",
       "status": "canonical",
-      "consumerCount": 14
+      "consumerCount": 15
     },
     {
       "name": "--font-size-13",
@@ -5027,7 +5027,7 @@
       "layer": "core",
       "owner": "global/core",
       "status": "canonical",
-      "consumerCount": 6
+      "consumerCount": 7
     },
     {
       "name": "--font-size-15",
@@ -5387,7 +5387,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 79
+      "consumerCount": 80
     },
     {
       "name": "--surface-terminal-input",
@@ -5451,7 +5451,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 618
+      "consumerCount": 619
     },
     {
       "name": "--text-muted",
@@ -5459,7 +5459,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 979
+      "consumerCount": 981
     },
     {
       "name": "--text-faint",
@@ -5971,7 +5971,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 571
+      "consumerCount": 573
     },
     {
       "name": "--font-size-control",
@@ -6083,7 +6083,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 194
+      "consumerCount": 195
     },
     {
       "name": "--font-weight-heading",
@@ -6363,7 +6363,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 678
+      "consumerCount": 682
     },
     {
       "name": "--spacing-lg",
@@ -6371,7 +6371,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 318
+      "consumerCount": 319
     },
     {
       "name": "--spacing-xl",
@@ -6379,7 +6379,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 221
+      "consumerCount": 222
     },
     {
       "name": "--spacing-2xl",
@@ -6411,7 +6411,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 158
+      "consumerCount": 159
     },
     {
       "name": "--radius-card",
@@ -6915,7 +6915,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 79
+      "consumerCount": 80
     },
     {
       "name": "--surface-terminal-input",
@@ -6963,7 +6963,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 618
+      "consumerCount": 619
     },
     {
       "name": "--text-quiet",
@@ -6979,7 +6979,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 979
+      "consumerCount": 981
     },
     {
       "name": "--text-faint",

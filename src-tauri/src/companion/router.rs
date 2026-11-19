@@ -113,6 +113,7 @@ pub const METHODS: &[&str] = &[
     "agents.setEndOfDay",
     "agents.missions",
     "agents.missions.act",
+    "agents.missions.setup",
     "agents.changeDiff",
     "agents.keepCopy",
     "agents.discardCopy",
@@ -851,6 +852,9 @@ pub trait Backend: Send + Sync + 'static {
         engine: Option<&str>,
         points: Option<f64>,
     ) -> Result<Value, CommandError>;
+    /// `agents_mission_setup`: the set-up screen's own calls (save a draft,
+    /// start it, discard it). Answers `{ said }`.
+    async fn mission_setup(&self, action: &str, draft: Value) -> Result<Value, CommandError>;
     /// An import from another assistant, as the phone follows it: whether
     /// this Mac's Remote access is on and has been reached, whether an import
     /// may begin, the one going on, and the message to send. Never the link:
@@ -2184,6 +2188,7 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
             ),
             _ => "end-of-day check-in: off".to_string(),
         },
+        "agents.missions.setup" => format!("mission set-up: {}", preview(field("action"))),
         "agents.missions.act" => format!(
             "mission {}: {}",
             preview(field("id")),
@@ -2917,6 +2922,16 @@ async fn run(
             let engine = params.get("engine").and_then(Value::as_str);
             let points = params.get("points").and_then(Value::as_f64);
             Ok(b.mission_act(id, action, engine, points).await?)
+        }
+        "agents.missions.setup" => {
+            let Some(action) = params.get("action").and_then(Value::as_str) else {
+                return Err(bad_params("A mission set-up call takes an `action`."));
+            };
+            if !["save", "start", "discard"].contains(&action) {
+                return Err(bad_params("`action` is save, start or discard."));
+            }
+            let draft = params.get("draft").cloned().unwrap_or(Value::Null);
+            Ok(b.mission_setup(action, draft).await?)
         }
         "agents.import.status" => Ok(b.import_status().await?),
         "agents.import.start" => Ok(b.import_start().await?),

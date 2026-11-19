@@ -6,12 +6,12 @@
  */
 
 import { router, useLocalSearchParams } from 'expo-router';
-import { ordered, reconnectMessage } from '@shipstudio/companion-protocol';
+import { draftLabel, ordered, reconnectMessage } from '@shipstudio/companion-protocol';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { MissionCard } from '../components/MissionCard';
 import { SheetTitle } from '../components/SheetTitle';
-import { SheetPage, T } from '../components/ui';
+import { Button, SheetPage, T } from '../components/ui';
 import { makeStyles, useColors } from '../lib/appearance';
 import { useMissions } from '../lib/missions';
 import { send } from '../lib/session';
@@ -45,25 +45,36 @@ export default function Missions() {
             Missions give a goal a share of your usage. Ask your Chief of Staff to start one.
           </T>
         ) : (
-          shown.map((m) => (
-            <MissionCard
-              key={m.id}
-              mission={m}
-              now={now}
-              onReconnect={() => {
-                if (!chiefId) return;
-                void send(chiefId, reconnectMessage(m)).catch(() => {});
-                router.dismissTo?.('/(tabs)/agents');
-                router.push({ pathname: '/chat/[id]', params: { id: chiefId } });
-              }}
-              onReview={() => {
-                if (!chiefId) return;
-                router.dismissTo?.('/(tabs)/agents');
-                router.push({ pathname: '/chat/[id]', params: { id: chiefId } });
-              }}
-            />
-          ))
+          shown.map((m) =>
+            m.state === 'draft' ? (
+              <Button
+                key={m.id}
+                title={`${draftLabel(m)}: ${m.goal || 'Untitled mission'}`}
+                variant="secondary"
+                lines={2}
+                onPress={() => router.push({ pathname: '/mission-new', params: { id: m.id } })}
+              />
+            ) : (
+              <MissionCard
+                key={m.id}
+                mission={m}
+                now={now}
+                onReconnect={() => {
+                  if (!chiefId) return;
+                  void send(chiefId, reconnectMessage(m)).catch(() => {});
+                  router.dismissTo?.('/(tabs)/agents');
+                  router.push({ pathname: '/chat/[id]', params: { id: chiefId } });
+                }}
+                onReview={() => {
+                  if (!chiefId) return;
+                  router.dismissTo?.('/(tabs)/agents');
+                  router.push({ pathname: '/chat/[id]', params: { id: chiefId } });
+                }}
+              />
+            )
+          )
         )}
+        <Button title="New mission" variant="outline" onPress={() => router.push('/mission-new')} />
       </ScrollView>
     </SheetPage>
   );

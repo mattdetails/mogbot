@@ -12,7 +12,7 @@ import { MIN, messagesFor, now, overview, TEAM } from './agents';
 
 const H = 60 * MIN;
 
-const crit = (
+export const crit = (
   id: string,
   text: string,
   over: Partial<MissionCriterion> = {}
@@ -354,3 +354,100 @@ export const missionScenarios: Scenario[] = Object.entries(MISSION_CASES).flatMa
     })
   )
 );
+
+/* ------------------------------------------------------------ set-up */
+
+const SETUP_LOOK =
+  'The “New mission” dialog (Designer’s gap B): Goal, What counts as done, Usage to spend (Claude Code ticked at 30% “of its week, about”), Asks you first, Updates, then Start mission and Save for later; the reason Start is off is a muted line under the buttons, never a tooltip. Readable in both themes.';
+
+const setupCommands = {
+  agents_overview: overview(TEAM),
+  agents_messages: messagesFor,
+  agents_missions: [],
+};
+const fillGoal = [
+  { fill: '#mission-goal', value: 'Get Native’s pipeline to 20 qualified leads this month' },
+  { click: 'button', text: '+ Add what counts as done' },
+  { fill: 'input[aria-label="Criterion 1"]', value: '20 leads with a call booked' },
+];
+
+const draftMission: Mission = base({
+  id: 'm-draft',
+  state: 'draft',
+  startedAt: now - 3 * H,
+  goal: 'Clean up the support inbox and answer the easy ones',
+  criteria: [crit('c1', 'Inbox under 20 unread')],
+  shares: [usage('claude', 30, 0, false)],
+  agents: [],
+  asks: [],
+});
+
+export const missionSetupScenarios: Scenario[] = [
+  {
+    id: 'mission-setup-empty',
+    title: 'Missions — set-up, nothing written yet',
+    looksRightWhen: `${SETUP_LOOK} Start mission is off and the line under the buttons says “Add a goal”.`,
+    command: 'missions.new',
+    requires: '.mission-setup',
+    clipSelector: '.mission-setup',
+    viewport: { width: 940, height: 1000 },
+    commands: setupCommands,
+  },
+  {
+    id: 'mission-setup-ready',
+    title: 'Missions — set-up, goal and one criterion written',
+    looksRightWhen: `${SETUP_LOOK} Start mission is on and there is no reason line; Claude Code’s row says “not read yet” beside its share.`,
+    command: 'missions.new',
+    afterCommand: fillGoal,
+    requires: '.mission-setup',
+    clipSelector: '.mission-setup',
+    viewport: { width: 940, height: 1100 },
+    commands: setupCommands,
+  },
+  {
+    id: 'mission-setup-unread',
+    title: 'Missions — set-up, Start with an engine that has no reading',
+    looksRightWhen: `${SETUP_LOOK} After Start: one inline note, not a card: “Claude Code hasn’t reported its usage yet, so its share is about 30% once it’s read. Start anyway?” with Start anyway and Change.`,
+    command: 'missions.new',
+    afterCommand: [...fillGoal, { click: 'button', text: 'Start mission' }],
+    requires: '.mission-setup__note',
+    clipSelector: '.mission-setup',
+    viewport: { width: 940, height: 1100 },
+    commands: setupCommands,
+  },
+  {
+    id: 'mission-setup-phone',
+    title: 'Missions — set-up, phone width',
+    looksRightWhen: `${SETUP_LOOK} At 390px the rows wrap, nothing is cut off and there is no horizontal scroll.`,
+    command: 'missions.new',
+    afterCommand: fillGoal,
+    requires: '.mission-setup',
+    clipSelector: '.mission-setup',
+    viewport: { width: 390, height: 1100 },
+    commands: setupCommands,
+  },
+  {
+    id: 'mission-draft-list',
+    title: 'Missions — a saved draft in What’s in flight',
+    looksRightWhen:
+      'In the Missions section a row for the draft: the goal as its line and “Draft · <date>” at the right (no pill, never “Running”). Pressing it reopens the set-up with the fields filled.',
+    command: 'agents.team',
+    requires: 'section[aria-label^="Missions"]',
+    clipSelector: 'section[aria-label^="Missions"]',
+    viewport: { width: 940, height: 900 },
+    commands: { ...setupCommands, agents_missions: [draftMission, MISSION_CASES.standard] },
+  },
+  {
+    id: 'mission-draft-reopened',
+    title: 'Missions — a draft reopened, fields filled',
+    looksRightWhen: `${SETUP_LOOK} The saved draft’s goal and its criterion are in the fields; Start mission is on.`,
+    command: 'agents.team',
+    afterCommand: [
+      { click: 'section[aria-label^="Missions"] .agents-team__row', text: 'Clean up' },
+    ],
+    requires: '.mission-setup',
+    clipSelector: '.mission-setup',
+    viewport: { width: 940, height: 1100 },
+    commands: { ...setupCommands, agents_missions: [draftMission] },
+  },
+];
