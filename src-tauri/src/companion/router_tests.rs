@@ -1064,9 +1064,7 @@ async fn a_phone_reads_an_agents_open_asks() {
     let (c, _stub) = Stub::companion();
     let me = caller("dev_a");
     assert!(READ_ONLY_METHODS.contains(&"agents.tasks"));
-    assert!(dispatch(&c, &me, "agents.tasks", json!({}))
-        .await
-        .is_err());
+    assert!(dispatch(&c, &me, "agents.tasks", json!({})).await.is_err());
     let read = dispatch(&c, &me, "agents.tasks", json!({ "agentId": "ops" }))
         .await
         .unwrap();

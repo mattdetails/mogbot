@@ -472,6 +472,50 @@ export const agentsSetMorningBrief = {
   "at": 450,
   "on": true
 } satisfies Result<'agents.setMorningBrief'>;
+export const agentsTasks = {
+  "agentId": "ops",
+  "doing": "Rotating the staging certificates",
+  "name": "Ops",
+  "open": [
+    {
+      "chased": 0,
+      "createdAt": 1762675200000,
+      "id": "t1",
+      "lastChasedAt": 0,
+      "source": "user",
+      "state": "doing",
+      "title": "Rotate the staging certificates",
+      "updatedAt": 1762675300000
+    },
+    {
+      "chased": 1,
+      "createdAt": 1762675250000,
+      "from": {
+        "id": "chief",
+        "name": "Chief of Staff"
+      },
+      "id": "t2",
+      "lastChasedAt": 1762675350000,
+      "source": "agent",
+      "state": "waiting",
+      "title": "Send Dana the deploy notes",
+      "updatedAt": 1762675350000,
+      "waitingOn": "Dana's reply"
+    }
+  ],
+  "overloaded": false,
+  "recent": [],
+  "role": "Deploys and on-call",
+  "stuck": 0
+} satisfies Result<'agents.tasks'>;
+export const agentsEndOfDay = {
+  "at": 1080,
+  "on": true
+} satisfies Result<'agents.endOfDay'>;
+export const agentsSetEndOfDay = {
+  "at": 1080,
+  "on": true
+} satisfies Result<'agents.setEndOfDay'>;
 export const agentsSetImportChoice = {
   "choice": "declined"
 } satisfies Result<'agents.setImportChoice'>;
@@ -5602,6 +5646,9 @@ export const frames = [
       "agents.setQuietHours",
       "agents.morningBrief",
       "agents.setMorningBrief",
+      "agents.tasks",
+      "agents.endOfDay",
+      "agents.setEndOfDay",
       "agents.changeDiff",
       "agents.keepCopy",
       "agents.discardCopy",

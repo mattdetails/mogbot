@@ -143,7 +143,7 @@ describe('Open asks on the agent sheet', () => {
     expect(screen.getByText('Doing')).toBeTruthy();
     expect(screen.getByText('Send Dana the deploy notes')).toBeTruthy();
     expect(screen.getByText('Waiting')).toBeTruthy();
-    expect(screen.getByText('On Dana's reply', { exact: false })).toBeTruthy();
+    expect(screen.getByText("On Dana's reply", { exact: false })).toBeTruthy();
     expect(mockCall).toHaveBeenCalledWith('agents.tasks', { agentId: 'ops' });
   });
 
