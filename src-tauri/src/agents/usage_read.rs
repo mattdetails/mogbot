@@ -241,20 +241,26 @@ async fn claude_login_for(account: &Account) -> Result<ClaudeLogin, String> {
             .await
             .ok_or_else(|| "Its sign-in isn't one this app can read".to_string());
     }
-    // Signed in with `claude /login` in its own folder: that sign-in reads.
-    if let Some(login) = claude_code_login(Some(&folder), &folder).await {
-        return Ok(login);
-    }
-    // The setup token it was added with: read from response headers.
-    match crate::commands::accounts::claude_token_for(&account.id) {
-        Some(token) => Ok(ClaudeLogin {
+    // The sign-in its turns run on is the one read. While the setup token it
+    // was added with is still kept, every turn carries it
+    // (`wallet::env_for`, CLAUDE_CODE_OAUTH_TOKEN), and that beats any
+    // sign-in found in the folder: a `claude /login` there that the app
+    // didn't make (Take over, a terminal) leaves the token in place, and
+    // reading the folder's then showed another account's meter (18 Nov:
+    // Account 2's turns ran on one account at 36% while its row read the
+    // folder's other account at 0%).
+    if let Some(token) = crate::commands::accounts::claude_token_for(&account.id) {
+        return Ok(ClaudeLogin {
             token,
             expires_at: None,
             plan: None,
             setup_token: true,
-        }),
-        None => Err("Not signed in".into()),
+        });
     }
+    // Signed in with `claude /login` in its own folder: that sign-in reads.
+    claude_code_login(Some(&folder), &folder)
+        .await
+        .ok_or_else(|| "Not signed in".to_string())
 }
 
 fn rfc3339_ms(v: Option<&Value>) -> Option<i64> {

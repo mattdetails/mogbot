@@ -1660,11 +1660,24 @@ pub fn identity_of(account: &Account) -> super::identity::Identity {
             if account.is_this_mac() {
                 return who;
             }
+            let key = super::usage_plan::account_key(Engine::Claude, &account.id);
+            // Its turns run on the setup token it was added with
+            // (`env_for`): the folder's file names whoever last ran
+            // `claude /login` there, not who the turns are. Who it is: the
+            // email given with the token, and the organization the token
+            // answered for (`usage_read`), never the folder's.
+            if accounts::claude_token_for(&account.id).is_some() {
+                return identity::Identity {
+                    email: accounts::claude_email_for(&account.id),
+                    plan: None,
+                    org: super::usage_plan::records().orgs.get(&key).cloned(),
+                    org_name: None,
+                };
+            }
             // The folder's file can be stale: a Claude Code still running in
             // it rewrites `.claude.json` with the account it started as, after
             // a new sign-in changed the token. What the token itself answered
             // (`usage_read` → `usage_plan::set_org`) is who it is.
-            let key = super::usage_plan::account_key(Engine::Claude, &account.id);
             let mut stale = false;
             if let Some(answered) = super::usage_plan::records().orgs.get(&key).cloned() {
                 if who.org.as_deref() != Some(answered.as_str()) {

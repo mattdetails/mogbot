@@ -5652,9 +5652,14 @@ never slow down for limits unless the user chose that.
     dir)>` when `CLAUDE_CONFIG_DIR` is set, as Claude Code names it) under
     the user's name, through `/usr/bin/security` on a pipe (Claude Code
     writes that item with it, so no prompt), else `<config
-    dir>/.credentials.json`; for an added account, its own folder's item
-    (what `claude auth login` there wrote), then, for one an older build
-    added, the setup token it kept. `subscriptionType` there
+    dir>/.credentials.json`; for an added account, the sign-in its turns
+    run on: the setup token an older build kept, while it is still kept
+    (every turn carries it as `CLAUDE_CODE_OAUTH_TOKEN`, which beats the
+    folder), else its own folder's item (what `claude auth login` there
+    wrote). Reading the folder first showed another account's meter when a
+    `/login` the app didn't make put a second account there; the row's
+    email and organization follow the same rule (`wallet::identity_of`).
+    `subscriptionType` there
     is the plan name shown ("Max plan"). The endpoint needs `user:profile`:
     a `claude setup-token` token (how older builds added accounts) is
     refused `403 oauth_scope_insufficient` (verified). Such an account is
