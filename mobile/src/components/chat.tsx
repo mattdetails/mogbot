@@ -23,7 +23,7 @@ import {
   type ResultRef,
 } from '@shipstudio/companion-protocol';
 import { memo, useEffect, useState, type ReactNode } from 'react';
-import { type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
+import { type LayoutChangeEvent, Pressable, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { arriving } from './Arrive';
 import { useRouter } from 'expo-router';
@@ -989,10 +989,8 @@ const useStyles = makeStyles((colors) => ({
   agentBubble: {
     alignSelf: 'flex-start',
     maxWidth: '92%',
-    // Outlined, where yours is a filled bubble: told apart by more than the side.
-    backgroundColor: colors.surfaceApp,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: colors.borderStrong,
+    // Filled like yours, no border (the hi-fi): the small corner is on this side.
+    backgroundColor: colors.surfaceBubble,
     borderRadius: composer.corner,
     borderBottomLeftRadius: radius.sm,
     paddingHorizontal: space.md + space['2xs'],
