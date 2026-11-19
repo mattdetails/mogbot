@@ -1043,6 +1043,11 @@ function planWord(plan: string | undefined): string | null {
  * equally, in the work order; an account with no reading shown but never
  * counted as room.
  */
+/** When a key's reading is older than `READING_STALE_MS`, its time; else null. */
+function staleAt(k: StackKey, now: number): number | null {
+  return k.readAt !== null && now - k.readAt > READING_STALE_MS ? k.readAt : null;
+}
+
 export function totalOf(
   keys: StackKey[],
   plans: (k: StackKey) => string | undefined,
@@ -1054,7 +1059,12 @@ export function totalOf(
   const segment = (k: StackKey): TotalSegment => {
     const l = k.refillLimit;
     const refill = l?.countdown ?? null;
-    const room = k.share === null ? 'shows after its first reply' : `${100 - k.share}% used`;
+    const room =
+      k.share === null
+        ? 'shows after its first reply'
+        : staleAt(k, now) !== null
+          ? asOfFigure(`${100 - k.share}% used`, k.readAt as number, now)
+          : `${100 - k.share}% used`;
     return {
       key: k.key,
       engine: k.engine,
@@ -1087,6 +1097,15 @@ export function totalOf(
     across = same
       ? `across ${read.length} ${words[0]} accounts`
       : `across ${plural(read.length, 'account')}`;
+  }
+  // An old reading in the total is said with when it is from, so a figure the
+  // Mac stopped reading (an idle sign-in, a Mac asleep) never passes as now.
+  const oldest = read
+    .filter((k) => staleAt(k, now) !== null)
+    .sort((a, b) => (a.readAt as number) - (b.readAt as number))[0];
+  if (oldest) {
+    const when = readDay(oldest.readAt as number, now);
+    across += read.length > 1 ? ` · ${oldest.name} as of ${when}` : ` · as of ${when}`;
   }
   const weighting = read.length > 1 ? weightingOf(read.map((k) => planWord(plans(k)))) : null;
   const used = left === null ? null : 100 - left;

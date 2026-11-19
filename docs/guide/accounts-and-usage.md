@@ -15,7 +15,8 @@ Click it for the full view, also in **Settings → Accounts & usage**.
 - Figures are only what the engine reports. The app never estimates a reading. If an account
   hasn't been read yet, it says so and leaves it out of the total.
 - A reading that's more than an hour old says when it was taken, on the account's row, desk and
-  phone alike: "0% used · as of 5:00 AM". The app reads each account about every ten minutes, so an
+  phone alike: "0% used · as of 5:00 AM". The total at the top says it too, naming the account
+  ("across 2 Max accounts · Work as of 5:00 AM"). The app reads each account about every ten minutes, so an
   old figure means the reads stopped, never that nothing changed.
 - An account nobody has used for a while lets its sign-in lapse. The app asks Claude Code to renew
   it (no agent turn runs and nothing is spent), at most every 15 minutes, so the account keeps

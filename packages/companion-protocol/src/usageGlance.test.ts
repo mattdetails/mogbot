@@ -1059,4 +1059,22 @@ describe('a reading that has gone stale', () => {
     expect(k.figure).toBe('90% used · as of 9:00 AM');
     expect(k.tone).toBe('warning');
   });
+
+  it('says it on the total too, so the hero never passes an old figure as now', () => {
+    const g = usageGlance(
+      [acct('default')],
+      inv([line('default', { windows: [stale(7 * H)] })]),
+      { now: NOW }
+    );
+    expect(g.total.across).toBe('this week · as of 5:00 AM');
+    expect(g.total.segments[0].words).toContain('0% used · as of 5:00 AM');
+    expect(totalWords(g).across).toBe('this week · as of 5:00 AM');
+  });
+
+  it('leaves a fresh total alone', () => {
+    const g = usageGlance([acct('default')], inv([line('default', { windows: [stale(60_000)] })]), {
+      now: NOW,
+    });
+    expect(g.total.across).toBe('this week');
+  });
 });
