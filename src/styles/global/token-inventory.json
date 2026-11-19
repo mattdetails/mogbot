@@ -5443,7 +5443,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 653
+      "consumerCount": 654
     },
     {
       "name": "--text-secondary",
@@ -6355,7 +6355,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1026
+      "consumerCount": 1027
     },
     {
       "name": "--spacing-md",
@@ -6363,7 +6363,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 664
+      "consumerCount": 665
     },
     {
       "name": "--spacing-lg",
@@ -6451,7 +6451,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 3
     },
     {
       "name": "--radius-bubble-tail",
@@ -6459,7 +6459,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 3
     },
     {
       "name": "--mask-opaque",
@@ -6955,7 +6955,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 653
+      "consumerCount": 654
     },
     {
       "name": "--text-secondary",

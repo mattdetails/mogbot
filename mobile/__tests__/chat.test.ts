@@ -552,3 +552,48 @@ describe('driven on the Mac', () => {
     expect(subtitle({ ...driven(), pendingApprovals: 1 })).toBe('Needs your OK');
   });
 });
+
+describe('the working row, waiting on you', () => {
+  const ask = (over: Record<string, unknown> = {}): AgentMessage =>
+    msg('c1', 5, {
+      kind: 'approval',
+      text: '',
+      approval: {
+        requestId: 'r1',
+        title: 'Do these under your name?',
+        detail: '',
+        status: 'pending',
+        plan: {
+          actions: Array.from({ length: 12 }, (_, i) => ({
+            kind: 'send',
+            target: `lead${i}@example.com`,
+            summary: `Email ${i}`,
+          })),
+        },
+        ...over,
+      },
+    } as never);
+
+  it('says what waits, with a Review, in place of a status', () => {
+    const waiting = agent({ status: { state: 'waiting', activity: null, since: 1 } });
+    const items = chatItems(waiting, [ask()], [], undefined, 10);
+    expect(items[0]).toMatchObject({
+      kind: 'working',
+      label: 'Needs your OK on 12 emails',
+      needsOk: true,
+    });
+  });
+
+  it('is not there when nothing waits, or the turn is simply working', () => {
+    const waiting = agent({ status: { state: 'waiting', activity: null, since: 1 } });
+    expect(
+      chatItems(waiting, [ask({ status: 'allowed' })], [], undefined, 10).some(
+        (i) => i.kind === 'working'
+      )
+    ).toBe(false);
+    const working = agent({ status: { state: 'working', activity: 'Reading', since: 1 } });
+    const row = chatItems(working, [ask()], [], undefined, 10)[0];
+    expect(row).toMatchObject({ kind: 'working' });
+    expect((row as { needsOk?: true }).needsOk).toBeUndefined();
+  });
+});

@@ -1197,7 +1197,9 @@ export const AgentChat = memo(function AgentChat({
     };
   }, [messages]);
   const waitingHere = agent.status.state === 'waiting' && !!needsOk;
-  const indicator = usePresence((working || waitingHere) && !wroteJustNow);
+  // The row stays while the reply streams in, as dots in a pill (`typing`): the
+  // only time dots show.
+  const indicator = usePresence(((working || waitingHere) && !wroteJustNow) || !!streaming);
   const jump = usePresence(!atBottom);
   // What it's doing now goes above what's waiting: the indicator sits before
   // the run of queued messages at the end, not under them.
@@ -2044,6 +2046,7 @@ export const AgentChat = memo(function AgentChat({
           agent={rowAgent}
           bare={importTalking}
           needsOk={needsOk}
+          typing={!!streaming}
           place={
             inRoom ? (
               <RoomWorkingPlace roomId={inRoom} onOpenRoom={onOpenAgent} />

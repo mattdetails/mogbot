@@ -715,3 +715,14 @@
 .agent-briefing__section[open] > summary > svg {
   transform: rotate(90deg);
 }
+
+/* The reply is streaming in: the agent's key and three dots in a pill, the
+   agent bubble's own tint and corners (agents-chat.css), nothing else. */
+.agent-working__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-bubble);
+  border-bottom-left-radius: var(--radius-bubble-tail);
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+}

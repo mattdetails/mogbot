@@ -7,7 +7,7 @@
  * together (`grouped`). Pure, so it's tested.
  */
 
-import type { Agent, AgentMessage } from '@shipstudio/companion-protocol';
+import { needsOkLine, type Agent, type AgentMessage } from '@shipstudio/companion-protocol';
 import { formatClock, formatDate, workingLine } from './agents';
 import { isImportInterview } from './bars';
 import { foldRoomLines, type RoomFold } from './rooms';
@@ -18,7 +18,7 @@ export type Item = (
   | { kind: 'day'; key: string; label: string }
   | { kind: 'pending'; key: string; pending: PendingSend; grouped: boolean }
   | { kind: 'draft'; key: string; text: string }
-  | { kind: 'working'; key: string; label: string }
+  | { kind: 'working'; key: string; label: string; needsOk?: true }
   /** What the agent said in a room, folded into one line that opens the room. */
   | { kind: 'room'; key: string; fold: RoomFold }
   /** "Setting up your team", where it was posted in the Chief's chat. */
@@ -140,6 +140,19 @@ export function chatItems(
       // Mid-import the bar above the composer says it; the row keeps its dots.
       label: isImportInterview(agent.status.activity) ? '' : workingLine(agent),
     });
+  // Waiting on a card of this chat: the same row says "Needs your OK on 12 emails",
+  // with a real Review (the bar's job; one place per surface).
+  if (agent.status.state === 'waiting' && !draft) {
+    const asking = messages.filter((m) => m.approval?.status === 'pending');
+    if (asking.length > 0) {
+      out.push({
+        kind: 'working',
+        key: 'working',
+        label: needsOkLine(asking.map((m) => m.approval!)),
+        needsOk: true,
+      });
+    }
+  }
   if (draft) out.push({ kind: 'draft', key: draft.id, text: draft.text });
   const rows = messages.some((m) => m.room) ? foldRoomLines(messages, agent.copy?.id) : messages;
   const last = rows[rows.length - 1];
