@@ -147,6 +147,16 @@ pub const TOOLS: &[ToolDef] = &[
         schema: || same_as_agents("close_tab"),
     },
     ToolDef {
+        name: "read_console",
+        description: "What one of your tabs wrote to its console: logs, warnings, errors and uncaught exceptions, newest last. Recorded from the first time you read or acted on that tab (a tab you only opened starts recording now); `navigate` to the page again to catch its load. `level`: only that level (\"error\", \"warn\", \"log\", \"info\", \"debug\").",
+        schema: || json!({ "type": "object", "properties": { "tab": tab_prop(), "level": { "type": "string", "description": "Only this level: error, warn, log, info or debug." }, "limit": { "type": "integer", "description": "How many of the newest (default 50, at most 200)." } } }),
+    },
+    ToolDef {
+        name: "read_network",
+        description: "The requests one of your tabs made: method, status and address, newest last. Recorded from the first time you read or acted on that tab (a tab you only opened starts recording now); `navigate` to the page again to catch its load. `failed_only`: only requests that failed or answered 400 or more.",
+        schema: || json!({ "type": "object", "properties": { "tab": tab_prop(), "failed_only": { "type": "boolean" }, "limit": { "type": "integer", "description": "How many of the newest (default 50, at most 200)." } } }),
+    },
+    ToolDef {
         name: "browsers",
         description: "The Chrome profiles the app's extension is in right now, and which one you're using. Each profile can be signed in as someone else.",
         schema: || json!({ "type": "object", "properties": {} }),
@@ -904,6 +914,55 @@ pub fn run(agent: &str, label: &str, name: &str, args: &Value) -> Result<Vec<Val
             let tab = tab_for(agent, &conn, tab_arg(args))?;
             Ok(vec![text(page(&conn, agent, &tab).text(MAX_TEXT))])
         }
+        "read_console" | "read_network" => {
+            if super::older(&conn.extension_version, LOGS_SINCE) {
+                return Err(logs_need_update(&conn.extension_version));
+            }
+            let tab = tab_for(agent, &conn, tab_arg(args))?;
+            let console = name == "read_console";
+            let limit = args
+                .get("limit")
+                .and_then(Value::as_u64)
+                .map_or(50, |n| n.clamp(1, 200)) as u32;
+            let v = conn
+                .call(
+                    Op::TabLogs {
+                        agent: agent.into(),
+                        tab_id: tab.tab_id,
+                        log: if console { "console" } else { "network" }.into(),
+                        since: None,
+                        // Filtering happens here: ask for all kept, then take the newest.
+                        limit: Some(200),
+                    },
+                    T,
+                )
+                .map_err(|e| match &e {
+                    CallError::Ext(x)
+                        if x.code == super::protocol::ErrorCode::BadRequest
+                            && x.message.contains("unknown op") =>
+                    {
+                        logs_need_update(&conn.extension_version)
+                    }
+                    _ => e.line(),
+                })?;
+            let got: Logged = serde_json::from_value(v)
+                .map_err(|_| "Chrome answered, but not with its logs.".to_string())?;
+            Ok(vec![text(if console {
+                console_text(
+                    &got,
+                    args.get("level").and_then(Value::as_str),
+                    limit as usize,
+                )
+            } else {
+                network_text(
+                    &got,
+                    args.get("failed_only")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                    limit as usize,
+                )
+            })])
+        }
         "screenshot" => {
             let tab = tab_for(agent, &conn, tab_arg(args))?;
             // Chrome paints only the shown tab of a window.
@@ -1167,6 +1226,113 @@ pub fn run(agent: &str, label: &str, name: &str, args: &Value) -> Result<Vec<Val
         }
         other => Err(format!("Unknown tool: {other}")),
     }
+}
+
+/* ------------------------------------------------- console and requests */
+
+/// The first extension that records a tab's console and requests.
+pub const LOGS_SINCE: &str = "0.1.3";
+
+fn logs_need_update(have: &str) -> String {
+    format!("The extension in this Chrome ({have}) can't read a tab's console or requests yet: that needs version {LOGS_SINCE} or later. Ask the user to update the app's Chrome extension; meanwhile read_page and get_text still work.")
+}
+
+/// One console line or request, as the extension keeps it (`logs.js`).
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+pub struct LogEntry {
+    #[serde(default)]
+    pub level: String,
+    #[serde(default)]
+    pub text: String,
+    #[serde(default)]
+    pub source: String,
+    #[serde(default)]
+    pub method: String,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub status: Option<i64>,
+    #[serde(default)]
+    pub failed: Option<String>,
+}
+
+/// The extension's answer to `tab_logs`.
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+pub struct Logged {
+    /// It attached to the tab just now: nothing before this was recorded.
+    #[serde(default)]
+    pub started: bool,
+    #[serde(default)]
+    pub entries: Vec<LogEntry>,
+}
+
+const NOTHING_YET: &str = "Nothing recorded yet: the extension starts recording a tab the first time you read or act on it, and it has now. Use navigate to load the page again, then read again.";
+
+/// `read_console`'s answer: `[level] text (source)`, newest last.
+pub fn console_text(got: &Logged, level: Option<&str>, limit: usize) -> String {
+    let want = level.map(|l| match l.trim().to_lowercase().as_str() {
+        "warning" => "warn".to_string(),
+        other => other.to_string(),
+    });
+    let lines: Vec<String> = got
+        .entries
+        .iter()
+        .filter(|e| want.as_deref().is_none_or(|w| w.is_empty() || e.level == w))
+        .map(|e| {
+            let text = e.text.replace('\n', " ");
+            if e.source.is_empty() {
+                format!("[{}] {text}", e.level)
+            } else {
+                format!("[{}] {text} ({})", e.level, e.source)
+            }
+        })
+        .collect();
+    finish(lines, limit, got.started, || match &want {
+        Some(l) if !l.is_empty() => format!("No {l} messages in this tab's console."),
+        _ => "This tab's console is empty.".into(),
+    })
+}
+
+/// `read_network`'s answer: `METHOD status address`, newest last.
+pub fn network_text(got: &Logged, failed_only: bool, limit: usize) -> String {
+    let lines: Vec<String> = got
+        .entries
+        .iter()
+        .filter(|e| !failed_only || e.failed.is_some() || e.status.is_some_and(|s| s >= 400))
+        .map(|e| {
+            let status = match (&e.failed, e.status) {
+                (Some(why), _) => format!("failed ({why})"),
+                (None, Some(s)) => s.to_string(),
+                (None, None) => "pending".into(),
+            };
+            format!("{} {status} {}", e.method, e.url)
+        })
+        .collect();
+    finish(lines, limit, got.started, || {
+        if failed_only {
+            "No failed requests in this tab.".into()
+        } else {
+            "This tab hasn't made any requests since recording started.".into()
+        }
+    })
+}
+
+fn finish(
+    lines: Vec<String>,
+    limit: usize,
+    started: bool,
+    none: impl FnOnce() -> String,
+) -> String {
+    if lines.is_empty() {
+        return if started { NOTHING_YET.into() } else { none() };
+    }
+    let skip = lines.len().saturating_sub(limit.max(1));
+    let mut out = String::new();
+    if skip > 0 {
+        out.push_str(&format!("({skip} older not shown)\n"));
+    }
+    out.push_str(&lines[skip..].join("\n"));
+    out
 }
 
 /// An agent was deleted or its browser taken away: its tabs close.

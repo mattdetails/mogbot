@@ -31,6 +31,11 @@ whatever else it can do. If Mogbot for Chrome stays disconnected for five minute
 the Chief of Staff says so once (and you get one notification), with a button to Settings →
 Chrome. Not once per agent.
 
+An agent can also read what one of its own tabs wrote to its console (errors, warnings, logs) and
+which requests it made, with their status. That is reading, so it never asks. It covers only the
+time since the agent first read or used that tab, and needs Mogbot for Chrome 0.1.3 or later; with
+an older one the agent says which version to update to.
+
 ### In project tabs and your own Terminal
 
 Project tabs you open here (Claude Code or Codex) get the same Chrome tools while Mogbot for Chrome

@@ -70,7 +70,8 @@ else (tests hold `cdp.js` to both lists).
 | `protocol.js` | The JS half of the protocol; Rust tests check its version, ops and codes. |
 | `link.js` | One native port; hello; states (`connecting`, `connected`, `app_not_running`, `no_host`, `update_needed`, `refused`, `stopped`); backoff 1/2/5/10/30 s while awake, then a one-minute alarm. An open native port keeps an MV3 service worker alive; the alarm restarts one Chrome stopped. Stale ports (replaced) are ignored. |
 | `tabs.js` | Which tab is whose (`storage.session`, so a restarted worker still knows), the agents' window (unfocused, normal), a tab group per agent with its name, waiting for the first load before anything attaches, events (`tab_closed`, `tab_updated`). |
-| `cdp.js` | `chrome.debugger` with the allow-list; `Runtime.evaluate` narrowed to the app's expressions and `returnByValue`; `Page.navigate` to http(s) only; protected pages refused; the user's Cancel on Chrome's debugging bar pauses all driving for five minutes. |
+| `cdp.js` | `chrome.debugger` with the allow-list; `Runtime.evaluate` narrowed to the app's expressions and `returnByValue`; `Page.navigate` to http(s) only; protected pages refused; the user's Cancel on Chrome's debugging bar pauses all driving for five minutes. On attach the extension itself enables `Page`, `DOM`, `Accessibility`, `Runtime` and `Network`; the app can send none of those domains' commands. |
+| `logs.js` | A tab's console and requests for `tab_logs` (`read_console`, `read_network`), from `chrome.debugger.onEvent`: `Runtime.consoleAPICalled` and `Runtime.exceptionThrown` (as errors); `Network.requestWillBeSent` merged by request with `responseReceived` (status) and `loadingFailed` (the error), a redirect closing the hop before it. Recorded from when the extension first drives the tab (a tab only opened is attached on the first read, which says so), at most 200 of each per tab, text cut at 1,000 characters and addresses at 2,000, in the service worker's memory only: dropped when the tab closes or its agent is let go, and empty after Chrome restarts the worker. No bodies, headers or cookies. |
 | `ops.js`, `service_worker.js` | Op dispatch; top-level listeners; the badge. |
 | `popup.*` | One line of state, the profile's name (shown to agents by `browsers`), Try again. |
 
@@ -376,7 +377,7 @@ signed-in profile, which is what Claude in Chrome does too.
 | list/select/switch_browser | `browsers`, `use_browser` (one connection per profile, named in the popup) |
 | tab groups | yes, one per agent, in an agents' window |
 | javascript_tool, file_upload, upload_image, gif_creator, shortcuts | deliberately not offered (arbitrary script and uploads are the widest ways out; the gate would ask for every one anyway) |
-| read_console_messages / read_network_requests | not yet; would need `Runtime.enable`/`Network.enable` relayed and buffered in the extension |
+| read_console_messages / read_network_requests | `read_console` (`level`), `read_network` (`failed_only`): reads, free at every level; recorded by the extension (`logs.js`) since it first drove the tab. Extension 0.1.3 or later; an older one is named with the version to update to |
 
 ## Computer use, next, on the same bridge
 

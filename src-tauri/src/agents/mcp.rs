@@ -3680,6 +3680,7 @@ fn browser_tool_title(server: &str, name: &str) -> Option<&'static str> {
             "open" => "Open a page in your Chrome",
             "navigate" => "Go to a page in your Chrome",
             "read_page" | "find" | "get_text" => "Read the page",
+            "read_console" | "read_network" => "Read the page's console or requests",
             "screenshot" => "Look at the page",
             "click" => "Click on the page",
             "hover" => "Point at something on the page",

@@ -1689,6 +1689,8 @@ pub fn agents_equivalent(name: &str, input: &Value) -> (String, Value) {
         "read_page" => ("read_page".into(), i),
         "find" => ("find".into(), i),
         "get_text" => ("get_page_text".into(), i),
+        "read_console" => ("read_console_messages".into(), i),
+        "read_network" => ("read_network_requests".into(), i),
         "close_tab" => ("tabs_close_mcp".into(), i),
         // A picture pasted from this Mac is an upload: the same rules.
         "attach_image" => ("upload_image".into(), i),
