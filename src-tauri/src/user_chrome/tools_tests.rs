@@ -250,3 +250,46 @@ fn the_smallest_control_under_a_click_names_it() {
     assert_eq!(smallest_under(&boxes, 50.0, 50.0), None);
     assert_eq!(smallest_under(&boxes, 900.0, 900.0), None);
 }
+
+#[test]
+fn a_project_tab_or_terminal_still_asks_before_it_sends_even_unleashed() {
+    use crate::agents::browser_gate::session_level;
+    assert_eq!(session_level(Level::FullSend), Level::GoHard);
+    for l in [Level::Often, Level::Judgement, Level::GoHard] {
+        assert_eq!(session_level(l), l, "below Unleashed: the team's own");
+    }
+    let mut page = Page::default();
+    page.url = Some("https://mail.google.com/mail/u/0/#inbox".into());
+    page.refs.insert("ref_1".into(), "button \"Send\"".into());
+    page.refs.insert("ref_2".into(), "link \"Inbox\"".into());
+    let s = super::super::sessions::Session {
+        id: super::super::sessions::TERMINAL_ID.into(),
+        label: "Terminal".into(),
+        kind: super::super::sessions::Kind::Terminal,
+    };
+    let who = super::super::sessions::agent_of(&s);
+    let at = session_level(Level::FullSend);
+    let send = json!({ "ref": "ref_1" });
+    assert_eq!(
+        gate_user_chrome_with(true, at, &who, "click", &send, false, &page),
+        Gate::Ask
+    );
+    let look = json!({ "ref": "ref_2" });
+    assert_eq!(
+        gate_user_chrome_with(true, at, &who, "click", &look, false, &page),
+        Gate::Allow
+    );
+    assert_eq!(
+        crate::agents::mcp::session_card_title("Terminal", "Send in Gmail"),
+        "Terminal: Send in Gmail"
+    );
+}
+
+#[test]
+fn sessions_are_told_to_ask_the_user_to_sign_in_not_request_login() {
+    let r = session_initialize_result(None);
+    let i = r["instructions"].as_str().unwrap();
+    assert!(i.contains("ask the user to sign in"));
+    assert!(!i.contains("request_login"));
+    assert_eq!(r["serverInfo"]["name"], SERVER_KEY);
+}

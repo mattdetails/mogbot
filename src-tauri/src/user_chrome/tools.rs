@@ -160,6 +160,10 @@ pub const TOOLS: &[ToolDef] = &[
 
 const INSTRUCTIONS: &str = "The user's own Google Chrome on this Mac, through the app's extension: the sites they're signed in to, as them. Your tabs open in a tab group of yours; you see and act only in tabs you opened. Read with read_page or find (refs) before you click or type; reading is free. Before anything that sends, posts, publishes, pays, deletes or shares, say exactly what will go and from which account: that click or key asks the user on a card. Never type a password or a code. If a page asks you to sign in, stop and call request_login for that service with signed_out: true and browser: \"chrome\". If more than one Chrome profile is connected, call browsers and pick with use_browser. For web search use your own search tool, not a search site.";
 
+/// What a project tab or a Terminal session is told (`sessions`): no agent
+/// tools there, so a sign-in is the user's to do in the tab.
+const SESSION_INSTRUCTIONS: &str = "The user's own Google Chrome on this Mac, through the app's extension: the sites they're signed in to, as them. Your tabs open in a tab group of yours; you see and act only in tabs you opened. Read with read_page or find (refs) before you click or type; reading is free. Before anything that sends, posts, publishes, pays, deletes or shares, say exactly what will go and from which account: that click or key asks the user on a card in the app. Never type a password or a code. If a page asks you to sign in, stop and ask the user to sign in in that tab, then carry on. If more than one Chrome profile is connected, call browsers and pick with use_browser.";
+
 /* ------------------------------------------------- per-agent state */
 
 #[derive(Debug, Clone)]
@@ -1186,6 +1190,15 @@ pub fn close_agent(agent: &str) {
 /* ------------------------------------------------------------- MCP */
 
 fn initialize_result(params: Option<&Value>) -> Value {
+    initialize_with(params, INSTRUCTIONS)
+}
+
+/// `initialize` for a project tab or a Terminal session (`sessions`).
+pub fn session_initialize_result(params: Option<&Value>) -> Value {
+    initialize_with(params, SESSION_INSTRUCTIONS)
+}
+
+fn initialize_with(params: Option<&Value>, instructions: &str) -> Value {
     let version = params
         .and_then(|p| p.get("protocolVersion"))
         .and_then(Value::as_str)
@@ -1195,7 +1208,7 @@ fn initialize_result(params: Option<&Value>) -> Value {
         "protocolVersion": version,
         "capabilities": { "tools": {} },
         "serverInfo": { "name": SERVER_KEY, "version": env!("CARGO_PKG_VERSION") },
-        "instructions": INSTRUCTIONS,
+        "instructions": instructions,
     })
 }
 
@@ -1226,6 +1239,28 @@ pub async fn handle_rpc(
     dispatch(Some(app), &agent, turn, message).await
 }
 
+/// One JSON-RPC message from a project tab or a Terminal session
+/// (`sessions`): the same tools, its own tabs, and a card in the Chief of
+/// Staff's chat for anything that asks.
+pub async fn handle_rpc_session(
+    app: &AppHandle,
+    session: &super::sessions::Session,
+    message: &Value,
+) -> Value {
+    let agent = super::sessions::agent_of(session);
+    dispatch_as(Some(app), &agent, Asker::Session, message).await
+}
+
+/// Who answers a call that asks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Asker {
+    /// An agent's turn, on a card in its chat (`None`: a take-over, whose
+    /// engine asks the user at the keyboard).
+    Turn(Option<u64>),
+    /// A project tab or a Terminal session: a card in the Chief's chat.
+    Session,
+}
+
 /// [`handle_rpc`] for a known agent. `app`: where a call that asks puts its
 /// card; with none (the end-to-end check) such a call is refused, never let
 /// through.
@@ -1233,6 +1268,16 @@ pub async fn dispatch(
     app: Option<&AppHandle>,
     agent: &crate::agents::store::Agent,
     turn: Option<u64>,
+    message: &Value,
+) -> Value {
+    dispatch_as(app, agent, Asker::Turn(turn), message).await
+}
+
+/// [`dispatch`], for either kind of caller.
+pub async fn dispatch_as(
+    app: Option<&AppHandle>,
+    agent: &crate::agents::store::Agent,
+    asker: Asker,
     message: &Value,
 ) -> Value {
     let agent_id = agent.id.as_str();
@@ -1247,6 +1292,7 @@ pub async fn dispatch(
     };
     let fail = |code: i64, msg: &str| json!({ "jsonrpc": "2.0", "id": id, "error": { "code": code, "message": msg } });
     match method {
+        "initialize" if asker == Asker::Session => ok(session_initialize_result(params)),
         "initialize" => ok(initialize_result(params)),
         "ping" => ok(json!({})),
         "tools/list" => ok(tools_list()),
@@ -1264,7 +1310,8 @@ pub async fn dispatch(
                 return fail(-32602, &format!("Unknown tool: {name}"));
             }
             let tool = format!("{USER_CHROME_SERVER}{name}");
-            let outside = crate::agents::runner::from_outside(agent_id);
+            // A session is the user at the keyboard: never outside text.
+            let outside = asker != Asker::Session && crate::agents::runner::from_outside(agent_id);
             // A click by position: judged by the control under it.
             let at = if name == "click" && args.get("ref").is_none() {
                 let (a, g) = (agent_id.to_string(), args.clone());
@@ -1276,10 +1323,33 @@ pub async fn dispatch(
                 None
             };
             let judged = gated_args(agent_id, &name, &args, at.as_deref());
-            match browser_gate::gate(agent, &tool, &judged, outside) {
+            let gate = match asker {
+                Asker::Session => browser_gate::gate_session(agent, &tool, &judged),
+                Asker::Turn(_) => browser_gate::gate(agent, &tool, &judged, outside),
+            };
+            match gate {
                 Gate::Allow | Gate::NotBrowser => {}
                 Gate::Refuse(why) => return ok(result(vec![text(why)], true)),
+                Gate::Ask if asker == Asker::Session => {
+                    let Some(app) = app else {
+                        return ok(result(
+                            vec![text(
+                                "This needs the user's OK, and nobody can be asked here.",
+                            )],
+                            true,
+                        ));
+                    };
+                    if let Err(why) =
+                        crate::agents::mcp::decide_for_session(app, agent, &tool, &judged).await
+                    {
+                        return ok(result(vec![text(why)], true));
+                    }
+                }
                 Gate::Ask => {
+                    let turn = match asker {
+                        Asker::Turn(t) => t,
+                        Asker::Session => None,
+                    };
                     if !take_cleared(agent_id, &tool, &judged) && turn.is_some() {
                         let Some(app) = app else {
                             return ok(result(

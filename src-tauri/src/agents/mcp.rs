@@ -3952,6 +3952,45 @@ pub(crate) async fn decide_agents_browser(
     }
 }
 
+/// A project tab's or a Terminal session's call to Your Chrome that asks
+/// (`user_chrome::sessions`): there's no agent chat for it, so the card goes
+/// to the Chief of Staff's, titled with who's asking ("Terminal: …"), with
+/// the phone and the notification an agent's card gets. `session`: the
+/// caller as `sessions::agent_of` makes it. `Err` is what the session is
+/// told.
+pub(crate) async fn decide_for_session(
+    app: &AppHandle,
+    session: &store::Agent,
+    tool: &str,
+    input: &Value,
+) -> Result<(), String> {
+    let chief = store::list()
+        .ok()
+        .and_then(|l| l.into_iter().find(|a| a.is_main))
+        .ok_or("This needs the user's OK, and there's no Chief of Staff to ask it in.")?;
+    if take_grant(&session.id, tool, input) {
+        return Ok(());
+    }
+    let page = super::browser_gate::page_of(&super::browser_gate::user_chrome_key(&session.id));
+    let (title, said) = super::browser_gate::describe_agents(tool, input, &page);
+    let (_, detail) = describe_request(tool, input);
+    let title = session_card_title(&session.name, &title);
+    let summary = Some(said).filter(|s| !s.trim().is_empty());
+    match ask(app, &chief, title, summary, detail, Some((tool, input))).await {
+        Answer::Allowed => {
+            super::browser_gate::note_allowed_send(session, tool, input);
+            Ok(())
+        }
+        Answer::Denied(note) => Err(denied(note)),
+        Answer::NotYet => Err(NOT_YET.to_string()),
+    }
+}
+
+/// A session's card title: who's asking, then what. Pure.
+pub fn session_card_title(who: &str, what: &str) -> String {
+    format!("{who}: {what}")
+}
+
 /// A connection call the engine didn't ask about (`conn_relay`): the same
 /// decision, made here. `Err` is what the agent is told.
 pub(crate) async fn decide_relayed(

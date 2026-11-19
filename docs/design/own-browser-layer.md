@@ -127,6 +127,44 @@ Claude in Chrome, so every existing prompt and access-chain step carries over.
 `browser::for_turn` is now "has the user's Chrome by any route";
 `claude_in_chrome_for_turn` is the old meaning.
 
+## Project tabs and Terminal sessions (`user_chrome/sessions.rs`, `launcher.rs`)
+
+The same `user_chrome` server, for callers that aren't agents, so nothing
+the user runs needs Claude in Chrome (which pairs only with the claude.ai
+account signed in to Chrome):
+
+- **A project tab** the app spawns (Claude Code or Codex, while the switch
+  is on): its own 64-hex secret per pty id (`sessions::for_project_tab`),
+  in a 0600 `--mcp-config` file (`agent-bridge/mcp-*.json`, swept at launch)
+  for Claude Code, or `bearer_token_env_var` = `USER_CHROME_MCP_TOKEN` for
+  Codex; never argv. Its tabs belong to `session-<hash of the pty id>`, in a
+  tab group named for the project folder. Take-overs are agents' and get
+  nothing here.
+- **Terminal**: `<binary> mcp user-chrome`, a stdio launcher (`launcher.rs`),
+  registered once at user scope:
+  `claude mcp add --scope user user_chrome -- <binary> mcp user-chrome`
+  (once per `CLAUDE_CONFIG_DIR`). It reads `user-chrome-mcp.json` (0600,
+  the bridge's port and the Terminal secret, one per app run; a debug build
+  writes `user-chrome-mcp-dev.json` instead) before every message, so it
+  survives app restarts. With the app closed it answers `initialize` and
+  `tools/list` itself and every call says the app isn't open; with the
+  switch off, every call says to turn it on. Inside a project tab it uses
+  that tab's secret (`USER_CHROME_MCP_TOKEN`), so a tab never shows as two
+  callers. The file is removed when the app quits.
+- **Approvals**: the caller is the user at a keyboard, never outside text.
+  `browser_gate::gate_session` applies the agents' rules at the team's
+  level held to "Bold" (`session_level`), so a send, post, payment, delete
+  or share always asks. The card goes to the Chief of Staff's chat
+  (`agents::mcp::decide_for_session`), titled "Terminal: …" or
+  "<project>: …", with the phone and notification an agent's card gets.
+- **Same boundary as the link's token**: another process running as the
+  user can read the endpoint file, as it can read the link's token.
+
+**One alarm** (`user_chrome/alarm.rs`): while the switch is on and no Chrome
+has been linked for five minutes (or the link isn't running), one line in
+the Chief's chat with "Check Your Chrome", and one notification; not again
+until it has come back and gone down again.
+
 ## Which way agents use, and why (`agents/chrome_route.rs`)
 
 Observed (the owner): "I keep having to log in and out with the Claude in
