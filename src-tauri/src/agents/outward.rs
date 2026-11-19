@@ -58,8 +58,22 @@ const MESSAGE_HOSTS: &[&str] = &[
 ];
 
 /// Whether `agent`'s policy holds sends for the exact text's OK.
+///
+/// At Unleashed only the agent's own switch holds its sends: the team's (often
+/// set once from an old rule, `policy::migrate_exact_text`) doesn't. Unleashed
+/// asks only before spending money (Julian, 18 Nov 2026).
 pub fn required(agent: &super::store::Agent) -> bool {
-    super::policy::effective(agent).outward_text_needs_ok
+    if !super::policy::effective(agent).outward_text_needs_ok {
+        return false;
+    }
+    if super::policy::chosen_level(agent) != super::independence::Level::FullSend {
+        return true;
+    }
+    super::policy::load()
+        .agents
+        .get(&agent.id)
+        .and_then(|o| o.outward_text_needs_ok)
+        == Some(true)
 }
 
 /// Whether this call sends, posts, comments or emails under the user's name.

@@ -3860,6 +3860,23 @@ pub(super) fn owner_direct(
     level.goes_hard() && !outside && runner::users_message_alone(caller_id)
 }
 
+/// Whether reading outside content earlier in the conversation puts a card on
+/// this call. Never at Unleashed: it asks only before spending money, and an
+/// Unleashed agent reads the web all day (Julian, 18 Nov 2026). Below it, raw
+/// data leaving and new packages ask (`autoallow::outside_mark_asks`).
+pub(super) fn exposure_asks(
+    full_send: bool,
+    exposed: bool,
+    ctx: Option<&super::autoallow::Ctx>,
+    tool: &str,
+    input: &Value,
+    direct: bool,
+) -> bool {
+    !full_send
+        && exposed
+        && ctx.is_none_or(|ctx| super::autoallow::outside_mark_asks(tool, input, ctx, full_send, direct))
+}
+
 fn holds_for_exact_text(caller: &store::Agent, tool: &str, input: &Value) -> bool {
     super::outward::required(caller) && super::outward::sends_as_user(caller, tool, input)
 }
@@ -4037,10 +4054,25 @@ async fn decide_inner(
     // "Nothing goes out under my name unless I OK the exact text"
     // (`outward`): a send waits for a card showing its words, at every
     // level; no standing rule and no level answers it.
+    // "Unleashed" asks only before spending money (Julian, 18 Nov 2026:
+    // "it's about it not sending cards all the damn time"). Never for a turn
+    // answering outside text, which runs at a lower level (`for_turn`).
+    let level = super::independence::for_turn(super::policy::chosen_level(caller), outside);
+    let full_send = level == super::independence::Level::FullSend;
+    // At Unleashed only the agent's own "exact words" switch holds a send
+    // (`outward::required`).
     let exact = holds_for_exact_text(caller, tool, input);
-    // Disk nearly full (`disk`): installs and clones ask at every level,
-    // and no standing rule answers them.
-    let disk_floor = super::disk::floor_asks(tool, input);
+    // Disk nearly full (`disk`): installs and clones ask, and no standing
+    // rule answers them. At Unleashed they run with a line saying so.
+    let disk_floor = super::disk::floor_asks(tool, input) && !full_send;
+    if full_send && super::disk::floor_asks(tool, input) {
+        super::work::on_step(
+            &caller.id,
+            super::work::StepKind::Approval,
+            &super::disk::card_line(),
+            store::now_ms(),
+        );
+    }
     // Never for a browser step the gate said asks: a tool-wide rule doesn't
     // override its send/pay/delete call (`permissions::is_scopable_tool`).
     if !browser_asks && !exact && !disk_floor && always_allowed(caller, tool, input) {
@@ -4060,18 +4092,20 @@ async fn decide_inner(
     // the project asks (`exposure`).
     // At "Full send" (never for outside text) only raw data moved off this
     // Mac asks after outside content; pushes and `gh` follow its floor.
-    let level = super::independence::for_turn(super::policy::chosen_level(caller), outside);
-    let full_send = level == super::independence::Level::FullSend;
     // The owner's own request at Go hard or above: the conversation's mark
     // stays, but asks only for data leaving and new packages.
     let direct = owner_direct(level, outside, &caller.id);
     let guarded = browser_asks
         || exact
         || disk_floor
-        || super::exposure::read_outside(&caller.id)
-            && super::autoallow::Ctx::for_agent(caller).is_none_or(|ctx| {
-                super::autoallow::outside_mark_asks(tool, input, &ctx, full_send, direct)
-            });
+        || exposure_asks(
+            full_send,
+            super::exposure::read_outside(&caller.id),
+            super::autoallow::Ctx::for_agent(caller).as_ref(),
+            tool,
+            input,
+            direct,
+        );
     if let Some(level) = auto_allowed(caller, tool, input, outside).filter(|_| !guarded) {
         // What "Go hard" would have asked for says so, and goes in the
         // turn's one summary line (`full_send`).

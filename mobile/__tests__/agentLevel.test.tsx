@@ -136,7 +136,7 @@ describe('one agent’s level on the phone', () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        /^Always asks before spending money, using your passwords, or deleting for good\./
+        /^Always asks before spending money\./
       )
     ).toBeTruthy();
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});

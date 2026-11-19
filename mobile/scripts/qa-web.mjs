@@ -2659,7 +2659,7 @@ const LIVE = [
     ready: 'Just does it',
     act: scrollToText('Just does it'),
     check:
-      'HOW MUCH IT DOES ON ITS OWN over one card: “Asks a lot” and “Just does it” at the ends, a track with four dots and a neutral thumb (never the accent), Careful · Steady · Bold · Unleashed under it with the chosen one stronger, the chosen stop’s line, then “Always asks before spending money, using your passwords, or deleting for good.” and the count set on their own',
+      'HOW MUCH IT DOES ON ITS OWN over one card: “Asks a lot” and “Just does it” at the ends, a track with four dots and a neutral thumb (never the accent), Careful · Steady · Bold · Unleashed under it with the chosen one stronger, the chosen stop’s line, then “Always asks before spending money.” and the count set on their own',
   },
   {
     name: 'settings-quiet-hours',

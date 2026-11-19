@@ -59,7 +59,7 @@ export const INDEPENDENCE_DETAIL: Record<AgentIndependence, string> = {
  */
 export const UNLEASHED_WARNING_TITLE = 'Turn on Unleashed?';
 export const UNLEASHED_WARNING_BODY =
-  "Unleashed does what it's asked without checking with you: it sends and posts as you, pushes your branches and changes files. It still asks before spending money, using your passwords or keys, deleting for good, pushing to production or main, and changing how your Mac starts up. What it sends can't be unsent. Use it for agents you trust; Bold keeps sends behind a card.";
+  "Unleashed does what it's asked without checking with you: it sends and posts as you, deletes, uses your keys and logins, and pushes, even to main. It stops only before spending money. Work that answers text from outside (an email, someone else's Slack message) still runs at Steady. What it sends can't be unsent. Use it for agents you trust; Bold keeps sends behind a card.";
 export const UNLEASHED_WARNING_CONFIRM = 'Turn on Unleashed';
 export const UNLEASHED_WARNING_CANCEL = 'Keep it as is';
 
@@ -70,7 +70,7 @@ export function independenceDetail(level: AgentIndependence, kind?: ComputerKind
 
 /** Always under the slider: true at every stop. */
 export const INDEPENDENCE_ALWAYS_ASKS =
-  'Always asks before spending money, using your passwords, or deleting for good.';
+  'Always asks before spending money.';
 
 /** What still asks at each level: the same line at every stop. */
 export const INDEPENDENCE_STILL_ASKS: Record<AgentIndependence, string> = {

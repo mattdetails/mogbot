@@ -540,3 +540,6 @@ mod keys_tests;
 mod long_chat_tests;
 #[cfg(test)]
 mod team_record_tests;
+
+#[cfg(test)]
+mod unleashed_cards_tests;

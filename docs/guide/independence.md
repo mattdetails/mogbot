@@ -11,7 +11,7 @@ from "Asks a lot" to "Just does it".
 | **Careful** | Reads and looks around; asks before bigger changes. |
 | **Steady** | Reads and edits; asks before running changes or anything leaving your computer. |
 | **Bold** (where a new install starts) | Does local work on your computer; asks before anything leaves it. |
-| **Unleashed** | Does anything you ask; stops before money, keys, deleting for good and production. |
+| **Unleashed** | Does anything you ask; stops only before spending money. |
 
 ## Setting it
 
@@ -27,9 +27,8 @@ change once, in one line. You can ignore it.
 ## Turning on Unleashed
 
 Moving to Unleashed (on the slider, on the phone, or by asking the Chief) first shows a warning:
-Unleashed sends and posts as you, pushes your branches and changes files without a card; it still
-asks before spending money, using your passwords or keys, deleting for good, pushing to production or
-`main`, and changing how your Mac starts up. You confirm with **Turn on Unleashed**, or keep
+Unleashed sends and posts as you, deletes, uses your keys and logins, and pushes, even to `main`,
+without a card; it stops only before spending money. You confirm with **Turn on Unleashed**, or keep
 the level as it was. Lowering a level never asks.
 
 At Bold and Unleashed, opening something in your browser (a LinkedIn post, a Slack message, a GitHub
@@ -38,16 +37,17 @@ button that does the send asks, and only at Bold.
 
 ## What always asks
 
-At every stop, agents ask before:
+At every stop, agents ask before spending money.
 
-- spending money,
-- using your passwords or other credentials,
-- deleting something for good.
+Below Unleashed they also ask before using your passwords or other credentials, deleting something
+for good, pushing to production or a protected branch (like `main`), publishing a release or package,
+changing settings that affect what others see (domains, DNS, repository visibility), and anything that
+would keep running on your computer by itself (like a launch agent or a change to your shell profile).
 
-Even at Unleashed they also ask before pushing to production or a protected branch (like `main`),
-publishing a release or package, changing settings that affect what others see (domains, DNS,
-repository visibility), and anything that would keep running on your computer by itself (like a launch
-agent or a change to your shell profile).
+At Unleashed none of those ask, and neither do these, which ask below it: having read a web page or
+an email earlier in the conversation, a plan of sends and pushes (it goes ahead with a line listing
+them), the team's "exact words" switch (only an agent's own switch holds its sends), and installs
+when the disk is nearly full (a line says so instead).
 
 At Bold, a picture, video or PDF the agent made in its own folder, or a picture or video in your
 projects folder (where agents make and render work), goes onto a page (a post's image or video)
@@ -67,8 +67,8 @@ shortcut.
 
 When an agent is working on something that came from outside (a web page, an email, a message from
 someone else, a GitHub comment), it never runs above Steady for that work, whatever its own level.
-After reading outside content, sending data to another site or installing a new package asks you
-for the rest of that conversation.
+Below Unleashed, after reading outside content, sending data to another site or installing a new
+package asks you for the rest of that conversation.
 
 ## Approval cards
 

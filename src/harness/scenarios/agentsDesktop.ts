@@ -420,7 +420,7 @@ export const agentsDesktopScenarios: Scenario[] = [
     id: 'settings-agents-independence',
     title: 'Settings — Independence, set to Bold',
     looksRightWhen:
-      'Opened from ⌘K “Independence…”, on the Independence page: “Your team” and one line, then the slider (the page’s title names it), “Asks a lot” left and “Just does it” right, four stops Careful, Steady, Bold, Unleashed with the neutral thumb on Bold (never the accent), Bold’s line “Does local work on this Mac; asks before anything leaves it.”, and under it “Always asks before spending money, using your passwords, or deleting for good.”',
+      'Opened from ⌘K “Independence…”, on the Independence page: “Your team” and one line, then the slider (the page’s title names it), “Asks a lot” left and “Just does it” right, four stops Careful, Steady, Bold, Unleashed with the neutral thumb on Bold (never the accent), Bold’s line “Does local work on this Mac; asks before anything leaves it.”, and under it “Always asks before spending money.”',
     command: 'agents.independence',
     requires:
       '.agent-independence-settings .independence-slider[data-level="go_hard"] [role="slider"]',

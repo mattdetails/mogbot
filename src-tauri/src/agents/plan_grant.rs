@@ -526,6 +526,21 @@ pub async fn call(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value
         );
         return text(format!("The user already said yes to this in chat. {GO}"));
     }
+    // Unleashed asks only before spending money, and nothing a plan lists
+    // spends (paying is never coverable): granted at once with a line, no
+    // card. Not when this agent's own switch holds sends for their words.
+    if unleashed_grants(caller) {
+        grant(&caller.id, &plan, now);
+        let _ = runner::record_in_turn(
+            app,
+            runner::new_message(
+                &caller.id,
+                MessageKind::Note,
+                format!("Unleashed: going ahead with\n{}", numbered(&plan)),
+            ),
+        );
+        return text(format!("Unleashed covers this plan: no card. {GO}"));
+    }
     let answer = super::mcp::ask_plan_card(
         app,
         caller,
@@ -543,6 +558,14 @@ pub async fn call(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value
         Some(_) if answer == super::mcp::Answer::NotYet => text(WAITING.to_string()),
         Some(why) => text(why),
     }
+}
+
+/// An Unleashed agent's plan needs no card: only money asks at Unleashed, and
+/// a plan never covers paying. Held when its own settings keep sends for the
+/// exact words (`outward::required`).
+fn unleashed_grants(caller: &store::Agent) -> bool {
+    super::policy::chosen_level(caller) == super::independence::Level::FullSend
+        && !super::outward::required(caller)
 }
 
 /// What the agent is told when its plan card is still up, unanswered.

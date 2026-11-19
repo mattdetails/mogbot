@@ -3459,7 +3459,7 @@ export const agentsOnItsOwn = {
   "agentId": "a1",
   "agentName": "Finance",
   "alwaysAsks": [
-    "Always asks before spending money, using your passwords, or deleting for good.",
+    "Always asks before spending money.",
     "Anything it sends under your name waits for you to OK the exact words."
   ],
   "items": [
@@ -3584,7 +3584,7 @@ export const agentsOnItsOwnTeam = {
     }
   ],
   "alwaysAsks": [
-    "Always asks before spending money, using your passwords, or deleting for good."
+    "Always asks before spending money."
   ],
   "level": "go_hard",
   "levelLine": "Does local work on this Mac; asks before anything leaves it.",
@@ -3607,7 +3607,7 @@ export const agentsOnItsOwnNarrow = {
   "agentId": "a1",
   "agentName": "Finance",
   "alwaysAsks": [
-    "Always asks before spending money, using your passwords, or deleting for good.",
+    "Always asks before spending money.",
     "Anything it sends under your name waits for you to OK the exact words."
   ],
   "items": [
