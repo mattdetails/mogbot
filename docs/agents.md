@@ -7744,6 +7744,12 @@ was overloaded.
   to the Chief, skipped when more than 3 hours late. `set_end_of_day` (Chief only, never in a turn
   answering outside text) and Settings → Notifications change it; `agents_end_of_day` /
   `agents_set_end_of_day`. Harness: `settings-agents-brief`, `settings-agents-end-of-day-off`.
+- **Interviews** (Chief prompt, "Interviews"; ⌘K `agents.interviewMe`, `agents.train.<id>`): no new
+  engine. A palette command sends the Chief a plain message; its prompt runs one question at a time
+  (six at most), summarises, asks for one yes, then saves: "me" into its memory (and offers agents),
+  "train" via `read_agent` then `update_agent` with a merged "## Job description" and routines. Works
+  by voice through Talk. The Chief offers the "me" interview once after the user's first ask when it
+  knows nothing of their work.
 - Not yet: the phone's view of the lists; the user adding a task by hand.
 
 ## Known limits / next
