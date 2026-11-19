@@ -5,7 +5,7 @@
 
 use crate::agents::autoallow::{auto, Ctx};
 use crate::agents::independence::{self, Level};
-use crate::agents::policy::{self, Overrides};
+use crate::agents::policy;
 use crate::agents::store::{self, Agent};
 use serde_json::json;
 
@@ -63,20 +63,37 @@ fn an_unleashed_turn_that_read_a_page_then_sends_pushes_and_installs_raises_no_c
             "web-read mark asks: {cmd}"
         );
     }
-    // The team's exact-words switch doesn't hold an Unleashed agent's sends…
-    assert!(!crate::agents::outward::required(&u));
-    // …its own does.
-    policy::modify(|s| {
-        s.agents.insert(
-            "u".into(),
-            Overrides { outward_text_needs_ok: Some(true), ..Default::default() },
-        );
-        Ok(())
-    })
-    .unwrap();
+    // The team's exact-words switch (the user's own: "never send to a client
+    // without my OK") still holds an Unleashed agent's sends, and its one card
+    // is the whole task's OK: a plan listing the post's words covers every
+    // step of it on its site (paste, the clock, Schedule, Post), no second card.
     assert!(crate::agents::outward::required(&u));
-    // At Bold the team's switch still holds, and the web-read mark still asks
-    // for data leaving.
+    let words = "Three agents shipped a site overnight while I slept";
+    let mut post = crate::agents::plan_grant::PlanAction {
+        kind: crate::agents::plan_grant::Kind::Post,
+        target: "linkedin.com".into(),
+        summary: "Post the overnight site note".into(),
+        text: None,
+    };
+    post.text = Some(words.into());
+    let now = store::now_ms();
+    crate::agents::plan_grant::grant(
+        "u",
+        &crate::agents::plan_grant::Plan { actions: vec![post], why: None },
+        now,
+    );
+    let typed = vec![words.to_string()];
+    for _step in ["open", "paste", "Schedule", "Post"] {
+        assert!(crate::agents::plan_grant::covers_typed("u", "www.linkedin.com", &typed, now + 1_000));
+    }
+    // Different words are a new send: a new card.
+    assert!(!crate::agents::plan_grant::covers_typed(
+        "u",
+        "www.linkedin.com",
+        &["Something else".to_string()],
+        now + 1_000
+    ));
+    // At Bold the web-read mark still asks for data leaving.
     independence::set_level(Level::GoHard, 2).unwrap();
     let b = agent("b", "Bold one");
     assert!(crate::agents::outward::required(&b));

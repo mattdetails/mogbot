@@ -46,8 +46,12 @@ would keep running on your computer by itself (like a launch agent or a change t
 
 At Unleashed none of those ask, and neither do these, which ask below it: having read a web page or
 an email earlier in the conversation, a plan of sends and pushes (it goes ahead with a line listing
-them), the team's "exact words" switch (only an agent's own switch holds its sends), and installs
-when the disk is nearly full (a line says so instead).
+them), and installs when the disk is nearly full (a line says so instead).
+
+With "exact words" on (Settings → Independence), every send still shows you its words first, at
+Unleashed too. That one card is the OK for the whole send: allowing it covers every step that gets
+those words out on that site (paste, the date, Schedule, Post), with no second card. Different words
+are a new card.
 
 At Bold, a picture, video or PDF the agent made in its own folder, or a picture or video in your
 projects folder (where agents make and render work), goes onto a page (a post's image or video)
