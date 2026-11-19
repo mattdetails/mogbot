@@ -240,15 +240,16 @@ export const AgentComposer = memo(function AgentComposer({
   const [wrapped, setWrapped] = useState(false);
   // Under about 480px the model chip takes the row: the placeholder shortens to
   // "Message" so it stays on one line.
-  const formRef = useRef<HTMLFormElement>(null);
+  const [form, setForm] = useState<HTMLFormElement | null>(null);
   const [narrow, setNarrow] = useState(false);
   useLayoutEffect(() => {
-    const el = formRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const watch = new ResizeObserver(() => setNarrow(el.clientWidth < NARROW_COMPOSER_PX));
-    watch.observe(el);
+    if (!form || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setNarrow(form.clientWidth < NARROW_COMPOSER_PX);
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(form);
     return () => watch.disconnect();
-  }, []);
+  }, [form]);
   useLayoutEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -288,7 +289,7 @@ export const AgentComposer = memo(function AgentComposer({
 
   return (
     <form
-      ref={formRef}
+      ref={setForm}
       className="agent-composer"
       data-wrapped={wrapped || undefined}
       data-queueing={(queueing && !learned) || undefined}

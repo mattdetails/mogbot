@@ -385,8 +385,18 @@
   color: var(--accent-error, var(--text-primary));
 }
 
+.agent-draft__text[data-scrolls] {
+  /* More below: the last line fades out over 24px instead of being cut mid-line. */
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 24px),
+    transparent
+  ); /* css-ok: a mask's opacity ramp, not a colour */
+}
+
 .agent-draft__from {
-  margin: 0;
+  /* 8px of card gap + 6 = 14px from the words' block. */
+  margin: var(--spacing-tight) 0 0;
   font-size: var(--font-size-body-sm);
   color: var(--text-muted);
 }

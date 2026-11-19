@@ -12,7 +12,7 @@
  * @module components/agents/AgentDraftCard
  */
 
-import { memo, useState } from 'react';
+import { memo, useLayoutEffect, useRef, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Button } from '../primitives/Button';
 import { TextArea, TextField } from '../primitives/TextField';
@@ -61,6 +61,13 @@ export const AgentDraftCard = memo(function AgentDraftCard({
   // The Mac refused the send: the card stays, the words are kept, and it says so.
   const [failed, setFailed] = useState(() => REFUSED.has(message.approval?.requestId ?? ''));
   const [openedPending] = useState(approval?.status === 'pending');
+  // A long body scrolls inside its block: it fades at the bottom while there is more.
+  const textRef = useRef<HTMLDivElement>(null);
+  const [scrolls, setScrolls] = useState(false);
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (el) setScrolls(el.scrollHeight > el.clientHeight + 1);
+  }, [body, editing]);
   if (!approval || !draft) return null;
   const pending = approval.status === 'pending';
   const isEmail = draft.kind === 'email';
@@ -102,7 +109,6 @@ export const AgentDraftCard = memo(function AgentDraftCard({
         data={{ status: approval.status }}
         icon={draft.kind === 'email' ? <PencilIcon size={14} /> : <SlackIcon size={14} />}
         title={draftTitle(draft, approval)}
-        note={pending ? DRAFT_NOTE : undefined}
         actions={
           pending ? (
             <>
@@ -219,7 +225,7 @@ export const AgentDraftCard = memo(function AgentDraftCard({
               </span>
             </div>
           )}
-          <div className="agent-draft__text">
+          <div ref={textRef} className="agent-draft__text" data-scrolls={scrolls || undefined}>
             {editing && pending ? (
               <TextArea
                 aria-label="What it says"
@@ -234,7 +240,10 @@ export const AgentDraftCard = memo(function AgentDraftCard({
             )}
           </div>
         </div>
-        <p className="agent-draft__from">{draftFrom(draft, approval)}</p>
+        <p className="agent-draft__from">
+          {draftFrom(draft, approval)}
+          {pending ? `. ${DRAFT_NOTE}` : ''}
+        </p>
         {failed && pending && (
           <p className="agent-draft__failed" role="alert">
             <WarningIcon size={12} /> Couldn’t send. Your words are kept.

@@ -638,6 +638,8 @@
 /* Same left edge as the reply above it (prose, no padding), a step below it. */
 .agent-bubble__stopped {
   margin-top: var(--spacing-xs);
+  /* On the bubble's text edge, not its own. */
+  padding-left: var(--spacing-md);
   font-size: var(--font-size-body-sm);
   color: var(--text-muted);
 }

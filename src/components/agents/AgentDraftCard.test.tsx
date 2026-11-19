@@ -41,8 +41,10 @@ describe('AgentDraftCard', () => {
       <AgentDraftCard message={message} agentName="Chief" onAnswer={() => Promise.resolve(true)} />
     );
     expect(screen.getByText('Email to Aurelie Martin · Gmail')).toBeTruthy();
-    expect(screen.getByText('From me@x.co · goes out as you')).toBeTruthy();
-    expect(screen.getByText('These exact words go out under your name.')).toBeTruthy();
+    // One line: the account, then the note.
+    expect(
+      screen.getByText('From me@x.co · goes out as you. These exact words go out under your name.')
+    ).toBeTruthy();
     expect(screen.getByText('The words.')).toBeTruthy();
   });
   it('keeps the words and says so when the Mac refuses the send', async () => {

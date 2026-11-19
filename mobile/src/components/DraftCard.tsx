@@ -120,7 +120,6 @@ export function DraftCard({
     <Card
       icon={isEmail ? 'square.and.pencil' : 'text.bubble'}
       title={draftTitle(draft, approval)}
-      note={DRAFT_NOTE}
       testID="draft-card"
       actions={
         <>
@@ -195,7 +194,7 @@ export function DraftCard({
         )}
       </View>
       <T variant="small" color={colors.textMuted}>
-        {draftFrom(draft, approval)}
+        {`${draftFrom(draft, approval)}. ${DRAFT_NOTE}`}
       </T>
     </Card>
   );

@@ -9,6 +9,7 @@
 import type { AgentMessage, LiveCall, TurnWork, WorkStep } from '@shipstudio/companion-protocol';
 import {
   formatElapsed,
+  indicatorWords,
   lifeLine,
   offersStopStep,
   outputNote,
@@ -438,11 +439,16 @@ export function LiveStep({
   const canStopStep = useServed('agents.stopStep');
   const canCheck = useServed('agents.checkOn');
   const quiet = quietLine(work, now);
-  const words = quiet ? `${quiet}${live ? ` · ${live.label}` : ''}` : (live?.label ?? label);
-  const count = work && work.stepCount > 0 ? plural(work.stepCount) : null;
-  const elapsed =
-    work && now - work.startedAt >= 1_000 ? formatElapsed(now - work.startedAt) : null;
-  const meta = [count, elapsed].filter(Boolean).join(' · ');
+  // One phrase from what was observed (the protocol's `indicatorWords`, as the desk
+  // says it): the step's own words, "Working on it" before any, "Still working"
+  // when quiet, "3 of 8" only when the step reports it, the timer from 8s.
+  const said = indicatorWords(
+    live?.label ?? (label && label !== 'Thinking' ? label : null),
+    work,
+    now
+  );
+  const words = quiet ? `${quiet}${live ? ` · ${live.label}` : ''}` : said.phrase;
+  const meta = quiet ? '' : [said.progress, said.elapsed].filter(Boolean).join(' · ');
   const hint = quiet ? null : slowHint(live, now, comp.your);
   const life = lifeLine(work, now);
   const stopStep = canStopStep && !quiet && offersStopStep(live, now);
@@ -594,7 +600,6 @@ export function LiveStep({
   );
 }
 
-const plural = (n: number) => `${n} ${n === 1 ? 'step' : 'steps'}`;
 
 const useStyles = makeStyles((colors) => ({
   wrap: { gap: space.sm },
