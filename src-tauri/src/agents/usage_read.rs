@@ -449,8 +449,9 @@ pub fn refresh_due(last: Option<i64>, now: i64) -> bool {
     last.is_none_or(|t| now - t >= REFRESH_RETRY_MS || now < t)
 }
 
-static REFRESH_TRIED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<String, i64>>> =
-    std::sync::LazyLock::new(Default::default);
+static REFRESH_TRIED: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<String, i64>>,
+> = std::sync::LazyLock::new(Default::default);
 
 /// Have Claude Code renew `account`'s expired access token, at no cost: `claude
 /// mcp list` makes no model turn, and Claude Code renews its sign-in (from the
