@@ -11,7 +11,7 @@ from "Asks a lot" to "Just does it".
 | **Careful** | Reads and looks around; asks before bigger changes. |
 | **Steady** | Reads and edits; asks before running changes or anything leaving your computer. |
 | **Bold** (where a new install starts) | Does local work on your computer; asks before anything leaves it. |
-| **Unleashed** | Does anything you ask; only stops before spending money. |
+| **Unleashed** | Does anything you ask; stops before money, keys, deleting for good and production. |
 
 ## Setting it
 
@@ -27,8 +27,9 @@ change once, in one line. You can ignore it.
 ## Turning on Unleashed
 
 Moving to Unleashed (on the slider, on the phone, or by asking the Chief) first shows a warning:
-Unleashed sends and posts as you, pushes and deploys, deletes files and uses your logins without a
-card, and only asking before spending money stays. You confirm with **Turn on Unleashed**, or keep
+Unleashed sends and posts as you, pushes your branches and changes files without a card; it still
+asks before spending money, using your passwords or keys, deleting for good, pushing to production or
+`main`, and changing how your Mac starts up. You confirm with **Turn on Unleashed**, or keep
 the level as it was. Lowering a level never asks.
 
 At Bold and Unleashed, opening something in your browser (a LinkedIn post, a Slack message, a GitHub

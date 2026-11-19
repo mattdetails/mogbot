@@ -1228,7 +1228,7 @@ pub fn lowers_only(
 /// Shown on the card (and the slider's own confirm, desk and phone) before
 /// anything is put on Unleashed. Worded once in the companion protocol's
 /// `UNLEASHED_WARNING_BODY`; a test keeps the two the same.
-pub const UNLEASHED_WARNING: &str = "Unleashed does what it's asked without checking with you: it sends and posts as you, pushes and deploys, deletes files and uses your logins. The only thing it still asks before is spending money. The app can't undo any of that. Use it for agents you trust; Bold keeps sends and pushes behind a card.";
+pub const UNLEASHED_WARNING: &str = "Unleashed does what it's asked without checking with you: it sends and posts as you, pushes your branches and changes files. It still asks before spending money, using your passwords or keys, deleting for good, pushing to production or main, and changing how your Mac starts up. What it sends can't be unsent. Use it for agents you trust; Bold keeps sends behind a card.";
 
 /// Whether a proposal puts anything on Unleashed.
 fn turns_on_unleashed(p: &Proposal) -> bool {

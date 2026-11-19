@@ -59,7 +59,7 @@ export const INDEPENDENCE_DETAIL: Record<AgentIndependence, string> = {
  */
 export const UNLEASHED_WARNING_TITLE = 'Turn on Unleashed?';
 export const UNLEASHED_WARNING_BODY =
-  "Unleashed does what it's asked without checking with you: it sends and posts as you, pushes and deploys, deletes files and uses your logins. The only thing it still asks before is spending money. The app can't undo any of that. Use it for agents you trust; Bold keeps sends and pushes behind a card.";
+  "Unleashed does what it's asked without checking with you: it sends and posts as you, pushes your branches and changes files. It still asks before spending money, using your passwords or keys, deleting for good, pushing to production or main, and changing how your Mac starts up. What it sends can't be unsent. Use it for agents you trust; Bold keeps sends behind a card.";
 export const UNLEASHED_WARNING_CONFIRM = 'Turn on Unleashed';
 export const UNLEASHED_WARNING_CANCEL = 'Keep it as is';
 
