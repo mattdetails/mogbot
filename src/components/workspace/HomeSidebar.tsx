@@ -35,6 +35,8 @@ interface HomeSidebarProps {
   navContent?: ReactNode;
   /** Agents mode's conversation search, in the palette trigger's place. */
   searchContent?: ReactNode;
+  /** Agents mode's Catch up, under the search panel, never scrolled away. */
+  pinnedContent?: ReactNode;
   isSidebarHidden: boolean;
   onToggleSidebar: () => void;
   onOpenProjectPicker: () => void;
@@ -57,6 +59,7 @@ export function HomeSidebar({
   onGoProjects,
   onGoAgents,
   searchContent,
+  pinnedContent,
   navContent,
   listContent,
   footerContent,
@@ -86,6 +89,7 @@ export function HomeSidebar({
       onGoProjects={onGoProjects}
       onGoAgents={onGoAgents}
       searchContent={searchContent}
+      pinnedContent={pinnedContent}
       navContent={navContent}
       listContent={listContent}
       footerContent={footerContent}

@@ -205,6 +205,8 @@ interface Props {
   navContent?: ReactNode;
   /** Replaces the palette trigger at the top (Agents mode searches conversations there). */
   searchContent?: ReactNode;
+  /** Agents mode's Catch up: one row under the search panel's border that never scrolls. */
+  pinnedContent?: ReactNode;
 
   // Projects
   /** Pinned projects (in pin order). Have live registry data. */
@@ -437,6 +439,7 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
   onGoAgents,
   onGoProjects,
   searchContent,
+  pinnedContent,
   navContent,
   listContent,
   footerContent,
@@ -1882,6 +1885,8 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
             </button>
           )}
         </div>
+
+        {pinnedContent}
 
         <SpotifyWidget isSidebarHidden={isSidebarHidden} />
 

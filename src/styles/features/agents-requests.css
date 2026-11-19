@@ -615,50 +615,28 @@
   }
 }
 
-/* The sidebar's first row: Catch up and how many wait. The Search bar's
-   geometry (same inset, height, radius and type), so the two line up as one
-   column; selected like an agent row, never a filled block. */
+/* Catch up, pinned under the search panel: an agents-list__row (its height,
+   padding, hairline, hover and selected), with a neutral tile in the key's
+   place. Only the tile is its own. */
 .agents-catchup-row {
-  display: flex;
+  flex: 0 0 auto;
+}
+
+.agents-catchup-row__tile {
+  display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  justify-content: space-between;
-  width: calc(100% - var(--spacing-sm) * 2);
-  height: var(--control-height-standard);
-  margin: var(--spacing-sm) var(--spacing-sm) var(--spacing-xs);
-  padding: 0 var(--space-06) 0 var(--space-09);
-  border: 0;
+  justify-content: center;
+  width: var(--agent-key-size-md);
+  height: var(--agent-key-size-md);
   border-radius: var(--radius-card);
-  background: var(--surface-app);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: var(--font-size-11);
-  cursor: pointer;
-}
-
-.agents-catchup-row:hover {
   background: var(--surface-control);
+  color: var(--text-secondary);
 }
 
-.agents-catchup-row.is-active {
-  background: var(--surface-control);
-}
-
-.agents-catchup-row__count {
-  min-width: var(--spacing-lg);
-  padding: 0 var(--spacing-xs);
-  border-radius: var(--radius-pill);
+.agents-catchup-row.is-current .agents-catchup-row__tile {
   background: var(--surface-inverse);
   color: var(--surface-app);
-  text-align: center;
-  font-size: var(--font-size-body-sm);
-  font-weight: var(--font-weight-heading);
-  font-variant-numeric: tabular-nums;
-}
-
-.agents-catchup-row__clear {
-  font-size: var(--font-size-body-sm);
-  font-weight: var(--font-weight-body);
-  color: var(--text-muted);
 }
 
 /* Keyboard hints (A / D / O / L) mean nothing on a touch screen or in a narrow

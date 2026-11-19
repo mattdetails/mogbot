@@ -147,7 +147,7 @@ import {
   type Room,
 } from '../../lib/agentRooms';
 import { kbd } from '../../lib/shortcuts';
-import { needsYouCount as countNeedsYou } from '../../../packages/companion-protocol/src/attention';
+import { agentsNeedingYou } from '../../../packages/companion-protocol/src/attention';
 import { useResumableTeamSetup, useTeamSetup, withoutHeldLogins } from '../../lib/teamSetup';
 import { THIS_COMPUTER } from '../../lib/computer';
 
@@ -605,7 +605,12 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
   // (the review bar, the phone's Home bar and tab badge, the Dock badge).
   // An agent whose only requests are the checklist's logins is counted once, there.
   const teamSetup = useTeamSetup();
-  const needsYouCount = useMemo(() => countNeedsYou(agents, teamSetup), [agents, teamSetup]);
+  // Who is waiting on you (Catch up names them) and how many: one count everywhere.
+  const waitingNames = useMemo(
+    () => sortAgents(agentsNeedingYou(agents, teamSetup)),
+    [agents, teamSetup]
+  );
+  const needsYouCount = waitingNames.length;
 
   // The oldest card waiting on you, on the first agent (sidebar order) with one.
   const waitingOn = sortAgents(listed).find((a) => !a.hidden && needsYou(a)) ?? null;
@@ -1164,14 +1169,17 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
                   onOpen={() => openRoutines()}
                 />
               }
+              pinnedContent={
+                <CatchUpRow
+                  count={needsYouCount}
+                  waiting={waitingNames}
+                  open={catchUpOpen}
+                  collapsed={sidebarProps.isSidebarHidden ?? false}
+                  onOpen={openCatchUp}
+                />
+              }
               listContent={
                 <SidebarBoundary>
-                  <CatchUpRow
-                    count={needsYouCount}
-                    open={catchUpOpen}
-                    collapsed={sidebarProps.isSidebarHidden ?? false}
-                    onOpen={openCatchUp}
-                  />
                   <AgentsSidebar
                     agents={listed}
                     selectedId={room ? roomKey(room.id) : (selected?.id ?? null)}
