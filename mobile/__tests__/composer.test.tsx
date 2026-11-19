@@ -1,7 +1,8 @@
 /**
- * The message field, rendered: shaped as Claude's own input, with the mic
- * always there, so you can talk while an agent works (what you say queues,
- * as what you type does), beside Stop and Send.
+ * The message field, rendered: shaped as Claude's own input. The mic is there
+ * only while the box is empty (so you can talk while an agent works, and what
+ * you say queues); an empty box shows Stop in Send's place while it works, and
+ * typed words bring Send (queue) back. The model is not in the box.
  */
 
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
@@ -9,9 +10,8 @@ import { Composer } from '../src/components/Composer';
 import { setApp } from '../src/lib/store';
 import { agent } from './helpers';
 
-const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn() }),
+  useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }),
 }));
 jest.mock('react-native-reanimated', () => {
   const RN = jest.requireActual<typeof import('react-native')>('react-native');
@@ -77,14 +77,34 @@ const composer = (a = idle) => (
 );
 
 describe('the message field', () => {
-  it('keeps the mic while the agent works, beside Stop and Send', async () => {
+  it('shows the mic and Stop in Send’s place while the agent works and the box is empty', async () => {
     state(working);
     await render(composer(working));
     expect(screen.getByLabelText('Dictate')).toBeTruthy();
     expect(screen.getByLabelText('Stop Ops')).toBeTruthy();
-    // Nothing typed yet: Send is there, dimmed, and queues once there's something.
+    expect(screen.queryByLabelText('Send')).toBeNull();
+  });
+
+  it('stops the turn when Stop is pressed', async () => {
+    const { stop } = jest.requireMock<{ stop: jest.Mock }>('../src/lib/session');
+    stop.mockClear();
+    state(working);
+    await render(composer(working));
+    await act(async () => {
+      await fireEvent.press(screen.getByLabelText('Stop Ops'));
+    });
+    expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops the mic once there are words, and Send takes Stop’s place', async () => {
+    state();
+    await render(composer());
+    await act(async () => {
+      await fireEvent.changeText(screen.getByLabelText('Message Ops'), 'hello');
+    });
+    expect(screen.queryByLabelText('Dictate')).toBeNull();
     expect(screen.getByLabelText('Send').props.accessibilityState).toMatchObject({
-      disabled: true,
+      disabled: false,
     });
   });
 
@@ -108,7 +128,9 @@ describe('the message field', () => {
     expect(screen.getByText('Next, after this one')).toBeTruthy();
     expect(screen.getByLabelText('Send now: interrupt Ops and send')).toBeTruthy();
     expect(screen.getByLabelText('Queue: Ops reads it next, after this one')).toBeTruthy();
-    expect(screen.getByLabelText('Dictate')).toBeTruthy();
+    // Words typed: the mic steps aside, and Stop gives Send its place back.
+    expect(screen.queryByLabelText('Dictate')).toBeNull();
+    expect(screen.queryByLabelText('Stop Ops')).toBeNull();
   });
 
   it('Send now sends with the interrupt (kept in the outbox if it has to wait)', async () => {
@@ -134,7 +156,7 @@ describe('the message field', () => {
   });
 });
 
-describe('the model chip', () => {
+describe('the model', () => {
   const engines = [
     {
       id: 'claude',
@@ -151,51 +173,25 @@ describe('the model chip', () => {
     effort: 'high',
     context: { used: 1, window: 200_000, at: 1, model: 'claude-opus-5-5' },
   });
-  // The chip is in the card's row: a second line makes the card.
-  const asCard = async () => {
+
+  it('is not in the box, even in the card’s row; it is under ⋯ “Model and controls”', async () => {
+    setApp({
+      overview: { agents: [onOpus], engineReady: true, engines } as never,
+      link: { kind: 'connected' } as never,
+      welcome: {
+        methods: ['agents.files', 'agents.update'],
+        features: ['agents.engine', 'agents.effort'],
+      } as never,
+      composer: {},
+    });
+    await render(composer(onOpus));
     await act(async () => {
       await fireEvent.changeText(
         screen.getByLabelText('Message Ops'),
         'the numbers\nand the summary'
       );
     });
-  };
-  const serve = (a: typeof onOpus, features: string[]) =>
-    setApp({
-      overview: { agents: [a], engineReady: true, engines } as never,
-      link: { kind: 'connected' } as never,
-      welcome: { methods: ['agents.files', 'agents.update'], features } as never,
-      composer: {},
-    });
-
-  it('says the model and effort, and opens Agent controls', async () => {
-    serve(onOpus, ['agents.engine', 'agents.effort']);
-    await render(composer(onOpus));
-    await asCard();
-    expect(screen.getByText('Opus 5.5 · High')).toBeTruthy();
-    expect(screen.queryByText(/Claude Code/)).toBeNull();
-    mockPush.mockClear();
-    fireEvent.press(screen.getByLabelText('Runs on Opus 5.5 on Claude Code, High effort'));
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/controls', params: { id: 'ops' } });
-  });
-
-  it('opens them mid-turn too: the level can still change', async () => {
-    const busy = {
-      ...onOpus,
-      status: { state: 'working', activity: 'Thinking', since: 1 },
-    } as typeof onOpus;
-    serve(busy, ['agents.engine', 'agents.effort']);
-    await render(composer(busy));
-    await asCard();
-    mockPush.mockClear();
-    fireEvent.press(screen.getByLabelText(/^Runs on Opus 5\.5/));
-    expect(mockPush).toHaveBeenCalled();
-  });
-
-  it('is a label on a Mac with nothing to change there', async () => {
-    serve(onOpus, []);
-    await render(composer(onOpus));
-    await asCard();
-    expect(screen.getByLabelText(/^Runs on Opus 5\.5/).props.accessibilityRole).toBe('text');
+    expect(screen.queryByText(/Opus 5\.5/)).toBeNull();
+    expect(screen.queryByLabelText(/^Runs on /)).toBeNull();
   });
 });
