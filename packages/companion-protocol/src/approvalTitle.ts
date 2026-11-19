@@ -11,6 +11,7 @@
  */
 
 import type { Approval } from './model';
+import { shortMiddle, tailSegments } from './softBreaks';
 
 /** The titles the Mac gives a command it can't say more about. */
 const GENERIC = new Set(['run a command', 'run command']);
@@ -36,11 +37,23 @@ export function plainCommandTitle(command: string): string | null {
 
   if (bin === 'rm') {
     if (args.length === 0) return null;
-    return args.length === 1 ? `Delete ${args[0]}` : `Delete ${args.length} items`;
+    return args.length === 1
+      ? `Delete ${shortMiddle(args[0])}`
+      : `Delete ${args.length} items`;
   }
-  if (bin === 'mkdir' && args.length > 0) return `Make the folder ${args[0]}`;
-  if (bin === 'mv') return args.length === 2 ? `Move ${args[0]} to ${args[1]}` : 'Move files';
-  if (bin === 'cp') return args.length === 2 ? `Copy ${args[0]} to ${args[1]}` : 'Copy files';
+  if (bin === 'mkdir' && args.length > 0) return `Make the folder ${shortMiddle(args[0])}`;
+  // A title stays short: the last two segments of what moves, the last of where it
+  // goes; the whole command, with the full destination, is in the block under it.
+  if (bin === 'mv') {
+    return args.length === 2
+      ? `Move ${tailSegments(args[0], 2)} to ${tailSegments(args[1], 1)}`
+      : 'Move files';
+  }
+  if (bin === 'cp') {
+    return args.length === 2
+      ? `Copy ${tailSegments(args[0], 2)} to ${tailSegments(args[1], 1)}`
+      : 'Copy files';
+  }
   if (bin === 'curl' || bin === 'wget') {
     const url = args.find((a) => /^https?:\/\//.test(a));
     if (!url) return null;

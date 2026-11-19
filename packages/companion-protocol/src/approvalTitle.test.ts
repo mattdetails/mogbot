@@ -57,7 +57,7 @@ describe('cardTitle (the phone)', () => {
   };
   it('names the destination of a copy even under the Mac’s general title', () => {
     expect(cardTitle({ ...cp, title: 'Write files outside its folder' })).toBe(
-      'Copy export/icons to ~/ShipStudio/acme-site'
+      'Copy export/icons to acme-site'
     );
   });
   it('keeps the Mac’s title for what it doesn’t name', () => {

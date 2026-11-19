@@ -15,6 +15,7 @@ import { useLinkLive } from '../lib/linkLive';
 import type { Agent, AgentMessage, Approval, ImportProposal } from '@shipstudio/companion-protocol';
 import {
   cardTitle,
+  softBreaks,
   CROSSOVER_ALWAYS,
   CROSSOVER_ONCE,
   CROSSOVER_WAIT,
@@ -257,7 +258,8 @@ export function ApprovalCard({
   const connected = useLinkLive();
   const pending = approval.status === 'pending';
   // The title names where a copy, move or delete goes: a yes says what it says yes to.
-  const heading = cardTitle(approval);
+  // Shortened in the middle if long, and breakable only at / and - (never inside a number).
+  const heading = softBreaks(cardTitle(approval));
   const paused = pending && agent.status.state === 'idle';
   const fit = useFitDetail(pending && !full, message.id, paused);
   const compact = useShortPane();
@@ -1167,7 +1169,7 @@ export function Fields({ fields, lines }: { fields: [string, string][]; lines: n
               {label}
             </T>
             <T color={colors.textPrimary} selectable numberOfLines={max}>
-              {value}
+              {softBreaks(value)}
             </T>
           </View>
         ))}
@@ -1198,7 +1200,10 @@ export function Command({ text, lines }: { text: string; lines: number }) {
   // past it, says so and opens on a tap (measured where the platform reports
   // it, else by length: an unneeded Show all is harmless, a hidden end is not).
   const rows = text.split('\n');
-  const wrapped = rows.reduce((n, r) => n + Math.max(1, Math.ceil(r.length / COMMAND_LINE_CHARS)), 0);
+  const wrapped = rows.reduce(
+    (n, r) => n + Math.max(1, Math.ceil(r.length / COMMAND_LINE_CHARS)),
+    0
+  );
   const long = rows.length > cap || Math.max(measured, wrapped) > cap;
   const over = long && !all;
   return (
@@ -1214,7 +1219,7 @@ export function Command({ text, lines }: { text: string; lines: number }) {
           // Break anywhere on the web too (native already breaks a word too long for the line).
           style={BREAK_ANYWHERE}
         >
-          {text}
+          {softBreaks(text)}
         </T>
       </View>
       {long && (
@@ -1228,7 +1233,9 @@ export function Command({ text, lines }: { text: string; lines: number }) {
   );
 }
 
-const BREAK_ANYWHERE = { wordBreak: 'break-all', overflowWrap: 'anywhere' } as never;
+// Lines break at the / and - the text gives them (`softBreaks`); only a token with none
+// wraps where it must, never by choice inside a number.
+const BREAK_ANYWHERE = { overflowWrap: 'anywhere' } as never;
 
 /** The parts of a request card the shared card doesn't draw: wells, fields, receipts, ⋯. */
 export const useCardStyles = makeStyles((colors) => ({

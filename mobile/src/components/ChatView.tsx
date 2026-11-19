@@ -1535,9 +1535,10 @@ function EdgeFade({
   /** Rides the keyboard with the composer. */
   lifted?: ComponentProps<typeof Animated.View>['style'];
 }) {
-  const bands = Array.from({ length: chatFade.bands }, (_, i) => {
+  const count = edge === 'top' ? chatFade.topBands : chatFade.bands;
+  const bands = Array.from({ length: count }, (_, i) => {
     // i = 0 at the edge. Eased, so the last steps into the words are gentlest.
-    const t = 1 - i / chatFade.bands;
+    const t = 1 - i / count;
     return t * t;
   });
   return (
@@ -1547,7 +1548,9 @@ function EdgeFade({
       importantForAccessibility="no-hide-descendants"
       style={[
         fadeStyles.wrap,
-        edge === 'top' ? fadeStyles.top : [fadeStyles.bottom, { bottom }],
+        edge === 'top'
+          ? [fadeStyles.top, { height: chatFade.top }]
+          : [fadeStyles.bottom, { bottom }],
         lifted,
       ]}
     >
@@ -1590,7 +1593,7 @@ const useStyles = makeStyles((colors) => ({
   content: {
     paddingHorizontal: space.lg,
     paddingTop: space.md + chatFade.height,
-    paddingBottom: space.md + chatFade.height,
+    paddingBottom: space.md + chatFade.top,
   },
   // Each cell is drawn upright, so paddingTop is the space between a row and
   // the older one above it: a grouped row (same side, same run) trims it.
