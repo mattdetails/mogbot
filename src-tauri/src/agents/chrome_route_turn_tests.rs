@@ -261,56 +261,34 @@ fn a_turn_carried_over_to_the_other_engine_keeps_your_chrome() {
     }
 }
 
-/// The contrast, which is the bug Your Chrome removes: with only Claude in
-/// Chrome, the same failover changes what the turn gets. On this Mac's
-/// account it's `--chrome`; on an added one it needs the stand-in run as
-/// this Mac's sign-in, which still depends on the extension's own sign-in.
+/// Claude in Chrome is no route at all: with Mogbot for Chrome off or not
+/// connected the turn runs `--no-chrome`, keeps Claude in Chrome's tools
+/// blocked, and is told plainly there is no other browser.
 #[test]
-fn without_your_chrome_the_account_changes_what_the_turn_gets() {
-    let route = decide(Facts {
-        ours_on: false,
-        ours_connected: false,
-        ..connected(Engine::Claude)
-    });
-    assert_eq!(route.route, Route::ClaudeInChrome);
-    let access = access_for(route, Engine::Claude);
-    assert!(access.browser);
-    assert!(!access
-        .servers
-        .iter()
-        .any(|s| s.key == crate::user_chrome::tools::SERVER_KEY));
-    assert!(args(Driver::ClaudePrint, &access).contains(&"--chrome".to_string()));
-    assert!(!account_reach::chrome_as_this_mac(
-        Engine::Claude,
-        access.browser,
-        true
-    ));
-    assert!(account_reach::chrome_as_this_mac(
-        Engine::Claude,
-        access.browser,
-        false
-    ));
-}
-
-/// Claude in Chrome down and Your Chrome not connected: `--no-chrome`, told
-/// why, and nothing claims a browser it hasn't got.
-#[test]
-fn claude_in_chrome_down_runs_without_a_browser_and_says_so() {
-    let route = decide(Facts {
-        ours_connected: false,
-        cic_down: true,
-        ..connected(Engine::Claude)
-    });
-    assert_eq!(route.why, Why::ClaudeInChromeDown);
-    let access = access_for(route, Engine::Claude);
-    assert!(!access.browser);
-    assert!(access
-        .prompt
-        .contains(crate::agents::connections::CHROME_DOWN_PROMPT));
-    let a = args(Driver::ClaudePrint, &access);
-    assert!(a.contains(&"--no-chrome".to_string()));
-    assert!(!access
-        .servers
-        .iter()
-        .any(|s| s.key == crate::user_chrome::tools::SERVER_KEY));
+fn without_mogbot_for_chrome_there_is_no_browser_and_the_turn_says_so() {
+    for (on, connected_now) in [(false, false), (true, false)] {
+        let route = decide(Facts {
+            ours_on: on,
+            ours_connected: connected_now,
+            cic_on: true,
+            cic_down: false,
+            ..connected(Engine::Claude)
+        });
+        assert_eq!(route.route, Route::None);
+        let access = access_for(route, Engine::Claude);
+        assert!(!access.browser);
+        assert!(access
+            .prompt
+            .contains(crate::agents::connections::NO_CHROME_PROMPT));
+        assert!(access
+            .blocked
+            .contains(&crate::agents::chrome_route::CLAUDE_IN_CHROME_BLOCK.to_string()));
+        let a = args(Driver::ClaudePrint, &access);
+        assert!(a.contains(&"--no-chrome".to_string()));
+        assert!(!a.contains(&"--chrome".to_string()));
+        assert!(!access
+            .servers
+            .iter()
+            .any(|s| s.key == crate::user_chrome::tools::SERVER_KEY));
+    }
 }

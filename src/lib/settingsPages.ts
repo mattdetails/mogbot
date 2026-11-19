@@ -15,6 +15,7 @@ import { THIS_COMPUTER } from './computer';
 
 export type SettingsPage =
   | 'account'
+  | 'connected'
   | 'agents'
   | 'independence'
   | 'accounts'
@@ -45,6 +46,12 @@ export const SETTINGS_PAGES: readonly SettingsPageInfo[] = [
     lead: 'Signing in, and what it lets your phone do.',
     keywords: ['sign in', 'sign out', 'log in', 'log out', 'google', 'email', 'relay'],
     relayOnly: true,
+  },
+  {
+    id: 'connected',
+    title: 'Connected',
+    lead: 'What’s connected, and where to set up what isn’t.',
+    keywords: ['connections', 'status', 'chrome', 'apps', 'phone', 'what is connected', 'set up'],
   },
   {
     id: 'agents',

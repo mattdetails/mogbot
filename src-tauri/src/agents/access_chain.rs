@@ -380,17 +380,11 @@ fn browser_step(r: &LoginRequest, tried: &Tried, here: &Here) -> Option<Step> {
     }
     let site = logins::service(&r.service).and_then(|s| s.site)?;
     let (site, title) = (site.to_string(), r.title.clone());
-    // Signed out in the user's Chrome, or with no agents' browser it could
-    // have been anywhere else.
-    let chrome_failed = tried.signed_out && (tried.in_chrome || !here.agents_browser);
-    if here.browser && !chrome_failed {
-        let chrome_first = here.personal_site || users_chrome_first(&r.service);
-        if chrome_first || !here.agents_browser || tried.signed_out {
-            return Some(Step::Browser { site, title });
-        }
-    }
-    if here.agents_browser && !tried.signed_out {
-        return Some(Step::AgentsBrowser { site, title });
+    // Mogbot for Chrome is the only browser an agent is sent to: the built-in
+    // agents' browser is no longer a route (its signed-in sessions are only
+    // used by the phone sign-in), so a signed-out page ends the browser steps.
+    if here.browser && !tried.signed_out {
+        return Some(Step::Browser { site, title });
     }
     None
 }
@@ -406,7 +400,7 @@ pub fn reply(step: &Step) -> String {
             "GitHub is signed in on this Mac as {login}: use the `gh` command. Anything that changes GitHub asks the user on a card first. Nothing to ask."
         ),
         Step::Browser { site, title } => format!(
-            "Use {title} in the user's own Chrome, where they're already signed in: the Claude in Chrome tools (mcp__claude-in-chrome__*), on {site}. First open it in a new tab and tell the user in one line which account you're in, from what the page shows (\"I'm in {title} as …\"); never guess one. Reading there needs no card. Before any send, post, publish, payment, delete or share, say in chat exactly what will go and from which account; the click or keystroke that does it asks the user on a card, which shows it too. Never type a password. If the page asks you to sign in, call request_login again for it with signed_out: true and browser: \"chrome\"."
+            "Use {title} in the user's own Chrome, where they're already signed in: Mogbot for Chrome (the mcp__user_chrome__* tools, the only way into it), on {site}. First open it in a new tab and tell the user in one line which account you're in, from what the page shows (\"I'm in {title} as …\"); never guess one. Reading there needs no card. Before any send, post, publish, payment, delete or share, say in chat exactly what will go and from which account; the click or keystroke that does it asks the user on a card, which shows it too. Never type a password. If the page asks you to sign in, call request_login again for it with signed_out: true and browser: \"chrome\"."
         ),
         Step::AgentsBrowser { site, title } => format!(
             "Use {title} in the agents' browser (the mcp__browser__* tools), a Chrome of the team's own on this Mac: open {site} and tell the user in one line which account you're in, from what the page shows (\"I'm in {title} as …\"); never guess one. Reading there needs no card. Before any send, post, publish, payment, delete or share, say in chat exactly what will go and from which account; the click or keystroke that does it asks the user on a card. Never type a password. If the page asks you to sign in (or shows a signed-out product page), call request_login again for it with signed_out: true: that moves you to the user's own Chrome when you have it, else the user signs in from their phone."
@@ -663,7 +657,7 @@ pub fn answer_waiters(app: &AppHandle, request_id: &str, r: &LoginRequest, how: 
                 }
                 logins::connected_prompt(
                     r,
-                    &format!("use {site} in the user's own Chrome (mcp__claude-in-chrome__*)"),
+                    &format!("use {site} in the user's own Chrome (Mogbot for Chrome, mcp__user_chrome__*)"),
                 )
             }
             Answered::AgentsBrowser(site) => {

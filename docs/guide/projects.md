@@ -92,6 +92,9 @@ Good to know:
   overwriting anything.
 - Files that look like secrets (like `.env` files) and very large files are never included, and
   the card lists what was left out.
+- The copy runs the same dev server you already allowed for the project, so picking an agent in a
+  project never asks you to start it again. If the copy changes what its dev server would run, it
+  asks, like any change.
 - Any number of agents can each have their own copy of a project. A copy needs at least 2 GB free on your computer.
 - To have an agent work straight in your folder instead, turn on **Work directly in the project**
   in its editor.

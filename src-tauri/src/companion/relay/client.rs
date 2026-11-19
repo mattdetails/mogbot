@@ -3,7 +3,7 @@
 //! While the phone server is on: sign in (the relay's challenge, signed with
 //! the identity key), then carry every phone's channel over the one socket.
 //! A dropped link comes back with a capped, jittered backoff; a ping goes
-//! every 30 s and 75 s of silence counts as dead; after the Mac wakes the
+//! every 10 s and 25 s of silence counts as dead; after the Mac wakes the
 //! link is made again at once, since the old socket is almost always gone.
 
 use futures_util::{SinkExt, StreamExt};
@@ -21,14 +21,20 @@ use super::channel::{self, Out};
 use super::{crypto, mac_url, parse_account, Account, Command, Link};
 
 /// A ping this often keeps the link (and the relay's view of it) alive.
-pub const PING_EVERY: Duration = Duration::from_secs(30);
+#[cfg(not(test))]
+pub const PING_EVERY: Duration = Duration::from_secs(10);
+#[cfg(test)]
+pub const PING_EVERY: Duration = Duration::from_millis(100);
 /// Nothing at all from the relay for this long: the link is dead.
-pub const DEAD_AFTER: Duration = Duration::from_secs(75);
+#[cfg(not(test))]
+pub const DEAD_AFTER: Duration = Duration::from_secs(25);
+#[cfg(test)]
+pub const DEAD_AFTER: Duration = Duration::from_millis(450);
 /// Connecting and each step of signing in must take no longer than this.
-const STEP_TIMEOUT: Duration = Duration::from_secs(15);
+const STEP_TIMEOUT: Duration = Duration::from_secs(6);
 /// The backoff between attempts, doubling from the first to the last.
 const BACKOFF_MIN: Duration = Duration::from_secs(1);
-const BACKOFF_MAX: Duration = Duration::from_secs(60);
+const BACKOFF_MAX: Duration = Duration::from_secs(8);
 /// How often the wall clock is compared with the monotonic one, and how far
 /// apart they must drift to mean the Mac slept.
 const WAKE_TICK: Duration = Duration::from_secs(5);
@@ -259,6 +265,7 @@ async fn session(
     let mut open: HashMap<u32, Open> = HashMap::new();
     let mut generation = 0u64;
     let mut last_heard = Instant::now();
+    let up_since = Instant::now();
     let mut ping = tokio::time::interval_at(tokio::time::Instant::now() + PING_EVERY, PING_EVERY);
     let mut wake = tokio::time::interval(WAKE_TICK);
     wake.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -338,10 +345,15 @@ async fn session(
                     }
                     Some(Ok(_)) => {}
                     Some(Err(e)) => {
-                        tracing::debug!("[Relay] link error: {e}");
+                        // Info, not debug: the link drops every few minutes
+                        // in real use and this is the only line that says why.
+                        tracing::info!(secs = up_since.elapsed().as_secs(), "[Relay] link error: {e}");
                         break Ended::WasUp;
                     }
-                    None => break Ended::WasUp,
+                    None => {
+                        tracing::info!(secs = up_since.elapsed().as_secs(), "[Relay] the link ended with no close frame");
+                        break Ended::WasUp;
+                    }
                 }
             }
             Some(out) = out_rx.recv() => match out {
@@ -415,6 +427,7 @@ async fn session(
                     break Ended::Woke;
                 }
                 if last_heard.elapsed() >= DEAD_AFTER {
+                    tracing::info!("[Relay] nothing from the relay for {:?}; reconnecting", DEAD_AFTER);
                     break Ended::WasUp;
                 }
             }

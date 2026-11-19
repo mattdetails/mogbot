@@ -32,6 +32,7 @@ import {
   NotificationsPage,
   PhonePage,
 } from '../agents/AgentsSettings';
+import { ConnectedPage } from '../agents/ConnectedPage';
 import { AccentColorSetting } from './AccentColorSetting';
 import { AccountPage } from './AccountPage';
 import { ThemeSetting } from './ThemeSetting';
@@ -95,6 +96,7 @@ import {
   LoginIcon,
   MobileIcon,
   MoveToFolderIcon,
+  PlugIcon,
   PuzzleIcon,
   SettingsSlidersIcon,
   ShieldCheckIcon,
@@ -127,6 +129,7 @@ interface MovePrompt {
 /** Each section's tile in the list, as the phone's Settings rows have. */
 const NAV_ICONS: Record<SettingsPage, React.ReactNode> = {
   account: <LoginIcon size={14} />,
+  connected: <PlugIcon size={14} />,
   agents: <AgentsIcon size={14} />,
   independence: <ShieldCheckIcon size={14} />,
   accounts: <ActivityIcon size={14} />,
@@ -577,6 +580,8 @@ export function SettingsModal({
         return <PhonePage />;
       case 'notifications':
         return <NotificationsPage />;
+      case 'connected':
+        return <ConnectedPage onGo={setPage} />;
       case 'chrome':
         return <ChromePage />;
       case 'apps':

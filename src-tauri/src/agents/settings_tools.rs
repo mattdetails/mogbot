@@ -172,6 +172,7 @@ pub const EVENT_SHARE_RECIPE: &str = "agents-share-recipe";
 pub const EVENT_OPEN_IMPORT: &str = "agents-open-import";
 /// Settings' pages, as the desk's section list names them (`src/lib/settingsPages.ts`).
 pub const SETTINGS_PAGES: &[&str] = &[
+    "connected",
     "agents",
     "independence",
     "accounts",
@@ -187,6 +188,7 @@ pub const SETTINGS_PAGES: &[&str] = &[
 /// What `open_settings` says it opened: "Settings → Phone". Pure.
 pub fn settings_page_title(page: &str) -> Option<&'static str> {
     Some(match page {
+        "connected" => "Connected",
         "agents" => "Agents",
         "independence" => "Independence",
         "accounts" => "Accounts & usage",

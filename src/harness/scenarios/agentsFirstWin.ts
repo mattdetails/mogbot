@@ -389,6 +389,20 @@ export const agentsFirstWinScenarios: Scenario[] = [
     },
   },
   {
+    id: 'agents-chrome-notice',
+    title: 'Agents — Mogbot for Chrome isn’t connected: the chat says so, with one button',
+    looksRightWhen:
+      'Under the Chief’s first result, one calm card: a Chrome icon, “Mogbot for Chrome isn’t connected”, one muted line (agents reach the sites you’re signed in to through it, and it isn’t installed yet), then “Not now” and a neutral “Install Mogbot for Chrome”. Never the accent on the button; no warning colour.',
+    command: 'agents.open',
+    phoneOffer: true,
+    requires: '[data-testid="chrome-notice"]',
+    commands: {
+      agents_overview: { ...BASE_OVERVIEW, importChoice: 'declined' },
+      agents_messages: (args: Record<string, unknown>) =>
+        args.agentId === 'chief' ? SITE_HANDED_BACK : [],
+    },
+  },
+  {
     id: 'agents-first-run-sent',
     title: 'Agents — first message, a second after Send',
     looksRightWhen:

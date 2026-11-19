@@ -108,26 +108,12 @@ pub fn decide(f: Facts) -> Now {
     if ours {
         return now(Route::YourChrome, Why::YourChromeConnected);
     }
-    let fallback = if f.ours_on {
-        Why::YourChromeNotConnected
-    } else {
-        Why::YourChromeOff
-    };
-    if f.cic_on && f.claude_engine {
-        if f.cic_down {
-            return now(Route::None, Why::ClaudeInChromeDown);
-        }
-        return now(Route::ClaudeInChrome, fallback);
-    }
     if f.ours_on && f.ours_connected {
         // Connected, but this agent's settings say no browser.
         return now(Route::None, Why::NotAllowed);
     }
     if f.ours_on {
         return now(Route::None, Why::YourChromeNotConnected);
-    }
-    if !f.claude_engine {
-        return now(Route::None, Why::CodexNeedsYourChrome);
     }
     now(Route::None, Why::NotSetUp)
 }
@@ -238,8 +224,10 @@ mod tests {
         }
     }
 
+    /// Claude in Chrome is never a route now, whatever its switches say:
+    /// without Mogbot for Chrome connected there is no route.
     #[test]
-    fn claude_in_chrome_is_only_the_fallback() {
+    fn claude_in_chrome_is_never_a_route() {
         let base = Facts {
             ours_on: true,
             ours_connected: false,
@@ -250,10 +238,11 @@ mod tests {
             policy: true,
             outside: false,
         };
+        let now = decide(base);
         assert_eq!(
-            decide(base),
+            now,
             Now {
-                route: Route::ClaudeInChrome,
+                route: Route::None,
                 why: Why::YourChromeNotConnected
             }
         );
@@ -261,40 +250,15 @@ mod tests {
             ours_on: false,
             ..base
         };
-        assert_eq!(decide(off).why, Why::YourChromeOff);
-        let down = Facts {
-            cic_down: true,
-            ..base
-        };
-        assert_eq!(
-            decide(down),
-            Now {
-                route: Route::None,
-                why: Why::ClaudeInChromeDown
-            }
-        );
+        assert_eq!(decide(off).why, Why::NotSetUp);
         let codex = Facts {
             claude_engine: false,
-            ..base
+            ..off
         };
-        assert_eq!(
-            decide(codex),
-            Now {
-                route: Route::None,
-                why: Why::YourChromeNotConnected
-            }
-        );
-        let codex_off = Facts {
-            ours_on: false,
-            ..codex
-        };
-        assert_eq!(decide(codex_off).why, Why::CodexNeedsYourChrome);
-        let nothing = Facts {
-            ours_on: false,
-            cic_on: false,
-            ..base
-        };
-        assert_eq!(decide(nothing).why, Why::NotSetUp);
+        assert_eq!(decide(codex).why, Why::NotSetUp);
+        for f in all_facts() {
+            assert_ne!(decide(f).route, Route::ClaudeInChrome, "{f:?}");
+        }
     }
 
     #[test]
@@ -322,8 +286,7 @@ mod tests {
     }
 
     /// [`decide`] says exactly what the per-turn checks do: Your Chrome is
-    /// `user_chrome::allowed`; Claude in Chrome is `browser::allowed`, not
-    /// known down, and only when Your Chrome didn't take its place.
+    /// `user_chrome::allowed`, and nothing else is a route.
     #[test]
     fn decide_agrees_with_the_per_turn_checks_everywhere() {
         for f in all_facts() {
@@ -338,11 +301,8 @@ mod tests {
             );
             let ours =
                 crate::user_chrome::allowed(f.ours_on, f.ours_connected, f.policy, &a, f.outside);
-            let cic = super::super::browser::allowed(f.cic_on, &a, f.outside) && !f.cic_down;
             let expected = if ours {
                 Route::YourChrome
-            } else if cic {
-                Route::ClaudeInChrome
             } else {
                 Route::None
             };
@@ -361,8 +321,8 @@ mod tests {
             json!({ "route": "your_chrome", "why": "your_chrome_connected" })
         );
         assert_eq!(
-            serde_json::to_value(Why::CodexNeedsYourChrome).unwrap(),
-            "codex_needs_your_chrome"
+            serde_json::to_value(Why::NotSetUp).unwrap(),
+            "not_set_up"
         );
     }
 }

@@ -929,37 +929,36 @@ pub fn lay_in_chrome(
     engine: super::engine::Engine,
     port: u16,
 ) {
-    use super::chrome_route::{Route, Why};
-    access.browser = now.route == Route::ClaudeInChrome;
+    use super::chrome_route::Route;
+    // Mogbot for Chrome is the only way into the user's Chrome: no turn runs
+    // Claude in Chrome (`--chrome`), and Claude Code is kept from its tools
+    // whether or not Mogbot for Chrome is connected this turn.
+    access.browser = false;
+    if engine == super::engine::Engine::Claude {
+        let block = super::chrome_route::CLAUDE_IN_CHROME_BLOCK.to_string();
+        if !access.blocked.contains(&block) {
+            access.blocked.push(block);
+        }
+    }
+    if !access.prompt.is_empty() {
+        access.prompt.push_str("\n\n");
+    }
     if now.route == Route::YourChrome {
         access.servers.push(TurnServer {
             key: crate::user_chrome::tools::SERVER_KEY.to_string(),
             url: crate::user_chrome::tools::url(port),
         });
-        if engine == super::engine::Engine::Claude {
-            let block = super::chrome_route::CLAUDE_IN_CHROME_BLOCK.to_string();
-            if !access.blocked.contains(&block) {
-                access.blocked.push(block);
-            }
-        }
-        if !access.prompt.is_empty() {
-            access.prompt.push_str("\n\n");
-        }
         access.prompt.push_str(USER_CHROME_PROMPT);
-    }
-    if now.why == Why::ClaudeInChromeDown {
-        if !access.prompt.is_empty() {
-            access.prompt.push_str("\n\n");
-        }
-        access.prompt.push_str(CHROME_DOWN_PROMPT);
+    } else {
+        access.prompt.push_str(NO_CHROME_PROMPT);
     }
 }
 
-/// What a turn is told when Claude in Chrome isn't answering this turn.
-pub const CHROME_DOWN_PROMPT: &str = "### The user's Chrome isn't reachable\n\nClaude in Chrome isn't answering this turn (the app checked, and has told the user the fix in this chat), so you have no tools for the user's Chrome. Use the agents' browser (mcp__browser__*) for sites signed in there; a step that needs a site signed in only in their Chrome waits: say so in one line. Never tell the user to sign out of or into the Claude extension, reinstall it, or restart Chrome. The fix is Settings → Chrome, the app's own extension, which doesn't depend on Claude's.";
+/// What a turn is told when Mogbot for Chrome isn't connected this turn.
+pub const NO_CHROME_PROMPT: &str = "### Mogbot for Chrome isn't connected\n\nMogbot for Chrome is the only way into the user's Chrome, and it isn't connected this turn, so you have no browser tools for their signed-in sites. There is no other browser to try: not a built-in one, not Claude in Chrome, not a claude.ai connector. Do everything else you can without it (commands, app connections, APIs, a teammate), and for a step that needs their Chrome say in one line that Mogbot for Chrome isn't connected; the app has already told them how to install or reconnect it. Never tell them to install or sign in to the Claude extension.";
 
 /// What a turn with the user's Chrome through the app's extension is told.
-pub const USER_CHROME_PROMPT: &str = "### Your Chrome\n\nThis turn reaches the user's own Chrome, where they're signed in, through the app's extension: the mcp__user_chrome__* tools, with the same names and arguments as the agents' browser's (mcp__browser__*). Wherever you're told to use the Claude in Chrome tools (mcp__claude-in-chrome__*), use these instead: there are no others this turn. They don't depend on any Claude account or extension, so never tell the user to sign in to or out of the Claude extension.";
+pub const USER_CHROME_PROMPT: &str = "### Mogbot for Chrome\n\nMogbot for Chrome is the only way into the user's own Chrome, where they're signed in: the mcp__user_chrome__* tools. Wherever you're told to use their Chrome or a browser, use these: there is no built-in browser, no Claude in Chrome and no claude.ai connector to fall back on, so never look for one. They don't depend on any Claude account, so never tell the user to sign in to or out of the Claude extension.";
 
 /* ------------------------------------------------------------- relay */
 

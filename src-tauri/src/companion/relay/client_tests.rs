@@ -28,6 +28,8 @@ struct Shared {
     mac: Mutex<Option<mpsc::UnboundedSender<Message>>>,
     phones: Mutex<HashMap<u32, mpsc::UnboundedSender<Message>>>,
     next: AtomicU32,
+    /// When set, pings go unanswered: a path that went quiet.
+    mute: std::sync::atomic::AtomicBool,
 }
 
 struct Fake {
@@ -159,7 +161,9 @@ async fn relay_mac(
     while let Some(Ok(msg)) = rx.next().await {
         match msg {
             Message::Text(t) if t == "ping" => {
-                let _ = mac_tx.send(Message::Text("pong".into()));
+                if !shared.mute.load(std::sync::atomic::Ordering::SeqCst) {
+                    let _ = mac_tx.send(Message::Text("pong".into()));
+                }
             }
             Message::Text(t) => {
                 let v: Value = serde_json::from_str(&t).unwrap();
@@ -626,4 +630,44 @@ fn a_channel_holds_at_most_its_byte_budget() {
     drop(rx);
     assert!(!o.offer(vec![0; 1]), "nobody reading");
     assert_eq!(queued.load(Ordering::SeqCst), fits * piece);
+}
+
+#[tokio::test]
+async fn a_link_the_path_silently_killed_is_made_again_within_seconds() {
+    // 2026-11-18: a bare client's socket was cut on a heartbeat with no close
+    // frame, and the Mac only found out a heartbeat later. A relay that stops
+    // answering must be given up on after DEAD_AFTER, and the Mac signs in again.
+    let (c, _stub) = Stub::companion();
+    let relay = fake_relay(json!({ "id": "user_1", "email": null })).await;
+    let link = Arc::new(Link::default());
+    let (stop_tx, stop_rx) = oneshot::channel();
+    let cfg = Config { base: relay.base(), port: None };
+    tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
+    until("the link", || link.status().state == RelayState::Connected).await;
+    // The relay's side goes quiet: nothing is answered or forwarded any more.
+    relay.shared.mute.store(true, std::sync::atomic::Ordering::SeqCst);
+    let unmute = relay.shared.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(900)).await;
+        unmute.mute.store(false, std::sync::atomic::Ordering::SeqCst);
+    });
+    let started = std::time::Instant::now();
+    // Detected (down) and signed in again (up) well inside a few seconds.
+    let mut was_down = false;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let up = link.status().state == RelayState::Connected;
+            if !up {
+                was_down = true;
+            }
+            if was_down && up {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("the Mac never came back");
+    assert!(started.elapsed() < Duration::from_secs(5));
+    stop_tx.send(()).unwrap();
 }

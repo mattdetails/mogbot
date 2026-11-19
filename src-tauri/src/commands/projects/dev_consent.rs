@@ -284,13 +284,49 @@ fn key(project: &Path) -> String {
     project.to_string_lossy().into_owned()
 }
 
+/// The checkout `project` is a linked git worktree of (an agent's copy of a
+/// project, `agents/task.rs`), read from the `.git` file's `gitdir:` line
+/// (`<main>/.git/worktrees/<name>`). `None` for an ordinary project.
+fn origin_of(project: &Path) -> Option<PathBuf> {
+    let link = std::fs::read_to_string(project.join(".git")).ok()?;
+    let gitdir = PathBuf::from(link.strip_prefix("gitdir:")?.trim());
+    let worktrees = gitdir.parent()?;
+    if worktrees.file_name()? != "worktrees" {
+        return None;
+    }
+    let dot_git = worktrees.parent()?;
+    if dot_git.file_name()? != ".git" {
+        return None;
+    }
+    dunce::canonicalize(dot_git.parent()?).ok()
+}
+
+/// What was approved for `project`: for itself, else for the project it is a
+/// copy of. An agent's copy runs the same commands as its project, so
+/// picking the agent in a project doesn't ask again; the verdict still
+/// compares the fingerprint of what is on disk in the copy, so a copy that
+/// changed its scripts or configs asks like any change. Only the copy's own
+/// path is ever written by an approval.
+fn approved_for(file: &ConsentFile, project: &Path) -> Option<String> {
+    let fp = fingerprint(&surface(project));
+    let own = file.approved.get(&key(project));
+    if own == Some(&fp) {
+        return own.cloned();
+    }
+    let origin = origin_of(project).and_then(|o| file.approved.get(&key(&o)).cloned());
+    match origin {
+        Some(o) if o == fp => Some(o),
+        _ => own.cloned().or(origin),
+    }
+}
+
 /// The verdict for `project` (already canonical) against the store at `store`.
 fn consent_at(store: &Path, project: &Path) -> DevServerConsent {
     let surface = surface(project);
     let fingerprint = fingerprint(&surface);
     let file = read_file(store);
-    let state = match file.approved.get(&key(project)) {
-        Some(f) if *f == fingerprint => ConsentState::Approved,
+    let state = match approved_for(&file, project) {
+        Some(f) if f == fingerprint => ConsentState::Approved,
         Some(_) => ConsentState::Changed,
         None => ConsentState::New,
     };
@@ -772,6 +808,45 @@ mod tests {
         // Changed since: refused again.
         std::fs::write(root.join(".npmrc"), "script-shell=/tmp/x").unwrap();
         assert!(guard_at(&store, &root, Some(root.to_str().unwrap())).is_err());
+    }
+
+    #[test]
+    fn an_agents_copy_of_an_approved_project_does_not_ask_again() {
+        let (_d, store) = store();
+        let p = project_with(r#"{ "dev": "vite" }"#);
+        let root = canon(p.path());
+        let git = |dir: &Path, args: &[&str]| {
+            let ok = std::process::Command::new("git")
+                .args(["-c", "user.email=a@b.c", "-c", "user.name=t"])
+                .args(args)
+                .current_dir(dir)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+            assert!(ok, "git {args:?}");
+        };
+        git(&root, &["init", "-q"]);
+        git(&root, &["add", "."]);
+        git(&root, &["commit", "-qm", "x"]);
+        let holder = tempfile::tempdir().unwrap();
+        let copy = holder.path().join("copy");
+        git(&root, &["worktree", "add", "-q", copy.to_str().unwrap()]);
+        let copy = canon(&copy);
+        // Never approved: the copy asks like its project.
+        assert_eq!(consent_at(&store, &copy).state, ConsentState::New);
+        let c = consent_at(&store, &root);
+        approve_at(&store, &root, &c.fingerprint).unwrap();
+        // Picking the agent in the project: nothing to click.
+        assert_eq!(consent_at(&store, &copy).state, ConsentState::Approved);
+        assert!(guard_at(&store, &copy, Some(copy.to_str().unwrap())).is_ok());
+        // The copy changed what runs: it asks, and approving it leaves the
+        // project's own approval as it was.
+        std::fs::write(copy.join(".npmrc"), "script-shell=/tmp/x").unwrap();
+        assert_eq!(consent_at(&store, &copy).state, ConsentState::Changed);
+        let c2 = consent_at(&store, &copy);
+        approve_at(&store, &copy, &c2.fingerprint).unwrap();
+        assert_eq!(consent_at(&store, &copy).state, ConsentState::Approved);
+        assert_eq!(consent_at(&store, &root).state, ConsentState::Approved);
     }
 
     #[test]
