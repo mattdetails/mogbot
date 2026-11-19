@@ -7201,7 +7201,7 @@ point-in-time messages and result cards.
   forks from (`page::as_of`: the kept versions made before then, the newest
   current, in a file of its own), or with no page if there wasn't one then
   or those versions are no longer kept; its line names the version.
-- **Pinned, or not.** A new page is pinned. The user can unpin it (desk or
+- **Pinned, or not.** A new page is kept but *not* pinned: nothing sits above the chat that the user didn't ask for (a Cade's-pipeline card appeared that way when new pages were pinned by default). The agent passes `pin: true` only when the user asked for a page or tracker there, a routine's turn never pins one, and otherwise the user pins it from the chat header's Page button. The user can unpin it (desk or
   phone, `agents_page_pin` / `agents.pagePin`); updates carry on and it stays
   unpinned until they pin it back, and the agent is told so in its receipt.
 - **Desk** (`components/agents/ConversationPage.tsx`, `lib/agentPage.ts`):

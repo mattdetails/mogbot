@@ -106,7 +106,7 @@ fn nothing_that_looks_like_a_secret_goes_on_a_page() {
 #[test]
 fn a_new_page_is_pinned_version_one_with_every_block_added() {
     let f = first(
-        json!({ "title": "Job search", "blocks": [table("apps", json!([["Acme", "Applied"]]))] }),
+        json!({ "title": "Job search", "pin": true, "blocks": [table("apps", json!([["Acme", "Applied"]]))] }),
     );
     assert!(f.pinned);
     assert_eq!(f.conversation, "first");
@@ -299,7 +299,7 @@ fn stored_beside_the_log_one_file_per_conversation_never_in_messages() {
     let (f, changed) = update(
         &a.id,
         "first",
-        &up(json!({ "title": "Job search", "blocks": [checklist("next", false)] })),
+        &up(json!({ "title": "Job search", "pin": true, "blocks": [checklist("next", false)] })),
         false,
     )
     .unwrap();
@@ -354,8 +354,8 @@ fn stored_beside_the_log_one_file_per_conversation_never_in_messages() {
     assert!(!set_pinned(&a.id, "first", false).unwrap().unwrap().pinned);
     let (f, _) = update(&a.id, "first", &up(json!({ "title": "Hunt" })), false).unwrap();
     assert!(!f.pinned);
-    assert!(receipt(&f, true).contains("unpinned it"));
-    assert!(for_agent(Some(&f)).contains("unpinned by the user"));
+    assert!(receipt(&f, true).contains("isn't above the chat"));
+    assert!(for_agent(Some(&f)).contains("not pinned above the chat"));
     assert!(turn_note(&a.id, "first").contains("\"Hunt\" (v3; blocks next)"));
 
     // Ids that would leave the folder are refused.
@@ -435,4 +435,16 @@ fn a_routine_s_version_names_the_routine_and_only_a_routine_s() {
         .unwrap()
         .get("routine")
         .is_none());
+}
+
+#[test]
+fn a_page_nobody_asked_to_pin_is_kept_but_not_pinned() {
+    // The agent didn't pass `pin: true`: the page never takes the top of the chat.
+    let f = first(json!({ "title": "Pipeline", "blocks": [checklist("a", false)] }));
+    assert!(!f.pinned);
+    assert!(receipt(&f, true).contains("isn't pinned above the chat"));
+    // A routine's turn never pins one, even when it asks to.
+    let u = up(json!({ "title": "Pipeline", "pin": true, "blocks": [checklist("a", false)] }));
+    let r = apply(None, "first", &u, 1_000, true).unwrap().unwrap();
+    assert!(!r.pinned);
 }
