@@ -92,11 +92,14 @@
   grid-column: 1 / 3;
   justify-self: start;
   gap: var(--spacing-md);
-  /* The title clips (its chips give way), and the key's depth and ambient
-     shadow hang below the cap: room above and below, given straight back,
-     so the key's foot isn't cut flat. */
-  padding-block: var(--spacing-xs);
-  margin-block: calc(var(--spacing-xs) * -1);
+  /* The title clips (its chips give way), and the key's depth, ambient
+     shadow and its waiting/working glow spill past its face: room on every
+     side but the trailing one (the amber spill reaches ~15px past a 24px key),
+     given straight back, so nothing is cut flat. */
+  padding-block: var(--spacing-lg);
+  margin-block: calc(var(--spacing-lg) * -1);
+  padding-inline-start: var(--spacing-lg);
+  margin-inline-start: calc(var(--spacing-lg) * -1);
 }
 
 .agent-chat__header .agent-chat__title .agent-key {
