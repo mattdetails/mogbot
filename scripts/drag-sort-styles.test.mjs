@@ -88,7 +88,7 @@ test('hover-revealed handles keep their hit area and reveal on row interaction',
   );
   assert.match(
     sidebarCss,
-    /\.drag-sort__item:not\(\[data-drag-sort-hover-reveal-blocked='true'\]\)[\s\S]*?\.sidebar-project-row:hover[\s\S]*?\.sidebar-project-drag-handle[\s\S]*?margin-inline-end:\s*calc\(-1 \* var\(--space-04\)\)/
+    /\.drag-sort__item:not\(\[data-drag-sort-hover-reveal-blocked='true'\]\)[\s\S]*?\.sidebar-project-row:hover[\s\S]*?\.sidebar-project-drag-handle[\s\S]*?margin-inline-end:\s*calc\(-1 \* var\(--(?:space-04|spacing-xs)\)\)/
   );
 });
 
