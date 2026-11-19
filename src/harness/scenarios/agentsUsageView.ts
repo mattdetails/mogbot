@@ -514,7 +514,7 @@ const STALE = {
   accounts: TWO.accounts,
   inv: {
     ...TWO.inv,
-    accounts: (TWO.inv.accounts).map((a) =>
+    accounts: TWO.inv.accounts.map((a) =>
       a.id === 'default'
         ? {
             ...a,

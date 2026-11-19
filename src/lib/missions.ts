@@ -7,7 +7,11 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import type { EngineId, Mission, MissionDraft } from '../../packages/companion-protocol/src/missions';
+import type {
+  EngineId,
+  Mission,
+  MissionDraft,
+} from '../../packages/companion-protocol/src/missions';
 
 export * from '../../packages/companion-protocol/src/missions';
 
