@@ -170,6 +170,7 @@ export const agentsApprovalScenarios: Scenario[] = [
     'No Always allow item at all: the Mac’s sentence (“Can’t be always allowed…”) stands where it was; Allow and Deny only.',
     TESTS('pending', {
       always: { kind: 'command_prefix', value: 'git push', label: 'git push origin main' },
+      alwaysRefused: true,
       alwaysNote: 'Can’t be always allowed: pushing is asked every time.',
     })
   ),

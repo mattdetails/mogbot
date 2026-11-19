@@ -1305,7 +1305,7 @@ const ApprovalCardBody = memo(function ApprovalCard({
   const plan = approval.plan ? readPlan(approval.plan) : null;
   const nothingToAllow = !!plan && plan.actions.length === 0;
   // The Mac says this can't be always allowed: its sentence stands where the item was.
-  const noAlways = cantAlwaysAllow(approval.alwaysNote);
+  const noAlways = cantAlwaysAllow(approval);
   const pending = approval.status === 'pending';
   const fields = approvalFields(approval.tool, approval.input);
   // A command the app can name says what happens in the title; its raw text is

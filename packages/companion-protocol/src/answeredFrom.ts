@@ -42,7 +42,15 @@ export function answeredWords(
   return null;
 }
 
-/** The Mac's note says this can't be always allowed: it replaces the Always item. */
-export function cantAlwaysAllow(note: string | undefined): boolean {
+/**
+ * The Mac refused Always for this card: `alwaysRefused` says so; an older Mac
+ * only says it in the note's words ("Can't be always allowed…"), kept as the fallback.
+ */
+export function cantAlwaysAllow(
+  approval: { alwaysRefused?: boolean; alwaysNote?: string } | undefined
+): boolean {
+  if (!approval) return false;
+  if (approval.alwaysRefused !== undefined) return approval.alwaysRefused;
+  const note = approval.alwaysNote;
   return !!note && /^can['’]t be always allowed/i.test(note.trim());
 }

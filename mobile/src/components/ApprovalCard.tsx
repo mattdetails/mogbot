@@ -292,7 +292,7 @@ export function ApprovalCard({
   const off = !!busy || !connected;
   // Behind ⋯: the broader answer, and a denial with a note. One row of
   // answers under the thumb, never a second line of them.
-  const noAlways = cantAlwaysAllow(approval.alwaysNote);
+  const noAlways = cantAlwaysAllow(approval);
   const alwaysOption = approval.always && !noAlways
     ? [{ label: `Always allow ${approval.always.label}`, run: () => void answer(true, true) }]
     : [];

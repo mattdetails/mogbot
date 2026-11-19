@@ -17,10 +17,14 @@ describe('answeredWords', () => {
 });
 
 describe('cantAlwaysAllow', () => {
-  it('reads the note', () => {
-    expect(cantAlwaysAllow('Can’t be always allowed: it sends mail.')).toBe(true);
-    expect(cantAlwaysAllow("Can't be always allowed")).toBe(true);
-    expect(cantAlwaysAllow('Skips your Ask first rules.')).toBe(false);
+  it('keys off the flag', () => {
+    expect(cantAlwaysAllow({ alwaysRefused: true })).toBe(true);
+    expect(cantAlwaysAllow({ alwaysRefused: false, alwaysNote: 'Can’t be always allowed: x' })).toBe(false);
+  });
+  it('falls back to the note’s words on an older Mac', () => {
+    expect(cantAlwaysAllow({ alwaysNote: 'Can’t be always allowed: it sends mail.' })).toBe(true);
+    expect(cantAlwaysAllow({ alwaysNote: "Can't be always allowed" })).toBe(true);
+    expect(cantAlwaysAllow({ alwaysNote: 'Skips your Ask first rules.' })).toBe(false);
     expect(cantAlwaysAllow(undefined)).toBe(false);
   });
 });

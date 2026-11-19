@@ -5459,7 +5459,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 972
+      "consumerCount": 973
     },
     {
       "name": "--text-faint",
@@ -6979,7 +6979,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 972
+      "consumerCount": 973
     },
     {
       "name": "--text-faint",
