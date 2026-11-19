@@ -346,7 +346,7 @@
   padding: var(--spacing-sm) var(--spacing-md);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface-recessed);
   border: var(--border-width-default) solid var(--border-subtle);
   font-size: var(--font-size-subhead-lg);
@@ -382,7 +382,7 @@
 .agents-catchup__title {
   margin: 0;
   font-size: var(--font-size-subhead-lg);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heading);
 }
 
 .agents-catchup__left {
@@ -393,7 +393,7 @@
 .agents-catchup__bar {
   flex: 1;
   height: var(--spacing-2xs);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--border-subtle);
   overflow: hidden;
 }
@@ -439,7 +439,7 @@
 
 .agents-catchup__name {
   color: var(--text-primary);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heading);
 }
 
 .agents-catchup__tag {
@@ -451,8 +451,8 @@
 
 .agents-catchup__ask {
   margin: 0;
-  font-size: var(--font-size-xl);
-  line-height: var(--line-height-tight, 1.25);
+  font-size: var(--font-size-h3);
+  line-height: var(--line-height-compact);
   color: var(--text-primary);
 }
 
@@ -473,7 +473,7 @@
   padding: var(--spacing-md);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface-recessed);
   border: var(--border-width-default) solid var(--border-subtle);
   max-height: 260px;
@@ -523,7 +523,7 @@
 .agents-catchup__next h3 {
   margin: 0;
   font-size: var(--font-size-body-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-label);
   color: var(--text-muted);
 }
 
@@ -542,7 +542,7 @@
 
 .agents-catchup__happened {
   cursor: pointer;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
 }
 
 .agents-catchup__next-title,
@@ -563,7 +563,7 @@
 .agents-catchup__then {
   margin: var(--spacing-sm) 0 0;
   padding: var(--spacing-md);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface-control);
   color: var(--text-secondary);
   font-size: var(--font-size-body-sm);
@@ -584,11 +584,11 @@
   margin: var(--spacing-xs) var(--spacing-xs) var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface-control);
   color: var(--text-primary);
   font: inherit;
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heading);
   cursor: pointer;
 }
 
@@ -600,7 +600,7 @@
 .agents-catchup-row__count {
   min-width: var(--spacing-xl);
   padding: 0 var(--spacing-sm);
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius-pill);
   background: var(--surface-inverse);
   color: var(--surface-app);
   text-align: center;
@@ -614,6 +614,6 @@
 
 .agents-catchup-row__clear {
   font-size: var(--font-size-body-sm);
-  font-weight: var(--font-weight-regular, 400);
+  font-weight: var(--font-weight-body);
   color: var(--text-muted);
 }
