@@ -225,7 +225,15 @@ export const AgentDraftCard = memo(function AgentDraftCard({
               </span>
             </div>
           )}
-          <div ref={textRef} className="agent-draft__text" data-scrolls={scrolls || undefined}>
+          <div
+            ref={textRef}
+            className="agent-draft__text"
+            data-scrolls={scrolls || undefined}
+            // A long draft scrolls: the keyboard can reach it too (axe scrollable-region-focusable).
+            tabIndex={scrolls && !editing ? 0 : undefined}
+            role={scrolls && !editing ? 'region' : undefined}
+            aria-label={scrolls && !editing ? 'What it says' : undefined}
+          >
             {editing && pending ? (
               <TextArea
                 aria-label="What it says"

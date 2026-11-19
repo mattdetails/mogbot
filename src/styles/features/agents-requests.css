@@ -382,7 +382,7 @@
   gap: var(--spacing-xs);
   margin: 0;
   font-size: var(--font-size-body-sm);
-  color: var(--accent-error, var(--text-primary));
+  color: var(--text-error);
 }
 
 .agent-draft__text[data-scrolls] {
