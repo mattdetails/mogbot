@@ -1948,6 +1948,8 @@ fn tick(app: &AppHandle) -> Result<(), CommandError> {
     super::tasks::tick(app);
     // The end-of-day check-in at the user's time (`eod`).
     super::eod::tick(app);
+    // Live missions: read their engines and pause at a share (`missions_run`).
+    super::missions_run::tick(app);
     Ok(())
 }
 

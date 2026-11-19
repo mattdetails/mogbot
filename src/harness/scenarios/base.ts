@@ -224,6 +224,8 @@ export const baseCommands: CommandMap = {
   agents_with_projects: [],
   // Open asks per agent (`agents/tasks.rs`): none until a scenario lays some over.
   agents_task_board: [],
+  // Missions (`agents/missions.rs`): none until a scenario lays one over.
+  agents_missions: [],
   agents_overview: {
     engineReady: true,
     agents: [

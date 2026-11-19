@@ -121,6 +121,34 @@ pub async fn agents_set_end_of_day(
     Ok(saved)
 }
 
+/// The missions, for the desk (`agents::missions`).
+#[tauri::command]
+#[tracing::instrument]
+pub async fn agents_missions() -> Result<Vec<agents::missions::Mission>, CommandError> {
+    blocking(|| Ok(agents::missions::list())).await
+}
+
+/// A button on a mission page: the user's own call (add more, stop, pause,
+/// resume, accept).
+#[tauri::command]
+#[tracing::instrument(skip(app))]
+pub async fn agents_mission_act(
+    app: AppHandle,
+    id: String,
+    action: String,
+    engine: Option<String>,
+    points: Option<f64>,
+) -> Result<String, CommandError> {
+    let said = blocking(move || {
+        let args = serde_json::json!({ "id": id, "engine": engine, "points": points });
+        agents::missions_run::act(&action, &args, true, agents::store::now_ms())
+            .map_err(CommandError::expected)
+    })
+    .await?;
+    let _ = app.emit(agents::missions_run::EVENT, ());
+    Ok(said)
+}
+
 /// Every agent's open asks and load, for What's in flight (`agents::tasks`).
 #[tauri::command]
 #[tracing::instrument]

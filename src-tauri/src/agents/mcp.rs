@@ -208,6 +208,12 @@ const TOOLS: &[Tool] = &[
         }),
     },
     Tool {
+        name: super::missions_run::TOOL,
+        description: super::missions_run::DESCRIPTION,
+        main_only: true,
+        schema: super::missions_run::schema,
+    },
+    Tool {
         name: super::eod::TOOL,
         description: super::eod::DESCRIPTION,
         main_only: true,
@@ -907,6 +913,7 @@ async fn call(
         "search_my_chat" => search_my_chat(caller, args),
         super::team_record::TOOL => team_lookup(caller, args).await,
         super::eod::TOOL => end_of_day(app, caller, args),
+        super::missions_run::TOOL => mission_tool(app, caller, args),
         super::tasks::ADD_TOOL => match super::tasks::run_add(caller, args) {
             Ok(t) => text(t),
             Err(e) => error(e),
@@ -3257,6 +3264,20 @@ pub(super) fn read_wait(
 
 /// The tool's reply when a confirmation didn't come back as Allow: the
 /// user's No, or (never dressed up as a No) a card that expired unanswered.
+/// `mission` (`agents/missions_run.rs`): the user's calls (start, add more,
+/// stop, pause, resume, accept) only on their own message in this chat.
+fn mission_tool(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value {
+    let action = arg(args, "action").unwrap_or("");
+    let user = !runner::from_outside(&caller.id) && runner::users_own_ask(&caller.id);
+    match super::missions_run::act(action, args, user, store::now_ms()) {
+        Ok(t) => {
+            let _ = tauri::Emitter::emit(app, super::missions_run::EVENT, ());
+            text(t)
+        }
+        Err(e) => error(e),
+    }
+}
+
 /// `set_end_of_day` (`agents/eod.rs`): the user's setting, applied at once
 /// with a line; never in a turn answering outside text.
 fn end_of_day(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value {

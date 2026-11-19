@@ -35,6 +35,8 @@ import { EngineSignInModal, type EngineSetup } from './EngineSignInModal';
 import { AgentChat } from './AgentChat';
 import { PaneBoundary, SidebarBoundary } from './AgentsErrorBoundary';
 import { AgentsTeamView } from './AgentsTeamView';
+import { MissionPage, useMissions } from './MissionPage';
+import { getMissions, missionIdOf } from '../../lib/missions';
 import { AgentBriefingModal } from './AgentWorkDetail';
 import { AgentsRoutinesView, type BulkAsk } from './AgentsRoutinesView';
 import { ROUTINES_ID } from '../../lib/agentDesk';
@@ -154,7 +156,13 @@ function readSelected(): string | null {
   try {
     // "What's in flight" (the sidebar’s bell, or ⌘K) is a detour, never where Agents reopens.
     const id = localStorage.getItem(SELECTED_KEY);
-    return id === TEAM_ID || id === CATCHUP_ID || id === USAGE_ID || id === ROUTINES_ID ? null : id;
+    return id === TEAM_ID ||
+      id === CATCHUP_ID ||
+      id === USAGE_ID ||
+      id === ROUTINES_ID ||
+      missionIdOf(id) !== null
+      ? null
+      : id;
   } catch {
     return null;
   }
@@ -247,6 +255,10 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
   const [deletingRoom, setDeletingRoom] = useState<Room | null>(null);
   // "What's in flight" (the sidebar’s bell or ⌘K), else the last agent you had open, else the Chief of Staff.
   const teamOpen = selectedId === TEAM_ID;
+  // A mission's page (`mission:<id>`), opened from What's in flight.
+  const missions = useMissions(getMissions);
+  const openMissionId = missionIdOf(selectedId);
+  const openMission = openMissionId ? (missions.find((m) => m.id === openMissionId) ?? null) : null;
   // Catch up (the sidebar's top row, the bell, ⌘K): what waits on you, one at a time.
   const catchUpOpen = selectedId === CATCHUP_ID;
   // Usage (the sidebar's usage row, ⌘K, a chat's account chip): a detour too.
@@ -301,7 +313,7 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
   useEffect(() => {
     if (!selected) {
       // On "What's in flight" no conversation is on screen, so replies still count as unread.
-      if (teamOpen || catchUpOpen || usageOpen) void focusAgent(null);
+      if (teamOpen || catchUpOpen || usageOpen || openMissionId) void focusAgent(null);
       return;
     }
     writeSelected(selected.id);
@@ -312,7 +324,7 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
   // is: its reads start now, beside the list's, rather than after it.
   useEffect(() => {
     const id = readSelected();
-    if (id && roomIdOf(id) === null) readChat(id);
+    if (id && roomIdOf(id) === null && missionIdOf(id) === null) readChat(id);
   }, []);
 
   // Leaving Agents mode: nothing is on screen any more, so new replies count as unread.
@@ -1193,15 +1205,17 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
               resetKey={
                 room
                   ? roomKey(room.id)
-                  : teamOpen
-                    ? TEAM_ID
-                    : catchUpOpen
-                      ? CATCHUP_ID
-                      : usageOpen
-                        ? USAGE_ID
-                        : routinesOpen
-                          ? ROUTINES_ID
-                          : (shown?.id ?? null)
+                  : openMission
+                    ? selectedId
+                    : teamOpen
+                      ? TEAM_ID
+                      : catchUpOpen
+                        ? CATCHUP_ID
+                        : usageOpen
+                          ? USAGE_ID
+                          : routinesOpen
+                            ? ROUTINES_ID
+                            : (shown?.id ?? null)
               }
             >
               {error && !loaded ? (
@@ -1220,6 +1234,23 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
                   compact={pageCompact}
                   {...roomActions}
                 />
+              ) : openMission ? (
+                <div className="agent-chat agents-mission-pane">
+                  <div
+                    className="agent-chat__scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Mission"
+                  >
+                    <MissionPage
+                      mission={openMission}
+                      onOpenChief={() => {
+                        const chief = agents.find((x) => x.isMain);
+                        if (chief) openAgent(chief.id);
+                      }}
+                    />
+                  </div>
+                </div>
               ) : usageOpen ? (
                 <AgentsUsageView compact={pageCompact} onOpenAgent={openAgent} />
               ) : routinesOpen ? (

@@ -136,6 +136,8 @@ pub mod login_relay;
 pub mod logins;
 pub mod mac_apps;
 pub mod mcp;
+pub mod missions;
+pub mod missions_run;
 pub mod memory;
 pub mod narration;
 pub mod notify;
