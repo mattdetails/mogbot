@@ -11,6 +11,7 @@
  * `always`, exactly as the desk sends them.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import type { Agent, AgentMessage, Approval, ImportProposal } from '@shipstudio/companion-protocol';
 import {
   CROSSOVER_ALWAYS,
@@ -253,7 +254,7 @@ export function ApprovalCard({
   const [note, setNote] = useState('');
   const { fontScale } = useWindowDimensions();
   const large = fontScale >= LARGE_TEXT;
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const pending = approval.status === 'pending';
   const paused = pending && agent.status.state === 'idle';
   const fit = useFitDetail(pending && !full, message.id, paused);
@@ -657,7 +658,7 @@ export function PlaybackCard({
   const [busy, setBusy] = useState<null | 'done' | 'add'>(null);
   const [adding, setAdding] = useState(false);
   const [addition, setAddition] = useState('');
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const pending = approval.status === 'pending';
   const armed = useArmed(pending, adding);
   const once = useInFlight();
@@ -811,7 +812,7 @@ export function PhoneReviewCard({
   const colors = useColors();
   const cardStyles = useCardStyles();
   const [busy, setBusy] = useState<null | 'import' | 'no'>(null);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const pending = approval.status === 'pending';
   const armed = useArmed(pending);
   const once = useInFlight();

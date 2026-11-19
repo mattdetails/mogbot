@@ -4,6 +4,7 @@
  * open in Quick Look; long-press to share.
  */
 
+import { useLinkLive } from '../../lib/linkLive';
 import type { SharedFile } from '@shipstudio/companion-protocol';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -45,6 +46,7 @@ function Files() {
   const [opening, setOpening] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const live = useApp((s) => s.link.kind === 'connected');
+  const quiet = useLinkLive();
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
 
   const load = useCallback(() => {
@@ -149,7 +151,7 @@ function Files() {
       ListEmptyComponent={
         <View style={styles.empty}>
           {files == null ? (
-            !live ? (
+            !quiet ? (
               <LinkProblem what="Files from this conversation" macName={macName} />
             ) : loading && !refreshing ? (
               <Spinner />

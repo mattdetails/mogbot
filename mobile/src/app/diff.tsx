@@ -10,6 +10,7 @@
  * from here; the project comes from the stored card.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import type { AgentMessage, ChangedFile, FileDiff } from '@shipstudio/companion-protocol';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -73,7 +74,7 @@ export default function Diff() {
   const message = messages?.find((m) => m.id === messageId);
   const changes = message?.changes;
   const agent = useApp((s) => s.overview?.agents.find((a) => a.id === agentId));
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const reviewed = useReviewed(agentId, messageId);
   const [tab, setTab] = useState<Tab>('overview');
   const [loaded, setLoaded] = useState<Record<string, Loaded>>({});

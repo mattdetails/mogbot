@@ -6,6 +6,7 @@
  * words are the desk's (`companion-protocol/src/skills.ts`).
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   LEARN_SKILLS_CHOICES,
   LEARN_SKILLS_LABEL,
@@ -80,7 +81,7 @@ export function WhatItKnows({
   const colors = useColors();
   const styles = useStyles();
   const served = useServed('agents.skills');
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   // A skill card answered, or the setting changed: read it again then.
   const stamp = useApp((s) => {
     const a = s.overview?.agents.find((x) => x.id === agent.id);
@@ -179,7 +180,7 @@ export type SkillReading =
   | { kind: 'failed'; reason: string };
 
 export function useSkill(agentId: string, slug: string): SkillReading {
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   const [reading, setReading] = useState<SkillReading>({ kind: 'reading' });
   const known = reading.kind === 'read' || reading.kind === 'gone';
   useEffect(() => {

@@ -15,6 +15,7 @@
  * first, after any waiting on a decision.
  */
 
+import { useLinkLive } from '../../../lib/linkLive';
 import {
   agentsAtWork,
   atWorkText,
@@ -65,7 +66,7 @@ export default function Projects() {
   const colors = useColors();
   const styles = useStyles();
   const projects = useApp((s) => s.projects);
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   const served = useApp((s) => canCall('projects.list', s.welcome));
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
   const [error, setError] = useState<string | null>(null);
@@ -181,7 +182,7 @@ function ProjectCard({
   const colors = useColors();
   const styles = useStyles();
   const router = useRouter();
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   const canStart = useApp((s) => canCall('sessions.start', s.welcome));
   const canShoot = useApp((s) => canCall('preview.screenshot', s.welcome));
   const [shooting, setShooting] = useState(false);

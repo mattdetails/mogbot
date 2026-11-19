@@ -7,6 +7,7 @@
  * every agent) can be turned back on here.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import { MAC_FEATURES, type AgentReach } from '@shipstudio/companion-protocol';
 import { reachRows } from '../lib/loginState';
 import { useEffect, useState } from 'react';
@@ -27,7 +28,7 @@ export function WhatItCanReach({ agentId }: { agentId: string }) {
   const colors = useColors();
   const styles = useStyles();
   const served = useServed('agents.reach', MAC_FEATURES.logins);
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   // The registry changes when a card is answered: read it again then.
   const stamp = useApp((s) => s.overview?.agents.find((a) => a.id === agentId)?.pendingApprovals);
   const [reach, setReach] = useRemembered<AgentReach>(`reach:${agentId}`);

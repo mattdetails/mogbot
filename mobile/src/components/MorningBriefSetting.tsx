@@ -7,6 +7,7 @@
  * nothing; one that reads but can't set shows the row, not tappable.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   BRIEF_DETAIL,
   BRIEF_TIMES,
@@ -20,7 +21,7 @@ import { choose } from './menu';
 import { Row, Section, tap } from './ui';
 import { haptic } from '../lib/haptics';
 import { call, describeError } from '../lib/session';
-import { useApp, useServed } from '../lib/store';
+import { useServed } from '../lib/store';
 import { useComputer } from '../lib/computer';
 
 export function MorningBriefSetting() {
@@ -30,7 +31,7 @@ export function MorningBriefSetting() {
   // `undefined` until the Mac answers: nothing is shown that wasn't read.
   const [brief, setBrief] = useState<MorningBrief | undefined>(undefined);
   const [busy, setBusy] = useState(false);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
 
   const read = useCallback(() => {
     if (!canRead || !connected) return;

@@ -7,6 +7,7 @@
  * not tappable.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   QUIET_DETAIL,
   QUIET_PRESETS,
@@ -20,7 +21,7 @@ import { choose } from './menu';
 import { Row, Section, tap } from './ui';
 import { haptic } from '../lib/haptics';
 import { call, describeError } from '../lib/session';
-import { useApp, useServed } from '../lib/store';
+import { useServed } from '../lib/store';
 import { useComputer } from '../lib/computer';
 
 const same = (a: QuietWindow | null, b: QuietWindow | null) =>
@@ -34,7 +35,7 @@ export function QuietHoursSetting() {
   const [quiet, setQuiet] = useState<QuietWindow | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   // Read again once connected: Settings can open before the link is up.
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
 
   const read = useCallback(() => {
     if (!canRead || !connected) return;

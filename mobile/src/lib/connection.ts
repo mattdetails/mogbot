@@ -394,6 +394,55 @@ export function linkBar(s: Inputs, now = Date.now()): LinkBar | null {
   };
 }
 
+/**
+ * How long the link may stay down, continuously, before anything says so:
+ * a drop shorter than this is silent. The app reconnects in the background,
+ * keeps the last data on screen, and holds what's sent until it's back. A
+ * refusal that needs the person (unpaired, "This isn't your Mac") has its
+ * own card and never waits for this.
+ */
+export const QUIET_MS = 3 * 60_000;
+
+/**
+ * When the current failure began, as far as the link says: the spell of
+ * trying (`since`, else the last frame heard), or the moment a connected
+ * link stopped being answered. Undefined for a healthy or refused link, or a
+ * state from before `since` existed (the caller then dates it itself).
+ */
+export function failingSince(link: AppState['link']): number | undefined {
+  if (link.kind === 'connected') return link.stuck;
+  if (link.kind === 'reconnecting') return link.since ?? link.lastSeenAt;
+  if (link.kind === 'connecting') return link.since;
+  return undefined;
+}
+
+/** Whether the failure has gone on long enough to be said (`QUIET_MS`). */
+export function failureDue(link: AppState['link'], now: number, firstSeen?: number): boolean {
+  if (link.kind === 'refused') return true;
+  const at = failingSince(link) ?? firstSeen;
+  return at != null && now - at >= QUIET_MS;
+}
+
+/**
+ * The bar to show: `linkBar`'s, once the failure has gone on `QUIET_MS`.
+ * A shorter drop shows nothing at all.
+ */
+export function shownBar(s: Inputs, now: number, firstSeen?: number): LinkBar | null {
+  const bar = linkBar(s, now);
+  return bar && failureDue(s.link, now, firstSeen) ? bar : null;
+}
+
+/**
+ * Whether screens should behave as if the link were up: it is, or it's been
+ * down for less than `QUIET_MS` (the last data stays, buttons stay on, sends
+ * wait their turn). A refusal is never "live".
+ */
+export function feelsLive(link: AppState['link'], now: number, firstSeen?: number): boolean {
+  if (link.kind === 'connected') return !(link.stuck != null && failureDue(link, now));
+  if (link.kind === 'refused') return false;
+  return !failureDue(link, now, firstSeen);
+}
+
 export interface Layer {
   title: string;
   tone: Tone;

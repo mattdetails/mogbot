@@ -20,6 +20,7 @@
  * here (`ImportPaste`): it ends on the same review card in the Chief's chat.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import type { ImportTalk, PhoneImportStatus } from '@shipstudio/companion-protocol';
@@ -89,7 +90,7 @@ export default function ImportScreen() {
   const colors = useColors();
   const styles = useStyles();
   const router = useRouter();
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const servesTeam = useServed('agents.loginsTeam', MAC_FEATURES.logins);
   const servesPaste = useServed('agents.import.exportReview', MAC_FEATURES.importExport);
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;

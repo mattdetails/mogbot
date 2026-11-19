@@ -1,5 +1,6 @@
 /** The paired Mac, alerts (with the honest limit), quiet hours, the morning brief, haptics, updates, and about. */
 
+import { useLinkLive } from '../lib/linkLive';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
@@ -74,7 +75,7 @@ export default function Settings() {
   const canImport = useApp((s) => canCall('agents.import.status', s.welcome));
   const credentials = useApp((s) => s.credentials);
   const demo = isDemo(credentials);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   // The route in use now, never assumed: nothing while it isn't connected.
   const route = useApp((s) => (s.link.kind === 'connected' ? s.link.route : null));
   const protocol = useApp((s) => s.welcome?.protocol ?? null);

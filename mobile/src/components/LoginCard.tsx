@@ -21,6 +21,7 @@
  * Tailscale to a Mac that proved its identity.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   askedForLine,
   MAC_FEATURES,
@@ -61,7 +62,7 @@ import {
 } from '../lib/logins';
 import { signinHereLine } from '../lib/signinView';
 import { currentTransport, describeError, secretRouteProblem } from '../lib/session';
-import { useApp, useServed } from '../lib/store';
+import { useServed } from '../lib/store';
 import { CARD_TITLE_SCALE, fonts, space, type } from '../lib/theme';
 import { makeStyles, useAppearance, useColors } from '../lib/appearance';
 import { Receipt, useArmed, useCardStyles } from './ApprovalCard';
@@ -91,7 +92,7 @@ export function LoginCard({
   const pending = approval.status === 'pending';
   const phase = loginPhase(approval, login);
   const armed = useArmed(pending, phase);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const once = useInFlight();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

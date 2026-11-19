@@ -6,6 +6,7 @@
  * started, and the Chief proposes it on a card the user allows.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   ENFORCED_NOTE,
   chatDraft,
@@ -37,7 +38,7 @@ export function WhatItCanDo({ agentId, name }: { agentId: string; name: string }
   const colors = useColors();
   const styles = useStyles();
   const served = useServed('agents.policy');
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   const chief = useApp((s) => s.overview?.agents.find((a) => a.isMain)?.id);
   // A settings card answered changes it: read it again then.
   const stamp = useApp((s) => s.overview?.agents.find((a) => a.id === agentId)?.pendingApprovals);

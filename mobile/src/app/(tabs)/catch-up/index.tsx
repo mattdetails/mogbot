@@ -16,6 +16,7 @@
  * screen.
  */
 
+import { useLinkLive } from '../../../lib/linkLive';
 import type { Agent, AgentMessage } from '@shipstudio/companion-protocol';
 import { failurePill, previewText } from '@shipstudio/companion-protocol';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
@@ -434,7 +435,7 @@ function Row({ item, agent }: { item: FeedItem; agent: Agent }) {
       : undefined
   );
   const setup = useApp((s) => s.teamSetup);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const action = rowAction(item, card);
   // Answered on the row only when the Mac called it low-risk and the whole
   // of it is on the row.

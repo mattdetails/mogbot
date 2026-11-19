@@ -7,6 +7,7 @@
  * the chat, showing it.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   conversationTitle,
   filterConversations,
@@ -54,7 +55,7 @@ function ConversationsSheet() {
   const agent = useApp((s) => s.overview?.agents.find((a) => a.id === id));
   const list = useApp((s) => s.conversations[id]);
   const viewing = useApp((s) => s.viewing[id] ?? s.conversations[id]?.current);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const [query, setQuery] = useState('');
   const [renaming, setRenaming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

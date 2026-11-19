@@ -15,6 +15,7 @@
  * it; `app/logins.tsx` is the screen around it.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   MAC_FEATURES,
   type LoginOption,
@@ -74,7 +75,7 @@ export function TeamLoginsList({
   const comp = useComputer();
   const colors = useColors();
   const styles = useStyles();
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   // A card answered anywhere changes the registry: read the list again.
   const stamp = useApp((s) => s.overview?.agents.reduce((n, a) => n + a.pendingApprovals, 0));
   const opened = useRef(since ?? Date.now() - 60_000).current;

@@ -22,6 +22,7 @@
  *   pnpm qa:web --phases perf            # a 5,000-line chat: first render and scroll jank (not in the default run)
  *   pnpm qa:web --phases net             # requests the Mac sees and React renders: cold start, tabs, chats, reconnect, a streaming reply (not in the default run)
  *   pnpm qa:web --phases reconnecting    # the Mac going away under an open app (not in the default run)
+ *   pnpm qa:web --phases quiet-drops     # a short drop shows nothing; a 4-minute one shows the bar (not in the default run)
  *   pnpm qa:web --phases link-down       # the connection bar: away, back, the Mac's app stuck or closing (not in the default run)
  *   pnpm qa:web --out /tmp/shots
  *   pnpm qa:web --font-scale 3.1         # Dynamic Type stand-in (AX5 ≈ 3.1): every T at min(scale, its clamp)
@@ -2792,13 +2793,13 @@ const RECONNECTING = [
     name: 'reconnecting-agents',
     route: '/agents',
     goodbye: false,
-    check: 'A few seconds after a drop: "Reconnecting…", never "Can’t reach Mac"',
+    check: 'A few seconds after a drop: nothing shown, the list as it was',
   },
   {
     name: 'reconnecting-chat-chief',
     route: '/chat/chief',
     goodbye: false,
-    check: 'The chat bar says "Reconnecting…" quietly, saved messages shown',
+    check: 'Nothing shown: no bar, saved messages as they were',
   },
   {
     name: 'reconnecting-goodbye-chat-chief',
@@ -2807,6 +2808,40 @@ const RECONNECTING = [
     check: 'The Mac’s app said it was closing: "Waiting for the app on your Mac"',
   },
 ];
+
+/**
+ * A short drop is silent (`--phases quiet-drops`): the Mac goes away under an
+ * open chat and nothing changes on screen, 20 s and then 90 s in. Then the
+ * page's clock is moved on 4 minutes (the drop's start was taken in real time)
+ * and the bar says so.
+ */
+async function quietDropShots(page) {
+  for (const theme of THEMES) {
+    await setTheme(page, theme);
+    if (!wanted(`quiet-drop-chat-chief-${theme}`)) continue;
+    await startMock();
+    await page.goto(WEB + '/chat/chief');
+    await sleep(5000);
+    await killMock();
+    await sleep(20000);
+    await screen(page, theme, {
+      name: 'quiet-drop-chat-chief',
+      check: '20 s into a drop: no bar, no spinner, no disabled controls; the chat as it was',
+    });
+    await sleep(70000);
+    await screen(page, theme, {
+      name: 'quiet-drop-90s-chat-chief',
+      check: '90 s into a drop: still nothing shown',
+    });
+    await page.eval(`(() => { window.__realNow = Date.now.bind(Date); Date.now = () => window.__realNow() + 4 * 60000; })()`);
+    await sleep(13000);
+    await screen(page, theme, {
+      name: 'quiet-drop-4min-chat-chief',
+      check: 'Past 3 minutes of continuous failure: the bar, Try again, What to check; the chat readable under it',
+    });
+    await page.eval(`(() => { Date.now = window.__realNow; })()`);
+  }
+}
 
 async function reconnectingShots(page) {
   for (const theme of THEMES) {
@@ -2817,7 +2852,7 @@ async function reconnectingShots(page) {
       await page.goto(WEB + s.route);
       await sleep(5000);
       await (s.goodbye ? stopMock() : killMock());
-      // Past the chat bar's 2 s grace, well inside the 15 s calm.
+      // A short drop shows nothing now: the chat is as it was (see `--phases quiet-drops`).
       await sleep(3500);
       await screen(page, theme, { name: s.name, check: s.check });
     }
@@ -4442,6 +4477,7 @@ async function main() {
   }
 
   if (phase('reconnecting')) await reconnectingShots(page);
+  if (phase('quiet-drops')) await quietDropShots(page);
   if (phase('link-down')) await linkDownShots(page);
 
   if (phase('perf')) {

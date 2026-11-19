@@ -10,6 +10,7 @@
  * marked as from a link (`fromLinkParams`).
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import { MAX_ATTACHMENTS, type Agent } from '@shipstudio/companion-protocol';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -46,7 +47,7 @@ export default function Share() {
   const key = typeof params.k === 'string' ? params.k : undefined;
   useEffect(() => () => releaseShare(key), [key]);
   const overview = useApp((s) => s.overview);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const canAttach = useApp((s) => canCall('agents.files', s.welcome));
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
   const [busy, setBusy] = useState<{ agentId: string; note: string } | null>(null);
