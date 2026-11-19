@@ -1,12 +1,8 @@
-/* Usage: the sidebar's one-glance row (AccountSwitcher), the total bar,
-   the account rows and an account's page (UsageStack), and the view
-   (AgentsUsageView).
-
-   The total is drawn in ink, not hue: one ordinary bar filled to what is
-   left across every account; each account's own bar is its row. A status hue only for an account that
-   is low (amber); out of usage is neutral, since it resets by itself. Never
-   the accent. The position keycap is the site's key (the segmented tabs'
-   key); the hero and the account's page are sheets. */
+/* Usage: the sidebar's one-glance row (AccountSwitcher), the total bar, the
+   account rows and an account's page (UsageStack), and the view (AgentsUsageView).
+   Ink, not hue: one bar filled to what is used across every account, each account's
+   own bar its row. Amber only from 80% used; out of usage is neutral (it refills by
+   itself). Never the accent. The keycap is the site's key; hero and page are sheets. */
 
 :root {
   /* The one meter (tokens-components.css, "One meter"). */
@@ -29,7 +25,6 @@
 }
 
 /* ------------------------------------------------------- the sidebar row */
-
 /* Two lines, first in the foot: "8% used · refills in 6d", then a thin bar
    that fills with use. Compact, so the foot under the list stays short. */
 .usage-glance.account-switcher__row {
@@ -64,8 +59,7 @@
   font-weight: var(--font-weight-label);
 }
 
-/* Heavy use (80% and up) and out: the figure in the warning role. Status,
-   never the accent. */
+/* Heavy use (80% and up) and out: the figure in the warning role. Status, never the accent. */
 .usage-glance[data-tone='high'] .usage-glance__figure,
 .usage-glance[data-tone='out'] .usage-glance__figure,
 .usage-glance[data-needs-you] .usage-glance__figure {
@@ -135,7 +129,6 @@
 }
 
 /* ------------------------------------------------------------- the view */
-
 /* The one rendering of usage and accounts: the view's body and Settings →
    Accounts & usage alike. */
 .usage-panel {
@@ -251,8 +244,7 @@
   gap: var(--spacing-sm);
 }
 
-/* A section's heading and, at its right, a control that belongs to it
-   (Limits | Tokens). */
+/* A section's heading and, at its right, a control that belongs to it (Limits | Tokens). */
 .usage-section__head {
   display: flex;
   align-items: center;
@@ -409,7 +401,6 @@
 }
 
 /* ------------------------------------------------- the pace-marked bar */
-
 .usage-pacebar {
   position: relative;
   display: block;
@@ -452,7 +443,6 @@
 }
 
 /* ----------------------------------- the time left, with the estimate */
-
 .usage-key__timeline {
   display: flex;
   flex-direction: column;
@@ -620,7 +610,6 @@
 }
 
 /* ----------------------------------------------------------- the total */
-
 /* One ordinary bar: the track, filled to what is used across every account.
    Never a segment per account (two at 50% read as two quarter-bars). */
 .usage-total {
@@ -700,7 +689,6 @@
 }
 
 /* ------------------------------------------------------ the account rows */
-
 .usage-rows {
   display: flex;
   flex-direction: column;
@@ -1003,7 +991,6 @@
 }
 
 /* -------------------------------------------------- an account's page */
-
 .usage-crumbs {
   display: flex;
   align-items: center;

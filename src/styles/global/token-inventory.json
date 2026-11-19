@@ -5459,7 +5459,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 981
+      "consumerCount": 982
     },
     {
       "name": "--text-faint",
@@ -5971,7 +5971,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 573
+      "consumerCount": 574
     },
     {
       "name": "--font-size-control",
@@ -6979,7 +6979,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 981
+      "consumerCount": 982
     },
     {
       "name": "--text-faint",
