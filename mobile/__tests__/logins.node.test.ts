@@ -76,7 +76,7 @@ describe('a login card, in words', () => {
         ...gmail,
         flow: { state: 'waiting', option: 'x', startedAt: 0, message: 'Open on claude.ai.' },
       })
-    ).toBe('Finish signing in on your computer — it’s open there. Open on claude.ai.');
+    ).toBe('Finish signing in on your computer. This card updates when Gmail is connected.');
   });
 
   it('says how it was answered', () => {
