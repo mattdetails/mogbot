@@ -24,6 +24,17 @@ from "Asks a lot" to "Just does it".
 If you sound tired of being asked, or unhappy that something went ahead, the Chief may offer a
 change once, in one line. You can ignore it.
 
+## Turning on Unleashed
+
+Moving to Unleashed (on the slider, on the phone, or by asking the Chief) first shows a warning:
+Unleashed sends and posts as you, pushes and deploys, deletes files and uses your logins without a
+card, and only asking before spending money stays. You confirm with **Turn on Unleashed**, or keep
+the level as it was. Lowering a level never asks.
+
+At Bold and Unleashed, opening something in your browser (a LinkedIn post, a Slack message, a GitHub
+issue, a tab) never asks, even when its name has a word like "Post" or "Merge" in it. Only the
+button that does the send asks, and only at Bold.
+
 ## What always asks
 
 At every stop, agents ask before:
@@ -41,6 +52,15 @@ At Bold, a picture, video or PDF the agent made in its own folder, or a picture 
 projects folder (where agents make and render work), goes onto a page (a post's image or video)
 without a card: you already OK'd the post's words. Uploading any of your other files, or a PDF from
 a project, still asks.
+
+## Trust per repository
+
+You can trust one GitHub repository differently from the rest: "in the Mogbot repo you can open issues
+and merge without asking, in WorkSpan never." Tell the Chief or the agent in chat. **Trusted**: issues
+and pull requests in that repo (create, comment, review, merge) stop asking, at every level. **Never**:
+changes and pushes in that repo always ask, even at Unleashed. A repo's settings, releases, deleting
+and pushes aren't covered by trusting it. Work answering outside text never gets a trusted repo's
+shortcut.
 
 ## Text from outside
 

@@ -163,6 +163,7 @@ pub mod quota;
 pub mod reach;
 pub mod recipe;
 pub mod remember;
+pub mod repo_trust;
 pub mod results;
 pub mod review;
 pub mod rewind;

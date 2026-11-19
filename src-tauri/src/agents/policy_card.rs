@@ -1225,8 +1225,24 @@ pub fn lowers_only(
     lowered
 }
 
+/// Shown on the card (and the slider's own confirm, desk and phone) before
+/// anything is put on Unleashed. Worded once in the companion protocol's
+/// `UNLEASHED_WARNING_BODY`; a test keeps the two the same.
+pub const UNLEASHED_WARNING: &str = "Unleashed does what it's asked without checking with you: it sends and posts as you, pushes and deploys, deletes files and uses your logins. The only thing it still asks before is spending money. The app can't undo any of that. Use it for agents you trust; Bold keeps sends and pushes behind a card.";
+
+/// Whether a proposal puts anything on Unleashed.
+fn turns_on_unleashed(p: &Proposal) -> bool {
+    p.change
+        .independence
+        .as_deref()
+        .is_some_and(|i| Level::parse(i).is_ok_and(|l| l == Level::FullSend))
+}
+
 fn detail(p: &Proposal) -> String {
     let mut out = summary(&p.groups);
+    if turns_on_unleashed(p) {
+        out.push_str(&format!("\n\nWarning: {UNLEASHED_WARNING}"));
+    }
     if let Some(why) = &p.why {
         out.push_str(&format!("\n\nWhy: {why}"));
     }

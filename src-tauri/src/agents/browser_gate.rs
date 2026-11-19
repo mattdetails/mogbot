@@ -596,6 +596,12 @@ pub fn sends(label: &str) -> Option<&'static str> {
 /// "Discard" are steps on the way. At "Full send": only the floor, spending
 /// money and closing an account.
 pub fn final_submit(label: &str, level: Level) -> Option<&'static str> {
+    // Julian, 2026-11-18: opening a LinkedIn post, a Slack message or a
+    // GitHub issue asked "goes out under your name". A link, tab, row or
+    // heading opens something; it never sends. The send is a button.
+    if navigates(label) {
+        return None;
+    }
     if level == Level::FullSend {
         return floor_control(label);
     }
@@ -624,6 +630,24 @@ pub fn final_submit(label: &str, level: Level) -> Option<&'static str> {
     None
 }
 
+/// Controls that open, show or select something and never send it: a link,
+/// tab, row, list item, heading or image. Where a page makes a send out of
+/// one of these, the page it opens (a checkout, a composer) is judged on
+/// its own, and the send itself is still a button the gate asks about.
+pub fn navigates(label: &str) -> bool {
+    let lower = label.trim_start().to_ascii_lowercase();
+    [
+        "link", "tab", "row", "cell", "gridcell", "listitem", "treeitem", "heading", "img",
+        "image", "article", "statictext", "generic", "paragraph",
+    ]
+    .iter()
+    .any(|r| {
+        lower
+            .strip_prefix(r)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '"', '[']))
+    })
+}
+
 /// What a delete or close button can take with it for good.
 const ACCOUNT_THINGS: &[&str] = &[
     "account",
@@ -649,6 +673,9 @@ const ACCOUNT_THINGS: &[&str] = &[
 /// (an account, a repository, a project): it asks at every level, "Full
 /// send" included.
 pub fn floor_control(label: &str) -> Option<&'static str> {
+    if navigates(label) {
+        return None;
+    }
     let name = name_in(label).to_ascii_lowercase();
     let ws = words(&name);
     let joined = ws.join(" ");
