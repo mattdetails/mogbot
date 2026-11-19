@@ -818,7 +818,8 @@ impl Companion {
             .values()
             .filter(|c| c.device_id == device_id)
             .collect();
-        let in_front = |c: &&Conn| c.foreground && now.saturating_sub(c.heard) < FOREGROUND_STALE_MS;
+        let in_front =
+            |c: &&Conn| c.foreground && now.saturating_sub(c.heard) < FOREGROUND_STALE_MS;
         if mine.iter().any(in_front) {
             push::Presence::Foreground
         } else if let Some(since) = mine
