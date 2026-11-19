@@ -28,10 +28,11 @@
 //!   something writes to it (measured: a 317 MB, 31k-entry pnpm tree in 4.7s
 //!   and no change in free space). Where cloning isn't possible nothing is
 //!   copied, and the agent is told dependencies aren't installed.
-//! - **Limits**: at most [`MAX_COPIES_PER_PROJECT`] open copies per project,
-//!   and none is made with less than [`MIN_FREE_BYTES`] free. Both refuse the
-//!   turn with a sentence saying what to do; nothing falls back to the
-//!   user's working copy silently.
+//! - **Limits**: none on how many agents have a copy of one project (copies
+//!   are git worktrees with dependencies cloned copy-on-write; a cap of 4
+//!   stopped a team of six on one app, 18 Nov). None is made with less than
+//!   [`MIN_FREE_BYTES`] free, which refuses the turn with a sentence saying
+//!   what to do; nothing falls back to the user's working copy silently.
 //! - **Commits**: what a turn leaves uncommitted is committed on the copy's
 //!   branch when the turn ends (`--no-verify`: these are bookkeeping, not the
 //!   user's commits; the project's checks still run on a pull request), with
@@ -69,8 +70,6 @@ use tauri::AppHandle;
 use super::store;
 use crate::errors::CommandError;
 
-/// How many agents may each have an open copy of one project.
-pub const MAX_COPIES_PER_PROJECT: usize = 4;
 /// Free space below which no copy is made.
 pub const MIN_FREE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 /// Starts the lock reason of every copy we make; the rest is the agent's id.
@@ -1383,22 +1382,7 @@ pub async fn prepare_in(
         let _ = remove(&copy, Branch::IfMerged).await;
         store::update(agent_id, |a| a.copy = None)?;
     }
-    let open = store::list()?
-        .iter()
-        .flat_map(|a| {
-            super::conversations::copies(a)
-                .into_iter()
-                .map(|c| c.project.clone())
-                .collect::<Vec<_>>()
-        })
-        .filter(|p| *p == project)
-        .count();
     let name = super::project::folder_name(&project).to_string();
-    if open >= MAX_COPIES_PER_PROJECT {
-        return Err(CommandError::expected(format!(
-            "{open} agents already have a copy of {name} open. Keep or discard one of their changes, then send this again."
-        )));
-    }
     if let Some(free) = free_bytes(root).filter(|f| *f < MIN_FREE_BYTES) {
         return Err(CommandError::expected(format!(
             "There isn't enough free disk space for a copy of {name} ({} free; a copy needs at least {}). Free some space, or set {} to work directly in the project.",
@@ -2323,28 +2307,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn copies_per_project_are_limited_and_the_refusal_says_what_to_do() {
+    async fn any_number_of_agents_can_have_a_copy_of_one_project() {
         let (_dir, root, repo) = project();
         let home = tempfile::tempdir().unwrap();
         let _serial = store::tests_lock();
         store::set_root_for_tests(Some(home.path().to_path_buf()));
-        for n in 0..MAX_COPIES_PER_PROJECT {
+        // More than the 4 an older build allowed.
+        for n in 0..6 {
             let a = bound_agent(&format!("Agent {n}"), &repo);
             prepare_in(&a.id, "work", &root, |_| {})
                 .await
                 .unwrap()
                 .unwrap();
+            assert!(store::get(&a.id).unwrap().copy.is_some());
         }
-        let late = bound_agent("Late", &repo);
-        let err = prepare_in(&late.id, "work", &root, |_| {})
-            .await
-            .unwrap_err()
-            .to_string();
-        assert!(
-            err.contains("4 agents already have a copy of acme-site open"),
-            "{err}"
-        );
-        assert!(store::get(&late.id).unwrap().copy.is_none());
         store::set_root_for_tests(None);
     }
 
