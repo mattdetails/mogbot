@@ -508,24 +508,24 @@
   user-select: text;
 }
 
-/* The agent's reply is prose on the canvas: no fill, a reading measure, and
-   the same left edge as the column. Only what you said is a bubble. */
+/* The agent's reply is a bubble too, like yours but on the other side: a
+   quieter fill, the tail corner toward the agent, a reading measure, and the
+   same left edge as the column. Blocks (`show`) and cards keep their own
+   frames and are not bubbles. */
 .agent-bubble--agent {
   max-width: min(var(--agents-prose-measure), 100%);
   /* May shrink below its widest line (a code block, a table: both scroll in
      their own frame), so Copy and the time beside it stay inside the column
      in a narrow window instead of being pushed off its edge. */
   min-width: 0;
-  padding: 0;
-  border-radius: 0;
+  background: var(--surface-control);
+  border-bottom-left-radius: var(--radius-sm);
 }
 
-/* A reply takes the whole measure, not the width of its longest line: a code
-   panel, a table's frame and a rule then share one right edge in every reply,
-   and a code block being written doesn't widen as each line arrives. Prose
-   has no fill, so a short reply looks the same either way. */
+/* A bubble hugs its words, up to the measure; a code panel or a table scrolls
+   in its own frame inside it. */
 .agent-chat__row--agent > .agent-bubble--agent {
-  width: 100%;
+  width: fit-content;
 }
 
 /* Yours is one neutral colour for every agent: identity lives in the badge,

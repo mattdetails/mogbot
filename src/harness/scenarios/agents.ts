@@ -3959,7 +3959,7 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-queued',
     title: 'Agents — a message queued while the agent works',
     looksRightWhen:
-      'Acme Site is Working. Earlier: a reply cut off with “Stopped”, a quiet centred “Interrupted to read your new message”, then the message that interrupted it and the reply. Then the working dots with “Editing PricingTable.tsx”, and only under them your newest message, slightly dimmed, with “Queued, sends when Acme Site finishes · Interrupt and send now” under it. The composer holds a second message on its one row, and just under the box, starting where its text starts, a faint “↵ queue · ⌘↵ send now”; nothing above the text inside the box.',
+      'Acme Site is Working. Earlier: a reply cut off with “Stopped”, a quiet centred “Interrupted to read your new message”, then the message that interrupted it and the reply. Then the working dots with “Editing PricingTable.tsx”, and only under them your newest message, slightly dimmed, with “Next · Send now” under it. The composer holds a second message on its one row, and just under the box, starting where its text starts, a faint “↵ queue · ⌘↵ send now”; nothing above the text inside the box.',
     openSelector: AGENTS_TAB,
     requires: '.agent-chat__queued',
     steps: [
@@ -3977,7 +3977,7 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-message-handed',
     title: 'Agents — messages you send while it works go into its turn',
     looksRightWhen:
-      'Acme Site is Working. Your “Do the tablet layout first…” sits in the conversation with a quiet “Read” under it, and its reply follows. Then the working dots with “Editing PricingTable.tsx”, and under them your newest message with “Sent, Acme Site reads it at its next step” (no Interrupt link: it will be read without stopping).',
+      'Acme Site is Working. Your “Do the tablet layout first…” sits in the conversation with a quiet “Read” under it, and its reply follows. Then the working dots with “Editing PricingTable.tsx”, and under them your newest message with “Next” (no Send now link: it will be read without stopping).',
     openSelector: AGENTS_TAB,
     requires: '.agent-chat__queued',
     steps: [{ click: '[data-agent-id="acme"]' }],

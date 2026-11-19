@@ -5,7 +5,7 @@
  * - idle: the mic and **Send** (dimmed until there's something to send);
  * - working: the mic, **Stop** and **Send**. The mic stays, so you can talk
  *   while it works: what you say queues, as what you type does. With words,
- *   Send queues (the line over the field says it reads it when it’s done with this one
+ *   Send queues (the line over the field says it's next, after this one
  *   ends) and **Send now** (interrupt, then send; the send arrow and its
  *   words, as tall as the round buttons) sits at that line's right. A Send
  *   now that waits in the outbox keeps its interrupt (session.ts `send`);
@@ -469,7 +469,7 @@ export function Composer({
     haptic.select();
     dictation.undoTidy();
   };
-  const chipNow = offerNow && !fixLabel && !undo;
+  const chipNow = offerNow && hasContent && !fixLabel && !undo;
 
   const query = mentionQuery(draft.text);
   const suggestions = useMemo(() => {
@@ -699,11 +699,12 @@ export function Composer({
 
   // Driven on the Mac, an import, the link down: the bars above say those, once.
   // Listening says only where the words go when that's off the phone.
+  // Only while there are words to send: an empty box says nothing about queues.
   const queued =
-    mode === 'queue' && !driven
+    mode === 'queue' && !driven && hasContent
       ? waitingOnYou
         ? `Sends now, instead of answering above`
-        : `${agent.name} reads it when it’s done with this one`
+        : `Next, after this one`
       : null;
   // Listening while it works, the queued line stays, so Send now has its sentence.
   const hint = held
@@ -1068,7 +1069,7 @@ export function Composer({
                 driven
                   ? `Queue · ${drivenWait(agent.name)}`
                   : mode === 'queue'
-                    ? `Queue: ${agent.name} reads it when it’s done with this one`
+                    ? `Queue: ${agent.name} reads it next, after this one`
                     : connected
                       ? 'Send'
                       : `Send when ${macName} answers`

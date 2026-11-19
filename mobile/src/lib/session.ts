@@ -847,6 +847,9 @@ export function editPending(p: PendingSend) {
 
 export const stop = (agentId: string) => call('agents.stop', { agentId });
 
+/** "Send now" on a message already queued: stop what it's doing so it reads that next. */
+export const interruptNow = (agentId: string) => call('agents.interrupt', { agentId });
+
 export const answerApproval = (
   agentId: string,
   requestId: string,

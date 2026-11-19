@@ -457,7 +457,7 @@ export const UserBubble = memo(function UserBubble({
       )}
       {queued && !failed && driven && (
         <div className="agent-chat__queued" role="status">
-          Waiting, sends when you hand {agent.name} back
+          Waiting for you to hand {agent.name} back
         </div>
       )}
       {heard && !failed && (
@@ -467,19 +467,19 @@ export const UserBubble = memo(function UserBubble({
       )}
       {queued && handed && !failed && !driven && (
         <div className="agent-chat__queued" role="status">
-          Sent, {agent.name} reads it at its next step
+          Next
         </div>
       )}
       {queued && !handed && !failed && !driven && (
         <div className="agent-chat__queued" role="status">
-          Queued, sends when {agent.name} finishes
+          Next
           <span aria-hidden>·</span>
           <TextButton
             tabIndex={0}
             onClick={onInterrupt}
             title="Stop what it’s doing and send this now (⌘↵ when sending)"
           >
-            Interrupt and send now
+            Send now
           </TextButton>
         </div>
       )}

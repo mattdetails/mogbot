@@ -1,6 +1,6 @@
 /**
  * The rows of a conversation. Yours are neutral bubbles on the right; the
- * agent's replies are prose on the left with no bubble (as on the desktop);
+ * agent's replies are bubbles on the left, a quieter fill (as on the desktop);
  * everything else is a Line or a Card (`surfaces.tsx`): one quiet centred
  * sentence for what happened, one card anatomy for what wants a decision or
  * holds a result.
@@ -34,12 +34,23 @@ import {
   describeError,
   discardPending,
   editPending,
+  interruptNow,
   resend,
   revokePermission,
   send,
 } from '../lib/session';
 import type { PendingSend } from '../lib/sync';
-import { keySize, composer, fonts, iconSize, lineHeight, space, type, PRESSED } from '../lib/theme';
+import {
+  keySize,
+  composer,
+  fonts,
+  iconSize,
+  lineHeight,
+  radius,
+  space,
+  type,
+  PRESSED,
+} from '../lib/theme';
 import { makeStyles, useColors } from '../lib/appearance';
 import { Attachments } from './attachments';
 import { LocalLinks } from './localLinks';
@@ -197,13 +208,26 @@ export const MessageRow = memo(function MessageRow({
             </T>
           )}
           {queued && (
-            <T variant="caption" color={colors.textSecondary} style={styles.meta}>
-              {agent.takeover
-                ? `Queued · ${drivenWait(agent.name)}`
-                : isHanded(message, agent)
-                  ? `Sent · ${agent.name} reads it at its next step`
-                  : `Queued · ${agent.name} reads it when it’s done with this one`}
-            </T>
+            // One quiet word: it's next. Send now sits beside it, not in a
+            // sentence of its own (the bubble, one working line, nothing else).
+            <View style={styles.queuedLine}>
+              <T variant="caption" color={colors.textSecondary}>
+                {agent.takeover
+                  ? `Waiting · ${drivenWait(agent.name)}`
+                  : isHanded(message, agent)
+                    ? 'Next'
+                    : 'Next · after this one'}
+              </T>
+              {!agent.takeover && !isHanded(message, agent) && (
+                <TextAction
+                  label="Send now"
+                  onPress={() => {
+                    haptic.light();
+                    interruptNow(agent.id).catch((e: unknown) => onError(describeError(e)));
+                  }}
+                />
+              )}
+            </View>
           )}
           {!queued && isHeard(message, agent) && (
             <T variant="caption" color={colors.textSecondary} style={styles.meta}>
@@ -236,7 +260,11 @@ export const MessageRow = memo(function MessageRow({
           {set ? (
             <Blocks message={message} set={set} />
           ) : (
-            <Prose id={message.id} text={message.text} />
+            // A bubble, as yours is, on the other side: a quieter fill and the
+            // small corner toward the agent.
+            <View style={styles.agentBubble}>
+              <Prose id={message.id} text={message.text} />
+            </View>
           )}
           {!!message.localLinks?.length && (
             <LocalLinks
@@ -847,7 +875,9 @@ export function DraftRow({
       style={styles.agentRow}
       onLayout={onHeight && ((e: LayoutChangeEvent) => onHeight(e.nativeEvent.layout.height))}
     >
-      <Prose id={id} text={text} streaming />
+      <View style={styles.agentBubble}>
+        <Prose id={id} text={text} streaming />
+      </View>
     </View>
   );
 }
@@ -891,10 +921,6 @@ export function WorkingRow({
   const live = label ? liveCallShown(work, agent?.status.activity) : undefined;
   const ticking = !!label && (work != null || live != null);
   const now = useClock(ticking);
-  const comp = useComputer();
-  // A turn past half a minute says where it runs (Cade, 2026-11-14: people
-  // kept the app open, thinking closing it would stop the work).
-  const long = !!work && now - work.startedAt > KEEPS_RUNNING_AFTER_MS;
   return (
     <Animated.View entering={FadeIn.duration(250)} style={styles.working}>
       {agent && label ? (
@@ -920,23 +946,9 @@ export function WorkingRow({
           )}
         </View>
       )}
-      {long && !bare && (
-        <Animated.View entering={FadeIn.duration(250)}>
-          <T variant="caption" color={colors.textSecondary} testID="keeps-running">
-            {keepsRunning(comp.your)}
-          </T>
-        </Animated.View>
-      )}
     </Animated.View>
   );
 }
-
-/** How long a turn runs before the working row says where it runs. */
-export const KEEPS_RUNNING_AFTER_MS = 30_000;
-
-/** "Keeps running on your Mac, even with this app closed." */
-export const keepsRunning = (yourComputer: string) =>
-  `Keeps running on ${yourComputer}, even with this app closed.`;
 
 const useStyles = makeStyles((colors) => ({
   userRow: { alignItems: 'flex-end', gap: space.xs },
@@ -959,6 +971,7 @@ const useStyles = makeStyles((colors) => ({
     paddingLeft: space.sm,
   },
   meta: { marginRight: space.xs },
+  queuedLine: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginRight: space.xs },
   refusedReason: { maxWidth: '78%', marginRight: space.xs, textAlign: 'right' },
   failedLine: {
     flexDirection: 'row',
@@ -967,6 +980,15 @@ const useStyles = makeStyles((colors) => ({
     marginRight: space.xs,
   },
   agentRow: { gap: space.sm },
+  agentBubble: {
+    alignSelf: 'flex-start',
+    maxWidth: '92%',
+    backgroundColor: colors.surfaceControl,
+    borderRadius: composer.corner,
+    borderBottomLeftRadius: radius.sm,
+    paddingHorizontal: space.md + space['2xs'],
+    paddingVertical: space.sm + space['2xs'],
+  },
   count: { fontVariant: ['tabular-nums'] },
   stats: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.md },
   peer: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
