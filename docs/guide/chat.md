@@ -19,6 +19,10 @@ When an agent wants to send an email or a Slack reply as you, you get a draft ca
 
 A Slack reply posts the words as you edited them. For an email, an edit goes back to your agent, which shows you the new version on a fresh card; what you approve is always exactly what is sent.
 
+## Allow and Deny cards
+
+A request's title says what will happen, in plain words, when the app can tell ("Delete ~/Exports/2024", "Install three@0.170.0", "Run the tests", "Push main to origin"); the raw command is one click away behind **Details**. When it can't tell, the card says "Run a command" and shows the command, as before. When one card covers a whole plan, the button says **Allow all 3** and a line under the list says what that one OK covers ("This one OK covers: send. Each step runs without asking again for an hour."). If the app has a reason for asking, one muted line says it. Once answered, a card folds to one line: its title and what you answered.
+
 ## Catch up
 
 **Catch up** is the first row in the Agents sidebar, with how many decisions wait on you (the bell beside the sidebar toggle opens it too, and so does ⌘K). It shows one at a time: who asked and when, the request in a line, why in two, and, for anything that sends, the exact words. **Deny** and **Allow** sit under it (Allow is always black and white, never an agent's colour); **Open chat** opens that agent's chat; **Later** moves it to the back, and it comes back the next time you catch up. While a card has focus, A, D, O and L do those four; Esc closes. **Up next** lists what comes after, so it never feels endless. When nothing is left you see "You're caught up", and what only happened while you were away (a result, a routine's run), which needs no answer.
