@@ -543,6 +543,13 @@
   border-bottom-right-radius: var(--radius-bubble-tail);
 }
 
+/* An @name in your inverted bubble: the bubble's own ink at label weight. The
+   agent's colour mixed toward the page's text was 2.4:1 on the inverse fill. */
+.agent-bubble--user .agent-mention,
+:root[data-theme='light'] .agent-bubble--user .agent-mention {
+  color: inherit;
+}
+
 /* A quoted passage inside your inverted bubble reads in the bubble's own ink. */
 .agent-bubble--user .agent-bubble__quote {
   color: inherit;
