@@ -155,9 +155,22 @@ async fn serve(
     inbound: &mut Inbound,
     out: &mpsc::Sender<Out>,
 ) {
+    let started = std::time::Instant::now();
     let Ok(Some(hello)) = tokio::time::timeout(HELLO_TIMEOUT, inbound.recv()).await else {
+        // Info: phones report "connect-timeout via relay" for a minute or
+        // more at a time; this says whether their hello ever reached here.
+        tracing::info!(
+            ch,
+            ms = started.elapsed().as_millis() as u64,
+            "[Relay] a phone's channel opened but no hello came"
+        );
         return;
     };
+    tracing::info!(
+        ch,
+        ms = started.elapsed().as_millis() as u64,
+        "[Relay] a phone's hello arrived"
+    );
     let Some(identity) = c.registry.identity() else {
         tracing::warn!("[Relay] no identity key to answer a phone with");
         return;
