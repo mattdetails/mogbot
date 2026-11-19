@@ -48,6 +48,7 @@ import { WhatItCanReach } from '../../components/reach';
 import { WhatItCanDo } from '../../components/policy';
 import { WhatItKnows } from '../../components/skills';
 import { AgentLevelRow } from '../../components/IndependenceSetting';
+import { OpenAsks } from '../../components/OpenAsks';
 import { ColorSwatches, KeyChoices } from '../../components/pickers';
 import {
   Button,
@@ -279,6 +280,8 @@ function AgentSheet() {
             />
           )}
         </View>
+
+        <OpenAsks agentId={id} />
 
         {(canCall('agents.setAgentIndependence', welcome) ||
           canCall('agents.onItsOwn', welcome) ||

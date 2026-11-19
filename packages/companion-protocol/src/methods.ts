@@ -15,6 +15,7 @@ import type { Skill, SkillsView } from './skills';
 import type { OnItsOwn, OnItsOwnNarrow, OnItsOwnTeam } from './onItsOwn';
 import type { QuietHours, QuietWindow } from './quiet';
 import type { MorningBrief } from './brief';
+import type { AgentTasks, EndOfDay } from './tasks';
 import type { WatchCheckOutcome, WatchOptions } from './whenComposer';
 import type {
   AgentDraft,
@@ -601,6 +602,22 @@ export interface Methods {
     result: MorningBrief;
   };
   /**
+   * One agent's own task list (`agents::tasks`): its open asks (doing,
+   * next, waiting, stuck), the last few closed, and what it is doing now.
+   * Read-only. Newer Macs only.
+   */
+  'agents.tasks': { params: { agentId: string }; result: AgentTasks };
+  /**
+   * `agents_end_of_day`: the end-of-day check-in's settings (Settings →
+   * Notifications). Read-only. Newer Macs only.
+   */
+  'agents.endOfDay': { params: Record<string, never>; result: EndOfDay };
+  /**
+   * `agents_set_end_of_day`: on or off and its time (minutes after
+   * midnight). Audited. Newer Macs only.
+   */
+  'agents.setEndOfDay': { params: { on: boolean; at: number }; result: EndOfDay };
+  /**
    * `agents_set_import_choice`: "bring your agents from another assistant,
    * or start fresh?" answered (the phone home's one-time card), read back
    * from `agents.overview`'s `importChoice`. An import that brings anything
@@ -957,6 +974,8 @@ export const READ_ONLY_METHODS = [
   'agents.usagePlan',
   'agents.quietHours',
   'agents.morningBrief',
+  'agents.tasks',
+  'agents.endOfDay',
   'agents.import.status',
   'agents.import.exportPrompt',
   'agents.import.exportPreview',
