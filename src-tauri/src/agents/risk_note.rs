@@ -167,4 +167,15 @@ mod tests {
         assert_eq!(bash("ls -la"), None);
         assert_eq!(of("Read", &json!({"file_path": "/x"})), None);
     }
+
+    #[test]
+    fn a_card_carries_the_sentence_on_the_wire_or_nothing() {
+        let input = json!({"command": "git push origin main"});
+        let c = crate::agents::mcp::new_card("r".into(), "Run".into(), String::new(), Some(("Bash", &input)));
+        let v = serde_json::to_value(&c).unwrap();
+        assert_eq!(v["riskNote"], "Publishes to main, which others can see.");
+        let input = json!({"command": "ls"});
+        let c = crate::agents::mcp::new_card("r".into(), "Run".into(), String::new(), Some(("Bash", &input)));
+        assert!(serde_json::to_value(&c).unwrap().get("riskNote").is_none());
+    }
 }
