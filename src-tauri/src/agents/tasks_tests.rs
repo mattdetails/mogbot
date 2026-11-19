@@ -70,15 +70,14 @@ fn overload_is_a_plain_rule() {
     let many: Vec<Task> = (0..OVERLOAD_OPEN)
         .map(|i| task(&format!("job {i}"), None, now - H))
         .collect();
-    assert!(overload(&many, now).unwrap().contains("6 asks open"));
-    let old: Vec<Task> = (0..3)
-        .map(|i| task(&format!("job {i}"), None, now - 30 * H))
-        .collect();
-    assert!(overload(&old, now).unwrap().contains("oldest 30h"));
-    let two_old: Vec<Task> = (0..2)
-        .map(|i| task(&format!("job {i}"), None, now - 30 * H))
-        .collect();
-    assert!(overload(&two_old, now).is_none());
+    assert!(overload(&many, now).unwrap().contains("10 to do"));
+    // One line open over a day with no movement is enough.
+    let stale = vec![task("old one", None, now - 30 * H)];
+    assert!(overload(&stale, now).unwrap().contains("no movement"));
+    // A line that waits on the user is theirs to move.
+    let mut waiting = task("waits", None, now - 30 * H);
+    waiting.state = State::Waiting;
+    assert!(overload(&[waiting], now).is_none());
 }
 
 #[test]
@@ -95,11 +94,12 @@ fn a_nudge_waits_then_stops_after_its_limit() {
     assert!(due_chase(&t, CHASE_AFTER_MS));
     t.chased = 1;
     t.last_chased_at = CHASE_AFTER_MS;
-    assert!(!due_chase(&t, CHASE_AFTER_MS + 1));
-    assert!(due_chase(&t, 2 * CHASE_AFTER_MS));
+    // Chased at most once a day.
+    assert!(!due_chase(&t, 2 * CHASE_AFTER_MS));
+    assert!(due_chase(&t, CHASE_AFTER_MS + CHASE_AGAIN_MS));
     t.chased = MAX_CHASES;
     assert!(!due_chase(&t, 10 * CHASE_AFTER_MS));
-    assert!(out_of_nudges(&t, t.last_chased_at + CHASE_AFTER_MS));
+    assert!(out_of_nudges(&t, t.last_chased_at + CHASE_AGAIN_MS));
     t.state = State::Waiting;
     assert!(!due_chase(&t, 100 * H));
 }
@@ -117,7 +117,7 @@ fn the_board_names_jobs_load_and_whos_free() {
     let busy = load(
         "Apollo PM",
         "Runs the Apollo project plan",
-        (0..6)
+        (0..10)
             .map(|i| task(&format!("task {i} apollo"), Some("Chief"), now - 5 * H))
             .collect(),
         now,
@@ -130,11 +130,35 @@ fn the_board_names_jobs_load_and_whos_free() {
     );
     let free = load("Voice", "Writes as the user", vec![], now);
     let text = board(&[busy, light, free], now).unwrap();
-    assert!(text.contains("Apollo PM (Runs the Apollo project plan): 6 open"));
+    assert!(text.contains("Apollo PM (Runs the Apollo project plan): 10 open"));
     assert!(text.contains("OVERLOADED"));
     assert!(text.contains("Apollo Finances (Keeps Apollo's budget): 1 open"));
     assert!(text.contains("Nothing open: Voice."));
     assert!(text.chars().count() <= BOARD_CAP + 300);
+}
+
+#[test]
+fn one_line_is_doing_at_a_time_and_a_drop_needs_a_reason() {
+    let a = task("one", None, 0);
+    let b = task("two", None, 0);
+    let mut tasks = vec![a, b];
+    tasks[0].state = State::Doing;
+    // The pure part of `set`: promoting another demotes the first.
+    for other in tasks.iter_mut().filter(|t| t.state == State::Doing) {
+        other.state = State::Next;
+    }
+    tasks[1].state = State::Doing;
+    assert_eq!(tasks.iter().filter(|t| t.state == State::Doing).count(), 1);
+}
+
+#[test]
+fn tasks_are_kept_one_json_line_each() {
+    let t = task("A line", Some("Chief"), 5);
+    let line = serde_json::to_string(&t).unwrap();
+    assert!(!line.contains('\n'));
+    let back: Task = serde_json::from_str(&line).unwrap();
+    assert_eq!(back, t);
+    assert!(line.contains("\"state\":\"next\""));
 }
 
 #[test]

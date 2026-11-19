@@ -290,14 +290,14 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
         ? [
             {
               id: 'agents.interviewMe',
-              title: 'Interview me…',
+              title: 'Get to know me…',
               icon: <CommentIcon size={14} />,
               category: 'action' as const,
-              keywords: ['onboarding', 'get to know me', 'questions', 'talk'],
+              keywords: ['onboarding', 'interview', 'questions', 'talk', 'about me'],
               run: () => {
                 void sendAgentMessage(
                   chiefId,
-                  'Interview me so you know my work: one short question at a time.'
+                  'Get to know me: ask one short question at a time about my work.'
                 ).catch(() => {});
                 requestAgentsIntent({ kind: 'open', agentId: chiefId });
                 setView('agents');
@@ -307,14 +307,22 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
               .filter((a) => !a.isMain && !a.hidden)
               .map((a) => ({
                 id: `agents.train.${a.id}`,
-                title: `Train ${a.name} by interview…`,
+                title: `Train this agent: ${a.name}`,
                 icon: <CommentIcon size={14} />,
                 category: 'action' as const,
-                keywords: ['job description', 'instructions', 'teach', 'train', a.name],
+                keywords: [
+                  'job',
+                  'job description',
+                  'instructions',
+                  'teach',
+                  'train',
+                  'interview',
+                  a.name,
+                ],
                 run: () => {
                   void sendAgentMessage(
                     chiefId,
-                    `Train ${a.name} by interview: ask me one short question at a time about its job, then write its job description.`
+                    `Train ${a.name}: ask me one short question at a time about its job, then write its Job.`
                   ).catch(() => {});
                   requestAgentsIntent({ kind: 'open', agentId: chiefId });
                   setView('agents');
@@ -421,6 +429,17 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
           'overview',
           'status',
         ],
+        run: () => {
+          requestAgentsIntent({ kind: 'open', agentId: TEAM_ID });
+          setView('agents');
+        },
+      },
+      {
+        id: 'tasks.team',
+        title: 'Team tasks',
+        icon: <CollaboratorsIcon size={14} />,
+        category: 'navigation',
+        keywords: ['tasks', 'asks', 'busy', 'to do', 'open', 'team'],
         run: () => {
           requestAgentsIntent({ kind: 'open', agentId: TEAM_ID });
           setView('agents');

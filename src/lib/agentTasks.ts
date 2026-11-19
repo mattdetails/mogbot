@@ -8,7 +8,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 
-export type TaskState = 'open' | 'waiting' | 'stuck' | 'done' | 'dropped';
+export type TaskState = 'doing' | 'next' | 'waiting' | 'stuck' | 'done' | 'dropped';
 
 export interface AgentTask {
   id: string;

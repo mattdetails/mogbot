@@ -956,7 +956,7 @@ export function AgentsTeamView({
           )}
 
           {asks.length > 0 && (
-            <Section title="Open asks" count={asks.length} empty="" quiet>
+            <Section title="Team tasks" count={asks.length} empty="" quiet>
               {asks.map((load) => {
                 const agent = agents.find((a) => a.id === load.agentId);
                 if (!agent) return null;
@@ -964,7 +964,7 @@ export function AgentsTeamView({
                   load.stuck > 0
                     ? { tone: 'failed' as const, label: `${load.stuck} stuck` }
                     : load.overloaded
-                      ? { tone: 'waiting' as const, label: 'Overloaded' }
+                      ? { tone: 'waiting' as const, label: 'Busy' }
                       : undefined;
                 return (
                   <ActionColumn key={load.agentId}>

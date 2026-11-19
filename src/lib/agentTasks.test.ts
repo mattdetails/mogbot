@@ -5,7 +5,7 @@ const task = (title: string, createdAt = 0): AgentTask => ({
   id: title,
   title,
   source: 'agent',
-  state: 'open',
+  state: 'next',
   createdAt,
   updatedAt: createdAt,
   chased: 0,

@@ -25,7 +25,7 @@ export interface EndOfDay {
 export const END_OF_DAY_EVENT = 'agents-end-of-day-changed';
 export const END_OF_DAY_TITLE = 'End-of-day check-in';
 export const END_OF_DAY_DETAIL =
-  'Once a day your Chief of Staff says what the team closed and what is still open, and asks what to hand off or chase tomorrow.';
+  'Once a day your Chief of Staff says what the team got done and asks if anything missed the mark.';
 
 export const setEndOfDay = (s: EndOfDay) =>
   invoke<EndOfDay>('agents_set_end_of_day', { on: s.on, at: s.at });

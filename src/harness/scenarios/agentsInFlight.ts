@@ -271,7 +271,7 @@ const ask = (id: string, title: string, hoursAgo: number, from = 'Chief of Staff
   title,
   source: 'agent' as const,
   from: { id: 'chief', name: from },
-  state: 'open' as const,
+  state: 'next' as const,
   createdAt: now - hoursAgo * 60 * MIN,
   updatedAt: now - hoursAgo * 60 * MIN,
   chased: 0,
@@ -301,14 +301,14 @@ function asksBoard() {
         'Finance',
         'Keeps the books',
         [
-          ask('a1', 'Reconcile October against the bank', 30),
+          ask('a1', 'Reconcile October against the bank', 30, 'Chief of Staff', { state: 'doing' }),
           ask('a2', 'Chase the Globex invoice', 26),
           ask('a3', 'Update the Apollo budget sheet', 20),
           ask('a4', 'Draft the Q4 tax estimate', 9),
           ask('a5', 'Send Northwind the payment link', 5),
           ask('a6', 'Categorise the card spend', 2),
         ],
-        { overloaded: true, overloadedWhy: '6 asks open' }
+        { overloaded: true, overloadedWhy: 'one open 1d with no movement' }
       ),
       load(
         'recruiter',
@@ -332,9 +332,9 @@ export const agentsInFlightScenarios: Scenario[] = [
   {
     id: 'agents-inflight-asks',
     title: 'Agents — What’s in flight, open asks per agent',
-    looksRightWhen: `${LOOK} A quiet “Open asks · 3” section between Paused and Everyone else: Finance first with an Overloaded pill, its first two asks in the line, “6 open · 30h” at the right; Recruiter with a “1 stuck” pill; Research with its one ask.`,
+    looksRightWhen: `${LOOK} A quiet “Team tasks · 3” section between Paused and Everyone else: Finance first with an Busy pill, its first two asks in the line, “6 open · 30h” at the right; Recruiter with a “1 stuck” pill; Research with its one ask.`,
     command: 'agents.team',
-    requires: '.agents-team__section[aria-label^="Open asks"]',
+    requires: '.agents-team__section[aria-label^="Team tasks"]',
     viewport: { width: 1440, height: 1000 },
     commands: asksBoard(),
   },
