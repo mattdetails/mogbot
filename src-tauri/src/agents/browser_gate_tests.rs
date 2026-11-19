@@ -1470,3 +1470,61 @@ fn opening_things_never_asks_but_the_send_button_still_does() {
     assert!(final_submit("button \"Buy now\"", Level::FullSend).is_some());
     assert!(final_submit("textbox \"Post\"", Level::GoHard).is_none());
 }
+
+/// Replay of the 50 most recent browser cards raised in the user's Chrome
+/// (2026-11-18/19), titles and inputs as recorded. Prints each decision.
+#[test]
+#[ignore]
+fn replay_recorded_cards() {
+    let cards: Vec<serde_json::Value> =
+        serde_json::from_str(&std::fs::read_to_string(std::env::var("REPLAY").unwrap()).unwrap())
+            .unwrap();
+    for level in [Level::GoHard, Level::FullSend] {
+        let mut asks = 0;
+        for c in &cards {
+            let name = c["t"].as_str().unwrap();
+            let input = c["in"].clone();
+            let title = c["title"].as_str().unwrap();
+            let host = title.rsplit(" on ").next().unwrap_or("");
+            let mut p = Page::default();
+            p.url = Some(format!("https://{host}/"));
+            if let Some(r) = input.get("ref").and_then(|v| v.as_str()) {
+                if let Some(l) = title.split('“').nth(1).and_then(|s| s.split('”').next()) {
+                    p.refs.insert(r.to_string(), format!("button \"{l}\""));
+                }
+            }
+            let g = gate_user_chrome_with(true, level, &agent(), name, &input, false, &p);
+            if g != Gate::Allow {
+                asks += 1;
+            }
+            println!("{level:?} {:?} | {title}", g);
+        }
+        println!("{level:?}: {asks}/{} not allowed", cards.len());
+    }
+}
+
+#[test]
+fn opening_a_thread_never_asks_but_its_send_does() {
+    for open in ["button \"1 reply\"", "button \"12 replies\"", "button \"Reply in thread\""] {
+        assert_eq!(final_submit(open, Level::GoHard), None, "{open}");
+    }
+    for send in ["button \"Send now\"", "button \"Reply\"", "button \"Reply all\""] {
+        assert!(final_submit(send, Level::GoHard).is_some(), "{send}");
+    }
+}
+
+#[test]
+fn unleashed_lets_recorded_chrome_clicks_through() {
+    // Opening a LinkedIn post, a Slack message, a GitHub issue: clicks by
+    // position and by label that don't pay or delete for good.
+    let input = json!({"x": 800, "y": 110, "tab": 1});
+    for host in ["linkedin.com", "app.slack.com", "github.com"] {
+        let mut p = Page::default();
+        p.url = Some(format!("https://{host}/"));
+        assert_eq!(
+            gate_user_chrome_with(true, Level::FullSend, &agent(), "click", &input, false, &p),
+            Gate::Allow,
+            "{host}"
+        );
+    }
+}
