@@ -5612,7 +5612,7 @@ function seedMessages(a: Agent, now: number): AgentMessage[] {
       approval: {
         requestId: 'req_seed',
         title: 'Write files outside its folder',
-        detail: 'cp -r export/icons ~/ShipStudio/acme-site/public/icons',
+        detail: 'cp -r export/icons ~/ShipStudio/acme-site/public/assets/brand/icons/2026-11/final-export',
         risk: 'low',
         status: 'pending',
         tool: 'Bash',

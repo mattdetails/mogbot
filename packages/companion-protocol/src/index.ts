@@ -47,6 +47,7 @@ export * from './apps';
 export * from './steps';
 export * from './accountSwitcher';
 export * from './crossover';
+export * from './approvalTitle';
 export * from './cardWords';
 export * from './quiet';
 export * from './usageGlance';

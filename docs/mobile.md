@@ -673,8 +673,8 @@ request, the diff and the photo viewer push over them. At
   opens it in its chat. **Open chat** opens the agent's chat at the card, and back
   returns to the same card; **Later** or a swipe left moves it on, and it
   comes back the next time you catch up. Swiping right
-  never allows: an Allow can't be undone and a command scrolls sideways
-  under the same finger. "5 left" and a thin bar; success haptic on Allow,
+  never allows: an Allow can't be undone and a swipe could land on it by
+  accident. "5 left" and a thin bar; success haptic on Allow,
   light on Next. A card on screen counts as read (`setOpenChat`). Passed
   cards stay counted, cards ahead answered or read elsewhere drop out, new
   ones join the end; the card in front of you, answered on the desk or
@@ -739,8 +739,11 @@ request, the diff and the photo viewer push over them. At
   the source and fails on the desk's retired words ("session", "Waiting for
   your decision", "via connector", "Claude Code 1", the noun "take-over",
   "Denied" — answered requests are "Declined"), with a snapshot of the rest.
-- **Approvals** (`ApprovalCard`): the exact command, scrolling sideways rather
-  than re-wrapped; ⋯ · Deny · Allow, with Always allow (with
+- **Approvals** (`ApprovalCard`): the exact command in full, monospace, wrapped
+  anywhere (a long path breaks mid-name, nothing hides behind a scroll or a fade),
+  at most six lines, then Show all; the title names where a copy, move or delete
+  goes (`cardTitle`, `packages/companion-protocol/src/approvalTitle.ts`, a copy of the desk's
+  `src/lib/approvalTitle.ts`, which can't import the package); ⋯ · Deny · Allow, with Always allow (with
   `describeScope`'s sentence) and Deny with a note… behind ⋯. The answers are
   inert for 400 ms after the card lands, the desk's anti-misclick; Allow is
   the one tap the app must never take by accident. A pending card's detail
