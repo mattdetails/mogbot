@@ -59,7 +59,11 @@ export function useDevServerRetention({
     const previous = previousRef.current;
     previousRef.current = { visiblePath: visiblePreviewPath, currentProjectPath, view };
     if (keepDevServersRunning !== false || visiblePreviewPath === null) return;
-    if (previous.visiblePath !== null || previous.view !== 'workspace') return;
+    // Back from Agents to the same project counts too: that return has no
+    // start path of its own (the project stayed open), so it would land on a
+    // Preview with no server. The home screen's opens start their own.
+    if (previous.visiblePath !== null) return;
+    if (previous.view !== 'workspace' && previous.view !== 'agents') return;
     if (previous.currentProjectPath !== visiblePreviewPath) return;
     void startRef.current();
   }, [keepDevServersRunning, visiblePreviewPath, currentProjectPath, view]);

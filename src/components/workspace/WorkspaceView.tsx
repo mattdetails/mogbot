@@ -509,6 +509,15 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
   useEffect(() => {
     if (chatAgentId) setIsAgentPanelHidden(false);
   }, [chatAgentId]);
+  // Picking an agent to work here starts the project's dev server when it
+  // isn't up (a no-op when it is; a project not approved yet still asks), so
+  // the preview beside the chat is live without "Start dev server" again
+  // (call with Cade, 18 Nov).
+  const startForAgent = useRef(handleStartDevServer);
+  startForAgent.current = handleStartDevServer;
+  useEffect(() => {
+    if (chatAgentId && chatAgentId !== PICK_AGENT) void startForAgent.current();
+  }, [chatAgentId]);
   const toggleAgentPanel = useCallback(() => {
     if (!isAgentPanelHidden) {
       setIsPreviewHidden(false);
