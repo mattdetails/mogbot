@@ -22,6 +22,8 @@ jest.mock('../src/lib/session', () => ({
   call: (m: string, p?: Record<string, unknown>) => mockCall(m, p),
   describeError: (e: unknown) => String(e),
 }));
+// The link's own rules (feelsLive) need a full link state; here it is simply up.
+jest.mock('../src/lib/linkLive', () => ({ useLinkLive: () => true }));
 const mockChoose = jest.fn();
 jest.mock('../src/components/menu', () => ({
   choose: (...a: unknown[]) => mockChoose(...a),
