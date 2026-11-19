@@ -22,6 +22,7 @@
  *   pnpm qa:web --phases perf            # a 5,000-line chat: first render and scroll jank (not in the default run)
  *   pnpm qa:web --phases net             # requests the Mac sees and React renders: cold start, tabs, chats, reconnect, a streaming reply (not in the default run)
  *   pnpm qa:web --phases reconnecting    # the Mac going away under an open app (not in the default run)
+ *   pnpm qa:web --phases project-preview # a project's picture on its card: empty, phone, desktop (not in the default run)
  *   pnpm qa:web --phases quiet-drops     # a short drop shows nothing; a 4-minute one shows the bar (not in the default run)
  *   pnpm qa:web --phases link-down       # the connection bar: away, back, the Mac's app stuck or closing (not in the default run)
  *   pnpm qa:web --out /tmp/shots
@@ -4452,6 +4453,33 @@ async function main() {
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
     await sleep(4000);
     await each(FIRST_RUN);
+  }
+
+  if (phase('project-preview')) {
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock();
+      await page.goto(`${WEB}/projects`);
+      await sleep(4000);
+      await screen(page, theme, {
+        name: 'project-preview-empty',
+        check: 'Each project card has one quiet Preview row with "Show the site"',
+      });
+      await page.clickLabel('Show the site');
+      await sleep(3500);
+      await screen(page, theme, {
+        name: 'project-preview-phone',
+        check: 'The phone-width picture on the card, "Taken just now", refresh beside the toggle',
+      });
+      await page.clickText('Desktop');
+      await sleep(500);
+      await page.clickText('Show it at desktop width');
+      await sleep(3500);
+      await screen(page, theme, {
+        name: 'project-preview-desktop',
+        check: 'The desktop picture, wide, on the same card',
+      });
+    }
   }
 
   if (phase('team-setup')) {
