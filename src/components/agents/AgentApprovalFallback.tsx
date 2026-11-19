@@ -20,7 +20,7 @@ export function ApprovalFallback({
   onAnswer,
 }: {
   message: AgentMessage;
-  onAnswer?: (requestId: string, allow: boolean) => Promise<void>;
+  onAnswer?: (requestId: string, allow: boolean) => Promise<unknown>;
 }) {
   const [state, setState] = useState<'idle' | 'busy' | 'denied' | 'failed'>('idle');
   // Read defensively: this is drawn precisely because the payload was odd.

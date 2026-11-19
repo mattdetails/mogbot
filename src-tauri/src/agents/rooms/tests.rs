@@ -210,6 +210,7 @@ fn the_thread_reads_back_with_each_members_card_answers() {
             slack_reply: None,
             risk: None,
             summary: None,
+            send_from: None,
         });
         // The member's own log has the card, the room a copy.
         store::append_message(&card).unwrap();

@@ -467,6 +467,11 @@ pub struct Approval {
     /// card from before this was recorded) opens in full too.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub risk: Option<Risk>,
+    /// The Gmail account a one-email plan goes out from, when the app knows
+    /// it (what the page showed when an agent last used Gmail, `browser_profiles`).
+    /// Absent when it doesn't: the card then says only "goes out as you".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub send_from: Option<String>,
 }
 
 /// `Approval::risk`.

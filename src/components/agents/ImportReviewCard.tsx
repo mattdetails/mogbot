@@ -473,7 +473,7 @@ interface ImportReviewCardProps {
   chiefName: string;
   arrived?: boolean;
   /** Don't import: the chat's own card answer (Deny). */
-  onAnswer: (requestId: string, allow: boolean) => Promise<void>;
+  onAnswer: (requestId: string, allow: boolean) => Promise<unknown>;
 }
 
 /**

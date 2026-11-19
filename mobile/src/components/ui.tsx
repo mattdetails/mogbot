@@ -80,6 +80,7 @@ type Variant =
   | 'read'
   | 'small'
   | 'caption'
+  | 'label'
   | 'subhead'
   | 'headline'
   | 'title'
@@ -90,6 +91,11 @@ type Variant =
 const useVariants = makeStyles(() => ({
   body: { fontFamily: fonts.regular, fontSize: type.body, lineHeight: lineHeight(type.body, 1.5) },
   small: { fontFamily: fonts.regular, fontSize: type.small, lineHeight: lineHeight(type.small) },
+  label: {
+    fontFamily: fonts.regular,
+    fontSize: type.label,
+    lineHeight: lineHeight(type.label),
+  },
   caption: {
     fontFamily: fonts.regular,
     fontSize: type.caption,

@@ -46,7 +46,7 @@ function useStepInAction() {
   const { showToast } = useOptionalToast();
   const [busy, setBusy] = useState(false);
   const run = useCallback(
-    async (fn: () => Promise<void>) => {
+    async (fn: () => Promise<unknown>) => {
       setBusy(true);
       try {
         await fn();
@@ -68,7 +68,7 @@ export function StepInCard({
   barShown = false,
 }: {
   message: AgentMessage;
-  onAnswer: (requestId: string, allow: boolean) => Promise<void>;
+  onAnswer: (requestId: string, allow: boolean) => Promise<unknown>;
   arrived?: boolean;
   /** The Step in bar is showing (its own agent's chat): Show window and Hand back live there. */
   barShown?: boolean;

@@ -250,6 +250,7 @@ fn pages_read_from_the_end_carry_their_answers() {
                     skill: None,
                     slack_reply: None,
                     risk: None,
+                    send_from: None,
                 });
             }
             append_message(&line).unwrap();
@@ -474,6 +475,7 @@ fn approvals_resolve_once_and_stale_ones_expire() {
                 skill: None,
                 slack_reply: None,
                 risk: None,
+                send_from: None,
             }),
             attachments: Vec::new(),
             check_in: None,
@@ -617,6 +619,7 @@ fn answering_a_card_appends_and_never_rewrites_the_log() {
             skill: None,
             slack_reply: None,
             risk: None,
+            send_from: None,
         });
         append_message(&card).unwrap();
         let raw = std::fs::read(log_path(&a.id).unwrap()).unwrap();

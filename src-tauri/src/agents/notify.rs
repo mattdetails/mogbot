@@ -552,6 +552,7 @@ mod tests {
             skill: None,
             slack_reply: None,
             risk: None,
+            send_from: None,
         });
         message
     }

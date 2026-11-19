@@ -809,7 +809,16 @@ export interface Approval {
    * Allow / Deny over the same summary; Allow posts them as the user. Older
    * Macs never send it.
    */
-  slackReply?: { channel: string; threadTs: string; place: string; text: string };
+  slackReply?: {
+    channel: string;
+    threadTs: string;
+    place: string;
+    text: string;
+    /** The connected Slack account's name ("robin · Acme"), only when the Mac knows it. */
+    accountName?: string;
+  };
+  /** The Gmail account a one-email plan goes out from, only when the Mac knows it (never guessed). */
+  sendFrom?: string;
   /** "Save “…” as a skill?": the skill as it would be saved; Allow is Save, Deny is Not now. Nothing waits on it. */
   skill?: SkillCard;
   /**

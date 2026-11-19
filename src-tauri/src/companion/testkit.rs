@@ -3091,6 +3091,7 @@ pub fn settings_card() -> crate::agents::store::AgentMessage {
         skill: None,
         slack_reply: None,
         risk: None,
+        send_from: None,
     });
     m
 }
@@ -3265,6 +3266,7 @@ pub fn login_card() -> crate::agents::store::AgentMessage {
             }),
             also_for: vec!["Ops".into()],
         }),
+        send_from: None,
     });
     m
 }

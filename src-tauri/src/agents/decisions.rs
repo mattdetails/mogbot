@@ -333,6 +333,7 @@ pub(crate) fn card(
         skill: None,
         slack_reply: None,
         risk: None,
+        send_from: None,
     }
 }
 

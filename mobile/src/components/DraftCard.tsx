@@ -9,11 +9,18 @@
  * once answered, the card is the plain request's receipt.
  */
 
-import { draftOf, editedNote, gmailUrl } from '@shipstudio/companion-protocol';
+import {
+  DRAFT_NOTE,
+  draftFrom,
+  draftOf,
+  draftTitle,
+  editedNote,
+  gmailUrl,
+} from '@shipstudio/companion-protocol';
 import type { Agent, AgentMessage } from '@shipstudio/companion-protocol';
-import { useState } from 'react';
-import { Linking, TextInput, View } from 'react-native';
-import { Card, CardActions, ACTION } from './surfaces';
+import { useState, type ReactNode } from 'react';
+import { Linking, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Card, ACTION_PAIR } from './surfaces';
 import { Button, T } from './ui';
 import { useArmed } from './ApprovalCard';
 import { useColors, makeStyles } from '../lib/appearance';
@@ -21,15 +28,15 @@ import { haptic } from '../lib/haptics';
 import { useInFlight } from '../lib/once';
 import { answerApproval, describeError } from '../lib/session';
 import { useApp } from '../lib/store';
-import { radius, space, type } from '../lib/theme';
+import { draft as metrics, radius, space, type } from '../lib/theme';
 
 export function DraftCard({
   message,
-  agent,
   onError,
 }: {
   message: AgentMessage;
-  agent: Agent;
+  /** Whose card it is (the chat passes it; the title names who it goes to, not the agent). */
+  agent?: Agent;
   onError: (text: string) => void;
 }) {
   const colors = useColors();
@@ -72,32 +79,62 @@ export function DraftCard({
     return draft.direct ? answer(true, body) : answer(false, editedNote(now));
   };
 
+  const rows: { label: string; value?: string; input?: ReactNode }[] = [
+    { label: isEmail ? 'To' : 'In', value: draft.to },
+  ];
+  if (isEmail && (editing || cc)) {
+    rows.push({
+      label: 'CC',
+      value: cc,
+      input: (
+        <TextInput
+          value={cc}
+          onChangeText={setCc}
+          accessibilityLabel="CC"
+          placeholder="Add addresses"
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          style={styles.field}
+        />
+      ),
+    });
+  }
+  if (isEmail && (editing || subject)) {
+    rows.push({
+      label: 'Subject',
+      value: subject,
+      input: (
+        <TextInput
+          value={subject}
+          onChangeText={setSubject}
+          accessibilityLabel="Subject"
+          placeholderTextColor={colors.textMuted}
+          style={styles.field}
+        />
+      ),
+    });
+  }
+
   return (
     <Card
       icon={isEmail ? 'square.and.pencil' : 'text.bubble'}
-      title={
-        draft.kind === 'email'
-          ? 'Send this email?'
-          : draft.kind === 'slack'
-            ? 'Reply in Slack?'
-            : 'Post this?'
-      }
-      source={`${agent.name} · sends as you`}
-      note="These exact words go out under your name."
+      title={draftTitle(draft, approval)}
+      note={DRAFT_NOTE}
       testID="draft-card"
       actions={
-        <CardActions>
+        <>
           <Button
             title="Discard"
-            variant="outline"
+            variant="ghost"
             disabled={off}
             focusable={armed}
             onPress={() => void answer(false)}
-            style={ACTION}
+            style={ACTION_PAIR}
           />
           <Button
             title={editing ? 'Cancel edit' : 'Edit'}
-            variant="ghost"
+            variant="outline"
             disabled={off}
             onPress={() => {
               if (editing) {
@@ -107,114 +144,86 @@ export function DraftCard({
               }
               setEditing(!editing);
             }}
-            style={ACTION}
+            style={ACTION_PAIR}
           />
+          {isEmail && (
+            <Button
+              title="Draft in Gmail"
+              variant="outline"
+              disabled={off}
+              onPress={() => void Linking.openURL(gmailUrl(now))}
+              accessibilityHint="Opens it in Gmail to finish there. Nothing is sent."
+              style={ACTION_PAIR}
+            />
+          )}
           <Button
             title={changed && !draft.direct ? 'Send my version' : 'Send'}
             variant="answer"
             disabled={off || !body.trim()}
             focusable={armed}
             onPress={() => void send()}
-            style={ACTION}
+            style={ACTION_PAIR}
           />
-        </CardActions>
+        </>
       }
     >
-      <View style={styles.head}>
-        <Row label={isEmail ? 'To' : 'In'} value={draft.to} />
-        {isEmail && (editing || !!cc) && (
-          <Row label="CC">
-            {editing ? (
-              <TextInput
-                value={cc}
-                onChangeText={setCc}
-                accessibilityLabel="CC"
-                placeholder="Add addresses"
-                placeholderTextColor={colors.textMuted}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={styles.field}
-              />
-            ) : (
-              <T color={colors.textBody}>{cc}</T>
-            )}
-          </Row>
-        )}
-        {isEmail && (editing || !!subject) && (
-          <Row label="Subject">
-            {editing ? (
-              <TextInput
-                value={subject}
-                onChangeText={setSubject}
-                accessibilityLabel="Subject"
-                placeholderTextColor={colors.textMuted}
-                style={styles.field}
-              />
-            ) : (
-              <T color={colors.textBody}>{subject}</T>
-            )}
-          </Row>
+      <View style={styles.block}>
+        {rows.map((r) => (
+          <View key={r.label} style={styles.row}>
+            <T variant="small" color={colors.textMuted} style={styles.label}>
+              {r.label}
+            </T>
+            <View style={styles.grow}>
+              {editing && r.input ? r.input : <T color={colors.textBody}>{r.value}</T>}
+            </View>
+          </View>
+        ))}
+        {editing ? (
+          <TextInput
+            multiline
+            value={body}
+            onChangeText={setBody}
+            accessibilityLabel="What it says"
+            placeholderTextColor={colors.textMuted}
+            maxLength={4000}
+            style={[styles.field, styles.edit]}
+          />
+        ) : (
+          <ScrollView style={styles.words} nestedScrollEnabled>
+            <T color={colors.textBody}>{draft.body}</T>
+          </ScrollView>
         )}
       </View>
-      {editing ? (
-        <TextInput
-          multiline
-          value={body}
-          onChangeText={setBody}
-          accessibilityLabel="What it says"
-          placeholderTextColor={colors.textMuted}
-          maxLength={4000}
-          style={[styles.field, styles.body]}
-        />
-      ) : (
-        <View style={styles.words}>
-          <T color={colors.textBody}>{draft.body}</T>
-        </View>
-      )}
-      {isEmail && (
-        <Button
-          title="Draft in Gmail"
-          variant="ghost"
-          size="compact"
-          disabled={off}
-          onPress={() => void Linking.openURL(gmailUrl(now))}
-          accessibilityHint="Opens it in Gmail to finish there. Nothing is sent."
-        />
-      )}
+      <T variant="small" color={colors.textMuted}>
+        {draftFrom(draft, approval)}
+      </T>
     </Card>
   );
 }
 
-function Row({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-}) {
-  const colors = useColors();
-  const styles = useStyles();
-  return (
-    <View style={styles.row}>
-      <T variant="small" color={colors.textSecondary} style={styles.label}>
-        {label}
-      </T>
-      <View style={styles.grow}>{children ?? <T color={colors.textBody}>{value}</T>}</View>
-    </View>
-  );
-}
-
 const useStyles = makeStyles((colors) => ({
-  head: { gap: space.xs },
-  row: { flexDirection: 'row', gap: space.md, alignItems: 'center' },
-  label: { width: space['2xl'] * 2 + space.sm, flexShrink: 0 },
+  block: {
+    borderRadius: radius.control,
+    backgroundColor: colors.surfaceApp,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: metrics.rowPad,
+    paddingHorizontal: space.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle,
+  },
+  label: { width: metrics.labelWidth, flexShrink: 0 },
   grow: { flex: 1 },
   words: {
-    padding: space.md,
-    borderRadius: radius.control,
-    backgroundColor: colors.surfaceControl,
+    maxHeight: metrics.bodyMax,
+    paddingVertical: metrics.rowPad,
+    paddingHorizontal: space.lg,
   },
   field: {
     color: colors.textBody,
@@ -223,5 +232,5 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: radius.control,
     backgroundColor: colors.surfaceControl,
   },
-  body: { minHeight: space['2xl'] * 3, textAlignVertical: 'top' },
+  edit: { minHeight: space['2xl'] * 3, margin: space.sm, textAlignVertical: 'top' },
 }));

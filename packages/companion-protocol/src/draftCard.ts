@@ -19,6 +19,8 @@ export interface Draft {
   kind: DraftKind;
   /** The recipient (email) or the place it goes (a channel, a thread). */
   to: string;
+  /** Who it is for, when the agent gave a name (`Name <address>`); never worked out from the address. */
+  name: string;
   cc: string;
   subject: string;
   body: string;
@@ -54,6 +56,12 @@ export function joinHeaders(d: Pick<Draft, 'subject' | 'cc' | 'body'>): string {
   return head.length ? `${head.join('\n')}\n\n${d.body.trim()}` : d.body.trim();
 }
 
+/** `Name <address>` (or just an address) split into its name and address. */
+export function splitRecipient(target: string): { name: string; address: string } {
+  const m = /^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/.exec(target);
+  return m ? { name: m[1].trim(), address: m[2].trim() } : { name: '', address: target.trim() };
+}
+
 /** The draft a card holds, or none when it isn't one message with its exact words. */
 export function draftOf(approval: Approval | undefined): Draft | null {
   if (!approval) return null;
@@ -61,6 +69,7 @@ export function draftOf(approval: Approval | undefined): Draft | null {
     return {
       kind: 'slack',
       to: approval.slackReply.place,
+      name: '',
       cc: '',
       subject: '',
       body: approval.slackReply.text,
@@ -72,11 +81,13 @@ export function draftOf(approval: Approval | undefined): Draft | null {
   if (!only || (only.kind !== 'send' && only.kind !== 'post') || !only.text?.trim()) return null;
   if (only.target.includes('@')) {
     const { subject, cc, body } = splitHeaders(only.text);
-    return { kind: 'email', to: only.target, cc, subject, body, direct: false };
+    const { name, address } = splitRecipient(only.target);
+    return { kind: 'email', to: address, name, cc, subject, body, direct: false };
   }
   return {
     kind: only.kind === 'post' ? 'post' : 'slack',
     to: only.target,
+    name: '',
     cc: '',
     subject: '',
     body: only.text.trim(),
@@ -101,3 +112,32 @@ export function gmailUrl(d: Pick<Draft, 'to' | 'cc' | 'subject' | 'body'>): stri
 export function editedNote(d: Pick<Draft, 'subject' | 'cc' | 'body'>): string {
   return `I edited it. Put exactly this on a new card for my OK, then send it: ${joinHeaders(d)}`;
 }
+
+/**
+ * What the card is titled: who and where. "Email to Aurelie · Gmail", "Reply to
+ * Aurelie" when the subject is a reply, "Reply in #launch · Slack". The name is
+ * the one the agent gave, else the address; Gmail is named only when the app
+ * knows a Gmail account (`approval.sendFrom`), never assumed.
+ */
+export function draftTitle(d: Draft, approval: Approval | undefined): string {
+  if (d.kind === 'email') {
+    const who = d.name || d.to;
+    if (/^re\s*:/i.test(d.subject.trim())) return `Reply to ${who}`;
+    return approval?.sendFrom ? `Email to ${who} · Gmail` : `Email to ${who}`;
+  }
+  if (d.kind === 'slack') return `Reply in ${d.to} · Slack`;
+  return `Post to ${d.to}`;
+}
+
+/**
+ * "From <account> · goes out as you", with the account only when the app knows
+ * it (a Slack reply's connected account, the Gmail account an agent last used);
+ * without one, just "goes out as you".
+ */
+export function draftFrom(d: Draft, approval: Approval | undefined): string {
+  const account = d.kind === 'slack' ? approval?.slackReply?.accountName : approval?.sendFrom;
+  return account ? `From ${account} · goes out as you` : 'goes out as you';
+}
+
+/** The one footer note. */
+export const DRAFT_NOTE = 'These exact words go out under your name.';

@@ -320,46 +320,75 @@
   color: var(--text-secondary);
 }
 
-/* A draft to send as you (AgentDraftCard): who it goes to, then the exact
-   words as a quiet panel; Edit swaps them for a field in the same place. */
-.agent-draft__head {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--spacing-2xs) var(--spacing-md);
-  margin: 0;
-  font-size: var(--font-size-body-sm);
+/* A draft to send as you (AgentDraftCard): To, CC, Subject and the words in
+   one recessed block: a label column, a hairline between rows, the same inner
+   padding on every row and on the words, the words scrolling past 320px. */
+.agent-draft__block {
+  /* 8px of card gap + 6 = 14px from the title to the first field. */
+  margin-top: var(--spacing-tight);
+  border-radius: var(--radius-lg);
+  background: var(--surface-recessed);
+  border: var(--border-width-default) solid var(--border-subtle);
+  overflow: hidden;
 }
 
-.agent-draft__head dt {
+.agent-draft__row {
+  display: grid;
+  grid-template-columns: var(--draft-label-width) minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--spacing-sm);
+  padding: var(--draft-row-pad) var(--spacing-lg);
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  font-size: var(--font-size-subhead-lg);
+  min-height: var(--size-control-large);
+}
+
+.agent-draft__label {
+  font-size: var(--font-size-body-sm);
   color: var(--text-muted);
 }
 
-.agent-draft__head dd {
-  margin: 0;
+.agent-draft__value {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--text-primary);
 }
 
-.agent-draft__body {
-  margin-top: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+.agent-draft__add {
+  justify-self: end;
+}
+
+.agent-draft__text {
+  padding: var(--draft-row-pad) var(--spacing-lg);
+  max-height: var(--draft-body-max);
+  overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  border-radius: var(--radius-lg);
-  background: var(--surface-recessed);
-  border: var(--border-width-default) solid var(--border-subtle);
   font-size: var(--font-size-subhead-lg);
   line-height: var(--line-height-reading);
   color: var(--text-primary);
 }
 
 .agent-draft__edit {
-  margin-top: var(--spacing-sm);
   width: 100%;
   resize: vertical;
   font-size: var(--font-size-subhead-lg);
   line-height: var(--line-height-reading);
+}
+
+.agent-draft__failed {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  color: var(--accent-error, var(--text-primary));
+}
+
+.agent-draft__from {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  color: var(--text-muted);
 }
 
 /* Catch up on the desk (AgentsCatchUp): one decision in the middle, what is

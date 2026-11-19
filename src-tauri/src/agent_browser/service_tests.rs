@@ -38,6 +38,9 @@ pub(crate) fn tiny_jpeg(w: u32, h: u32) -> Vec<u8> {
 }
 
 /// A connected [`Browser`] whose other end is the fake.
+static NEXT_TARGET: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+use std::sync::atomic::Ordering;
+
 pub(crate) fn fake_browser() -> (Browser, Fake) {
     let (ours, theirs) = stream_pair();
     let calls = Arc::new(Mutex::new(Vec::new()));
@@ -45,7 +48,6 @@ pub(crate) fn fake_browser() -> (Browser, Fake) {
     std::thread::spawn(move || {
         let mut w = theirs.try_clone().unwrap();
         let mut r = BufReader::new(theirs);
-        let mut next_target = 1;
         let mut buf = Vec::new();
         let send = |w: &mut UnixStream, v: Value| {
             let mut b = serde_json::to_vec(&v).unwrap();
@@ -68,8 +70,9 @@ pub(crate) fn fake_browser() -> (Browser, Fake) {
             let result = match method.as_str() {
                 "Browser.getVersion" => json!({ "product": "Chrome/156.0.0.0" }),
                 "Target.createTarget" => {
-                    let t = format!("T{next_target}");
-                    next_target += 1;
+                    // Unique across every fake in the run: the step-in table of
+                    // held tabs is global, so two tests' "T1" were one tab.
+                    let t = format!("FT{}", NEXT_TARGET.fetch_add(1, Ordering::Relaxed));
                     json!({ "targetId": t })
                 }
                 "Target.attachToTarget" => {
