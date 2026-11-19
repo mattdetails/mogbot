@@ -329,7 +329,7 @@ export const missionScenarios: Scenario[] = Object.entries(MISSION_CASES).flatMa
       title: `Missions — ${name.replace(/_/g, ' ')}, ${label}`,
       looksRightWhen: `${WORDS[name]} Readable in both themes; nothing is colour-only; no text cut off or horizontal scroll at this width.`,
       command: 'agents.team',
-      afterCommand: [{ click: '.agents-team__row' }],
+      afterCommand: [{ click: 'section[aria-label^="Missions"] .agents-team__row' }],
       requires: '.mission',
       clipSelector: '.mission',
       viewport,

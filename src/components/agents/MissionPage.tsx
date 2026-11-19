@@ -115,7 +115,16 @@ function Shares({ mission }: { mission: Mission }) {
               data-unread={r.unread || undefined}
               aria-hidden="true"
             >
-              <span className="mission__share-fill" style={{ width: `${r.fill}%` }} />
+              <span
+                className="mission__share-fill"
+                style={{ width: `${r.over ? r.marker : r.fill}%` }}
+              />
+              {r.over && (
+                <span
+                  className="mission__share-over"
+                  style={{ left: `${r.marker}%`, width: `${r.fill - r.marker}%` }}
+                />
+              )}
               <span className="mission__share-marker" style={{ left: `${r.marker}%` }} />
             </div>
           </div>

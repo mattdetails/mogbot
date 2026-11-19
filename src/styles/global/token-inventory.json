@@ -5355,7 +5355,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 274
+      "consumerCount": 277
     },
     {
       "name": "--surface-control",
@@ -5363,7 +5363,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 305
+      "consumerCount": 307
     },
     {
       "name": "--surface-control-hover",
@@ -5387,7 +5387,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 79
+      "consumerCount": 74
     },
     {
       "name": "--surface-terminal-input",
@@ -5443,7 +5443,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 661
+      "consumerCount": 660
     },
     {
       "name": "--text-secondary",
@@ -5451,7 +5451,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 616
+      "consumerCount": 617
     },
     {
       "name": "--text-muted",
@@ -6339,7 +6339,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 298
+      "consumerCount": 299
     },
     {
       "name": "--spacing-xs",
@@ -6363,7 +6363,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 668
+      "consumerCount": 669
     },
     {
       "name": "--spacing-lg",
@@ -6867,7 +6867,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 274
+      "consumerCount": 277
     },
     {
       "name": "--surface-control",
@@ -6875,7 +6875,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 305
+      "consumerCount": 307
     },
     {
       "name": "--surface-control-hover",
@@ -6915,7 +6915,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 79
+      "consumerCount": 74
     },
     {
       "name": "--surface-terminal-input",
@@ -6955,7 +6955,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 661
+      "consumerCount": 660
     },
     {
       "name": "--text-secondary",
@@ -6963,7 +6963,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 616
+      "consumerCount": 617
     },
     {
       "name": "--text-quiet",

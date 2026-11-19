@@ -117,7 +117,7 @@
   min-width: var(--spacing-sm);
   height: var(--spacing-sm);
   border-radius: var(--radius-sm);
-  background: var(--surface-recessed);
+  background: var(--surface-control);
 }
 
 .mission__ticks span[data-on],
@@ -130,7 +130,7 @@
   position: relative;
   height: var(--spacing-sm);
   border-radius: var(--radius-sm);
-  background: var(--surface-recessed);
+  background: var(--surface-control);
   overflow: hidden;
 }
 
@@ -188,7 +188,10 @@
   background: var(--text-primary);
 }
 
-.mission__share[data-over] .mission__share-fill {
+.mission__share-over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   background: var(--accent-warning);
 }
 
@@ -198,7 +201,7 @@
   top: 0;
   bottom: 0;
   width: var(--border-width-emphasis);
-  background: var(--text-primary);
+  background: var(--text-secondary);
   box-shadow: 0 0 0 var(--border-width-default) var(--surface-app);
 }
 
@@ -206,8 +209,8 @@
 .mission__share-bar[data-unread] {
   background: repeating-linear-gradient(
     135deg,
-    var(--surface-recessed) 0 var(--spacing-2xs),
-    var(--surface-control) var(--spacing-2xs) var(--spacing-xs)
+    var(--surface-control) 0 var(--spacing-2xs),
+    var(--surface-panel) var(--spacing-2xs) var(--spacing-xs)
   );
 }
 
@@ -218,7 +221,7 @@
   gap: var(--spacing-xs);
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
-  background: var(--surface-recessed);
+  background: var(--surface-panel);
 }
 
 .mission__banner[data-tone='amber'] {
@@ -253,7 +256,7 @@
 .mission__asks {
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
-  background: var(--surface-recessed);
+  background: var(--surface-panel);
 }
 
 .mission__ask {
@@ -283,7 +286,6 @@
 }
 
 .mission__criterion,
-.mission__agent,
 .mission__event {
   display: flex;
   flex-wrap: wrap;
@@ -291,6 +293,33 @@
   justify-content: space-between;
   gap: var(--spacing-2xs) var(--spacing-md);
   min-width: 0;
+}
+
+/* Name, engine and status share columns down the list (rule 8). */
+.mission__agent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 9rem) minmax(0, 8rem);
+  align-items: baseline;
+  gap: var(--spacing-2xs) var(--spacing-md);
+  min-width: 0;
+}
+
+.mission__agent-status {
+  text-align: right;
+}
+
+@media (max-width: 480px) {
+  .mission__agent {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .mission__agent-engine {
+    grid-column: 1;
+  }
+  .mission__agent-status {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    align-self: center;
+  }
 }
 
 /* Rule 6: two lines at most; at phone width the count drops under the text. */
@@ -334,12 +363,7 @@
   white-space: nowrap;
 }
 
-.mission__agent-name {
-  flex: 1 1 8rem;
-}
-
 .mission__agent-engine {
-  flex: 0 1 8rem;
   font-size: var(--font-size-body-sm);
   color: var(--text-muted);
 }
