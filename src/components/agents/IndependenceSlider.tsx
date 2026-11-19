@@ -27,8 +27,14 @@ import {
   independenceDetail,
   independenceStep,
   independenceValueText,
+  UNLEASHED_WARNING_BODY,
+  UNLEASHED_WARNING_CANCEL,
+  UNLEASHED_WARNING_CONFIRM,
+  UNLEASHED_WARNING_TITLE,
   type AgentIndependence,
 } from '../../lib/agentIndependence';
+import { ModalFrame } from '../primitives/ModalFrame';
+import { Button } from '../primitives/Button';
 import { HOST_COMPUTER } from '../../lib/computer';
 
 const LAST = INDEPENDENCE_LEVELS.length - 1;
@@ -59,8 +65,12 @@ export function IndependenceSlider({
   const shown = dragging ?? value;
   const index = INDEPENDENCE_LEVELS.indexOf(shown);
 
+  // Moving onto Unleashed waits for a yes in a warning of its own.
+  const [warning, setWarning] = useState(false);
   const commit = (level: AgentIndependence) => {
-    if (!disabled && level !== value) onChange(level);
+    if (disabled || level === value) return;
+    if (level === 'full_send') setWarning(true);
+    else onChange(level);
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -162,6 +172,28 @@ export function IndependenceSlider({
         {independenceDetail(shown, HOST_COMPUTER)}
       </p>
       <p className="independence-slider__always">{INDEPENDENCE_ALWAYS_ASKS}</p>
+      <ModalFrame
+        isOpen={warning}
+        onClose={() => setWarning(false)}
+        title={UNLEASHED_WARNING_TITLE}
+        className="independence-slider__warning"
+      >
+        <p>{UNLEASHED_WARNING_BODY}</p>
+        <div className="independence-slider__warning-actions">
+          <Button variant="secondary" onClick={() => setWarning(false)}>
+            {UNLEASHED_WARNING_CANCEL}
+          </Button>
+          <Button
+            variant="strong"
+            onClick={() => {
+              setWarning(false);
+              onChange('full_send');
+            }}
+          >
+            {UNLEASHED_WARNING_CONFIRM}
+          </Button>
+        </div>
+      </ModalFrame>
     </div>
   );
 }

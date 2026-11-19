@@ -219,6 +219,18 @@ export const agentsPolicyScenarios: Scenario[] = [
     },
   },
   {
+    id: 'settings-agents-unleashed-warning',
+    title: 'Settings — the warning before Unleashed is turned on',
+    looksRightWhen:
+      'A small dialog titled “Turn on Unleashed?” over the Independence page: one paragraph saying Unleashed sends, posts, pushes, deletes and uses logins without a card and only asks before spending money, then two buttons, “Keep it as is” (outline) and “Turn on Unleashed” (neutral, never the accent).',
+    command: 'agents.independence',
+    requires: '[role="dialog"]',
+    afterCommand: [{ click: '.independence-slider__stop[data-level="full_send"]' }],
+    commands: {
+      agents_overview: { ...LEVELS_OVERVIEW, engines: ENGINES, defaults: DEFAULTS },
+    },
+  },
+  {
     id: 'agents-plan-card',
     title: 'Agents — “Do these under your name?”, one card for the whole plan',
     looksRightWhen:

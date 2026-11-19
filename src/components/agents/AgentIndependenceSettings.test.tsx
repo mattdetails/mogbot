@@ -86,6 +86,13 @@ describe('AgentIndependenceSettings', () => {
       fireEvent.keyDown(slider(), { key: 'End' });
       await Promise.resolve();
     });
+    // Unleashed waits for the warning's yes.
+    expect(setIndependence).toHaveBeenLastCalledWith('go_hard');
+    expect(screen.getByText('Turn on Unleashed?')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Turn on Unleashed' }));
+      await Promise.resolve();
+    });
     expect(setIndependence).toHaveBeenLastCalledWith('full_send');
     setIndependence.mockClear();
     store.value = { loaded: true, independence: 'often' };

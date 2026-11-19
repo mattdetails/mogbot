@@ -1207,3 +1207,15 @@ fn working_in_a_copy_never_stops_an_edit_at_go_hard() {
     ));
     super::super::store::set_root_for_tests(None);
 }
+
+/// The warning before Unleashed is one string on the desk, the phone and
+/// the Chief's settings card.
+#[test]
+fn the_unleashed_warning_is_worded_once() {
+    let ts = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../packages/companion-protocol/src/independence.ts"),
+    )
+    .unwrap();
+    assert!(ts.contains(card::UNLEASHED_WARNING));
+}

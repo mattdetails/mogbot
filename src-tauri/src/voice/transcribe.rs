@@ -181,10 +181,12 @@ pub fn transcribe_with(
     params.set_print_timestamps(false);
     // The names hint only for English: in another language it is what
     // pulled the words into English.
-    let prompt = if matches!(lang, Some("en") | None) {
-        hint(names)
-    } else {
-        String::new()
+    let prompt = match lang {
+        Some("en") | None => hint(names),
+        // Serbian is written in Latin letters in chat; Whisper defaults to
+        // Cyrillic. A line in Latin Serbian keeps it in the script people type.
+        Some("sr") => SERBIAN_LATIN.to_string(),
+        _ => String::new(),
     };
     if !prompt.is_empty() {
         params.set_initial_prompt(&prompt);
@@ -201,6 +203,9 @@ pub fn transcribe_with(
 
 /// The language spoken, from the audio alone (Whisper's own detection
 /// over the first 30 seconds). `None` when it couldn't tell.
+/// A Latin-script Serbian line: Whisper continues in the prompt's script.
+const SERBIAN_LATIN: &str = "Zdravo, evo poruke na srpskom, latinicom.";
+
 fn spoken_language(
     state: &mut whisper_rs::WhisperState,
     samples_16k: &[f32],

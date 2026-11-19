@@ -52,6 +52,11 @@ describe('AgentLevelPicker', () => {
       });
       await Promise.resolve();
     });
+    expect(setAgentIndependence).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Turn on Unleashed' }));
+      await Promise.resolve();
+    });
     expect(setAgentIndependence).toHaveBeenCalledWith('a1', 'full_send');
     expect(refreshAgents).toHaveBeenCalled();
   });

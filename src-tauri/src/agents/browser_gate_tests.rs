@@ -1446,3 +1446,27 @@ fn project_pictures_and_videos_upload_without_a_second_card() {
     let _ = std::fs::remove_file(&in_home);
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// Julian, 2026-11-18: at Unleashed, opening a LinkedIn post, a Slack
+/// message or a GitHub issue asked "goes out under your name". Links, tabs
+/// and rows open things; the send stays a button.
+#[test]
+fn opening_things_never_asks_but_the_send_button_still_does() {
+    for l in [
+        "link \"Post by Ada: shipping today\"",
+        "link \"Merge conflicts in settings\"",
+        "link \"Share\"",
+        "link \"Buy now\"",
+        "row \"Reply from Bradford\"",
+        "tab \"Comments\"",
+        "heading \"Order #1234\"",
+    ] {
+        for level in [Level::GoHard, Level::FullSend] {
+            assert!(final_submit(l, level).is_none(), "{l}");
+        }
+    }
+    assert!(final_submit("button \"Post\"", Level::GoHard).is_some());
+    assert!(final_submit("button \"Merge pull request\"", Level::GoHard).is_some());
+    assert!(final_submit("button \"Buy now\"", Level::FullSend).is_some());
+    assert!(final_submit("textbox \"Post\"", Level::GoHard).is_none());
+}
