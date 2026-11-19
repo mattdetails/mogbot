@@ -135,7 +135,7 @@ export function DraftCard({
           <View style={styles.actionsRow}>
             <Button
               title={editing ? 'Cancel edit' : 'Edit'}
-              variant="outline"
+              variant="ghost"
               size="compact"
               disabled={off}
               onPress={() => {
@@ -199,14 +199,8 @@ export function DraftCard({
           </ScrollView>
         )}
       </View>
-      {/* One line, as on the desk: shrunk a little to fit, never wrapped to two. */}
-      <T
-        variant="caption"
-        color={colors.textMuted}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.8}
-      >
+      {/* The line that says these exact words go out: whole, wrapping to a second line, never shrunk or cut. */}
+      <T variant="caption" color={colors.textMuted}>
         {`${draftFrom(draft, approval)}. ${DRAFT_NOTE}`}
       </T>
     </Card>
