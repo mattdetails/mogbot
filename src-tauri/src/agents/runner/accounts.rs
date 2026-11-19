@@ -424,10 +424,16 @@ pub(super) async fn run_on_engine(
             if QUITTING.load(Ordering::SeqCst) || super::tidy::is_quiet(agent_id) {
                 return result;
             }
-            let Some(next) = next_pickup(resumes) else {
+            let Some((next, wait)) = next_died_pickup(resumes) else {
                 set_cut_off(agent_id);
                 return Err(CommandError::expected(died_again_line(engine, detail)));
             };
+            if resumes > 0 {
+                tokio::time::sleep(wait).await;
+                if QUITTING.load(Ordering::SeqCst) {
+                    return result;
+                }
+            }
             resumes = next;
             picking_up = true;
             update_mark(agent_id, |m| m.resumes = next);

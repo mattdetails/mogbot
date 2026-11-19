@@ -499,5 +499,8 @@ fn a_card_that_spends_money_says_it_cant_be_always_allowed() {
 fn the_apps_own_confirmations_carry_no_note() {
     let c = super::super::mcp::new_card("x".into(), "Delete an agent".into(), String::new(), None);
     assert!(c.always.is_none() && c.always_note.is_none());
-    assert!(serde_json::to_value(&c).unwrap().get("alwaysNote").is_none());
+    assert!(serde_json::to_value(&c)
+        .unwrap()
+        .get("alwaysNote")
+        .is_none());
 }

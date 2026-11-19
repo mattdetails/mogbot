@@ -345,7 +345,10 @@ pub fn always_note(scope: Option<&Scope>, spends: bool, is_tool_call: bool) -> O
         RuleKind::Domain => format!("page it opens on {}", scope.value),
         RuleKind::AppReads => format!(
             "read of your {}",
-            scope.label.strip_prefix("reading your ").unwrap_or(&scope.label)
+            scope
+                .label
+                .strip_prefix("reading your ")
+                .unwrap_or(&scope.label)
         ),
         RuleKind::Tool if scope.value == "WebSearch" => "web search".to_string(),
         RuleKind::Tool => format!("“{}”", scope.label),
