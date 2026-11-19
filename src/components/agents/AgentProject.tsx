@@ -15,6 +15,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -74,10 +75,13 @@ export function AgentProjectsProvider({
       live = false;
     };
   }, []);
-  const value = useMemo(
-    () => ({ projects, openProject: onOpenProject }),
-    [projects, onOpenProject]
-  );
+  // The parent's callback is rebuilt as it re-renders; handed on as it is, the
+  // value changed with it and every chat reading this re-rendered (3 times in
+  // 10 s on other agents' status events, at 2,000 lines).
+  const latest = useRef(onOpenProject);
+  latest.current = onOpenProject;
+  const openProject = useCallback((path: string) => latest.current(path), []);
+  const value = useMemo(() => ({ projects, openProject }), [projects, openProject]);
   return <AgentProjectsContext.Provider value={value}>{children}</AgentProjectsContext.Provider>;
 }
 
