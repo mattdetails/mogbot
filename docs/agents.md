@@ -7754,6 +7754,40 @@ was overloaded.
   knows nothing of their work.
 - Not yet: the phone's view of the lists; the user adding a task by hand.
 
+## Missions (`agents/missions.rs`, `missions_run.rs`, `missions_judge.rs`)
+
+A goal with a contract and a share of the user's usage (Julian, 18 Nov 2026; like Replit Missions,
+but the budget is a share of the user's own engines, not dollars).
+
+- **Record.** `missions.json` beside the registry: goal, 2–5 criteria (count, reduce or check, each
+  with its own source), shares per engine, state (starting, running, paused at a share, paused,
+  blocked, ready, done, stopped), end date, asks first, updates, events, the agents on it and what
+  waits on the user. The Chief starts one with the `mission` tool only on the user's own yes in this
+  chat; agents' and outside text's say never starts, adds, stops or accepts one.
+- **Shares are "about".** A usage share is points of one engine account's weekly window as the engine
+  reported it (`inventory`, about every 10 minutes). What a mission has used is what that window rose
+  by since it started, carried across a refill (`missions::observe`); the first reading is only the
+  baseline. An engine with no reading shows "not read yet"; OpenCode's free models report none, so
+  they take a time cap. Nothing is estimated.
+- **Soft stop.** The scheduler tick (`missions_run::tick`) reads at most every 9 minutes while a
+  mission is live. At a share or the end date the mission pauses, an event is kept, and the Chief's
+  chat gets one card (Add 10% of X / Finish with the other engine / Stop here). A running turn is
+  never killed; the Chief's briefing says the mission is paused so it hands out no more. Adding more
+  is the user's call.
+- **The judge** (`missions_judge`). `mission judge` starts a sealed no-tools call (the same as
+  "Describe the agent you want") on an engine that did none of the work where there is one, given
+  only the criteria and the mission's recorded evidence, fenced as data. It answers Met / Not met /
+  Couldn't check per criterion (a skipped one is Couldn't check; an unreadable answer is an error,
+  never a pass). Where it differs from the agents' own record it is counted and said ("disagreed on
+  N"). The mission becomes ready for review; only the user accepts.
+- **Desk.** What's in flight lists open missions; the page (`MissionPage`) is built to Designer's
+  rules in `lib/missions.ts` (hero tick/bar/down/criteria, share rows, asks strip, banners, +N more,
+  status overrides, bottom note), tested against the eight cases; harness `mission-<case>` and
+  `mission-<case>-phone`.
+- **Not built:** a setup screen and Save for later (the Chief's card starts it), "Paused while your
+  Mac sleeps", a Reconnect action on a blocked mission, the phone's views, a forecast for "Day N of
+  about M".
+
 ## Known limits / next
 
 - Three engines: Claude Code, Codex and OpenCode (see "Engines"). Another

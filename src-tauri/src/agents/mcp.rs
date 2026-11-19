@@ -3268,6 +3268,17 @@ pub(super) fn read_wait(
 /// stop, pause, resume, accept) only on their own message in this chat.
 fn mission_tool(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value {
     let action = arg(args, "action").unwrap_or("");
+    if action == "judge" {
+        let Some(id) = arg(args, "id").map(str::to_string) else {
+            return error("`id` is required (from `list`).");
+        };
+        if super::missions::get(&id).is_none() {
+            return error(format!("No mission {id}."));
+        }
+        let app = app.clone();
+        tauri::async_runtime::spawn(super::missions_judge::judge(app, id));
+        return text("Started the independent check on another engine where there is one. Its result lands on the mission page and in your chat; don't wait for it.");
+    }
     let user = !runner::from_outside(&caller.id) && runner::users_own_ask(&caller.id);
     match super::missions_run::act(action, args, user, store::now_ms()) {
         Ok(t) => {

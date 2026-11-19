@@ -23,13 +23,13 @@ pub const EVENT: &str = "agents-missions-changed";
 /// Readings are taken at most this often.
 const READ_EVERY_MS: i64 = 9 * 60_000;
 
-pub const DESCRIPTION: &str = "Missions: a goal with a contract and a share of the user's usage. After a short talk with the user (the goal; two to five checkable criteria, \"What counts as done\"; a share of each engine's week, always \"about\"; what asks first; how often to update) show one agreement card, and on their yes call `start`. Then record what you're told: `progress` (a criterion's `value`, `status`, `source` like \"Native OS · read 11:02 pm\"), `event` (one sentence, which agent), `summary` (where it stands, one sentence), `agent` (who is on it: `agent`, `engine`, `status`), `ask`/`ask_done` (what waits on the user: `text`, `what`), `blocked`/`unblocked`. When the criteria look met, get a separate check on another engine and record it with `judged` (`checked_by`, one verdict per criterion: met, not_met or couldnt_check) so the user can review; never mark it done yourself. `add_more`, `stop`, `pause`, `resume` and `accept` are the user's calls, made in their own message. The app pauses a mission at about its share; running work is never killed. Money is never spent.";
+pub const DESCRIPTION: &str = "Missions: a goal with a contract and a share of the user's usage. After a short talk with the user (the goal; two to five checkable criteria, \"What counts as done\"; a share of each engine's week, always \"about\"; what asks first; how often to update) show one agreement card, and on their yes call `start`. Then record what you're told: `progress` (a criterion's `value`, `status`, `source` like \"Native OS · read 11:02 pm\"), `event` (one sentence, which agent), `summary` (where it stands, one sentence), `agent` (who is on it: `agent`, `engine`, `status`), `ask`/`ask_done` (what waits on the user: `text`, `what`), `blocked`/`unblocked`. When the criteria look met, call `judge`: the app runs a separate sealed check on another engine and puts the verdicts on the page for the user to review (or record your own check with `judged`); never mark it done yourself. `add_more`, `stop`, `pause`, `resume` and `accept` are the user's calls, made in their own message. The app pauses a mission at about its share; running work is never killed. Money is never spent.";
 
 pub fn schema() -> Value {
     json!({
         "type": "object",
         "properties": {
-            "action": { "type": "string", "enum": ["list", "start", "progress", "event", "summary", "agent", "ask", "ask_done", "blocked", "unblocked", "judged", "add_more", "stop", "pause", "resume", "accept"] },
+            "action": { "type": "string", "enum": ["list", "start", "judge", "progress", "event", "summary", "agent", "ask", "ask_done", "blocked", "unblocked", "judged", "add_more", "stop", "pause", "resume", "accept"] },
             "id": { "type": "string", "description": "The mission's id." },
             "goal": { "type": "string" },
             "criteria": { "type": "array", "items": { "type": "object", "properties": {
@@ -140,8 +140,15 @@ pub fn from_args(args: &Value, now: i64) -> Result<Mission, String> {
         let engine = engine_of(s(sh, "engine").ok_or("Each share needs an `engine`.")?)?;
         match (n(sh, "percent"), n(sh, "hours")) {
             (Some(p), _) => shares.push(Share::usage(engine, p)),
-            (None, Some(h)) if h > 0.0 => shares.push(Share::time(engine, (h * 3_600_000.0) as i64)),
-            _ => return Err(format!("{}'s share needs `percent` (of its week) or `hours`.", engine.label())),
+            (None, Some(h)) if h > 0.0 => {
+                shares.push(Share::time(engine, (h * 3_600_000.0) as i64))
+            }
+            _ => {
+                return Err(format!(
+                    "{}'s share needs `percent` (of its week) or `hours`.",
+                    engine.label()
+                ))
+            }
         }
     }
     check(goal, &criteria, &shares)?;
@@ -150,12 +157,22 @@ pub fn from_args(args: &Value, now: i64) -> Result<Mission, String> {
     m.asks_first = args
         .get("asks_first")
         .and_then(Value::as_array)
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
     if let Some(u) = args.get("updates") {
         m.updates = Updates {
-            when_blocked: u.get("when_blocked").and_then(Value::as_bool).unwrap_or(true),
-            each_milestone: u.get("each_milestone").and_then(Value::as_bool).unwrap_or(false),
+            when_blocked: u
+                .get("when_blocked")
+                .and_then(Value::as_bool)
+                .unwrap_or(true),
+            each_milestone: u
+                .get("each_milestone")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
             daily_at: s(u, "daily_at").and_then(clock),
         };
     } else {
@@ -192,7 +209,9 @@ pub fn progress(m: &Mission, args: &Value) -> Result<Mission, String> {
         }
     }
     if let Some(w) = s(args, "status") {
-        c.status = status_of(w).ok_or("`status` is not_started, in_progress, met, holding, couldnt_check or not_met.")?;
+        c.status = status_of(w).ok_or(
+            "`status` is not_started, in_progress, met, holding, couldnt_check or not_met.",
+        )?;
     } else if c.is_met() && c.value.is_some() {
         c.status = Status::Met;
     }
@@ -210,9 +229,16 @@ pub fn progress(m: &Mission, args: &Value) -> Result<Mission, String> {
 
 /// The judge's verdicts from the tool's arguments. Pure.
 pub fn verdicts_from(args: &Value) -> Result<(Engine, Vec<Verdict>), String> {
-    let by = engine_of(s(args, "checked_by").ok_or("`checked_by` is required: the engine that checked.")?)?;
+    let by = engine_of(
+        s(args, "checked_by").ok_or("`checked_by` is required: the engine that checked.")?,
+    )?;
     let mut out = Vec::new();
-    for v in args.get("verdicts").and_then(Value::as_array).into_iter().flatten() {
+    for v in args
+        .get("verdicts")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         let result = match s(v, "result") {
             Some("met") => Met::Met,
             Some("not_met") => Met::NotMet,
@@ -220,7 +246,9 @@ pub fn verdicts_from(args: &Value) -> Result<(Engine, Vec<Verdict>), String> {
             _ => return Err("A verdict's `result` is met, not_met or couldnt_check.".into()),
         };
         out.push(Verdict {
-            criterion: s(v, "criterion").ok_or("A verdict needs its `criterion`.")?.to_string(),
+            criterion: s(v, "criterion")
+                .ok_or("A verdict needs its `criterion`.")?
+                .to_string(),
             result,
             evidence: s(v, "evidence").map(str::to_string),
         });
@@ -247,7 +275,11 @@ pub fn readings_from(
                     .iter()
                     .find(|a| a.engine == share.engine && a.signed_in && a.next)
             })
-            .or_else(|| accounts.iter().find(|a| a.engine == share.engine && a.signed_in));
+            .or_else(|| {
+                accounts
+                    .iter()
+                    .find(|a| a.engine == share.engine && a.signed_in)
+            });
         let Some(line) = line else { continue };
         let Some(w) = line
             .windows
@@ -275,11 +307,15 @@ pub fn readings_from(
 pub fn pause_blocks(m: &Mission, text: &str) -> Option<Value> {
     let mut options = Vec::new();
     if let Some(e) = m.paused_by {
-        options.push(json!({ "label": format!("Add {ADD_POINTS}% of {}", e.label()),
-            "reply": format!("Add {ADD_POINTS}% of {} to mission {}.", e.label(), m.id) }));
+        options.push(
+            json!({ "label": format!("Add {ADD_POINTS}% of {}", e.label()),
+            "reply": format!("Add {ADD_POINTS}% of {} to mission {}.", e.label(), m.id) }),
+        );
         if let Some(other) = m.shares.iter().find(|x| x.engine != e && !x.over()) {
-            options.push(json!({ "label": format!("Finish with {}", other.engine.label()),
-                "reply": format!("Finish mission {} with {} only.", m.id, other.engine.label()) }));
+            options.push(
+                json!({ "label": format!("Finish with {}", other.engine.label()),
+                "reply": format!("Finish mission {} with {} only.", m.id, other.engine.label()) }),
+            );
         }
     } else {
         options.push(json!({ "label": "Add more time", "reply": format!("Add more time to mission {}.", m.id) }));
@@ -324,7 +360,11 @@ pub fn act(action: &str, args: &Value, user: bool, now: i64) -> Result<String, S
     if action == "start" {
         let m = from_args(args, now)?;
         let id = m.id.clone();
-        let criteria: Vec<String> = m.criteria.iter().map(|c| format!("{} = {}", c.id, c.text)).collect();
+        let criteria: Vec<String> = m
+            .criteria
+            .iter()
+            .map(|c| format!("{} = {}", c.id, c.text))
+            .collect();
         put(m).map_err(|e| e.to_string())?;
         return Ok(format!(
             "Started mission {id}. Criteria: {}. Split the work between your agents and report progress with `progress` and `event`; tell the user in a line.",
@@ -451,14 +491,19 @@ pub fn tick(app: &tauri::AppHandle) {
         let now = store::now_ms();
         let live: Vec<Mission> = list().into_iter().filter(|m| m.state.is_live()).collect();
         for m in live {
-            let (next, change) = super::missions::tick(&m, &readings_from(&inv.accounts, &m.shares), now);
+            let (next, change) =
+                super::missions::tick(&m, &readings_from(&inv.accounts, &m.shares), now);
             let mut next = next;
             if let Change::PausedAtCap(e) = change {
                 let text = pause_text(&next, e);
                 next.push_event("Mission", &text, now);
                 if let Ok(chief) = store::list().map(|a| a.into_iter().find(|x| x.is_main)) {
                     if let Some(chief) = chief {
-                        let mut msg = super::runner::new_message(&chief.id, store::MessageKind::Agent, text.clone());
+                        let mut msg = super::runner::new_message(
+                            &chief.id,
+                            store::MessageKind::Agent,
+                            text.clone(),
+                        );
                         msg.blocks = pause_blocks(&next, &text);
                         let _ = super::runner::record(&app, msg);
                     }
