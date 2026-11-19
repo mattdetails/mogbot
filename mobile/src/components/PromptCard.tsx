@@ -8,6 +8,7 @@
  * chat it sits in. Inert for a beat after it lands, like every card.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import type { Agent, AgentMessage, Approval, SessionPrompt } from '@shipstudio/companion-protocol';
 import { useState } from 'react';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -56,7 +57,7 @@ export function PromptCard({
   const fit = useFitDetail(pending, message.id);
   const compact = useShortPane();
   const armed = useArmed(pending, `${compact}:${fit.pinned}`);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const off = busy !== null || !connected;
   const once = useInFlight();
 

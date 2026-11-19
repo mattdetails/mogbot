@@ -24,6 +24,7 @@
  * since it can't create agents for a phone.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import {
@@ -77,7 +78,7 @@ export default function NewAgent() {
   const agents = useApp((s) => s.overview?.agents);
   const engines = useApp((s) => s.overview?.engines);
   const defaults = useApp((s) => s.overview?.defaults ?? null);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
   const canCreate = useApp((s) => canCall('agents.create', s.welcome));
   // The Mac's last answer while it's away; they're fetched once it's back.

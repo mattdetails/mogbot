@@ -4,6 +4,7 @@
  * on what you type here; once the tab exists, you're watching it.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, TextInput } from 'react-native';
@@ -26,7 +27,7 @@ export default function Start() {
   const accent = useAccent();
   const { project, name } = useLocalSearchParams<{ project: string; name: string }>();
   const router = useRouter();
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);

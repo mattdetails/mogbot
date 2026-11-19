@@ -17,6 +17,7 @@
  * Opened from Settings → Logins and from an agent's controls (`agentId`).
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import type { AppConnectFlow, AppConnection, ConnectableApp } from '@shipstudio/companion-protocol';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -66,7 +67,7 @@ export default function Apps() {
   const colors = useColors();
   const styles = useStyles();
   const { agentId } = useLocalSearchParams<{ agentId?: string }>();
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   const agents = useApp((s) => s.overview?.agents);
   const team = useMemo(
     () => (agents ?? []).map((a) => ({ id: a.id, name: a.name, isMain: a.isMain })),

@@ -8,6 +8,7 @@
  * (`MessageRow`), cards and all, answered on behalf of the agent that asked.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   type Agent,
   type AgentMessage,
@@ -126,7 +127,7 @@ function RoomChat({ id }: { id: string }) {
   const agents = useApp((s) => s.overview?.agents ?? NONE);
   const chat = useApp((s) => s.chats[key]);
   const pending = useApp((s) => s.pending[key] ?? NONE);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
   const members = useMemo(() => (room ? membersOf(room, agents) : NONE), [room, agents]);
   const drafts = useApp(
@@ -353,7 +354,7 @@ function RoomHeader({
 }) {
   const colors = useColors();
   const styles = useStyles();
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const line =
     working.length > 0 && connected
       ? working.length === 1

@@ -9,6 +9,7 @@
  * screen (iPad, or a big phone in landscape) the chat opens beside the list.
  */
 
+import { useLinkLive } from '../../../lib/linkLive';
 import { shareStructure } from '../../../lib/structure';
 import { type Agent, type RoomView } from '@shipstudio/companion-protocol';
 import { Stack, useRouter } from 'expo-router';
@@ -121,7 +122,7 @@ export default function Agents() {
   const split = width >= SPLIT_AT && height >= SPLIT_MIN_HEIGHT;
   const overview = useApp((s) => s.overview);
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   const removed = useApp(
     (s) =>
       s.link.kind === 'refused' && (s.link.reason === 'revoked' || s.link.reason === 'unauthorized')

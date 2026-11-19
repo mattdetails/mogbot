@@ -15,6 +15,7 @@
  * requests need the Mac's workspace, so they stay there.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import { holdsCopy } from '@shipstudio/companion-protocol';
 import type { Agent, CopyRef, KeptCopy, LeftOut } from '@shipstudio/companion-protocol';
 import { useState, type ReactNode } from 'react';
@@ -125,7 +126,7 @@ export function useCopyParts(props: CopyProps | null): CopyParts | null {
   const colors = useColors();
   // The Mac's last answer while it's away: offline, Keep / Discard stay, disabled.
   const served = useServed('agents.keepCopy');
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const projectPath = props?.project ?? '';
   const project = useApp(
     (s) => s.projects?.find((p) => p.path === projectPath)?.name ?? folderName(projectPath)

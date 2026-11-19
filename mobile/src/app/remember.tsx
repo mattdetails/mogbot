@@ -4,6 +4,7 @@
  * before it goes into the agent's memory. The desk's Remember modal.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
@@ -30,7 +31,7 @@ function Remember() {
   const router = useRouter();
   const name = useApp((s) => s.overview?.agents.find((a) => a.id === id)?.name ?? 'This agent');
   const source = useApp((s) => s.chats[id]?.messages.find((m) => m.id === messageId)?.text ?? '');
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const [text, setText] = useState('');
   const [summarising, setSummarising] = useState(() => !!source);
   const [busy, setBusy] = useState(false);

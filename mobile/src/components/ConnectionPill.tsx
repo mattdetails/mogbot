@@ -12,8 +12,18 @@ import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanim
 import { useShallow } from 'zustand/react/shallow';
 import type { LinkState } from '@shipstudio/companion-protocol';
 import { announce } from '../lib/a11y';
-import { CALM_MS, linkBar, pill, problemBody, type LinkBar } from '../lib/connection';
+import {
+  CALM_MS,
+  QUIET_MS,
+  failureDue,
+  linkBar,
+  pill,
+  problemBody,
+  shownBar,
+  type LinkBar,
+} from '../lib/connection';
 import { haptic } from '../lib/haptics';
+import { useFirstDown } from '../lib/linkLive';
 import { retryNow } from '../lib/session';
 import { useApp } from '../lib/store';
 import { useNow } from '../lib/moving';
@@ -69,18 +79,10 @@ export function useLinkState() {
 export function useLinkBar(): { bar: LinkBar | null; back: boolean } {
   const state = useLinkState();
   const now = useLinkNow(state.link, 10_000);
-  const bar = linkBar(state, now);
-  const down = !!bar;
-  const [late, setLate] = useState(false);
-  useEffect(() => {
-    if (!down) return;
-    const timer = setTimeout(() => setLate(true), BANNER_GRACE_MS);
-    return () => {
-      clearTimeout(timer);
-      setLate(false);
-    };
-  }, [down]);
-  const shown = bar && (late || bar.tone === 'problem') ? bar : null;
+  // A drop is silent until it has gone on QUIET_MS without a break: the
+  // phone reconnects in the background and the screens keep their data.
+  const firstSeen = useFirstDown(state.link.kind !== 'connected' || linkBar(state, now) != null);
+  const shown = shownBar(state, now, firstSeen);
   // `accessibilityLiveRegion` is Android's only: VoiceOver is told when a
   // bar appears or its verdict changes (not each "2 min ago" tick), once
   // across the tabs that show it.
@@ -99,7 +101,7 @@ export function useLinkBar(): { bar: LinkBar | null; back: boolean } {
   // "Back in touch": only after a bar was actually on screen, and only on a real return.
   const wasShown = useRef(false);
   const [back, setBack] = useState(false);
-  const connected = state.link.kind === 'connected' && !bar;
+  const connected = state.link.kind === 'connected' && !shown;
   useEffect(() => {
     if (shown) {
       wasShown.current = true;
@@ -250,8 +252,10 @@ export function LinkProblem({ what, macName }: { what: string; macName: string }
   const now = useLinkNow(state.link);
   const p = pill(state, now);
   const bar = linkBar(state, now);
-  // The bar may know more than the pill (the app on the Mac seen stuck): same verdict here.
-  if (p.tone !== 'problem' && bar?.tone !== 'problem') {
+  const first = useFirstDown(state.link.kind !== 'connected');
+  // Nothing says "problem" until the drop has gone on QUIET_MS (a refusal at once).
+  const due = failureDue(state.link, Math.max(now, Date.now()), first);
+  if (!due || (p.tone !== 'problem' && bar?.tone !== 'problem')) {
     return (
       <View style={styles.connecting}>
         <Spinner />
@@ -285,11 +289,10 @@ export function LinkProblem({ what, macName }: { what: string; macName: string }
 }
 
 /**
- * How long a link may be down before the chat's bar says so
- * (`ConversationBars`), unless it's plainly a problem: coming back to the app reconnects in about a second, and an amber
- * "Connecting…" flashing on every return said something was wrong when it wasn't.
+ * How long a link may be down, continuously, before any bar says so: a drop
+ * of a few seconds or minutes is silent (`QUIET_MS`).
  */
-export const BANNER_GRACE_MS = 2000;
+export const BANNER_GRACE_MS = QUIET_MS;
 
 const useStyles = makeStyles((colors) => ({
   connecting: { flexDirection: 'row', alignItems: 'center', gap: space.sm },

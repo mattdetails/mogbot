@@ -12,6 +12,7 @@
  * inert for a beat after each card lands, as in the chat.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import type { Agent, Approval } from '@shipstudio/companion-protocol';
 import { previewText } from '@shipstudio/companion-protocol';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -96,7 +97,7 @@ export default function CatchUp() {
   const overview = useApp((s) => s.overview);
   const chats = useApp((s) => s.chats);
   const setup = useApp((s) => s.teamSetup);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const reviewHere = canCall('agents.import.review');
 
   // Every chat a card will need, loaded once before the queue starts, so

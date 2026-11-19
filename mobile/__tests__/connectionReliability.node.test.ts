@@ -17,6 +17,8 @@ import {
   PROBE_MS,
   WireFailure,
   connectTimeoutMs,
+  MAX_TRY_MS,
+  welcomeBudgetMs,
   probeWaitMs,
   tryBudgetMs,
 } from '../src/lib/transport';
@@ -148,14 +150,18 @@ describe('a slow link (seconds of latency)', () => {
     t.close();
   });
 
-  it('a route that never opens is still given up, and never waits past a minute', () => {
+  it('a route that never opens is still given up, and never waits past 12 s', () => {
     const { t } = make();
     tick(connectTimeoutMs(0));
     tick(FOREGROUND_BACKOFF_MS[0]);
     // The first try, the second beside it, then the retry.
     expect(FakeSocket.all).toHaveLength(3);
     expect(FakeSocket.all.filter((s) => s.readyState !== 3)).toHaveLength(1);
-    expect(tryBudgetMs(0, 10 * 60_000)).toBe(60_000);
+    expect(tryBudgetMs(0, 10 * 60_000)).toBe(MAX_TRY_MS);
+    // Once open, a silent Mac fails the try in about 6 s on a fast link (the relay's hang); no wait passes 8 s.
+    expect(welcomeBudgetMs(0, 700)).toBe(6000);
+    expect(welcomeBudgetMs(0, 4000)).toBe(12_000);
+    expect(Math.max(...BACKGROUND_BACKOFF_MS, ...FOREGROUND_BACKOFF_MS)).toBeLessThanOrEqual(8000);
     t.close();
   });
 
@@ -247,13 +253,13 @@ describe('the Mac answers and turns the phone away for a while', () => {
 });
 
 describe('hours in the background', () => {
-  it('backs off to a minute while away, then tries at once and at the quick pace when opened', () => {
+  it('backs off to 8 s while away, then tries at once and at the quick pace when opened', () => {
     const { t } = make(false);
     last().open();
     last().prove();
     last().welcome();
     last().drop();
-    // Hours of an unreachable Mac in the background: the waits grow to a minute.
+    // Hours of an unreachable Mac in the background: the waits grow to 8 s.
     for (const wait of BACKGROUND_BACKOFF_MS) {
       tick(wait);
       last().drop();

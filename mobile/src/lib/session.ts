@@ -66,6 +66,7 @@ import { forgetRemembered } from './remembered';
 import { flushDrafts, forgetDrafts, loadDrafts, refusedToDraft, setComposer } from './drafts';
 import { interruptStillMeant, outboxPlan, retryWaitMs, sendInOrder, unreached } from './outbox';
 import { loadPrefs } from './prefs';
+import { QUIET_MS } from './connection';
 import { getApp, setApp, update, useApp } from './store';
 import {
   addPending,
@@ -312,9 +313,44 @@ let readsFor: string | null = null;
 
 export function call<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>> {
   if (!transport) return Promise.reject(new Error('Not paired'));
-  return reads.call(method, params, () => {
-    if (!transport) return Promise.reject(new Error('Not paired'));
-    return transport.request(method, params);
+  const go = () =>
+    reads.call(method, params, () => {
+      if (!transport) return Promise.reject(new Error('Not paired'));
+      return transport.request(method, params);
+    });
+  // A change asked for during a drop waits for the link (a card's answer, a
+  // stop, a toggle) and goes when it's back, so a short drop shows nothing;
+  // past QUIET_MS the bar speaks and the ask fails as before. Reads wait the
+  // same way, so a screen that asks during a drop gets its answer, not an error.
+  if (getApp().link.kind !== 'connected' && getApp().link.kind !== 'refused') {
+    return untilConnected(QUIET_MS).then(go);
+  }
+  return go();
+}
+
+/** Resolves when the link is up; rejects "not connected" after `ms`, or when the Mac refuses this phone. */
+function untilConnected(ms: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const fail = () =>
+      reject(
+        new WireFailure({
+          type: 'Protocol',
+          code: 'not_connected',
+          message: `Not connected to ${pairedComputer().your} right now.`,
+        })
+      );
+    const check = () => {
+      const kind = getApp().link.kind;
+      if (kind === 'connected') return done(resolve);
+      if (kind === 'refused') return done(fail);
+    };
+    const timer = setTimeout(() => done(fail), ms);
+    const off = useApp.subscribe(check);
+    function done(f: () => void) {
+      clearTimeout(timer);
+      off();
+      f();
+    }
   });
 }
 

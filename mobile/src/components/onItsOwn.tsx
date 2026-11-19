@@ -8,6 +8,7 @@
  * Nothing here gives: more is always a card in the chat.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   ON_ITS_OWN_ALWAYS_ASKS,
   ON_ITS_OWN_FOOT,
@@ -101,7 +102,7 @@ export function OnItsOwnList({ agentId }: { agentId: string }) {
   const styles = useStyles();
   const served = useServed('agents.onItsOwn');
   const canNarrow = useServed('agents.onItsOwnNarrow');
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   // The registry changes when a rule, admin or browser does: read it again then.
   const stamp = useApp((s) => s.overview?.agents.find((a) => a.id === agentId));
   const [view, setView] = useRemembered<OnItsOwn>(`onItsOwn:${agentId}`);
@@ -206,7 +207,7 @@ export function OnItsOwnTeamList() {
   const styles = useStyles();
   const served = useServed('agents.onItsOwnTeam');
   const canNarrow = useServed('agents.onItsOwnNarrow');
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   const chief = useApp((s) => s.overview?.agents.find((a) => a.isMain)?.id);
   const agents = useApp((s) => s.overview?.agents);
   const [team, setTeam] = useRemembered<OnItsOwnTeam>('onItsOwn:team');

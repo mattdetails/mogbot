@@ -6,6 +6,7 @@
  * rather than the wrong one changed.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   groupMemory,
   undoDelete,
@@ -44,7 +45,7 @@ function Memory() {
   const accent = useAccent();
   const { id } = useLocalSearchParams<{ id: string }>();
   const name = useApp((s) => s.overview?.agents.find((a) => a.id === id)?.name ?? 'This agent');
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const [entries, setEntries] = useRemembered<MemoryEntry[]>(`memory:${id}`);
   const [fresh, setFresh] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);

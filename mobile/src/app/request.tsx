@@ -10,6 +10,7 @@
  * chat. Answered elsewhere while you read: it says so, and the answers go.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   keyAccessibleName,
   type Agent,
@@ -59,7 +60,7 @@ export default function Request() {
   const agent = useApp((s) => s.overview?.agents.find((a) => a.id === agentId));
   const messages = useApp((s) => s.chats[agentId]?.messages);
   const card = messages?.find((m) => m.id === messageId);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const [looked, setLooked] = useState(false);
 
   // Opened from a notification, the chat may not be here yet.
@@ -127,7 +128,7 @@ function Shown({
   const styles = useStyles();
   const colors = useColors();
   const router = useRouter();
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const approval = card?.approval;
   const item: CatchItem = {
     key: card?.id ?? '',

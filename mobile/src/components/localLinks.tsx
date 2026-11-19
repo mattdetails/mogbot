@@ -6,6 +6,7 @@
  * and anything else is a plain chip saying where it runs.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import { MAC_FEATURES, type LocalLink } from '@shipstudio/companion-protocol';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -13,7 +14,7 @@ import { haptic } from '../lib/haptics';
 import { makeStyles, useColors } from '../lib/appearance';
 import { openHere } from '../lib/logins';
 import { describeError, watchLive } from '../lib/session';
-import { useApp, useServed } from '../lib/store';
+import { useServed } from '../lib/store';
 import { iconSize, radius, space } from '../lib/theme';
 import { TextAction } from './surfaces';
 import { Icon, T } from './ui';
@@ -49,7 +50,7 @@ function Chip({
   const comp = useComputer();
   const colors = useColors();
   const styles = useStyles();
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const [opening, setOpening] = useState(false);
   const where = localWhere(link);
   const watchable = canWatch && !!link.path;

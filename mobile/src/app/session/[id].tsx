@@ -6,6 +6,7 @@
  * only, never typing into a tab that's showing a question).
  */
 
+import { useLinkLive } from '../../lib/linkLive';
 import type { SessionScreen, SessionSent } from '@shipstudio/companion-protocol';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -79,7 +80,7 @@ export default function Session() {
   // The raw terminal is one tap away. It opens by itself when the reading may
   // be missing something (`terminalFirst`); a tap then decides.
   const [terminalChoice, setTerminalChoice] = useState<boolean | null>(null);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const canAnswer = useApp((s) => canCall('sessions.key', s.welcome));
   // The project's path, from the list when we came from a chat's session card.
   const projectPath = useApp(

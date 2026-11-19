@@ -8,6 +8,7 @@
  * (`embedded`), where it draws its own header instead of the stack's.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   FIRST_CONVERSATION,
   forkConfirm,
@@ -264,6 +265,8 @@ export function ChatView({
   const draft = elsewhere ? undefined : liveDraft;
   const pending = useApp((s) => s.pending[id] ?? NONE);
   const connected = useApp((s) => s.link.kind === 'connected');
+  // What the screen shows and enables: a short drop changes nothing here.
+  const live = useLinkLive();
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
   const list = useRef<FlatList<Item>>(null);
   // Following the newest line, or let go to read back (lib/follow.ts).
@@ -716,7 +719,7 @@ export function ChatView({
     return (
       <View style={styles.center}>
         {!embedded && <Stack.Screen options={{ title: 'Conversation' }} />}
-        {connected ? <Spinner /> : <LinkProblem what="Your conversations" macName={macName} />}
+        {live ? <Spinner /> : <LinkProblem what="Your conversations" macName={macName} />}
       </View>
     );
   }
@@ -921,7 +924,7 @@ export function ChatView({
                   ListEmptyComponent={
                     chat?.loaded ? undefined : (
                       <View style={[styles.start, { transform: [{ scaleY: -1 }] }]}>
-                        {connected ? (
+                        {live ? (
                           <Spinner />
                         ) : (
                           // Nothing saved for this chat and the Mac away: why, and what to do.
@@ -1017,7 +1020,7 @@ export function ChatView({
         <Composer
           agent={agent}
           autoFocus={compose}
-          connected={connected}
+          connected={live}
           macName={macName}
           onError={showError}
           onHeight={setComposerHeight}

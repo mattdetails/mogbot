@@ -12,6 +12,7 @@
  * after each tap and on every registry event; nothing here decides a step.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import type { TeamSetupStep, TeamSetupStepId, TeamSetupView } from '@shipstudio/companion-protocol';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -64,7 +65,7 @@ export function TeamSetupCard({
   onError: (text: string) => void;
 }) {
   const view = useApp((s) => s.teamSetup);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   if (!shows(view)) return null;
   return <TeamSetup view={view} chief={chief} connected={connected} onError={onError} />;
 }

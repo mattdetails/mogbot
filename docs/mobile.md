@@ -106,8 +106,10 @@ another device's blob or a path outside the agent's `attachments/` is a bare
 a dead link, which catches sleep and Wi-Fi handoffs faster than TCP.
 
 **Reconnecting** (`lib/transport.ts`): with the app in front the phone waits
-1, 2, 4, then at most 5 s between tries (in the background 2 s up to 60 s, to
-spare the battery). A socket not open within 16–28 s is given up and the next
+1, 2, 4, then at most 5 s between tries (in the background 1, 2, 4, then 8 s). A socket
+open but with no welcome from the Mac in about 6 s (`welcomeBudgetMs`; longer on a slow
+link, three round trips of the open) is given up and tried again: over the relay a
+Mac whose link had just dropped no longer hangs a connect for a minute. A socket not open within 16–28 s is given up and the next
 route tried (a route that drops packets, like a home address from cellular,
 otherwise hangs for the OS's own minute); once it opens, the rest of the
 handshake gets at least three times what opening took, and the next try twice
@@ -1487,11 +1489,20 @@ has its own card, keeps "as of" there), no toast for a refresh that failed
 because of it, and a pull's "Couldn't reach your Mac" line stays folded while
 the bar shows. What's listed under it stays readable.
 
+**Short drops are silent** (`QUIET_MS`, 3 minutes, `lib/connection.ts`). Nothing
+is shown for a drop until it has failed continuously that long: no bar, no
+"Back in touch", no spinner in place of a list, no greyed buttons or "Answer it once
+your Mac is back" on cards (`useLinkLive`, `lib/linkLive.ts`). The phone reconnects in the
+background, screens keep their last data, sends wait in the outbox and every
+other request waits for the link (`session.call`, up to `QUIET_MS`). A refusal that needs
+the person (not paired any more, "This isn't your Mac") has its own card at once.
+The words below are what the bar says once that time is up.
+
 What it says, in order: this phone offline; the Mac's app said it was closing
 ("Waiting for the app on your Mac", up to 2 minutes); the first 15 s of
 trying (counted again from when the app comes forward), and a reconnect
 under 2 minutes old, read "Reconnecting to your Mac…" (`CALM_MS`), held back
-for the first 2 s; past that, **"The app on your Mac isn't responding"** when
+until `QUIET_MS`; past that, **"The app on your Mac isn't responding"** when
 the phone saw something at the Mac's address take the connection but the
 app not answer (a request that timed out while the Mac's heartbeat still
 came, `connected.stuck`; or a socket that opened and stayed silent,
@@ -1503,7 +1514,7 @@ then nothing. When the Mac answered and turned the phone away for a reason
 that passes (`macSaid`), the bar says that at once, with its one fix: "Tailscale
 on this phone is on another account" (switch it back), "Your Mac can't open
 its Keychain right now" (log in on the Mac), "Your Mac has too many
-connections open". `pnpm qa:web --phases link-down` captures each of these
+connections open". `pnpm qa:web --phases quiet-drops` captures a 20 s and a 90 s drop (nothing shown) and a 4-minute one (the bar); `pnpm qa:web --phases link-down` captures each of these (its shots now need the clock moved on past `QUIET_MS`)
 (`--hung` makes the mock take sockets and say nothing).
 
 ### Offline cache and outbox

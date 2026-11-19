@@ -11,6 +11,7 @@
  * it is one. ↻ reads it all again.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   ADD_ACCOUNT_WHY,
   awayLine,
@@ -49,7 +50,7 @@ export default function Usage() {
   const styles = useStyles();
   const colors = useColors();
   const agent = useApp((s) => s.overview?.agents.find((a) => a.id === id));
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const { quotas, now, read: readQuotas } = useQuotas();
   const servesPlan = canCall('agents.usagePlan');
   // Opens on the last reading from any screen, never an empty or half-read

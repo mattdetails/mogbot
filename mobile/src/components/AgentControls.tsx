@@ -24,6 +24,7 @@
  * they're shown, dimmed, with why.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   AGENT_INDEPENDENCE_TITLE,
   independenceDetail,
@@ -73,7 +74,7 @@ export function AgentControls({ agentId }: { agentId: string }) {
   const engines = useApp((s) => s.overview?.engines);
   const servesApps = useServed('agents.apps');
   const team = useApp((s) => s.overview?.independence ?? null);
-  const live = useApp((s) => s.link.kind === 'connected');
+  const live = useLinkLive();
   const welcome = useApp((s) => s.welcome);
   const switches = useServed('agents.update', MAC_FEATURES.engine);
   const efforts = useServed('agents.update', MAC_FEATURES.effort);

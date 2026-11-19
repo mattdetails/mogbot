@@ -5,6 +5,7 @@
  * removed) and moves it when its name changes.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
@@ -15,7 +16,6 @@ import { Button, T, SheetPage } from '../components/ui';
 import { SheetTitle } from '../components/SheetTitle';
 import { haptic } from '../lib/haptics';
 import { call, describeError } from '../lib/session';
-import { useApp } from '../lib/store';
 import { useAccent } from '../lib/accent';
 import { withAgentAccent } from '../lib/accentScreen';
 import { fonts, lineHeight, radius, space, type } from '../lib/theme';
@@ -32,7 +32,7 @@ function SkillPage() {
   const accent = useAccent();
   const router = useRouter();
   const { id, slug } = useLocalSearchParams<{ id: string; slug: string }>();
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const reading = useSkill(id, slug);
   const skill = reading.kind === 'read' ? reading.skill : null;
   // Filled from the skill once it's read; until then, empty.

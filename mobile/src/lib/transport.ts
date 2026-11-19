@@ -196,7 +196,8 @@ interface Pending {
  * the radio isn't kept busy for nobody.
  */
 export const FOREGROUND_BACKOFF_MS = [1000, 2000, 4000, 5000];
-export const BACKGROUND_BACKOFF_MS = [2000, 5000, 15000, 30000, 60000];
+// (A wait never passes 8 s, background or front: a drop is meant to heal itself in moments.)
+export const BACKGROUND_BACKOFF_MS = [1000, 2000, 4000, 8000];
 
 /**
  * A try that hasn't been welcomed in this long is stuck (a route that drops
@@ -224,6 +225,20 @@ export const MAX_TRY_MS = 60_000;
  * round trips and can take longer than the fixed timeout, and giving it up
  * there started the same slow handshake again, forever.
  */
+/**
+ * Once a socket is open, how long the Mac gets to answer the handshake
+ * before the try is given up: about 6 s, or three round trips of how long
+ * opening took (a slow link needs them), or twice the last handshake that
+ * made it. Over the relay a socket opens in under a second even when the Mac
+ * isn't answering behind it (a link it had lost): that try fails in ~6 s and
+ * the next starts after a short backoff, instead of hanging a minute.
+ */
+export const welcomeBudgetMs = (attempt: number, tookMs: number, handshakeMs = 0) =>
+  Math.min(
+    MAX_TRY_MS,
+    Math.max(6000 + 1000 * Math.min(attempt, 2), 3 * tookMs, 2 * handshakeMs)
+  );
+
 export const tryBudgetMs = (attempt: number, handshakeMs = 0) =>
   Math.min(MAX_TRY_MS, Math.max(connectTimeoutMs(attempt), 2 * handshakeMs));
 
@@ -709,10 +724,7 @@ export class DirectTransport implements Transport {
       // trips, so it's given time by how long opening took, not cut off
       // by a timeout meant for a route that never answers.
       const took = Date.now() - this.triedAt;
-      this.armConnectTimer(
-        ws,
-        Math.min(MAX_TRY_MS, Math.max(tryBudgetMs(this.attempt, this.handshakeMs), 3 * took))
-      );
+      this.armConnectTimer(ws, welcomeBudgetMs(this.attempt, took, this.handshakeMs));
       this.armDeadTimer();
       // Nothing private until the Mac proves itself: just a challenge.
       this.challenge = this.opts.challenge();

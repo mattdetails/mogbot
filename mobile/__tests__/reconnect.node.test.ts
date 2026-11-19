@@ -116,10 +116,10 @@ describe('reconnecting', () => {
     t.close();
   });
 
-  it('backs off further in the background, to spare the battery', () => {
+  it('in the background waits 1, 2, 4, then at most 8 s', () => {
     const { t } = make(false);
     last().welcome();
-    const got = waits(6);
+    const got = waits(BACKGROUND_BACKOFF_MS.length + 1);
     expect(got.map((ms) => Math.round(ms / 1000) * 1000)).toEqual(BACKGROUND_BACKOFF_MS);
     t.close();
   });

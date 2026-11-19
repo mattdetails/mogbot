@@ -13,6 +13,7 @@
  * to a line. Nothing here fills a list the agent didn't give.
  */
 
+import { useLinkLive } from '../lib/linkLive';
 import {
   CHECKED_HEADING,
   CHECKPOINT_LABEL,
@@ -42,7 +43,7 @@ import { describeError, watchLive } from '../lib/session';
 import { haptic } from '../lib/haptics';
 import { makeStyles, useColors } from '../lib/appearance';
 import { iconSize, keySize, radius, space, squircle } from '../lib/theme';
-import { useApp, useServed } from '../lib/store';
+import { useServed } from '../lib/store';
 import { Attachments } from './attachments';
 import { Compare } from './compare';
 import { Markdown, MarkdownSurface } from './Markdown';
@@ -317,7 +318,7 @@ export function ResultCardView({
   const comp = useComputer();
   const [opened, setOpened] = useState(false);
   const parts = useCopyParts(copy ?? null);
-  const connected = useApp((s) => s.link.kind === 'connected');
+  const connected = useLinkLive();
   const canWatch = useCanWatch();
   const [opening, setOpening] = useState(false);
   const styles = useStyles();

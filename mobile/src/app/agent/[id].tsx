@@ -8,6 +8,7 @@
  * arrives with the next registry event.
  */
 
+import { useLinkLive } from '../../lib/linkLive';
 import {
   ON_ITS_OWN_STANDING,
   describeCheckInTime,
@@ -110,6 +111,8 @@ function AgentSheet() {
   const welcome = useApp((s) => s.welcome);
   const engines = useApp((s) => s.overview?.engines);
   const live = useApp((s) => s.link.kind === 'connected');
+  // What's enabled on screen: a short drop changes nothing (reads above use `live`).
+  const quiet = useLinkLive();
   const [error, setErrorText] = useState<string | null>(null);
   // At the top of the sheet, and said aloud: a toggle that failed at the top
   // mustn't look like nothing happened while its reason sits a screen below.
@@ -286,7 +289,7 @@ function AgentSheet() {
               {canCall('agents.setAgentIndependence', welcome) && (
                 <AgentLevelRow
                   agent={agent}
-                  enabled={live}
+                  enabled={quiet}
                   onError={setError}
                   last={
                     !canCall('agents.onItsOwn', welcome) && !canCall('agents.setAdmin', welcome)
@@ -308,7 +311,7 @@ function AgentSheet() {
                 />
               )}
               {canCall('agents.setAdmin', welcome) && (
-                <AdminToggle agent={agent} enabled={live} onError={setError} />
+                <AdminToggle agent={agent} enabled={quiet} onError={setError} />
               )}
             </View>
           </>
@@ -321,7 +324,7 @@ function AgentSheet() {
             field="pinned"
             label="Pinned"
             detail="Stays at the top of your agents."
-            enabled={live}
+            enabled={quiet}
             onError={setError}
           />
           <Toggle
@@ -329,7 +332,7 @@ function AgentSheet() {
             field="muted"
             label="Muted"
             detail="No alerts from it. Unread still counts."
-            enabled={live}
+            enabled={quiet}
             onError={setError}
             last={agent.isMain}
           />
@@ -339,7 +342,7 @@ function AgentSheet() {
               field="hidden"
               label="Hidden"
               detail="Tucked under Hidden in your list. It keeps working."
-              enabled={live}
+              enabled={quiet}
               onError={setError}
               last
             />
@@ -349,7 +352,7 @@ function AgentSheet() {
         <Conversation
           agent={agent}
           canFresh={canCall('agents.startFresh', welcome)}
-          live={live}
+          live={quiet}
           onError={setError}
         />
 
@@ -385,7 +388,7 @@ function AgentSheet() {
                     agent={agent}
                     rule={rule}
                     last={i === all.length - 1}
-                    enabled={live && canCall('agents.revokePermission', welcome)}
+                    enabled={quiet && canCall('agents.revokePermission', welcome)}
                     onError={setError}
                   />
                 </Animated.View>
@@ -398,7 +401,7 @@ function AgentSheet() {
 
         <WhatItCanReach agentId={agent.id} />
 
-        <WhatItKnows agent={agent} enabled={live} onError={setError} />
+        <WhatItKnows agent={agent} enabled={quiet} onError={setError} />
 
         <View style={styles.sectionHead}>
           <SectionTitle title="Routines" style={styles.headTitle} />
@@ -434,7 +437,7 @@ function AgentSheet() {
                   moveTo={canMoveRoutines ? routineMoveChoices(conversations, c.id) : []}
                   last={i === checkIns.length - 1}
                   // Offline its menu's actions would all fail: it waits for the Mac.
-                  enabled={canSchedule && live}
+                  enabled={canSchedule && quiet}
                   onError={setError}
                 />
               </Animated.View>
@@ -450,7 +453,7 @@ function AgentSheet() {
                   key={c.id}
                   agent={agent}
                   checkIn={c}
-                  enabled={canWhen && live}
+                  enabled={canWhen && quiet}
                   onError={setError}
                   // One cost store for checks and runs, worded for the plan.
                   spent={routineWeekLine(usage?.routines?.find((r) => r.id === c.id)?.week, onPlan)}
