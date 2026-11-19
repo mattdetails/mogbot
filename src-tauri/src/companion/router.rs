@@ -108,6 +108,8 @@ pub const METHODS: &[&str] = &[
     "agents.setQuietHours",
     "agents.morningBrief",
     "agents.setMorningBrief",
+    "agents.missions",
+    "agents.missions.act",
     "agents.changeDiff",
     "agents.keepCopy",
     "agents.discardCopy",
@@ -180,6 +182,7 @@ pub const READ_ONLY_METHODS: &[&str] = &[
     "agents.usagePlan",
     "agents.quietHours",
     "agents.morningBrief",
+    "agents.missions",
     "agents.import.status",
     "agents.import.exportPrompt",
     "agents.import.exportPreview",
@@ -822,6 +825,17 @@ pub trait Backend: Send + Sync + 'static {
         on: bool,
         at: u32,
         always: bool,
+    ) -> Result<Value, CommandError>;
+    /// `agents_missions`: every mission's record (`agents::missions`).
+    async fn missions(&self) -> Result<Value, CommandError>;
+    /// `agents_mission_act`: the user's own call on a mission from the phone
+    /// (pause, resume, stop, add more, accept). Answers `{ said }`.
+    async fn mission_act(
+        &self,
+        id: &str,
+        action: &str,
+        engine: Option<&str>,
+        points: Option<f64>,
     ) -> Result<Value, CommandError>;
     /// An import from another assistant, as the phone follows it: whether
     /// this Mac's Remote access is on and has been reached, whether an import
@@ -2147,6 +2161,11 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
             ),
             _ => "morning brief: off".to_string(),
         },
+        "agents.missions.act" => format!(
+            "mission {}: {}",
+            preview(field("id")),
+            preview(field("action"))
+        ),
         "agents.setImportChoice" => format!("import: {}", preview(field("choice"))),
         "agents.setAgentIndependence" => format!(
             "{} independence: {}",
@@ -2836,6 +2855,24 @@ async fn run(
                 ));
             };
             Ok(b.set_morning_brief(on, at as u32, always).await?)
+        }
+        "agents.missions" => Ok(b.missions().await?),
+        "agents.missions.act" => {
+            let (Some(id), Some(action)) = (
+                params.get("id").and_then(Value::as_str),
+                params.get("action").and_then(Value::as_str),
+            ) else {
+                return Err(bad_params("A mission call takes `id` and `action`."));
+            };
+            // Starting one is the Chief's, after a talk; the phone never starts.
+            if !["pause", "resume", "stop", "add_more", "accept"].contains(&action) {
+                return Err(bad_params(
+                    "`action` is pause, resume, stop, add_more or accept.",
+                ));
+            }
+            let engine = params.get("engine").and_then(Value::as_str);
+            let points = params.get("points").and_then(Value::as_f64);
+            Ok(b.mission_act(id, action, engine, points).await?)
         }
         "agents.import.status" => Ok(b.import_status().await?),
         "agents.import.start" => Ok(b.import_start().await?),

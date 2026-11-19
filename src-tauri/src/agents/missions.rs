@@ -487,9 +487,9 @@ pub fn pause_text(m: &Mission, engine: Option<Engine>) -> String {
                 )
             }
         }
-        None => format!(
-            "The end date came. {done} of {total} criteria met. Add more time or stop?"
-        ),
+        None => {
+            format!("The end date came. {done} of {total} criteria met. Add more time or stop?")
+        }
     }
 }
 

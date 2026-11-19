@@ -472,6 +472,95 @@ export const agentsSetMorningBrief = {
   "at": 450,
   "on": true
 } satisfies Result<'agents.setMorningBrief'>;
+export const agentsMissions = [
+  {
+    "agents": [
+      {
+        "engine": "claude",
+        "name": "Scout",
+        "status": "Working"
+      }
+    ],
+    "asks": [
+      {
+        "detail": "Nothing goes out until you approve.",
+        "id": "a1",
+        "text": "Your OK on 12 intro emails"
+      }
+    ],
+    "asksFirst": [
+      "Never email a client"
+    ],
+    "blocked": {
+      "affects": "Scout",
+      "what": "Can't read Native OS"
+    },
+    "checkedBy": "codex",
+    "criteria": [
+      {
+        "id": "c1",
+        "kind": "count",
+        "note": "6 from agencies",
+        "source": "Native OS · read 11:02 pm",
+        "start": 0.0,
+        "status": "in_progress",
+        "target": 20.0,
+        "text": "20 leads with a call booked",
+        "unit": "leads",
+        "value": 11.0
+      }
+    ],
+    "endAt": 1763000000000,
+    "events": [
+      {
+        "agent": "Scout",
+        "at": 1762675300000,
+        "text": "Booked 2 calls."
+      }
+    ],
+    "finishedAt": 1762675400000,
+    "goal": "Get the pipeline to 20 qualified leads",
+    "id": "m1",
+    "pausedBy": "claude",
+    "shares": [
+      {
+        "accountId": "acct1",
+        "engine": "claude",
+        "kind": "usage",
+        "pct": 30.0,
+        "readAt": 1762675350000,
+        "spentMs": 0,
+        "usedPct": 11.0
+      },
+      {
+        "capMs": 86400000,
+        "engine": "opencode",
+        "kind": "time",
+        "pct": 0.0,
+        "spentMs": 0,
+        "usedPct": 0.0
+      }
+    ],
+    "startedAt": 1762675200000,
+    "state": "blocked",
+    "summary": "3 more are in conversation.",
+    "updates": {
+      "dailyAt": 1080,
+      "eachMilestone": true,
+      "whenBlocked": true
+    },
+    "verdicts": [
+      {
+        "criterion": "c1",
+        "evidence": "Native OS shows 20",
+        "result": "met"
+      }
+    ]
+  }
+] satisfies Result<'agents.missions'>;
+export const agentsMissionsAct = {
+  "said": "pause"
+} satisfies Result<'agents.missions.act'>;
 export const agentsSetImportChoice = {
   "choice": "declined"
 } satisfies Result<'agents.setImportChoice'>;
@@ -5602,6 +5691,8 @@ export const frames = [
       "agents.setQuietHours",
       "agents.morningBrief",
       "agents.setMorningBrief",
+      "agents.missions",
+      "agents.missions.act",
       "agents.changeDiff",
       "agents.keepCopy",
       "agents.discardCopy",

@@ -514,6 +514,20 @@ async fn generate() -> String {
         .await,
     );
     out += &entry(
+        "agentsMissions",
+        "Result<'agents.missions'>",
+        call("agents.missions", json!({})).await,
+    );
+    out += &entry(
+        "agentsMissionsAct",
+        "Result<'agents.missions.act'>",
+        call(
+            "agents.missions.act",
+            json!({ "id": "m1", "action": "pause" }),
+        )
+        .await,
+    );
+    out += &entry(
         "agentsSetImportChoice",
         "Result<'agents.setImportChoice'>",
         call("agents.setImportChoice", json!({ "choice": "declined" })).await,
