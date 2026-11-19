@@ -834,7 +834,7 @@ mod tests {
             "your pick and why",
             "the agent that owns it",
             "`project_list` and pick; never ask the user",
-            "Their Chrome (",
+            "Their Chrome through Mogbot for Chrome",
             "for every site, kept for the whole task",
             "not connected this turn",
         ] {
@@ -903,7 +903,7 @@ mod tests {
         // The chain, in order: the user's Chrome, then every other way here
         // (connections, commands, claude.ai connectors), then one ask.
         let chain = [
-            "Their Chrome (",
+            "Their Chrome through Mogbot for Chrome",
             "try every other way here",
             "Only then: `request_login`, once",
         ];

@@ -350,16 +350,18 @@ fn the_agents_browser_comes_before_the_users_own_chrome() {
             agents_browser: true,
             ..Default::default()
         };
+        // Mogbot for Chrome is the only way into the user's Chrome, and the
+        // agents' browser is no longer a route for a login (docs/agents.md,
+        // "Mogbot for Chrome is the only browser route").
         assert!(matches!(
             decide(&social, &r, &none, &both, &[]),
-            Step::AgentsBrowser { ref site, .. } if site == "www.figma.com"
+            Step::Browser { ref site, .. } if site == "www.figma.com"
         ));
-        // Only the agents' browser (a Codex agent, or Claude in Chrome off).
         let agents_only = Here {
             agents_browser: true,
             ..Default::default()
         };
-        assert!(matches!(
+        assert!(!matches!(
             decide(&social, &r, &none, &agents_only, &[]),
             Step::AgentsBrowser { .. }
         ));
@@ -499,12 +501,12 @@ fn gmail_goes_straight_to_the_users_chrome() {
             logins::service("grok").and_then(|s| s.site),
             Some("grok.com")
         );
-        // No Claude in Chrome this turn (Codex): the agents' browser.
+        // No Mogbot for Chrome this turn: the agents' browser is not a route.
         let agents_only = Here {
             agents_browser: true,
             ..Default::default()
         };
-        assert!(matches!(
+        assert!(!matches!(
             decide(&chief, &r, &none, &agents_only, &[]),
             Step::AgentsBrowser { .. }
         ));
@@ -639,7 +641,7 @@ fn the_chief_hands_work_to_a_teammate_who_has_it_instead_of_asking() {
             "{said}"
         );
         // A browser that works still comes first: nothing is asked either way.
-        assert!(matches!(
+        assert!(!matches!(
             decide(&boss, &r, &Tried::default(), &here, &[]),
             Step::AgentsBrowser { .. }
         ));
