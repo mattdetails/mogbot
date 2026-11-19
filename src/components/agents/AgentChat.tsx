@@ -154,6 +154,7 @@ import {
   withQuotes,
   newestResults,
   resultVersions,
+  type ResultCard,
   foldResultReplies,
   sendAgentMessage,
   reviewTextImport,
@@ -967,7 +968,25 @@ export const AgentChat = memo(function AgentChat({
   // Each result's newest version is drawn in full; older ones fold.
   const newestResult = useMemo(() => new Set(newestResults(shown).values()), [shown]);
   // Every version of each result, for a card's version switcher (v1 · v2).
-  const versionsByResult = useMemo(() => resultVersions(shown), [shown]);
+  // Kept as the same Map while no result changed: `shown` is a new array for
+  // every streamed draft (40 ms), and a new Map here re-rendered every result
+  // card in the history through the context below (100 renders in a 3.5 KB
+  // reply at 2,000 lines).
+  const versionsRef = useRef<Map<string, ResultCard[]> | null>(null);
+  const versionsByResult = useMemo(() => {
+    const next = resultVersions(shown);
+    const prev = versionsRef.current;
+    const same =
+      prev !== null &&
+      prev.size === next.size &&
+      [...next].every(([id, cards]) => {
+        const was = prev.get(id);
+        return was?.length === cards.length && cards.every((c, i) => c === was[i]);
+      });
+    if (same) return prev;
+    versionsRef.current = next;
+    return next;
+  }, [shown]);
   /** Nothing yet but what the Chief said first: the user hasn't spoken. */
   const greetingOnly =
     agent.isMain &&
