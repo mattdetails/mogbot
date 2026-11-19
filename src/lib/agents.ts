@@ -707,6 +707,8 @@ export interface Approval {
   };
   /** The Gmail account a one-email plan goes out from, only when the Mac knows it (never guessed). */
   sendFrom?: string;
+  /** Why this one is asked, in a line, as the Mac worked it out (`risk`'s reason); absent when it has none. */
+  riskNote?: string;
   /** "Save “…” as a skill?": Allow is Save, Deny is Not now (`lib/agentSkills`). Nothing waits on it. */
   skill?: SkillCard;
   /**
