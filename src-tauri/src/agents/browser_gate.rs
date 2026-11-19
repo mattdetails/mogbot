@@ -636,6 +636,9 @@ pub fn final_submit(label: &str, level: Level) -> Option<&'static str> {
 /// its own, and the send itself is still a button the gate asks about.
 pub fn navigates(label: &str) -> bool {
     let lower = label.trim_start().to_ascii_lowercase();
+    if opens_thread(&name_in(label)) {
+        return true;
+    }
     [
         "link",
         "tab",
@@ -658,6 +661,20 @@ pub fn navigates(label: &str) -> bool {
             .strip_prefix(r)
             .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '"', '[']))
     })
+}
+
+/// A control that opens a conversation to read: "1 reply", "12 replies",
+/// "Reply in thread", "View thread". Observed 2026-11-18/19: opening a Slack
+/// thread asked at Bold because "reply" is a send word. The send is the
+/// composer's own button ("Send now"), which still asks.
+fn opens_thread(name: &str) -> bool {
+    let ws = words(name);
+    let ws: Vec<&str> = ws.iter().map(String::as_str).collect();
+    match ws.as_slice() {
+        [n, "reply" | "replies"] => n.chars().all(|c| c.is_ascii_digit()),
+        ["reply", "in", "thread"] | ["view", "thread"] | ["open", "thread"] => true,
+        _ => false,
+    }
 }
 
 /// What a delete or close button can take with it for good.
