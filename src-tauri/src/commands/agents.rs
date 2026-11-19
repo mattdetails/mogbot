@@ -102,6 +102,25 @@ fn emit_registry(app: &AppHandle) {
     let _ = app.emit(runner::EVENT_REGISTRY, ());
 }
 
+/// Settings → Notifications, "End-of-day check-in" (`agents::eod`).
+#[tauri::command]
+#[tracing::instrument]
+pub async fn agents_end_of_day() -> Result<agents::eod::Settings, CommandError> {
+    blocking(|| Ok(agents::eod::get())).await
+}
+
+#[tauri::command]
+#[tracing::instrument(skip(app))]
+pub async fn agents_set_end_of_day(
+    app: AppHandle,
+    on: bool,
+    at: u32,
+) -> Result<agents::eod::Settings, CommandError> {
+    let saved = blocking(move || agents::eod::set(agents::eod::Settings { on, at })).await?;
+    let _ = app.emit(agents::eod::EVENT, ());
+    Ok(saved)
+}
+
 /// Every agent's open asks and load, for What's in flight (`agents::tasks`).
 #[tauri::command]
 #[tracing::instrument]

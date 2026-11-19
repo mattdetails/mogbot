@@ -105,6 +105,7 @@ pub mod driver;
 pub mod e2e_alias;
 pub mod egress;
 pub mod engine;
+pub mod eod;
 pub mod expiry;
 pub mod exposure;
 pub mod failure;

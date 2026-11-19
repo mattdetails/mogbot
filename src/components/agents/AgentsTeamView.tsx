@@ -955,18 +955,6 @@ export function AgentsTeamView({
             </Section>
           )}
 
-          <Section title="Everyone else" count={rest.length} empty="" quiet>
-            {(rest.length > 0 || onNewAgent) && (
-              <AgentsBoard
-                agents={rest}
-                onOpenAgent={onOpenAgent}
-                onNewAgent={onNewAgent}
-                variant="quiet"
-                label="Everyone else"
-              />
-            )}
-          </Section>
-
           {asks.length > 0 && (
             <Section title="Open asks" count={asks.length} empty="" quiet>
               {asks.map((load) => {
@@ -992,6 +980,18 @@ export function AgentsTeamView({
               })}
             </Section>
           )}
+
+          <Section title="Everyone else" count={rest.length} empty="" quiet>
+            {(rest.length > 0 || onNewAgent) && (
+              <AgentsBoard
+                agents={rest}
+                onOpenAgent={onOpenAgent}
+                onNewAgent={onNewAgent}
+                variant="quiet"
+                label="Everyone else"
+              />
+            )}
+          </Section>
 
           {team.scheduled.length > 0 && (
             <Section title="Coming up" empty="" quiet>

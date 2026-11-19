@@ -27,7 +27,7 @@ const WHAT_EACH_SHOWS: Record<SettingsPage, string> = {
   phone:
     'Your phone: the phone panel itself (get the app, or turn on phone access, pair and the paired phones) right on the page; then Other assistants: Remote access’s own setup or live view. No Open buttons and no dialog on top.',
   notifications:
-    'Quiet hours and the morning brief first (Quiet hours, Morning brief, Post even when there’s nothing new: the switches and times), a hairline, then What notifies you as lines with no controls: Replies, Requests for your OK, Your phone, Dock badge and Mute an agent.',
+    'Quiet hours and daily check-ins first (Quiet hours, Morning brief, Post even when there’s nothing new: the switches and times), a hairline, then What notifies you as lines with no controls: Replies, Requests for your OK, Your phone, Dock badge and Mute an agent.',
   chrome: 'Mogbot for Chrome with its switch, the way agents use it now, and its setup steps.',
   apps: 'Slack, then apps you said no to when there are any.',
   projects:

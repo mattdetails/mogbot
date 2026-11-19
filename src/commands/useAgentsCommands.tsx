@@ -28,7 +28,14 @@ import { useOptionalToast } from '../contexts/ToastContext';
 import { setStayOn, type StayOnChange } from '../lib/remoteAccess';
 import { useAgentsSelector, type AgentsState } from '../lib/agentsStore';
 import type { AppView } from '../lib/types';
-import { AGENT_EVENTS, CATCHUP_ID, OTHER_APP_NAME, otherAppExists, TEAM_ID } from '../lib/agents';
+import {
+  AGENT_EVENTS,
+  CATCHUP_ID,
+  OTHER_APP_NAME,
+  otherAppExists,
+  sendAgentMessage,
+  TEAM_ID,
+} from '../lib/agents';
 import { DESCRIBE_START, ROLE_TEMPLATES } from '../lib/agentTemplates';
 import { SHARE_RECIPE_EVENT } from '../lib/agentRecipe';
 import { openLogs } from '../lib/agentDesk';
@@ -276,6 +283,44 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
                 setView('agents');
               },
             },
+          ]
+        : []),
+      // A talk-based interview: the Chief asks, one question at a time, by
+      // text or Talk, then writes down what it heard (`prompts.rs`, "Interviews").
+      ...(chiefId
+        ? [
+            {
+              id: 'agents.interviewMe',
+              title: 'Interview me…',
+              icon: <CommentIcon size={14} />,
+              category: 'action' as const,
+              keywords: ['onboarding', 'get to know me', 'questions', 'talk'],
+              run: () => {
+                void sendAgentMessage(
+                  chiefId,
+                  'Interview me so you know my work: one short question at a time.'
+                ).catch(() => {});
+                requestAgentsIntent({ kind: 'open', agentId: chiefId });
+                setView('agents');
+              },
+            },
+            ...agents
+              .filter((a) => !a.isMain && !a.hidden)
+              .map((a) => ({
+                id: `agents.train.${a.id}`,
+                title: `Train ${a.name} by interview…`,
+                icon: <CommentIcon size={14} />,
+                category: 'action' as const,
+                keywords: ['job description', 'instructions', 'teach', 'train', a.name],
+                run: () => {
+                  void sendAgentMessage(
+                    chiefId,
+                    `Train ${a.name} by interview: ask me one short question at a time about its job, then write its job description.`
+                  ).catch(() => {});
+                  requestAgentsIntent({ kind: 'open', agentId: chiefId });
+                  setView('agents');
+                },
+              })),
           ]
         : []),
       {

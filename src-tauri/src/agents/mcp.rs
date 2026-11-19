@@ -208,6 +208,12 @@ const TOOLS: &[Tool] = &[
         }),
     },
     Tool {
+        name: super::eod::TOOL,
+        description: super::eod::DESCRIPTION,
+        main_only: true,
+        schema: super::eod::schema,
+    },
+    Tool {
         name: super::tasks::TOOL,
         description: super::tasks::DESCRIPTION,
         main_only: false,
@@ -888,6 +894,7 @@ async fn call(
         "read_agent" => read_agent(args),
         "search_my_chat" => search_my_chat(caller, args),
         super::team_record::TOOL => team_lookup(caller, args).await,
+        super::eod::TOOL => end_of_day(app, caller, args),
         super::tasks::TOOL => match super::tasks::run_tool(caller, args) {
             Ok(t) => text(t),
             Err(e) => error(e),
@@ -3230,6 +3237,29 @@ pub(super) fn read_wait(
 
 /// The tool's reply when a confirmation didn't come back as Allow: the
 /// user's No, or (never dressed up as a No) a card that expired unanswered.
+/// `set_end_of_day` (`agents/eod.rs`): the user's setting, applied at once
+/// with a line; never in a turn answering outside text.
+fn end_of_day(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value {
+    if runner::from_outside(&caller.id) {
+        return error("Not while answering what came from outside this app: the check-in is the user's to set. Tell the user instead.");
+    }
+    let now = super::eod::get();
+    let next = match super::eod::wanted(args, &now) {
+        Ok(n) => n,
+        Err(e) => return error(e),
+    };
+    match super::eod::set(next) {
+        Ok(saved) => {
+            let _ = tauri::Emitter::emit(app, super::eod::EVENT, ());
+            text(format!(
+                "{} Tell the user in one line.",
+                super::eod::describe(&saved)
+            ))
+        }
+        Err(e) => error(e.to_string()),
+    }
+}
+
 /// `set_morning_brief` (`agents/brief.rs`). The user's setting: never in a
 /// turn answering outside text. Adding a check (a daily read of their apps)
 /// wants their own message, else a card; anything else applies at once with

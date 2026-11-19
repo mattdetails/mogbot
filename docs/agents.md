@@ -7738,6 +7738,18 @@ was overloaded.
 - **Honest asking** (every agent's prompt, "Do you have what you need?"): check memory, the team
   record, files and tools first; ask one specific question for what only the user or a teammate has,
   and put the task on `wait`; never fill a gap with invented numbers, names, links or filler.
+- **End-of-day check-in** (`agents/eod.rs`): on by default at 17:30; the scheduler tick posts one
+  message in the Chief's chat composed from the task lists (closed today, still open, stuck,
+  overloaded) ending in one question. No model turn. Waits 10 minutes after the user's last message
+  to the Chief, skipped when more than 3 hours late. `set_end_of_day` (Chief only, never in a turn
+  answering outside text) and Settings → Notifications change it; `agents_end_of_day` /
+  `agents_set_end_of_day`. Harness: `settings-agents-brief`, `settings-agents-end-of-day-off`.
+- **Interviews** (Chief prompt, "Interviews"; ⌘K `agents.interviewMe`, `agents.train.<id>`): no new
+  engine. A palette command sends the Chief a plain message; its prompt runs one question at a time
+  (six at most), summarises, asks for one yes, then saves: "me" into its memory (and offers agents),
+  "train" via `read_agent` then `update_agent` with a merged "## Job description" and routines. Works
+  by voice through Talk. The Chief offers the "me" interview once after the user's first ask when it
+  knows nothing of their work.
 - Not yet: the phone's view of the lists; the user adding a task by hand.
 
 ## Known limits / next
