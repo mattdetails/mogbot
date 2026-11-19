@@ -3,7 +3,7 @@ title: The chat
 order: 9
 ---
 
-Every message, yours and your agent's, is a bubble: yours on the right, your agent's on the left, both filled in the same neutral colour and told apart by side and by the small square corner at the bottom (right for yours, left for your agent's). Cards (results, approvals, tables and charts) keep their own frames and are not bubbles.
+Every message is a bubble. Yours is strong and inverted (near-white on dark, near-black on light) on the right; your agent's is a quiet tint of the text colour on the left. Each has a small square corner at the bottom toward whoever spoke. Cards (results, approvals, tables and charts) keep their own frames and are not bubbles.
 
 ## When your agent is busy
 
@@ -28,3 +28,7 @@ A Slack reply posts the words as you edited them. For an email, an edit goes bac
 **Catch up** is the first row in the Agents sidebar, with how many decisions wait on you (the bell beside the sidebar toggle opens it too, and so does ⌘K). It shows one at a time: who asked and when, the request in a line, why in two, and, for anything that sends, the exact words. **Deny** and **Allow** sit under it (Allow is always black and white, never an agent's colour); **Open chat** opens that agent's chat; **Later** moves it to the back, and it comes back the next time you catch up. While a card has focus, A, D, O and L do those four; Esc closes. **Up next** lists what comes after, so it never feels endless. When nothing is left you see "You're caught up", and what only happened while you were away (a result, a routine's run), which needs no answer.
 
 On your phone, Catch up is the same: one card at a time, the same Allow, and one last card for what only happened.
+
+## While your agent works
+
+One row at the end of the chat shows your agent's key and one phrase about what it is doing right now, in the app's own words for the step ("Reading Northwind's site", "In Chrome on linkedin.com", "Running the tests · 3 of 8", "Checking with Scout"). Before it has done anything the row says "Working on it". A timer shows after about 8 seconds. After a minute with nothing new it says "Still working" and the time. When it is waiting on you it says "Needs your OK on 12 emails" with a **Review** button that takes you to the card. The three dots appear only while a reply is being written.

@@ -126,18 +126,18 @@ describe('the live step', () => {
     serve(['agents.stopStep', 'agents.checkOn']);
   });
 
-  it('is one line: its words, its steps so far and the turn’s time, then a hint', async () => {
+  it('is one line: its words and the turn’s time (from 8s), then a hint', async () => {
     const w = work();
     const { rerender } = await render(
       <LiveStep agentId="qa" work={w} call={w.current} label="" now={30_000} />
     );
     expect(screen.getByText('Running the Cypress tests')).toBeTruthy();
-    expect(screen.getByText('· 3 steps · 0:30')).toBeTruthy();
+    expect(screen.getByText('· 30s')).toBeTruthy();
     expect(screen.queryByText('Test runs usually take a few minutes')).toBeNull();
     // Output lives in its step, not under the line.
     expect(screen.queryByText('Show output')).toBeNull();
     await rerender(<LiveStep agentId="qa" work={w} call={w.current} label="" now={5.5 * MIN} />);
-    expect(screen.getByText('· 3 steps · 5:30')).toBeTruthy();
+    expect(screen.getByText('· 5m 30s')).toBeTruthy();
     expect(screen.getByText('Test runs usually take a few minutes')).toBeTruthy();
     expect(screen.queryByText('Stop this step')).toBeNull();
   });

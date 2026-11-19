@@ -1092,6 +1092,21 @@ const PROBE = [
       'A message sent while the agent works: under your bubble one quiet “Next · after this one” with a Send now action, the one working line, and nothing else (no “Keeps running…” line)',
   },
   {
+    name: 'probe-working',
+    route: '/chat/worker',
+    ready: 'In Chrome on linkedin.com',
+    act: () => sleep(1200),
+    check:
+      'The working row: the agent’s key and “In Chrome on linkedin.com” with its timer after 8s, no step count',
+  },
+  {
+    name: 'probe-working-quiet',
+    route: '/chat/quietw',
+    ready: 'Still working',
+    act: () => sleep(1200),
+    check: 'Quiet for over a minute: “Still working” and the time, no shimmer',
+  },
+  {
     name: 'probe-stale-card',
     route: '/chat/stale',
     ready: 'Ship the price fix',

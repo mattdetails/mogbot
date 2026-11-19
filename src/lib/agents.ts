@@ -125,6 +125,8 @@ export type WorkSlow = 'tests' | 'build' | 'install' | 'deploy' | 'other';
  * when it started, and what it printed so far where the engine streams it.
  */
 export interface LiveCall {
+  /** "3 of 8": only when the step itself reports it; never worked out. */
+  progress?: { done: number; total: number };
   kind: WorkStepKind;
   /** Its working-line words ("Running the Cypress tests"). */
   label: string;

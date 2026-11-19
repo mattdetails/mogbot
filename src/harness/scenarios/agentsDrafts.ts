@@ -89,7 +89,7 @@ const scenario = (
 });
 
 const COMMON =
-  'In the card: the title names who and where; one recessed block holds the rows (a 72px label column, 11px above and below each row, a hairline between them) and the words below it with the same padding; “From … · goes out as you” under it, then only “These exact words go out under your name.”; the buttons are one height and right-aligned with 8px between: Discard (ghost), Edit and Draft in Gmail (secondary), Send (neutral, never accent). No underlined links; 14px from the title to the first field.';
+  'In the card: the title names who and where; one recessed block holds the rows (a 72px label column, 11px above and below each row, a hairline between them) and the words below it with the same padding; one muted line 14px under it, “From … · goes out as you. These exact words go out under your name.”; the buttons are one height and right-aligned with 8px between: Discard (ghost), Edit and Draft in Gmail (secondary), Send (neutral, never accent). No underlined links; 14px from the title to the first field.';
 
 const ADDRESS = 'Aurelie Martin <aurelie@example.com>';
 
