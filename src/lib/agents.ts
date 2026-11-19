@@ -3163,3 +3163,7 @@ export function summarizeTeam(
     replies,
   };
 }
+
+/** Settings → Notifications' end-of-day check-in (`agents::eod`): on or off, and minutes after midnight. */
+export const setEndOfDayOnMac = (on: boolean, at: number) =>
+  invoke<{ on: boolean; at: number }>('agents_set_end_of_day', { on, at });
