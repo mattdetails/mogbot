@@ -58,6 +58,10 @@ import { SecretCard } from './AgentSecretCard';
 import { LoginCard } from './AgentLoginCard';
 import { StepInCard } from './AgentStepIn';
 import { CrossoverCard } from './AgentCrossoverCard';
+import {
+  answeredWords,
+  cantAlwaysAllow,
+} from '../../../packages/companion-protocol/src/answeredFrom';
 import { checkInHead } from '../../../packages/companion-protocol/src/cardWords';
 import { viaLabel } from '../../../packages/companion-protocol/src/model';
 import { AgentSettingsChange } from './AgentSettingsChange';
@@ -1139,6 +1143,8 @@ function outcomeText(approval: Approval, agentName: string, compact: boolean): R
   if (approval.choice && approval.status !== 'expired') {
     return `${STATUS_LABEL[approval.status as 'allowed' | 'denied']} · ${approval.choice}`;
   }
+  const from = answeredWords(approval.status, approval.answeredFrom);
+  if (from) return from;
   const label = STATUS_LABEL[approval.status as keyof typeof STATUS_LABEL];
   if (compact && approval.status === 'allowed') return `${label} · ${agentName} is carrying on`;
   return label;
@@ -1298,6 +1304,8 @@ const ApprovalCardBody = memo(function ApprovalCard({
   // to allow, so it offers Deny only.
   const plan = approval.plan ? readPlan(approval.plan) : null;
   const nothingToAllow = !!plan && plan.actions.length === 0;
+  // The Mac says this can't be always allowed: its sentence stands where the item was.
+  const noAlways = cantAlwaysAllow(approval.alwaysNote);
   const pending = approval.status === 'pending';
   const fields = approvalFields(approval.tool, approval.input);
   // A command the app can name says what happens in the title; its raw text is
@@ -1386,12 +1394,14 @@ const ApprovalCardBody = memo(function ApprovalCard({
                 ? 'It paused here for you. Allow it and it picks up where it left off.'
                 : approval.status === 'expired'
                   ? approval.setAside
-                  : undefined
+                  : pending && approval.always
+                    ? approval.alwaysNote
+                    : undefined
         }
         actions={
           pending && !noting ? (
             <>
-              {approval.always && !nothingToAllow && (
+              {approval.always && !nothingToAllow && !noAlways && (
                 <Tooltip content={describeScope(approval.always, agentName)}>
                   <TextButton
                     tabIndex={0}

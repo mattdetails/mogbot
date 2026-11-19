@@ -791,6 +791,8 @@ export interface Approval {
   answeredFrom?: AnsweredFrom;
   /** One sentence on what "Always allow" would cover, or why it can't be; made on the Mac. Absent when the card never offers it. */
   alwaysNote?: string;
+  /** One sentence on what is at risk (deletes, publishes, installs, sends data, spends), from the parsed call; absent when nothing is recognised. */
+  riskNote?: string;
   note?: string;
   /** A secure input card: what the agent asked for. */
   secret?: SecretRequest;
@@ -839,8 +841,6 @@ export interface Approval {
   };
   /** The Gmail account a one-email plan goes out from, only when the Mac knows it (never guessed). */
   sendFrom?: string;
-  /** Why this one is asked, in a line, as the Mac worked it out; absent when it has none. */
-  riskNote?: string;
   /** "Save “…” as a skill?": the skill as it would be saved; Allow is Save, Deny is Not now. Nothing waits on it. */
   skill?: SkillCard;
   /**

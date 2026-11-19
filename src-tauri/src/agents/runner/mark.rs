@@ -165,6 +165,23 @@ pub(super) fn next_pickup(resumes: u8) -> Option<u8> {
     (resumes < MAX_RESUMES).then(|| resumes + 1)
 }
 
+/// Pick-ups a live turn gets when its engine process dies under it. Observed
+/// 19 Nov: two or three agents' engines killed in the same second, and the
+/// one pick-up killed with them, so each chat ended on "Continue picks it
+/// up" for the user to press. Something outside the turn did that (memory
+/// pressure, another process), so it is tried again after a wait.
+pub(super) const MAX_DIED_RESUMES: u8 = 3;
+
+/// The next pick-up after the engine died mid-turn, and how long to wait
+/// first: 15 s, then 45 s, then 90 s, so whatever killed it has passed.
+pub(super) fn next_died_pickup(resumes: u8) -> Option<(u8, std::time::Duration)> {
+    (resumes < MAX_DIED_RESUMES).then(|| {
+        let n = resumes + 1;
+        let secs = [15u64, 45, 90][usize::from(resumes.min(2))];
+        (n, std::time::Duration::from_secs(secs))
+    })
+}
+
 /// The next pick-up a cut-off turn's mark allows: more when the app quit.
 pub(super) fn next_pickup_of(mark: &TurnMark) -> Option<u8> {
     let cap = if mark.quit {

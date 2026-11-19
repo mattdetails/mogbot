@@ -520,7 +520,10 @@ fn every_path_records_where_its_answer_came_from() {
             // And in approvals.jsonl, once, beside the answer.
             let raw = std::fs::read_to_string(store::answers_path(agent).unwrap()).unwrap();
             let line = raw.lines().find(|l| l.contains(&id)).unwrap();
-            assert!(line.contains(&format!("\"answeredFrom\":\"{wire}\"")), "{line}");
+            assert!(
+                line.contains(&format!("\"answeredFrom\":\"{wire}\"")),
+                "{line}"
+            );
         }
     });
 }
@@ -544,7 +547,10 @@ fn an_answer_that_doesnt_say_or_isnt_one_records_no_source() {
         // Pending cards carry none.
         let id = post(agent, plain("open"));
         let card = store::find_approval(agent, &id).unwrap().unwrap();
-        assert!(serde_json::to_value(&card).unwrap().get("answeredFrom").is_none());
+        assert!(serde_json::to_value(&card)
+            .unwrap()
+            .get("answeredFrom")
+            .is_none());
     });
 }
 

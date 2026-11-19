@@ -168,6 +168,7 @@ pub mod repo_trust;
 pub mod results;
 pub mod review;
 pub mod rewind;
+pub mod risk_note;
 pub mod room_tools;
 pub mod rooms;
 pub mod routine_steps;

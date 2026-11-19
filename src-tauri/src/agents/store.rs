@@ -417,6 +417,12 @@ pub struct Approval {
     /// cards that never offer it, and from before it was recorded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub always_note: Option<String>,
+    /// One plain sentence on what is at risk ("Deletes ~/Exports/2024 for
+    /// good.", "Publishes to main, which others can see."), made on the Mac
+    /// from the parsed call (`agents/risk_note.rs`); absent when nothing is
+    /// recognised, never a guess.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub risk_note: Option<String>,
     /// "Change this agent's settings?" (`propose_settings_change`,
     /// `agents/policy_card.rs`): who, what, before and after in plain words.
     /// Nothing changes until the user allows it; the card's own text

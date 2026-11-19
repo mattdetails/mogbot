@@ -336,6 +336,15 @@ fn a_turn_that_never_took_its_messages_has_nothing_to_pick_up() {
 }
 
 #[test]
+fn an_engine_killed_mid_turn_is_picked_up_three_times_with_waits() {
+    use std::time::Duration;
+    assert_eq!(next_died_pickup(0), Some((1, Duration::from_secs(15))));
+    assert_eq!(next_died_pickup(1), Some((2, Duration::from_secs(45))));
+    assert_eq!(next_died_pickup(2), Some((3, Duration::from_secs(90))));
+    assert_eq!(next_died_pickup(MAX_DIED_RESUMES), None);
+}
+
+#[test]
 fn an_engine_that_dies_is_picked_up_once_and_only_when_it_can_be() {
     use super::super::failure::FailureKind;
     assert_eq!(next_pickup(0), Some(1));

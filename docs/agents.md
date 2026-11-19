@@ -7714,34 +7714,36 @@ Observed on the 18 Nov calls: an ask given to an agent was gone once it got busy
 near-identical jobs (Apollo PM, Apollo Finances) both got the same update, and nobody could see who
 was overloaded.
 
-- **One list per agent**, `<home>/tasks.json`, kept by the app. A request from another agent
+- **One list per agent**, `<home>/tasks.jsonl` (one line per task), kept by the app. A request from another agent
   (`message_agent`) lands on the helper's list as it is delivered, deduped (the same ask from the
   same sender is bumped, never doubled); the helper's turn answering it marks it done, ending in an
-  error marks it stuck. The agent adds the user's asks it can't finish in one reply with the `tasks`
-  tool (`add`, `done`, `drop`, `wait` naming on whom, `list`, `board`). Every turn's briefing ends
+  error marks it stuck. The agent adds the user's asks it can't finish in one reply with `task_add` and moves them with
+  `task_update` (doing one at a time, next, waiting on the user, done, dropped with a reason); `tasks`
+  reads (`list`, `board`). Every turn's briefing ends
   with the agent's own open list, so a restart never loses one.
-- **Overloaded** is a plain rule, shown as the rule: 6 or more open, or 3 or more with the oldest
-  over a day. Never a model's judgement.
+- **Busy** is a plain rule: 10 or more to do, or one open line over a day with no movement (a line
+  waiting on the user doesn't count). Never a model's judgement.
 - **The board.** The Chief's briefing carries every agent's job (its role in a few words), open
   count, oldest age, overloaded or stuck flag, what it is doing now and its first ask, capped at
   1,400 characters, plus who has nothing open. `message_agent` tells the sender when another agent
   already has a like ask open (word overlap of 70% of the shorter), so it tells that agent instead
   of doing it twice.
 - **Chasing.** The scheduler tick (every 5 minutes at most) nudges an ask still open after 3 hours
-  (8 for the user's own asks on a list), as a request from whoever asked, twice at most. Never while
+  (8 for the user's own asks on a list), as a request from whoever asked, twice at most and a line at most once a day. Never while
   the agent is busy, has a message queued, is being driven (Take over), in quiet hours or in "Save my
   limits". After the second nudge goes unanswered for another wait, it is marked stuck and the Chief's
   chat says so in one line (nothing goes silent).
-- **Desk.** What's in flight has an "Open asks" section: each agent with something open, an
-  Overloaded or "N stuck" pill, its first asks and how old (`agents_task_board`). Harness:
+- **Desk.** What's in flight has an "Team tasks" section: each agent with something open, an
+  Busy or "N stuck" pill, its first asks and how old (`agents_task_board`). Harness:
   `agents-inflight-asks`.
 - **Honest asking** (every agent's prompt, "Do you have what you need?"): check memory, the team
   record, files and tools first; ask one specific question for what only the user or a teammate has,
   and put the task on `wait`; never fill a gap with invented numbers, names, links or filler.
-- **End-of-day check-in** (`agents/eod.rs`): on by default at 17:30; the scheduler tick posts one
+- **End-of-day check-in** (`agents/eod.rs`): on by default at 18:00; the scheduler tick posts one
   message in the Chief's chat composed from the task lists (closed today, still open, stuck,
-  overloaded) ending in one question. No model turn. Waits 10 minutes after the user's last message
-  to the Chief, skipped when more than 3 hours late. `set_end_of_day` (Chief only, never in a turn
+  busy) ending in "Did anything today miss the mark?". No model turn. Waits an hour after the user's last message
+  to the Chief, skipped when more than 3 hours late or when nothing ran. One `choices` block: All good /
+  Something missed / Not tonight. `set_end_of_day` (Chief only, never in a turn
   answering outside text) and Settings → Notifications change it; `agents_end_of_day` /
   `agents_set_end_of_day`. Harness: `settings-agents-brief`, `settings-agents-end-of-day-off`.
 - **Interviews** (Chief prompt, "Interviews"; ⌘K `agents.interviewMe`, `agents.train.<id>`): no new

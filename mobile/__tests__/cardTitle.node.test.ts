@@ -10,7 +10,7 @@ describe('a card’s title on the phone', () => {
         detail: cp,
         input: { command: cp },
       })
-    ).toBe(`Copy export/icons to ~/ShipStudio/acme-site/public/assets/brand/icons/2026-11`);
+    ).toBe(`Copy export/icons to acme-site/…/2026-11`);
   });
   it('names a delete, and keeps the Mac’s title for what it doesn’t name', () => {
     expect(

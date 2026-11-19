@@ -214,6 +214,18 @@ const TOOLS: &[Tool] = &[
         schema: super::eod::schema,
     },
     Tool {
+        name: super::tasks::ADD_TOOL,
+        description: super::tasks::ADD_DESCRIPTION,
+        main_only: false,
+        schema: super::tasks::add_schema,
+    },
+    Tool {
+        name: super::tasks::UPDATE_TOOL,
+        description: super::tasks::UPDATE_DESCRIPTION,
+        main_only: false,
+        schema: super::tasks::update_schema,
+    },
+    Tool {
         name: super::tasks::TOOL,
         description: super::tasks::DESCRIPTION,
         main_only: false,
@@ -895,6 +907,14 @@ async fn call(
         "search_my_chat" => search_my_chat(caller, args),
         super::team_record::TOOL => team_lookup(caller, args).await,
         super::eod::TOOL => end_of_day(app, caller, args),
+        super::tasks::ADD_TOOL => match super::tasks::run_add(caller, args) {
+            Ok(t) => text(t),
+            Err(e) => error(e),
+        },
+        super::tasks::UPDATE_TOOL => match super::tasks::run_update(caller, args) {
+            Ok(t) => text(t),
+            Err(e) => error(e),
+        },
         super::tasks::TOOL => match super::tasks::run_tool(caller, args) {
             Ok(t) => text(t),
             Err(e) => error(e),
@@ -3399,6 +3419,7 @@ pub(crate) fn new_card(
             spends,
             call.is_some(),
         ),
+        risk_note: call.and_then(|(tool, input)| super::risk_note::of(tool, input)),
         always,
         always_allowed: false,
         // What it does and why, in words; the raw call goes behind Details.

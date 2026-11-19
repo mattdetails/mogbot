@@ -199,6 +199,7 @@ fn the_thread_reads_back_with_each_members_card_answers() {
             expiry: None,
             answered_from: None,
             always_note: None,
+            risk_note: None,
             from_outside: None,
             front: None,
             settings: None,

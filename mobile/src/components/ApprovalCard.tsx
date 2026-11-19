@@ -27,6 +27,7 @@ import {
   skillCardNote,
   SKILL_OFFER_NOTE,
   stepInSource,
+  cantAlwaysAllow,
 } from '@shipstudio/companion-protocol';
 import { router } from 'expo-router';
 import {
@@ -291,7 +292,8 @@ export function ApprovalCard({
   const off = !!busy || !connected;
   // Behind ⋯: the broader answer, and a denial with a note. One row of
   // answers under the thumb, never a second line of them.
-  const alwaysOption = approval.always
+  const noAlways = cantAlwaysAllow(approval.alwaysNote);
+  const alwaysOption = approval.always && !noAlways
     ? [{ label: `Always allow ${approval.always.label}`, run: () => void answer(true, true) }]
     : [];
   const more = [...alwaysOption, { label: 'Deny with a note…', run: () => setNoting(true) }];
@@ -451,7 +453,7 @@ export function ApprovalCard({
         found it, so every repeat read asked again). Still a deliberate second
         step: it opens the sheet that says exactly what it covers.
       */}
-      {!!approval.always && !consent && !gate && !crossover && !risky && (
+      {!!approval.always && !noAlways && !consent && !gate && !crossover && !risky && (
         <Button
           title={`Always allow ${approval.always.label}…`}
           variant="ghost"
@@ -525,7 +527,9 @@ export function ApprovalCard({
                     !approval.slackReply &&
                     !crossover
                   ? 'It paused here for you. Allow it and it picks up where it left off.'
-                  : undefined
+                  : approval.always
+                    ? approval.alwaysNote
+                    : undefined
       }
       actions={answers && !stepIn?.inSince ? actions : undefined}
     >

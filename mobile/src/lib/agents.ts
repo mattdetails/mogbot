@@ -770,6 +770,7 @@ export {
   stepInOnPhone,
 } from '@shipstudio/companion-protocol';
 import { pairedComputer } from './computer';
+import { answeredWords } from '@shipstudio/companion-protocol';
 
 export function cardOutcome(approval: Approval): string {
   // Nobody answered: what the desk's receipt says.
@@ -797,6 +798,8 @@ export function cardOutcome(approval: Approval): string {
     return `${how} · ${approval.always.label}`;
   }
   if (approval.status === 'denied' && approval.note) return `Declined · “${approval.note}”`;
+  const from = answeredWords(approval.status, approval.answeredFrom);
+  if (from) return from;
   const label = OUTCOME[approval.status];
   if (approval.choice && approval.status !== 'expired') return `${label} · ${approval.choice}`;
   return label;

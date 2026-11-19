@@ -26,6 +26,19 @@ function words(command: string): string[] | null {
   return parts ? parts.map(unquote) : null;
 }
 
+/**
+ * Where something goes, short but never ambiguous: the project folder under
+ * ~/ShipStudio and the last segment ("acme-site", "acme-site/…/2026-11"), so a
+ * deep destination never shrinks to a bare "2026-11" that names no project.
+ */
+function destination(path: string): string {
+  const rel = path.replace(/^~\/ShipStudio\//, '').replace(/\/+$/, '');
+  if (rel === path) return tailSegments(path, 1);
+  const parts = rel.split('/').filter(Boolean);
+  if (parts.length <= 2) return parts.join('/');
+  return `${parts[0]}/…/${parts[parts.length - 1]}`;
+}
+
 const NODE_TOOLS = new Set(['pnpm', 'npm', 'yarn', 'bun']);
 
 /** What a command does, in a few words, or null when it isn't a shape we name. */
@@ -37,21 +50,19 @@ export function plainCommandTitle(command: string): string | null {
 
   if (bin === 'rm') {
     if (args.length === 0) return null;
-    return args.length === 1
-      ? `Delete ${shortMiddle(args[0])}`
-      : `Delete ${args.length} items`;
+    return args.length === 1 ? `Delete ${shortMiddle(args[0])}` : `Delete ${args.length} items`;
   }
   if (bin === 'mkdir' && args.length > 0) return `Make the folder ${shortMiddle(args[0])}`;
   // A title stays short: the last two segments of what moves, the last of where it
   // goes; the whole command, with the full destination, is in the block under it.
   if (bin === 'mv') {
     return args.length === 2
-      ? `Move ${tailSegments(args[0], 2)} to ${tailSegments(args[1], 1)}`
+      ? `Move ${tailSegments(args[0], 2)} to ${destination(args[1])}`
       : 'Move files';
   }
   if (bin === 'cp') {
     return args.length === 2
-      ? `Copy ${tailSegments(args[0], 2)} to ${tailSegments(args[1], 1)}`
+      ? `Copy ${tailSegments(args[0], 2)} to ${destination(args[1])}`
       : 'Copy files';
   }
   if (bin === 'curl' || bin === 'wget') {
@@ -153,9 +164,7 @@ export function plainApprovalTitle(
  * general one ("Write files outside its folder"). A yes should say what it
  * says yes to; the whole command is under it.
  */
-export function cardTitle(
-  approval: Pick<Approval, 'title' | 'tool' | 'detail' | 'input'>
-): string {
+export function cardTitle(approval: Pick<Approval, 'title' | 'tool' | 'detail' | 'input'>): string {
   const plain = plainApprovalTitle(approval);
   if (plain.plain) return plain.title;
   const input = approval.input as { command?: unknown } | undefined;
