@@ -5745,6 +5745,7 @@ export const frames = [
       "agents.setEndOfDay",
       "agents.missions",
       "agents.missions.act",
+      "agents.missions.setup",
       "agents.changeDiff",
       "agents.keepCopy",
       "agents.discardCopy",

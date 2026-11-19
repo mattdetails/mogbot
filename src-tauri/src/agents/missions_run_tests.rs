@@ -55,6 +55,7 @@ fn progress_sets_the_number_and_the_status_follows_it() {
     let m = progress(
         &m,
         &json!({ "criterion": "c1", "value": 11, "source": "Native OS · read 11:02 pm" }),
+        0,
     )
     .unwrap();
     assert_eq!(m.criteria[0].status, Status::InProgress);
