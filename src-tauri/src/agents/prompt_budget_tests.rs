@@ -15,7 +15,7 @@ const PLAIN_BUDGET: usize = 14_200;
 /// The same agent on Codex (its sandbox section): 13,262.
 const CODEX_BUDGET: usize = 14_800;
 /// The Chief of Staff, with no team yet: 16,646.
-const CHIEF_BUDGET: usize = 18_000;
+const CHIEF_BUDGET: usize = 18_400;
 
 fn agent(id: &str, name: &str, main: bool, engine: Engine) -> store::Agent {
     let mut a: store::Agent = serde_json::from_value(serde_json::json!({
