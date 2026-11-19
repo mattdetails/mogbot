@@ -24,6 +24,15 @@ export const REVEAL_MIN_RATE = 45;
 /** Whatever is queued is shown over about this long: steady, never far behind. */
 export const REVEAL_CATCH_UP_MS = 260;
 
+/**
+ * The reveal moves at most this often (about 30 steps a second). Text typing
+ * in at 60 steps a second looks the same, but each step re-lays-out the
+ * growing reply in a chat that may hold thousands of lines: halving the steps
+ * halves the style, layout and paint of a streaming reply (measured with
+ * `scripts/perf-agents.mjs`).
+ */
+export const REVEAL_STEP_MS = 30;
+
 /** Whether a reply with this id is part-way through its reveal. */
 export function isRevealing(id: string): boolean {
   return revealed.has(id);
@@ -80,6 +89,12 @@ export function useReveal(id: string, target: string, streaming: boolean): strin
     let last = 0;
     let carry = 0;
     const tick = (now: number) => {
+      // A frame that would be too soon waits for the next, keeping the time
+      // it owes (`last` is the last step, not the last frame).
+      if (last && now - last < REVEAL_STEP_MS - 4) {
+        frame = requestAnimationFrame(tick);
+        return;
+      }
       const dt = last ? Math.min(50, now - last) : 16;
       last = now;
       const step = revealStep(target.length - shown, dt, carry);
