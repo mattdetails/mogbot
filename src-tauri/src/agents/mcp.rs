@@ -208,10 +208,28 @@ const TOOLS: &[Tool] = &[
         }),
     },
     Tool {
+        name: super::missions_run::TOOL,
+        description: super::missions_run::DESCRIPTION,
+        main_only: true,
+        schema: super::missions_run::schema,
+    },
+    Tool {
         name: super::eod::TOOL,
         description: super::eod::DESCRIPTION,
         main_only: true,
         schema: super::eod::schema,
+    },
+    Tool {
+        name: super::tasks::ADD_TOOL,
+        description: super::tasks::ADD_DESCRIPTION,
+        main_only: false,
+        schema: super::tasks::add_schema,
+    },
+    Tool {
+        name: super::tasks::UPDATE_TOOL,
+        description: super::tasks::UPDATE_DESCRIPTION,
+        main_only: false,
+        schema: super::tasks::update_schema,
     },
     Tool {
         name: super::tasks::TOOL,
@@ -895,6 +913,15 @@ async fn call(
         "search_my_chat" => search_my_chat(caller, args),
         super::team_record::TOOL => team_lookup(caller, args).await,
         super::eod::TOOL => end_of_day(app, caller, args),
+        super::missions_run::TOOL => mission_tool(app, caller, args),
+        super::tasks::ADD_TOOL => match super::tasks::run_add(caller, args) {
+            Ok(t) => text(t),
+            Err(e) => error(e),
+        },
+        super::tasks::UPDATE_TOOL => match super::tasks::run_update(caller, args) {
+            Ok(t) => text(t),
+            Err(e) => error(e),
+        },
         super::tasks::TOOL => match super::tasks::run_tool(caller, args) {
             Ok(t) => text(t),
             Err(e) => error(e),
@@ -3145,6 +3172,7 @@ async fn ask_inner(
     if let Some((tool, input)) = call {
         if let Some(why) = super::remember::never_always(caller, tool, input) {
             approval.always_note = Some(format!("Can't be always allowed: {why}."));
+            approval.always_refused = true;
         }
     }
     approval.risk = risk_of(caller, call, plan.is_some() || raw);
@@ -3243,6 +3271,31 @@ pub(super) fn read_wait(
 
 /// The tool's reply when a confirmation didn't come back as Allow: the
 /// user's No, or (never dressed up as a No) a card that expired unanswered.
+/// `mission` (`agents/missions_run.rs`): the user's calls (start, add more,
+/// stop, pause, resume, accept) only on their own message in this chat.
+fn mission_tool(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value {
+    let action = arg(args, "action").unwrap_or("");
+    if action == "judge" {
+        let Some(id) = arg(args, "id").map(str::to_string) else {
+            return error("`id` is required (from `list`).");
+        };
+        if super::missions::get(&id).is_none() {
+            return error(format!("No mission {id}."));
+        }
+        let app = app.clone();
+        tauri::async_runtime::spawn(super::missions_judge::judge(app, id));
+        return text("Started the independent check on another engine where there is one. Its result lands on the mission page and in your chat; don't wait for it.");
+    }
+    let user = !runner::from_outside(&caller.id) && runner::users_own_ask(&caller.id);
+    match super::missions_run::act(action, args, user, store::now_ms()) {
+        Ok(t) => {
+            let _ = tauri::Emitter::emit(app, super::missions_run::EVENT, ());
+            text(t)
+        }
+        Err(e) => error(e),
+    }
+}
+
 /// `set_end_of_day` (`agents/eod.rs`): the user's setting, applied at once
 /// with a line; never in a turn answering outside text.
 fn end_of_day(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value {
@@ -3406,6 +3459,7 @@ pub(crate) fn new_card(
             call.is_some(),
         ),
         risk_note: call.and_then(|(tool, input)| super::risk_note::of(tool, input)),
+        always_refused: spends,
         always,
         always_allowed: false,
         // What it does and why, in words; the raw call goes behind Details.

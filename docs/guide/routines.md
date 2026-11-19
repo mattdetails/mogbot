@@ -92,13 +92,16 @@ records, so it doesn't use any of your plan.
 
 ## End-of-day check-in
 
-Once a day, at 5:30 PM, the Chief posts a short message in its chat: how many asks the team closed
-today, what is still open or stuck, and one question: anything to hand off tonight, or chase
-tomorrow? Answer it like any message and the Chief gives each thing to the agent that owns it. It's
-built from the agents' open asks, so it doesn't use any of your plan.
+Once a day, at 6:00 PM, the Chief posts a short message in its chat: "Today · 7 done, 1 waits on
+you", what is still open, and one question with three buttons: **All good**, **Something missed** or
+**Not tonight**. Say something missed and the Chief asks what, at most three times, and puts any
+fix to an agent on a card rather than changing it quietly. It's built from the agents' task lists,
+so it doesn't use any of your plan.
 
 - On by default. Change the time or turn it off by telling the Chief ("stop the end-of-day
-  check-in", "check in at 6"), or in **Settings → Notifications**.
-- If you were just talking to the Chief, it waits a few minutes rather than cutting in.
+  check-in", "check in at 7"), or in **Settings → Notifications**, on the desk or on the phone (the
+  phone offers the common evenings, 4:30 to 7:00 PM, and Off, on a 12-hour clock).
+- A day with nothing done and nothing open posts nothing. If you talked to the Chief in the last
+  hour, it waits.
 - If your computer was asleep or the app was closed for more than 3 hours past the time, that day's
   check-in is skipped.

@@ -200,6 +200,7 @@ fn the_thread_reads_back_with_each_members_card_answers() {
             answered_from: None,
             always_note: None,
             risk_note: None,
+            always_refused: false,
             from_outside: None,
             front: None,
             settings: None,

@@ -423,6 +423,12 @@ pub struct Approval {
     /// recognised, never a guess.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub risk_note: Option<String>,
+    /// Always allow is refused on this card (`remember::never_always`):
+    /// money, deleting for good, `sudo`, force pushes, system changes,
+    /// credentials. `always_note` says why. A client hides or disables
+    /// Always from this, not from the note's words.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub always_refused: bool,
     /// "Change this agent's settings?" (`propose_settings_change`,
     /// `agents/policy_card.rs`): who, what, before and after in plain words.
     /// Nothing changes until the user allows it; the card's own text

@@ -7714,36 +7714,40 @@ Observed on the 18 Nov calls: an ask given to an agent was gone once it got busy
 near-identical jobs (Apollo PM, Apollo Finances) both got the same update, and nobody could see who
 was overloaded.
 
-- **One list per agent**, `<home>/tasks.json`, kept by the app. A request from another agent
+- **One list per agent**, `<home>/tasks.jsonl` (one line per task), kept by the app. A request from another agent
   (`message_agent`) lands on the helper's list as it is delivered, deduped (the same ask from the
   same sender is bumped, never doubled); the helper's turn answering it marks it done, ending in an
-  error marks it stuck. The agent adds the user's asks it can't finish in one reply with the `tasks`
-  tool (`add`, `done`, `drop`, `wait` naming on whom, `list`, `board`). Every turn's briefing ends
+  error marks it stuck. The agent adds the user's asks it can't finish in one reply with `task_add` and moves them with
+  `task_update` (doing one at a time, next, waiting on the user, done, dropped with a reason); `tasks`
+  reads (`list`, `board`). Every turn's briefing ends
   with the agent's own open list, so a restart never loses one.
-- **Overloaded** is a plain rule, shown as the rule: 6 or more open, or 3 or more with the oldest
-  over a day. Never a model's judgement.
+- **Busy** is a plain rule: 10 or more to do, or one open line over a day with no movement (a line
+  waiting on the user doesn't count). Never a model's judgement.
 - **The board.** The Chief's briefing carries every agent's job (its role in a few words), open
   count, oldest age, overloaded or stuck flag, what it is doing now and its first ask, capped at
   1,400 characters, plus who has nothing open. `message_agent` tells the sender when another agent
   already has a like ask open (word overlap of 70% of the shorter), so it tells that agent instead
   of doing it twice.
 - **Chasing.** The scheduler tick (every 5 minutes at most) nudges an ask still open after 3 hours
-  (8 for the user's own asks on a list), as a request from whoever asked, twice at most. Never while
+  (8 for the user's own asks on a list), as a request from whoever asked, twice at most and a line at most once a day. Never while
   the agent is busy, has a message queued, is being driven (Take over), in quiet hours or in "Save my
   limits". After the second nudge goes unanswered for another wait, it is marked stuck and the Chief's
   chat says so in one line (nothing goes silent).
-- **Desk.** What's in flight has an "Open asks" section: each agent with something open, an
-  Overloaded or "N stuck" pill, its first asks and how old (`agents_task_board`). Harness:
+- **Desk.** What's in flight has an "Team tasks" section: each agent with something open, an
+  Busy or "N stuck" pill, its first asks and how old (`agents_task_board`). Harness:
   `agents-inflight-asks`.
 - **Honest asking** (every agent's prompt, "Do you have what you need?"): check memory, the team
   record, files and tools first; ask one specific question for what only the user or a teammate has,
   and put the task on `wait`; never fill a gap with invented numbers, names, links or filler.
-- **End-of-day check-in** (`agents/eod.rs`): on by default at 17:30; the scheduler tick posts one
+- **End-of-day check-in** (`agents/eod.rs`): on by default at 18:00; the scheduler tick posts one
   message in the Chief's chat composed from the task lists (closed today, still open, stuck,
-  overloaded) ending in one question. No model turn. Waits 10 minutes after the user's last message
-  to the Chief, skipped when more than 3 hours late. `set_end_of_day` (Chief only, never in a turn
+  busy) ending in "Did anything today miss the mark?". No model turn. Waits an hour after the user's last message
+  to the Chief, skipped when more than 3 hours late or when nothing ran. One `choices` block: All good /
+  Something missed / Not tonight. `set_end_of_day` (Chief only, never in a turn
   answering outside text) and Settings → Notifications change it; `agents_end_of_day` /
-  `agents_set_end_of_day`. Harness: `settings-agents-brief`, `settings-agents-end-of-day-off`.
+  `agents_set_end_of_day`. The phone reads and sets it with `agents.endOfDay` / `agents.setEndOfDay`
+  (Settings → Notifications; audited), and the agent sheet's Open asks reads `agents.tasks`
+  (`tasks::load_of`, read-only; `mobile/src/components/OpenAsks.tsx`). Harness: `settings-agents-brief`, `settings-agents-end-of-day-off`.
 - **Interviews** (Chief prompt, "Interviews"; ⌘K `agents.interviewMe`, `agents.train.<id>`): no new
   engine. A palette command sends the Chief a plain message; its prompt runs one question at a time
   (six at most), summarises, asks for one yes, then saves: "me" into its memory (and offers agents),
@@ -7751,6 +7755,40 @@ was overloaded.
   by voice through Talk. The Chief offers the "me" interview once after the user's first ask when it
   knows nothing of their work.
 - Not yet: the phone's view of the lists; the user adding a task by hand.
+
+## Missions (`agents/missions.rs`, `missions_run.rs`, `missions_judge.rs`)
+
+A goal with a contract and a share of the user's usage (Julian, 18 Nov 2026; like Replit Missions,
+but the budget is a share of the user's own engines, not dollars).
+
+- **Record.** `missions.json` beside the registry: goal, 2–5 criteria (count, reduce or check, each
+  with its own source), shares per engine, state (starting, running, paused at a share, paused,
+  blocked, ready, done, stopped), end date, asks first, updates, events, the agents on it and what
+  waits on the user. The Chief starts one with the `mission` tool only on the user's own yes in this
+  chat; agents' and outside text's say never starts, adds, stops or accepts one.
+- **Shares are "about".** A usage share is points of one engine account's weekly window as the engine
+  reported it (`inventory`, about every 10 minutes). What a mission has used is what that window rose
+  by since it started, carried across a refill (`missions::observe`); the first reading is only the
+  baseline. An engine with no reading shows "not read yet"; OpenCode's free models report none, so
+  they take a time cap. Nothing is estimated.
+- **Soft stop.** The scheduler tick (`missions_run::tick`) reads at most every 9 minutes while a
+  mission is live. At a share or the end date the mission pauses, an event is kept, and the Chief's
+  chat gets one card (Add 10% of X / Finish with the other engine / Stop here). A running turn is
+  never killed; the Chief's briefing says the mission is paused so it hands out no more. Adding more
+  is the user's call.
+- **The judge** (`missions_judge`). `mission judge` starts a sealed no-tools call (the same as
+  "Describe the agent you want") on an engine that did none of the work where there is one, given
+  only the criteria and the mission's recorded evidence, fenced as data. It answers Met / Not met /
+  Couldn't check per criterion (a skipped one is Couldn't check; an unreadable answer is an error,
+  never a pass). Where it differs from the agents' own record it is counted and said ("disagreed on
+  N"). The mission becomes ready for review; only the user accepts.
+- **Desk.** What's in flight lists open missions; the page (`MissionPage`) is built to Designer's
+  rules in `lib/missions.ts` (hero tick/bar/down/criteria, share rows, asks strip, banners, +N more,
+  status overrides, bottom note), tested against the eight cases; harness `mission-<case>` and
+  `mission-<case>-phone`.
+- **Not built:** a setup screen and Save for later (the Chief's card starts it), "Paused while your
+  Mac sleeps", a Reconnect action on a blocked mission, the phone's views, a forecast for "Day N of
+  about M".
 
 ## Known limits / next
 

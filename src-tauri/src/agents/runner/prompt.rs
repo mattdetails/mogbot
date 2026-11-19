@@ -175,6 +175,10 @@ pub(in crate::agents) fn system_prompt_for(
         prompt.push_str(&own);
     }
     if agent.is_main {
+        if let Some(m) = crate::agents::missions::briefing(&crate::agents::missions::list()) {
+            prompt.push_str("\n\n");
+            prompt.push_str(&m);
+        }
         if let Some(board) = crate::agents::tasks::board_for_chief() {
             prompt.push_str("\n\n");
             prompt.push_str(&board);

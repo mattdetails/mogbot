@@ -108,6 +108,7 @@
         ],
         "moduleNameMapper": {
           "^\\./agentKeyPackShards$": "<rootDir>/../packages/companion-protocol/src/agentKeyPackShards.require.ts",
+          "^@shipstudio/companion-protocol$": "<rootDir>/../packages/companion-protocol/src/index.ts",
           "^@babel/runtime/(.*)$": "<rootDir>/node_modules/@babel/runtime/$1"
         }
       },
@@ -122,6 +123,7 @@
         ],
         "moduleNameMapper": {
           "^\\./agentKeyPackShards$": "<rootDir>/../packages/companion-protocol/src/agentKeyPackShards.require.ts",
+          "^@shipstudio/companion-protocol$": "<rootDir>/../packages/companion-protocol/src/index.ts",
           "^@babel/runtime/(.*)$": "<rootDir>/node_modules/@babel/runtime/$1"
         }
       }

@@ -1296,6 +1296,7 @@ where
                     return Ended::Revoked;
                 }
                 c.registry.touch(&caller.device_id, now_ms() as i64, caller.route, false);
+                c.heard_from(conn_of(&caller.label));
                 let frame = match serde_json::from_str::<ClientFrame>(&text) {
                     Ok(f) => f,
                     Err(e) => {

@@ -1692,7 +1692,7 @@ Worker in `services/push-relay`, which holds the APNs/FCM key. The Mac sends
 only an opaque device handle, a kind (`needs_you`, `finished`, `message`), the
 agent's random id and the badge; the words are fixed in the Worker. An alert
 the desk would post (`agents::notify`, which already applies mute, on-screen
-and coalescing) is pushed to each phone not in front. It's for official builds
+and coalescing) is pushed to each phone not in front. A socket counts as in front only while the phone keeps talking on it: the phone pings every 15 s, and one silent for 45 s (`FOREGROUND_STALE_MS`) is treated as away, since over the relay nothing tells the Mac a suspended phone's channel is dead. It's for official builds
 only (a self-built app has no push entitlement), switched on in Settings →
 Phone, and **live** since 12 Nov 2026 for iPhone (`links.pushRelay` in
 brand.json, from Mac 1.0.6). Android has no FCM yet. Design, threat model and

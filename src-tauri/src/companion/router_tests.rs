@@ -1026,6 +1026,54 @@ async fn a_phone_reads_and_sets_the_morning_brief() {
 }
 
 #[tokio::test]
+async fn a_phone_reads_and_sets_the_end_of_day_check_in() {
+    use crate::companion::testkit::Stub;
+    let (c, stub) = Stub::companion();
+    let me = caller("dev_a");
+    let read = dispatch(&c, &me, "agents.endOfDay", json!({}))
+        .await
+        .unwrap();
+    assert_eq!(read["on"], true);
+    assert_eq!(read["at"], 18 * 60);
+    assert!(READ_ONLY_METHODS.contains(&"agents.endOfDay"));
+    assert!(!READ_ONLY_METHODS.contains(&"agents.setEndOfDay"));
+    let set = |params: Value| dispatch(&c, &me, "agents.setEndOfDay", params);
+    assert!(set(json!({ "on": true })).await.is_err());
+    assert!(set(json!({ "on": true, "at": 1440 })).await.is_err());
+    assert!(set(json!({ "on": "yes", "at": 1080 })).await.is_err());
+    let on = set(json!({ "on": true, "at": 1110 })).await.unwrap();
+    assert_eq!(on["at"], 1110);
+    let off = set(json!({ "on": false, "at": 1110 })).await.unwrap();
+    assert_eq!(off["on"], false);
+    let audited = stub.audited();
+    assert!(audited
+        .iter()
+        .any(|(_, m, detail, ok)| m == "agents.setEndOfDay"
+            && *ok
+            && detail == "end-of-day check-in: 18:30"));
+    assert!(audited
+        .iter()
+        .any(|(_, m, detail, ok)| m == "agents.setEndOfDay"
+            && *ok
+            && detail == "end-of-day check-in: off"));
+}
+
+#[tokio::test]
+async fn a_phone_reads_an_agents_open_asks() {
+    use crate::companion::testkit::Stub;
+    let (c, _stub) = Stub::companion();
+    let me = caller("dev_a");
+    assert!(READ_ONLY_METHODS.contains(&"agents.tasks"));
+    assert!(dispatch(&c, &me, "agents.tasks", json!({})).await.is_err());
+    let read = dispatch(&c, &me, "agents.tasks", json!({ "agentId": "ops" }))
+        .await
+        .unwrap();
+    assert_eq!(read["agentId"], "ops");
+    assert_eq!(read["open"][0]["state"], "doing");
+    assert_eq!(read["open"][1]["waitingOn"], "Dana's reply");
+}
+
+#[tokio::test]
 async fn a_phone_reads_and_sets_how_independent_agents_are() {
     use crate::agents::independence::Level;
     use crate::companion::testkit::Stub;

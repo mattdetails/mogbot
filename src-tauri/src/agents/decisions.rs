@@ -324,6 +324,7 @@ pub(crate) fn card(
         answered_from: None,
         always_note: None,
         risk_note: None,
+        always_refused: false,
         from_outside: None,
         front: None,
         settings: None,

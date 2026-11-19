@@ -108,6 +108,9 @@ pub const METHODS: &[&str] = &[
     "agents.setQuietHours",
     "agents.morningBrief",
     "agents.setMorningBrief",
+    "agents.tasks",
+    "agents.endOfDay",
+    "agents.setEndOfDay",
     "agents.changeDiff",
     "agents.keepCopy",
     "agents.discardCopy",
@@ -180,6 +183,8 @@ pub const READ_ONLY_METHODS: &[&str] = &[
     "agents.usagePlan",
     "agents.quietHours",
     "agents.morningBrief",
+    "agents.tasks",
+    "agents.endOfDay",
     "agents.import.status",
     "agents.import.exportPrompt",
     "agents.import.exportPreview",
@@ -823,6 +828,15 @@ pub trait Backend: Send + Sync + 'static {
         at: u32,
         always: bool,
     ) -> Result<Value, CommandError>;
+    /// One agent's own task list (`agents::tasks::load_of`): its open asks
+    /// (Doing, Next, Waiting, Stuck), the last few closed, what it is doing
+    /// now and whether it is overloaded. Read-only.
+    async fn tasks(&self, agent_id: &str) -> Result<Value, CommandError>;
+    /// `agents_end_of_day`: the end-of-day check-in, on or off and its time
+    /// (minutes after midnight).
+    async fn end_of_day(&self) -> Result<Value, CommandError>;
+    /// `agents_set_end_of_day`: on or off and its time. Answers as `end_of_day`.
+    async fn set_end_of_day(&self, on: bool, at: u32) -> Result<Value, CommandError>;
     /// An import from another assistant, as the phone follows it: whether
     /// this Mac's Remote access is on and has been reached, whether an import
     /// may begin, the one going on, and the message to send. Never the link:
@@ -2147,6 +2161,15 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
             ),
             _ => "morning brief: off".to_string(),
         },
+        "agents.setEndOfDay" => match params.get("on").and_then(Value::as_bool) {
+            Some(true) => format!(
+                "end-of-day check-in: {}",
+                crate::agents::eod::clock_label(
+                    params.get("at").and_then(Value::as_u64).unwrap_or(0) as u32
+                )
+            ),
+            _ => "end-of-day check-in: off".to_string(),
+        },
         "agents.setImportChoice" => format!("import: {}", preview(field("choice"))),
         "agents.setAgentIndependence" => format!(
             "{} independence: {}",
@@ -2836,6 +2859,27 @@ async fn run(
                 ));
             };
             Ok(b.set_morning_brief(on, at as u32, always).await?)
+        }
+        "agents.tasks" => {
+            let agent_id = params.get("agentId").and_then(Value::as_str).unwrap_or("");
+            if agent_id.is_empty() || agent_id.len() > 64 {
+                return Err(bad_params("Tasks takes an agentId."));
+            }
+            Ok(b.tasks(agent_id).await?)
+        }
+        "agents.endOfDay" => Ok(b.end_of_day().await?),
+        "agents.setEndOfDay" => {
+            let on = params.get("on").and_then(Value::as_bool);
+            let at = params
+                .get("at")
+                .and_then(Value::as_u64)
+                .filter(|m| *m < 24 * 60);
+            let (Some(on), Some(at)) = (on, at) else {
+                return Err(bad_params(
+                    "The end-of-day check-in takes `on` (true or false) and `at`, minutes after midnight (0 to 1439).",
+                ));
+            };
+            Ok(b.set_end_of_day(on, at as u32).await?)
         }
         "agents.import.status" => Ok(b.import_status().await?),
         "agents.import.start" => Ok(b.import_start().await?),

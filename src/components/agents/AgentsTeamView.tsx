@@ -36,6 +36,8 @@ import {
   type AgentLoad,
 } from '../../lib/agentTasks';
 import { usePolling } from '../../hooks/usePolling';
+import { getMissions, missionKey, ordered, STATE_WORD, metCount } from '../../lib/missions';
+import { useMissions } from './MissionPage';
 import { AgentWorkingLine } from './AgentWorkingLine';
 import { AgentEngineBadge } from './AgentEngine';
 import { ApprovalCard, ErrorLine } from './AgentChatItems';
@@ -185,6 +187,7 @@ function useRoomCards(agents: Agent[], rooms: Room[], loaded: Record<string, Age
 function Section({
   title,
   count,
+  countLabel,
   hint,
   empty,
   quiet,
@@ -196,6 +199,8 @@ function Section({
   lead?: boolean;
   /** How many are in it, said beside the heading (never for a section that lists a sample). */
   count?: number;
+  /** What the count counts, when it isn't the rows' own kind ("3 agents"). */
+  countLabel?: string;
   /** A key that gets you there faster: on hover, not on the page (it read as a dev keymap). */
   hint?: string;
   empty: string;
@@ -216,7 +221,7 @@ function Section({
         {title}
         {count !== undefined && count > 0 && (
           <span className="agents-team__count" aria-hidden="true">
-            · {count}
+            · {countLabel ?? count}
           </span>
         )}
       </h3>
@@ -424,6 +429,11 @@ export function AgentsTeamView({
     { intervalMs: 15_000, name: 'task-board' }
   );
   const asks = useMemo(() => withOpenAsks(loads), [loads]);
+  const missions = useMissions(getMissions);
+  const openMissions = useMemo(
+    () => ordered(missions).filter((m) => m.state !== 'done' && m.state !== 'stopped'),
+    [missions]
+  );
   const columnRef = useRef<HTMLDivElement>(null);
   const [held, setHeld] = useState<Record<string, Held>>({});
   // Rows you opened or closed; the rest follow the count (see OPEN_FIRST).
@@ -855,6 +865,65 @@ export function AgentsTeamView({
             })}
           </Section>
 
+          {openMissions.length > 0 && (
+            <Section title="Missions" count={openMissions.length} empty="">
+              {openMissions.map((m) => {
+                const chief = agents.find((a) => a.isMain);
+                if (!chief) return null;
+                return (
+                  <ActionColumn key={m.id}>
+                    <Row
+                      agent={chief}
+                      line={m.goal}
+                      pill={
+                        m.state === 'paused_cap' || m.state === 'blocked' || m.state === 'ready'
+                          ? {
+                              tone:
+                                m.state === 'blocked' ? ('failed' as const) : ('waiting' as const),
+                              label: STATE_WORD[m.state],
+                            }
+                          : undefined
+                      }
+                      meta={`${metCount(m)} of ${m.criteria.length} met`}
+                      onOpen={() => onOpenAgent(missionKey(m.id))}
+                    />
+                  </ActionColumn>
+                );
+              })}
+            </Section>
+          )}
+
+          {asks.length > 0 && (
+            <Section
+              title="Team tasks"
+              count={asks.length}
+              countLabel={`${asks.length} ${asks.length === 1 ? 'agent' : 'agents'}`}
+              empty=""
+            >
+              {asks.map((load) => {
+                const agent = agents.find((a) => a.id === load.agentId);
+                if (!agent) return null;
+                const pill =
+                  load.stuck > 0
+                    ? { tone: 'waiting' as const, label: `${load.stuck} stuck` }
+                    : load.overloaded
+                      ? { tone: 'waiting' as const, label: 'Busy' }
+                      : undefined;
+                return (
+                  <ActionColumn key={load.agentId}>
+                    <Row
+                      agent={agent}
+                      line={asksLine(load)}
+                      pill={pill}
+                      meta={`${load.open.length} open · oldest ${taskAge(load.open[0].createdAt)}`}
+                      onOpen={() => onOpenAgent(agent.id)}
+                    />
+                  </ActionColumn>
+                );
+              })}
+            </Section>
+          )}
+
           <Section
             title="Working now"
             count={team.working.length}
@@ -950,32 +1019,6 @@ export function AgentsTeamView({
                       />
                     )}
                   </div>
-                );
-              })}
-            </Section>
-          )}
-
-          {asks.length > 0 && (
-            <Section title="Open asks" count={asks.length} empty="" quiet>
-              {asks.map((load) => {
-                const agent = agents.find((a) => a.id === load.agentId);
-                if (!agent) return null;
-                const pill =
-                  load.stuck > 0
-                    ? { tone: 'failed' as const, label: `${load.stuck} stuck` }
-                    : load.overloaded
-                      ? { tone: 'waiting' as const, label: 'Overloaded' }
-                      : undefined;
-                return (
-                  <ActionColumn key={load.agentId}>
-                    <Row
-                      agent={agent}
-                      line={asksLine(load)}
-                      pill={pill}
-                      meta={`${load.open.length} open · ${taskAge(load.open[0].createdAt)}`}
-                      onOpen={() => onOpenAgent(agent.id)}
-                    />
-                  </ActionColumn>
                 );
               })}
             </Section>

@@ -1,0 +1,377 @@
+/* A mission's page (MissionPage, Designer's spec-mission-states). One column
+   that stacks at any width: no horizontal scroll at 390px, buttons wrap, long
+   words break. Amber and red only ever carry words as well. */
+
+.mission {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.mission__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  min-width: 0;
+}
+
+.mission__state {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  color: var(--text-muted);
+}
+
+.mission__dot {
+  flex: none;
+  width: var(--spacing-xs);
+  height: var(--spacing-xs);
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.mission[data-state='running'] .mission__dot,
+.mission[data-state='starting'] .mission__dot {
+  background: var(--status-running);
+}
+
+.mission[data-state='paused_cap'] .mission__dot {
+  background: var(--accent-warning);
+}
+
+.mission[data-state='blocked'] .mission__dot {
+  background: var(--accent-error);
+}
+
+/* Rule 1: three lines, then an ellipsis; any word may break. */
+.mission__goal {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-18);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.mission__summary,
+.mission__meta,
+.mission__note,
+.mission__source,
+.mission__more,
+.mission__empty,
+.mission__checked {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  color: var(--text-muted);
+}
+
+.mission__summary {
+  color: var(--text-secondary);
+}
+
+/* The hero: the first number. */
+.mission__hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.mission__hero-line {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.mission__hero-number {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.mission__hero-number[data-big] {
+  font-size: var(--font-size-24);
+}
+
+.mission__ticks,
+.mission__segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2xs);
+}
+
+.mission__ticks span,
+.mission__segments span {
+  flex: 1 1 var(--spacing-md);
+  min-width: var(--spacing-sm);
+  height: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background: var(--surface-control);
+}
+
+.mission__ticks span[data-on],
+.mission__segments span[data-met] {
+  background: var(--text-primary);
+}
+
+.mission__bar,
+.mission__share-bar {
+  position: relative;
+  height: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background: var(--surface-control);
+  overflow: hidden;
+}
+
+.mission__bar span {
+  display: block;
+  height: 100%;
+  background: var(--text-primary);
+}
+
+/* Sections. */
+.mission__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.mission__heading {
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+}
+
+.mission__share {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+
+.mission__share-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-body-sm);
+}
+
+.mission__engine {
+  color: var(--text-primary);
+}
+
+.mission__share-text {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mission__share[data-over] .mission__share-text {
+  color: var(--accent-warning);
+}
+
+.mission__share-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--text-primary);
+}
+
+.mission__share-over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent-warning);
+}
+
+/* The share's marker: a line, so the bar says where it stops. */
+.mission__share-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--border-width-emphasis);
+  background: var(--text-secondary);
+  box-shadow: 0 0 0 var(--border-width-default) var(--surface-app);
+}
+
+/* No reading yet: hatched, never a made-up fill. */
+.mission__share-bar[data-unread] {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--surface-control) 0 var(--spacing-2xs),
+    var(--surface-panel) var(--spacing-2xs) var(--spacing-xs)
+  );
+}
+
+/* Banners: state only. */
+.mission__banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  background: var(--surface-panel);
+}
+
+.mission__banner[data-tone='amber'] {
+  background: var(--surface-warning);
+}
+
+.mission__banner[data-tone='red'] {
+  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--accent-error);
+}
+
+.mission__banner-title,
+.mission__banner-text {
+  margin: 0;
+}
+
+.mission__banner-title {
+  font-weight: var(--font-weight-semibold);
+}
+
+.mission__banner-text {
+  font-size: var(--font-size-body-sm);
+  color: var(--text-secondary);
+}
+
+.mission__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+/* Waiting on you: never more than three rows. */
+.mission__asks {
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  background: var(--surface-panel);
+}
+
+.mission__ask {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3xs);
+}
+
+.mission__ask-text,
+.mission__ask-detail {
+  margin: 0;
+}
+
+.mission__ask-detail {
+  font-size: var(--font-size-body-sm);
+  color: var(--text-muted);
+}
+
+/* Lists: criteria, agents, events. */
+.mission__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mission__criterion,
+.mission__event {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-2xs) var(--spacing-md);
+  min-width: 0;
+}
+
+/* Name, engine and status share columns down the list (rule 8). */
+.mission__agent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 9rem) minmax(0, 8rem);
+  align-items: baseline;
+  gap: var(--spacing-2xs) var(--spacing-md);
+  min-width: 0;
+}
+
+.mission__agent-status {
+  text-align: right;
+}
+
+@media (max-width: 480px) {
+  .mission__agent {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .mission__agent-engine {
+    grid-column: 1;
+  }
+  .mission__agent-status {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    align-self: center;
+  }
+}
+
+/* Rule 6: two lines at most; at phone width the count drops under the text. */
+.mission__criterion-text,
+.mission__event-text {
+  display: -webkit-box;
+  flex: 1 1 14rem;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.mission__criterion-word,
+.mission__agent-status,
+.mission__event-meta {
+  flex: none;
+  font-size: var(--font-size-body-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mission__criterion[data-status='couldnt_check'] .mission__criterion-word,
+.mission__criterion[data-status='not_met'] .mission__criterion-word {
+  color: var(--accent-warning);
+}
+
+.mission__criterion-note {
+  flex-basis: 100%;
+  font-size: var(--font-size-body-sm);
+  color: var(--text-muted);
+}
+
+/* Rule 8: names and engines truncate. */
+.mission__agent-name,
+.mission__agent-engine {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mission__agent-engine {
+  font-size: var(--font-size-body-sm);
+  color: var(--text-muted);
+}
+
+.mission__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}

@@ -345,7 +345,10 @@ pub fn always_note(scope: Option<&Scope>, spends: bool, is_tool_call: bool) -> O
         RuleKind::Domain => format!("page it opens on {}", scope.value),
         RuleKind::AppReads => format!(
             "read of your {}",
-            scope.label.strip_prefix("reading your ").unwrap_or(&scope.label)
+            scope
+                .label
+                .strip_prefix("reading your ")
+                .unwrap_or(&scope.label)
         ),
         RuleKind::Tool if scope.value == "WebSearch" => "web search".to_string(),
         RuleKind::Tool => format!("“{}”", scope.label),
@@ -371,8 +374,17 @@ fn never_always_in(ctx: Option<&Ctx>, tool: &str, input: &Value) -> Option<&'sta
         Some(ctx) => super::go_hard::floor(tool, input, ctx),
         None => true,
     };
-    on_floor.then(|| floor_reason(tool, input))
+    if !on_floor {
+        return None;
+    }
+    let why = floor_reason(tool, input);
+    // A plain push is on Bold's ask list but not on the floor no rule may
+    // cover (money, credentials, `sudo`, deleting for good, force pushes,
+    // system persistence): "Mogbot repo: go ahead" is a rule worth keeping.
+    (why != PLAIN_PUSH).then_some(why)
 }
+
+const PLAIN_PUSH: &str = "it publishes for others to see";
 
 fn floor_reason(tool: &str, input: &Value) -> &'static str {
     let Some(command) = input.get("command").and_then(Value::as_str).filter(|_| tool == "Bash")
@@ -397,7 +409,7 @@ fn floor_reason(tool: &str, input: &Value) -> &'static str {
                 return if forced {
                     "it force-pushes or deletes on the remote"
                 } else {
-                    "it publishes for others to see"
+                    PLAIN_PUSH
                 };
             }
             "launchctl" | "crontab" | "defaults" | "pmset" | "scutil" | "systemsetup" => {

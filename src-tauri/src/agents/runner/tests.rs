@@ -719,6 +719,7 @@ fn starting_fresh_waits_for_a_card_or_a_delegated_answer() {
             answered_from: None,
             always_note: None,
             risk_note: None,
+            always_refused: false,
             from_outside: None,
             front: None,
             settings: None,

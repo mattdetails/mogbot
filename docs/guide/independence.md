@@ -95,7 +95,8 @@ far back it is. **Review** on the "needs your OK" bar does the same.
 - The app records where each answer came from (this Mac, your phone, your phone's lock screen, another agent
   you made an admin, the app at your independence level, or a rule you made) beside the answer.
 - A card that offers **Always allow** says in one line what it would cover ("Every future command starting
-  with `git push` from this agent."). A card for something the app always asks about (spending, deleting for good, pushing, credentials, administrator commands) says it can't be always allowed, and refuses it.
+  with `git push` from this agent."). A card for something that can never be kept as a rule (spending, deleting for good, force pushes, credentials, administrator commands, system changes) says it can't be always allowed, and refuses it. A plain push can be: "this repo, go ahead" is a rule you can keep.
+- An answered card folds to one line and says where the answer came from when it wasn't at your desk: "Allowed on your phone", "Allowed from the Lock Screen", "Allowed by the Chief", "Allowed by your rule". A card that can't be always allowed shows the app's one-sentence reason in place of **Always allow**; one that can shows a sentence of what it skips under the answers.
 - A card waits for you, even after the agent's turn ends or the app restarts. Allow it later and
   the agent picks that exact step back up on its own, with a line saying so. Pressing Stop withdraws
   an agent's open cards; one left unanswered for three days closes by itself.

@@ -1505,10 +1505,18 @@ fn replay_recorded_cards() {
 
 #[test]
 fn opening_a_thread_never_asks_but_its_send_does() {
-    for open in ["button \"1 reply\"", "button \"12 replies\"", "button \"Reply in thread\""] {
+    for open in [
+        "button \"1 reply\"",
+        "button \"12 replies\"",
+        "button \"Reply in thread\"",
+    ] {
         assert_eq!(final_submit(open, Level::GoHard), None, "{open}");
     }
-    for send in ["button \"Send now\"", "button \"Reply\"", "button \"Reply all\""] {
+    for send in [
+        "button \"Send now\"",
+        "button \"Reply\"",
+        "button \"Reply all\"",
+    ] {
         assert!(final_submit(send, Level::GoHard).is_some(), "{send}");
     }
 }

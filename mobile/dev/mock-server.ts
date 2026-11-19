@@ -1612,6 +1612,8 @@ export function createMockServer(opts: MockOptions = {}) {
   // Quiet hours (`agents::quiet`): on, 22:00–07:00, until the phone changes them.
   let quietWindow: { start: number; end: number } | null = { start: 22 * 60, end: 7 * 60 };
   let morningBrief = { on: true, at: 8 * 60, always: false };
+  // The end-of-day check-in (`agents::eod`): on, 18:00.
+  let endOfDay = { on: true, at: 18 * 60 };
   // Every agent's key, as the Mac's `keys::fill` gives one saved before keys: its
   // colour's nearest colourway, an icon from its name then role, the first free
   // letter of its name, the Chief first.
@@ -3876,6 +3878,66 @@ export function createMockServer(opts: MockOptions = {}) {
       morningBrief = { on: p.on, at: at as number, always: p.always === true };
       return morningBrief;
     },
+    // One agent's open asks (`agents::tasks::load_of`): a doing line, one waiting.
+    'agents.tasks': (p) => {
+      const a = agents.find((x) => x.id === p.agentId);
+      if (!a) {
+        return fail({ type: 'Protocol', code: 'bad_params', message: 'Tasks takes an agentId.' });
+      }
+      const now = Date.now();
+      return {
+        agentId: a.id,
+        name: a.name,
+        role: a.role ?? '',
+        doing: 'Rotating the staging certificates',
+        open: [
+          {
+            id: 't1',
+            title: 'Rotate the staging certificates',
+            source: 'user',
+            state: 'doing',
+            createdAt: now - 3_600_000,
+            updatedAt: now - 60_000,
+            chased: 0,
+            lastChasedAt: 0,
+          },
+          {
+            id: 't2',
+            title: 'Send Dana the deploy notes',
+            source: 'agent',
+            from: { id: 'chief', name: 'Chief of Staff' },
+            state: 'waiting',
+            waitingOn: 'Dana’s reply',
+            createdAt: now - 7_200_000,
+            updatedAt: now - 1_800_000,
+            chased: 1,
+            lastChasedAt: now - 1_800_000,
+          },
+        ],
+        recent: [],
+        overloaded: false,
+        stuck: 0,
+      };
+    },
+    'agents.endOfDay': () => endOfDay,
+    'agents.setEndOfDay': (p) => {
+      const at = p.at as unknown;
+      if (
+        typeof p.on !== 'boolean' ||
+        !Number.isInteger(at) ||
+        (at as number) < 0 ||
+        (at as number) >= 1440
+      ) {
+        return fail({
+          type: 'Protocol',
+          code: 'bad_params',
+          message:
+            'The end-of-day check-in takes `on` (true or false) and `at`, minutes after midnight (0 to 1439).',
+        });
+      }
+      endOfDay = { on: p.on, at: at as number };
+      return endOfDay;
+    },
     // As `quiet::checked` does: whole minutes in a day, start ≠ end.
     'agents.setQuietHours': (p) => {
       const w = p.window as { start: number; end: number } | null | undefined;
@@ -5623,6 +5685,46 @@ function seedMessages(a: Agent, now: number): AgentMessage[] {
         },
       },
     });
+    // A risky call, with the Mac's one-line why and what Always would cover.
+    add({
+      ts: now - 25.5 * 60_000,
+      kind: 'approval',
+      text: '',
+      approval: {
+        requestId: 'req_risk',
+        title: 'Delete files',
+        detail: 'rm -r ~/Exports/2024',
+        risk: 'low',
+        status: 'pending',
+        tool: 'Bash',
+        riskNote: 'Deletes this folder and everything in it. It can’t be undone.',
+        always: { kind: 'command_prefix', value: 'rm -r ~/Exports', label: 'rm -r ~/Exports' },
+        alwaysNote: 'Always allow would cover rm -r on anything under ~/Exports.',
+      },
+    });
+    // Folded cards: where each answer came from.
+    for (const [i, [from, status]] of (
+      [
+        ['phone', 'allowed'],
+        ['phoneLockScreen', 'allowed'],
+        ['rule', 'denied'],
+      ] as const
+    ).entries()) {
+      add({
+        ts: now - (29 - i) * 60_000,
+        kind: 'approval',
+        text: '',
+        approval: {
+          requestId: `req_folded_${from}`,
+          title: "Run the tests",
+          detail: 'pnpm test',
+          risk: 'low',
+          status,
+          answeredFrom: from,
+          tool: 'Bash',
+        },
+      });
+    }
     // A connector of our own (signed in on the phone's sheet), and GitHub's
     // device code shown here while `gh` on the Mac waits for it.
     add({

@@ -669,6 +669,8 @@ export interface Approval {
   alwaysNote?: string;
   /** What is at risk, in one sentence, from the parsed call (see companion-protocol). */
   riskNote?: string;
+  /** Always allow is refused on this card; alwaysNote says why. */
+  alwaysRefused?: boolean;
   answeredFrom?: 'desk' | 'phone' | 'phoneLockScreen' | 'plan' | 'auto' | 'admin' | 'rule';
   /** What you told the agent when you declined. */
   note?: string;
@@ -713,8 +715,6 @@ export interface Approval {
   };
   /** The Gmail account a one-email plan goes out from, only when the Mac knows it (never guessed). */
   sendFrom?: string;
-  /** Why this one is asked, in a line, as the Mac worked it out (`risk`'s reason); absent when it has none. */
-  riskNote?: string;
   /** "Save “…” as a skill?": Allow is Save, Deny is Not now (`lib/agentSkills`). Nothing waits on it. */
   skill?: SkillCard;
   /**

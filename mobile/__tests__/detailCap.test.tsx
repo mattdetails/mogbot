@@ -8,6 +8,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Command, Fields } from '../src/components/ApprovalCard';
 import { DiffLines } from '../src/components/diff';
+import { softBreaks } from '@shipstudio/companion-protocol';
 import { capFields, DETAIL_LINES } from '../src/lib/agents';
 import { FAR, revealsCard, seeCards } from '../src/lib/follow';
 
@@ -33,6 +34,7 @@ jest.mock('../src/lib/session', () => ({
   describeError: String,
 }));
 
+const withBreaks = (t: string) => softBreaks(t);
 const lines = (n: number) => Array.from({ length: n }, (_, i) => `line ${i + 1}`).join('\n');
 
 describe('capFields', () => {
@@ -95,16 +97,17 @@ describe('the expander', () => {
     const path = 'cp -r export/icons ~/ShipStudio/acme-site/public/assets/brand/icons/2026-11/final';
     await render(<Command text={path} lines={DETAIL_LINES} />);
     // The whole path is in the tree, as one wrapped text, never a sideways scroll.
-    expect(screen.getByText(path)).toBeTruthy();
+    // The command carries invisible break points after / and - (softBreaks): same words.
+    expect(screen.getByText(withBreaks(path))).toBeTruthy();
     expect(screen.queryByTestId('command-scroll')).toBeNull();
   });
 
   it('caps a very long single line at six lines and says there is more', async () => {
     const long = `rm -r ${'/Users/julian/ShipStudio/acme-site/node_modules/.cache/'.repeat(6)}`;
     await render(<Command text={long} lines={DETAIL_LINES} />);
-    expect(screen.getByText(long).props.numberOfLines).toBe(6);
+    expect(screen.getByText(withBreaks(long)).props.numberOfLines).toBe(6);
     await fireEvent.press(screen.getByText('Show all'));
-    expect(screen.getByText(long).props.numberOfLines).toBeUndefined();
+    expect(screen.getByText(withBreaks(long)).props.numberOfLines).toBeUndefined();
   });
 
   it('caps fields and opens them whole', async () => {

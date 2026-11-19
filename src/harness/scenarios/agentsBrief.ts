@@ -88,14 +88,14 @@ export const agentsBriefScenarios: Scenario[] = [
     id: 'settings-agents-end-of-day-off',
     title: 'Settings — End-of-day check-in, turned off',
     looksRightWhen:
-      'Under the Morning brief rows, an “End-of-day check-in” row saying the Chief says what the team closed and asks what to hand off or chase tomorrow; its switch is off and the time field is hidden. (On, as in settings-agents-brief, it shows “17:30” beside the switch.)',
+      'Under the Morning brief rows, an “End-of-day check-in” row saying the Chief says what the team closed and asks what to hand off or chase tomorrow; its switch is off and the time field is hidden. (On, as in settings-agents-brief, it shows “18:00” beside the switch.)',
     command: 'agents.morningBrief',
     requires: '.agents-brief',
     clipSelector: 'section[aria-labelledby="agents-settings-quiet"]',
     commands: {
       agents_overview: overview(TEAM),
       agents_morning_brief: BRIEF_SETTINGS,
-      agents_end_of_day: { on: false, at: 17 * 60 + 30 },
+      agents_end_of_day: { on: false, at: 18 * 60 },
     },
   },
   {

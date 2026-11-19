@@ -137,4 +137,40 @@ export const agentsApprovalScenarios: Scenario[] = [
     'One quiet line with the app’s reason (“Closed: the turn moved on”); nothing it asked for ran.',
     TESTS('expired', { setAside: 'The turn moved on without it.' })
   ),
+  ...(
+    [
+      ['desk', 'Allowed', 'nothing extra: the plain “Allowed”'],
+      ['phone', 'Allowed on your phone', ''],
+      ['phoneLockScreen', 'Allowed from the Lock Screen', ''],
+      ['plan', 'Allowed with the plan', ''],
+      ['auto', 'Allowed on its own', ''],
+      ['admin', 'Allowed by the Chief', ''],
+      ['rule', 'Allowed by your rule', ''],
+    ] as const
+  ).map(([from, words, extra]) =>
+    scenario(
+      `agents-approval-answered-${from}`,
+      `finished: answered from ${from}`,
+      `The one-line card says “${words}”${extra ? ` (${extra})` : ''}; no buttons.`,
+      TESTS('allowed', { answeredFrom: from })
+    )
+  ),
+  scenario(
+    'agents-approval-always-note',
+    'Always allow with the Mac’s sentence',
+    'Always allow stays beside Allow; under the answers one quiet sentence says what it skips (`alwaysNote`).',
+    TESTS('pending', {
+      always: { kind: 'command_prefix', value: 'pnpm test', label: 'pnpm test' },
+      alwaysNote: 'Always allow skips your Ask first rules for this command.',
+    })
+  ),
+  scenario(
+    'agents-approval-always-cant',
+    'can’t be always allowed',
+    'No Always allow item at all: the Mac’s sentence (“Can’t be always allowed…”) stands where it was; Allow and Deny only.',
+    TESTS('pending', {
+      always: { kind: 'command_prefix', value: 'git push', label: 'git push origin main' },
+      alwaysNote: 'Can’t be always allowed: pushing is asked every time.',
+    })
+  ),
 ];

@@ -8,7 +8,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 
-export type TaskState = 'open' | 'waiting' | 'stuck' | 'done' | 'dropped';
+export type TaskState = 'doing' | 'next' | 'waiting' | 'stuck' | 'done' | 'dropped';
 
 export interface AgentTask {
   id: string;
@@ -58,9 +58,9 @@ export function withOpenAsks(loads: AgentLoad[]): AgentLoad[] {
     );
 }
 
-/** The row's line: the first asks by title, then how many more. */
-export function asksLine(load: AgentLoad, shown = 2): string {
-  const titles = load.open.slice(0, shown).map((t) => t.title);
-  const more = load.open.length - titles.length;
-  return more > 0 ? `${titles.join(' · ')} · ${more} more` : titles.join(' · ');
+/** The row's line: the first ask, then how many more. */
+export function asksLine(load: AgentLoad): string {
+  const first = load.open[0]?.title ?? '';
+  const more = load.open.length - 1;
+  return more > 0 ? `${first} · +${more} more` : first;
 }

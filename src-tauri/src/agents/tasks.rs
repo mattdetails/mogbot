@@ -6,7 +6,8 @@
 //! jobs ("Apollo PM", "Apollo Finances") both got the same update; the user
 //! couldn't tell who was overloaded or stuck.
 //!
-//! **One list per agent**, `<home>/tasks.json`, kept by the app, not the
+//! **One list per agent**, `<home>/tasks.jsonl` (one task a line, beside `messages.jsonl`), written only through
+//! the `task_add` and `task_update` tools and the app's own hooks, kept by the app, not the
 //! model: an ask from another agent (`message_agent`) lands on the helper's
 //! list the moment it is delivered, and is settled when that helper's turn
 //! answers it ([`answered`]) or ends in an error ([`failed`]). The agent adds
@@ -33,10 +34,9 @@ use std::sync::Mutex;
 use super::store::{self, AgentRef, OrLog};
 
 /// Open asks at which an agent counts as overloaded.
-pub const OVERLOAD_OPEN: usize = 6;
-/// An oldest open ask this old, with [`OVERLOAD_MIN`] open, is overloaded.
+pub const OVERLOAD_OPEN: usize = 10;
+/// One open line this long with no movement counts as overloaded.
 pub const OVERLOAD_AGE_MS: i64 = 24 * 3_600_000;
-const OVERLOAD_MIN: usize = 3;
 /// An ask from another agent is nudged when open this long (and again after
 /// the same wait).
 pub const CHASE_AFTER_MS: i64 = 3 * 3_600_000;
@@ -44,6 +44,8 @@ pub const CHASE_AFTER_MS: i64 = 3 * 3_600_000;
 pub const CHASE_USER_AFTER_MS: i64 = 8 * 3_600_000;
 /// Nudges one task gets before it is called stuck.
 pub const MAX_CHASES: u32 = 2;
+/// A line is chased at most once a day.
+pub const CHASE_AGAIN_MS: i64 = 24 * 3_600_000;
 /// Most tasks kept per agent (done and dropped ones age out first).
 const KEEP: usize = 60;
 /// A finished task stays listed this long.
@@ -58,26 +60,51 @@ const TICK_EVERY_MS: i64 = 5 * 60_000;
 
 pub const TOOL: &str = "tasks";
 
-pub const DESCRIPTION: &str = "Your own task list, kept by the app so an ask never drops. `action`: `list` (yours, open first; give `agent` for a teammate's), `board` (every agent's open asks and who is overloaded), `add` (`title`; a user ask you can't finish in this reply, or a step you owe), `done`, `drop` (no longer wanted; say why in `note`) or `wait` (blocked on someone or something: `note` says on whom) with the task's `id`. Asks other agents send you are added for you; mark them `done` when you've answered. Check `board` before handing work out, so two agents don't do the same thing.";
+pub const DESCRIPTION: &str = "Read task lists, kept by the app so an ask never drops. `action`: `list` (yours, open first; give `agent` for a teammate's) or `board` (every agent's open lines and who is busy). Add and change lines with `task_add` and `task_update`. Check `board` before handing work out, so two agents don't do the same thing.";
+
+pub const ADD_TOOL: &str = "task_add";
+pub const UPDATE_TOOL: &str = "task_update";
+
+pub const ADD_DESCRIPTION: &str = "Put an ask on your task list before you reply: one line in the user's words (a user ask you can't finish in this reply, or a step you owe). Asks other agents send you are added for you.";
+pub const UPDATE_DESCRIPTION: &str = "Move one of your task lines: `state` doing (one at a time), next, waiting (it waits on the user: say what in `note`), done, or dropped (`note` says why: a line is never removed without a reason). Mark an ask `done` once you've delivered it.";
 
 pub fn schema() -> serde_json::Value {
     serde_json::json!({
         "type": "object",
         "properties": {
-            "action": { "type": "string", "enum": ["list", "board", "add", "done", "drop", "wait"] },
-            "title": { "type": "string", "description": "For add: what's owed, in a line." },
-            "id": { "type": "string", "description": "For done, drop, wait: the task's id from list." },
-            "note": { "type": "string", "description": "For drop or wait: why, or on whom." },
+            "action": { "type": "string", "enum": ["list", "board"] },
             "agent": { "type": "string", "description": "For list: a teammate's name." }
         },
         "required": ["action"]
     })
 }
 
+pub fn add_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": { "title": { "type": "string", "description": "What's owed, in the user's words, one line." } },
+        "required": ["title"]
+    })
+}
+
+pub fn update_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "id": { "type": "string", "description": "The line's id from list." },
+            "state": { "type": "string", "enum": ["doing", "next", "waiting", "done", "dropped"] },
+            "note": { "type": "string", "description": "For waiting: what it waits on. For dropped: why." }
+        },
+        "required": ["id", "state"]
+    })
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum State {
-    Open,
+    /// Being worked on now. One at a time per agent.
+    Doing,
+    Next,
     /// Blocked on someone or something (`waiting_on`).
     Waiting,
     /// Nudged [`MAX_CHASES`] times and still open, or its turn ended in an error.
@@ -88,7 +115,10 @@ pub enum State {
 
 impl State {
     pub fn is_open(self) -> bool {
-        matches!(self, State::Open | State::Waiting | State::Stuck)
+        matches!(
+            self,
+            State::Doing | State::Next | State::Waiting | State::Stuck
+        )
     }
 }
 
@@ -147,13 +177,17 @@ pub struct Load {
 static LOCK: Mutex<()> = Mutex::new(());
 
 fn path(agent_id: &str) -> Option<std::path::PathBuf> {
-    Some(store::agent_home(agent_id).ok()?.join("tasks.json"))
+    Some(store::agent_home(agent_id).ok()?.join("tasks.jsonl"))
 }
 
 fn read(agent_id: &str) -> Vec<Task> {
     path(agent_id)
-        .and_then(|p| std::fs::read(p).ok())
-        .and_then(|raw| serde_json::from_slice(&raw).ok())
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|raw| {
+            raw.lines()
+                .filter_map(|l| serde_json::from_str::<Task>(l).ok())
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -162,9 +196,13 @@ fn write(agent_id: &str, tasks: &[Task]) {
         return;
     }
     let Some(p) = path(agent_id) else { return };
-    if let Ok(raw) = serde_json::to_vec_pretty(tasks) {
-        store::write_atomic(&p, &raw).or_log("an agent's task list");
-    }
+    let lines: Vec<String> = tasks
+        .iter()
+        .filter_map(|t| serde_json::to_string(t).ok())
+        .collect();
+    let mut raw = lines.join("\n");
+    raw.push('\n');
+    store::write_atomic(&p, raw.as_bytes()).or_log("an agent's task list");
 }
 
 fn edit<T>(agent_id: &str, f: impl FnOnce(&mut Vec<Task>) -> T) -> T {
@@ -255,7 +293,7 @@ fn new_task(title: String, source: Source, from: Option<AgentRef>, now: i64) -> 
         title,
         source,
         from,
-        state: State::Open,
+        state: State::Next,
         created_at: now,
         updated_at: now,
         waiting_on: None,
@@ -282,7 +320,7 @@ pub fn add(agent_id: &str, title: &str, source: Source, from: Option<AgentRef>) 
         }) {
             t.updated_at = now;
             if t.state == State::Stuck {
-                t.state = State::Open;
+                t.state = State::Next;
             }
             return (t.id.clone(), true);
         }
@@ -342,7 +380,13 @@ pub fn set(agent_id: &str, id: &str, state: State, note: Option<&str>) -> Result
             .collect();
         match matches.as_slice() {
             [i] => {
-                let t = &mut tasks[*i];
+                let i = *i;
+                if state == State::Doing {
+                    for other in tasks.iter_mut().filter(|t| t.state == State::Doing) {
+                        other.state = State::Next;
+                    }
+                }
+                let t = &mut tasks[i];
                 t.state = state;
                 t.updated_at = now;
                 match state {
@@ -376,17 +420,17 @@ pub fn open_of(agent_id: &str) -> Vec<Task> {
 /// Overloaded or not, and why. Pure.
 pub fn overload(open: &[Task], now: i64) -> Option<String> {
     if open.len() >= OVERLOAD_OPEN {
-        return Some(format!("{} asks open", open.len()));
+        return Some(format!("{} to do", open.len()));
     }
-    let oldest = open.iter().map(|t| t.created_at).min()?;
-    if open.len() >= OVERLOAD_MIN && now - oldest >= OVERLOAD_AGE_MS {
-        return Some(format!(
-            "{} open, the oldest {}",
-            open.len(),
-            age(now - oldest)
-        ));
-    }
-    None
+    // One open over a day with no movement (a line waiting on the user
+    // is theirs to move, not the agent's).
+    let stale = open
+        .iter()
+        .filter(|t| t.state != State::Waiting)
+        .map(|t| t.updated_at)
+        .min()?;
+    (now - stale >= OVERLOAD_AGE_MS)
+        .then(|| format!("one open {} with no movement", age(now - stale)))
 }
 
 /// "5h", "2d", "20m". Pure.
@@ -414,6 +458,12 @@ pub fn load_of(agent: &store::Agent, now: i64) -> Load {
     let doing = (status.state != "idle")
         .then(|| status.activity.clone())
         .flatten();
+    // Working now with no line marked Doing: the oldest next line is it.
+    if status.state != "idle" && !open.iter().any(|t| t.state == State::Doing) {
+        if let Some(t) = open.iter_mut().find(|t| t.state == State::Next) {
+            t.state = State::Doing;
+        }
+    }
     Load {
         agent_id: agent.id.clone(),
         name: agent.name.clone(),
@@ -601,35 +651,47 @@ pub fn run_tool(caller: &store::Agent, args: &serde_json::Value) -> Result<Strin
             };
             Ok(list_text(&load_of(&target, now), now))
         }
-        "add" => {
-            let title = s("title").ok_or("`title` is required.")?;
-            let (id, dup) = add(&caller.id, title, Source::User, None);
-            Ok(if dup {
-                format!("Already on your list as {id}; kept as one.")
-            } else {
-                format!("Added {id}.")
-            })
-        }
-        a @ ("done" | "drop" | "wait") => {
-            let id = s("id").ok_or("`id` is required.")?;
-            let state = match a {
-                "done" => State::Done,
-                "drop" => State::Dropped,
-                _ => State::Waiting,
-            };
-            set(&caller.id, id, state, s("note")).map(|t| {
-                format!(
-                    "{t}: {}.",
-                    match state {
-                        State::Done => "done",
-                        State::Dropped => "dropped",
-                        _ => "waiting",
-                    }
-                )
-            })
-        }
-        _ => Err("`action` is list, board, add, done, drop or wait.".into()),
+        _ => Err("`action` is list or board.".into()),
     }
+}
+
+/// `task_add`.
+pub fn run_add(caller: &store::Agent, args: &serde_json::Value) -> Result<String, String> {
+    let title = args
+        .get("title")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or("`title` is required.")?;
+    let (id, dup) = add(&caller.id, title, Source::User, None);
+    Ok(if dup {
+        format!("Already on your list as {id}; kept as one.")
+    } else {
+        format!("Added {id}.")
+    })
+}
+
+/// `task_update`.
+pub fn run_update(caller: &store::Agent, args: &serde_json::Value) -> Result<String, String> {
+    let s = |k: &str| {
+        args.get(k)
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+    };
+    let id = s("id").ok_or("`id` is required.")?;
+    let (state, word) = match s("state").unwrap_or("") {
+        "doing" => (State::Doing, "doing"),
+        "next" => (State::Next, "next"),
+        "waiting" => (State::Waiting, "waiting on the user"),
+        "done" => (State::Done, "done"),
+        "dropped" => (State::Dropped, "dropped"),
+        _ => return Err("`state` is doing, next, waiting, done or dropped.".into()),
+    };
+    if state == State::Dropped && s("note").is_none() {
+        return Err("A line is never dropped without a reason: say why in `note`.".into());
+    }
+    set(&caller.id, id, state, s("note")).map(|t| format!("{t}: {word}."))
 }
 
 fn list_text(l: &Load, now: i64) -> String {
@@ -677,27 +739,26 @@ fn board_text(loads: &[Load], now: i64) -> String {
 
 /// What to nudge, now. Pure: `ready` says whether the agent may be woken.
 pub fn due_chase(t: &Task, now: i64) -> bool {
-    if !matches!(t.state, State::Open | State::Stuck) || t.chased >= MAX_CHASES {
+    if !matches!(t.state, State::Next | State::Doing | State::Stuck) || t.chased >= MAX_CHASES {
         return false;
+    }
+    // The first nudge after the wait; a line is chased at most once a day.
+    if t.chased > 0 {
+        return now - t.last_chased_at >= CHASE_AGAIN_MS;
     }
     let after = if t.from.is_some() {
         CHASE_AFTER_MS
     } else {
         CHASE_USER_AFTER_MS
     };
-    now - t.updated_at.max(t.last_chased_at) >= after
+    now - t.updated_at >= after
 }
 
 /// A task used up its nudges and is still open. Pure.
 pub fn out_of_nudges(t: &Task, now: i64) -> bool {
-    t.state == State::Open && t.chased >= MAX_CHASES && {
-        let after = if t.from.is_some() {
-            CHASE_AFTER_MS
-        } else {
-            CHASE_USER_AFTER_MS
-        };
-        now - t.last_chased_at >= after
-    }
+    matches!(t.state, State::Next | State::Doing)
+        && t.chased >= MAX_CHASES
+        && now - t.last_chased_at >= CHASE_AGAIN_MS
 }
 
 pub fn nudge_text(t: &Task, now: i64) -> String {

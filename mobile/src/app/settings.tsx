@@ -12,6 +12,7 @@ import { useGlance } from '../lib/glance';
 import { NewAgentDefaults } from '../components/NewAgentDefaults';
 import { IndependenceSetting } from '../components/IndependenceSetting';
 import { MorningBriefSetting } from '../components/MorningBriefSetting';
+import { EndOfDaySetting } from '../components/EndOfDaySetting';
 import { DictationWordsSetting } from '../components/DictationWordsSetting';
 import { QuietHoursSetting } from '../components/QuietHoursSetting';
 import { formatDate } from '../lib/agents';
@@ -288,6 +289,8 @@ export default function Settings() {
       <QuietHoursSetting />
 
       <MorningBriefSetting />
+
+      <EndOfDaySetting />
 
       <DictationWordsSetting />
 
