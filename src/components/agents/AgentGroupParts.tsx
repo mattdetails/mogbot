@@ -7,7 +7,7 @@
  * @module components/agents/AgentGroupParts
  */
 
-import { useState, type DragEvent, type ReactNode } from 'react';
+import { useState, type PointerEvent, type ReactNode } from 'react';
 import { ChevronRightIcon, FolderPlusIcon, PencilIcon, TrashIcon } from '@/components/icons';
 import {
   ContextMenu,
@@ -32,13 +32,101 @@ import {
 } from '../../lib/agentGroups';
 import type { PinnedPlacement } from '../../lib/agents';
 
-/** The drag's payload type: an agent's id, from its sidebar row. */
-export const AGENT_DRAG_TYPE = 'application/x-agent-id';
+/** How far the pointer moves before a press becomes a drag. */
+const DRAG_START_PX = 5;
 
-/** Start dragging a row (into a folder). */
-export function startAgentDrag(event: DragEvent<HTMLElement>, agentId: string) {
-  event.dataTransfer.setData(AGENT_DRAG_TYPE, agentId);
-  event.dataTransfer.effectAllowed = 'move';
+/**
+ * Drag a row with the pointer, to reorder it or file it in a folder.
+ *
+ * Pointer events, not HTML drag and drop: the app's window takes native drags
+ * for files dropped on it, so a row's `dragstart` never reached a drop target
+ * in the real app (it only worked in a browser). The marks are set on the DOM
+ * (`data-drop` on a row, `data-drop-over` on a folder), as the CSS reads them.
+ */
+export function useAgentPointerDrag({
+  agentId,
+  enabled,
+  group,
+  onReorder,
+}: {
+  agentId: string;
+  enabled: boolean;
+  /** The folder it's in now (none: undefined). */
+  group: string | undefined;
+  onReorder: (moved: string, target: string, after: boolean) => void;
+}) {
+  const change = useMacChange();
+  const onPointerDown = (event: PointerEvent<HTMLElement>) => {
+    if (!enabled || event.button !== 0) return;
+    const row = event.currentTarget;
+    const list = row.closest('.agents-list');
+    const x0 = event.clientX;
+    const y0 = event.clientY;
+    let started = false;
+    let overRow: HTMLElement | null = null;
+    let overGroup: HTMLElement | null = null;
+    const clear = () => {
+      overRow?.removeAttribute('data-drop');
+      overGroup?.removeAttribute('data-drop-over');
+      overRow = null;
+      overGroup = null;
+    };
+    const move = (e: globalThis.PointerEvent) => {
+      if (!started) {
+        if (Math.hypot(e.clientX - x0, e.clientY - y0) < DRAG_START_PX) return;
+        started = true;
+        row.setAttribute('data-dragging', '');
+        document.body.setAttribute('data-agent-dragging', '');
+      }
+      e.preventDefault();
+      clear();
+      const under = document.elementFromPoint(e.clientX, e.clientY);
+      if (!under || !list?.contains(under)) return;
+      const target = under.closest<HTMLElement>('[data-agent-id][data-movable]');
+      if (target && target !== row) {
+        const box = target.getBoundingClientRect();
+        target.setAttribute('data-drop', e.clientY > box.top + box.height / 2 ? 'after' : 'before');
+        overRow = target;
+      }
+      const folder = under.closest<HTMLElement>('.agents-list__group[data-drop-target]');
+      if (folder) {
+        folder.setAttribute('data-drop-over', '');
+        overGroup = folder;
+      }
+    };
+    const end = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', cancel);
+      row.removeAttribute('data-dragging');
+      document.body.removeAttribute('data-agent-dragging');
+      if (!started) return;
+      // The release isn't a click on the row.
+      const swallow = (c: MouseEvent) => {
+        c.stopPropagation();
+        c.preventDefault();
+      };
+      window.addEventListener('click', swallow, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
+      if (overRow?.dataset.agentId) {
+        onReorder(agentId, overRow.dataset.agentId, overRow.dataset.drop === 'after');
+      }
+      if (overGroup) {
+        const to = overGroup.dataset.groupId || undefined;
+        if (to !== group) change(moveToGroup(agentId, to ?? null));
+      }
+      clear();
+    };
+    const cancel = () => {
+      started = false;
+      clear();
+      end();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', cancel);
+  };
+  return enabled ? { onPointerDown } : {};
 }
 
 /** A change sent to the Mac, its failure said in a toast. */
@@ -65,10 +153,8 @@ export function AgentGroupSection({
   pinned?: PinnedPlacement;
   children: ReactNode;
 }) {
-  const [over, setOver] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const change = useMacChange();
-  const accepts = (e: DragEvent) => droppable && e.dataTransfer.types.includes(AGENT_DRAG_TYPE);
   const header = renaming ? (
     <FolderNameField
       initial={section.title}
@@ -96,23 +182,9 @@ export function AgentGroupSection({
       className="agents-list__group"
       role="group"
       aria-label={section.title}
-      data-drop-over={over || undefined}
-      onDragOver={(e) => {
-        if (!accepts(e)) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        setOver(true);
-      }}
-      onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false);
-      }}
-      onDrop={(e) => {
-        setOver(false);
-        if (!accepts(e)) return;
-        e.preventDefault();
-        const agentId = e.dataTransfer.getData(AGENT_DRAG_TYPE);
-        if (agentId) change(moveToGroup(agentId, section.groupId ?? null));
-      }}
+      // Read by the row's pointer drag (useAgentPointerDrag).
+      data-drop-target={droppable || undefined}
+      data-group-id={section.groupId ?? ''}
     >
       {section.groupId && !renaming ? (
         <ContextMenu>

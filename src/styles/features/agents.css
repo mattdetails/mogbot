@@ -712,3 +712,15 @@
 .agents-list__row[data-drop='after']::after {
   bottom: 0;
 }
+
+/* A row being dragged (AgentGroupParts, useAgentPointerDrag): it dims where
+   it was, and nothing on the page selects while the pointer moves. */
+.agents-list__row[data-dragging] {
+  opacity: var(--button-disabled-opacity);
+}
+
+body[data-agent-dragging],
+body[data-agent-dragging] * {
+  cursor: grabbing !important; /* css-ok: the drag's cursor wins over every row's pointer */
+  user-select: none;
+}

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { AgentProjectsProvider, useAgentProjects } from './AgentProject';
 
 vi.mock('../../lib/project', async (orig) => ({
-  ...((await orig()) as object),
-  listProjects: vi.fn(async () => []),
+  ...(await orig<object>()),
+  listProjects: vi.fn(() => Promise.resolve([])),
 }));
 
 describe('AgentProjectsProvider', () => {
