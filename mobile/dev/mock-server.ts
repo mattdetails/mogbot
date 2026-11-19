@@ -4128,7 +4128,30 @@ export function createMockServer(opts: MockOptions = {}) {
             kind: 'check' as const,
             status: 'not_started' as const,
           })),
-          shares: [],
+          shares: (
+            (d.shares as {
+              engine: 'claude' | 'codex' | 'opencode';
+              percent?: number;
+              hours?: number;
+            }[]) ?? []
+          ).map((s) =>
+            s.hours !== undefined
+              ? {
+                  engine: s.engine,
+                  kind: 'time' as const,
+                  pct: 0,
+                  usedPct: 0,
+                  capMs: s.hours * H,
+                  spentMs: 0,
+                }
+              : {
+                  engine: s.engine,
+                  kind: 'usage' as const,
+                  pct: s.percent ?? 0,
+                  usedPct: 0,
+                  spentMs: 0,
+                }
+          ),
         };
         missions = [draft, ...missions.filter((x) => x.id !== draft.id)];
       } else if (p.action === 'start' && typeof d.id === 'string') {

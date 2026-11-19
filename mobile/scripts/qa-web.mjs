@@ -1185,6 +1185,82 @@ const PROBE = [
       'A saved draft reopened on its summary card: the goal, two criteria, “Codex: about 40% of its week”, then Start mission, Save for later and, if Start is off, the reason in a muted line',
   },
   {
+    // Real taps through the phone's set-up: with no criterion Start is off,
+    // says why, and a tap on it does nothing.
+    name: 'probe-mission-new-start-off',
+    route: '/mission-new',
+    ready: 'What do you want to be true?',
+    check:
+      'The summary card with a goal and no criterion: Start mission is dimmed, Save for later is on, and the muted line says “Add what counts as done”',
+    act: async (page) => {
+      await page.type('Clean up the support inbox', 'textarea');
+      for (let i = 0; i < 5; i++) {
+        await page.clickText('Next');
+        await sleep(500);
+      }
+      await page.waitFor(`document.body.innerText.includes('Save for later')`, 10_000, 'the summary');
+      const off = await page.eval(`(() => {
+        const el = [...document.querySelectorAll('body *')].filter((e) => e.innerText?.trim() === 'Start mission').pop();
+        let n = el;
+        while (n) {
+          if (n.getAttribute?.('aria-disabled') === 'true' || n.disabled) return true;
+          n = n.parentElement;
+        }
+        return false;
+      })()`);
+      if (!off) throw new Error('Start mission was not disabled with no criterion');
+      if (!(await page.eval(`document.body.innerText.includes('Add what counts as done')`))) {
+        throw new Error('no reason line under the buttons');
+      }
+      await page.clickText('Start mission').catch(() => {});
+      await sleep(600);
+      if (!(await page.eval(`document.body.innerText.includes('Save for later')`))) {
+        throw new Error('a tap on a disabled Start left the summary');
+      }
+    },
+  },
+  {
+    // Save for later, then reopen the draft from the list: the fields come back.
+    name: 'probe-mission-new-save-reopen',
+    route: '/mission-new',
+    ready: 'What do you want to be true?',
+    check:
+      'A draft saved and reopened from the Missions list: the summary card has the goal “Answer the easy support emails” and the criterion “Inbox under 20 unread”, Start mission on, no reason line',
+    act: async (page) => {
+      await page.type('Answer the easy support emails', 'textarea');
+      await page.clickText('Next');
+      await sleep(500);
+      await page.clickText('Add what counts as done');
+      await sleep(500);
+      await page.type('Inbox under 20 unread', 'input[aria-label="Criterion 1"]');
+      for (let i = 0; i < 4; i++) {
+        await page.clickText('Next');
+        await sleep(500);
+      }
+      await page.waitFor(`document.body.innerText.includes('Save for later')`, 10_000, 'the summary');
+      if (await page.eval(`document.body.innerText.includes('Add a goal') || document.body.innerText.includes('Add what counts as done')`)) {
+        throw new Error('Start was offered a reason with a goal, a criterion and a share');
+      }
+      await page.clickText('Save for later');
+      await sleep(1200);
+      await page.goto(`${WEB}/missions`);
+      await page.waitFor(`document.body.innerText.includes('Draft ·')`, 15_000, 'the draft row');
+      await page.clickWhere(
+        `() => [...document.querySelectorAll('body *')].filter((e) => e.innerText?.trim().startsWith('Draft ·') && e.innerText.includes('Answer the easy') && e.getBoundingClientRect().width).pop()`,
+        'the draft row'
+      );
+      await page.waitFor(`document.body.innerText.includes('Start mission')`, 15_000, 'the summary again');
+      if (await page.eval(`document.body.innerText.includes('Choose how much usage to spend')`)) {
+        throw new Error('the reopened draft lost its usage share');
+      }
+      for (const want of ['Answer the easy support emails', 'Inbox under 20 unread', 'about 30% of its week']) {
+        if (!(await page.eval(`document.body.innerText.includes(${JSON.stringify(want)})`))) {
+          throw new Error(`the reopened draft lost "${want}"`);
+        }
+      }
+    },
+  },
+  {
     name: 'probe-mission-done',
     route: '/missions?id=m-done',
     ready: 'Usage to spend',
