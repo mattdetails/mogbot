@@ -39,6 +39,15 @@ export const MAX_BUFFER_FRAMES = 256;
 export const MAX_BUFFER_BYTES = 4 * 1024 * 1024;
 const HEADER_RESUME = 8;
 
+/**
+ * A Mac that has said nothing (not even a `ping`, which is answered without
+ * waking the object) for this long has a dead link the relay hasn't noticed:
+ * a phone is turned away at once (4404) rather than handed a channel nobody
+ * serves, which it would wait on for a minute. Macs ping every 10 s (30 s
+ * before 1.0.23), so this is several pings missed.
+ */
+export const MAC_STALE_MS = 60_000;
+
 /** The account this Mac is signed in to (docs/relay.md, "Accounts"). */
 export type Binding = {
   id: string;
@@ -69,6 +78,8 @@ type MacState = {
   nonce: string;
   deadline: number;
   authed: boolean;
+  /** When it logged in: the quiet is counted from here until its first ping. */
+  readyAt?: number;
   /** Closed because a newer Mac socket logged in: its phones aren't this socket's to close. */
   replaced?: boolean;
   /**
@@ -112,6 +123,9 @@ const CHANNEL_KEY = 'lastChannel';
  * hibernate between messages.
  */
 export class MacRelay extends DurableObject<Env> {
+  /** How quiet a Mac may be before it's let go (`MAC_STALE_MS`); a test shortens it. */
+  staleMs = MAC_STALE_MS;
+
   /**
    * Phone→Mac frames the Mac hasn't acked, by channel. Only in memory: if the
    * object is evicted with frames outstanding, that channel can't be resumed
@@ -168,7 +182,7 @@ export class MacRelay extends DurableObject<Env> {
   }
 
   private async acceptPhone(accounts: boolean, from: string): Promise<Response> {
-    if (!this.flowingMac()) return refuse(4404, 'mac_offline');
+    if (!this.liveMac()) return refuse(4404, 'mac_offline');
     // Offline wins: a phone is told its Mac needs to sign in only when the Mac is there.
     if (accounts && !(await this.binding())) return refuse(4402, 'sign_in_needed');
     const phones = this.openPhones();
@@ -276,8 +290,8 @@ export class MacRelay extends DurableObject<Env> {
     if (!keepPhones) this.closeAllPhones();
     ws.serializeAttachment(
       (resume
-        ? { ...state, authed: true, resume: true, flowing: false }
-        : { ...state, authed: true }) satisfies MacState
+        ? { ...state, authed: true, resume: true, flowing: false, readyAt: Date.now() }
+        : { ...state, authed: true, readyAt: Date.now() }) satisfies MacState
     );
     ws.send(JSON.stringify(resume ? { t: 'ready', account, resume: true } : { t: 'ready', account }));
   }
@@ -470,6 +484,28 @@ export class MacRelay extends DurableObject<Env> {
     mac.serializeAttachment({ ...macState, flowing: true } satisfies MacState);
     this.holding = false;
     await this.ctx.storage.delete(GRACE_KEY);
+  }
+
+  /**
+   * The Mac socket that is signed in and taking frames, unless it has gone
+   * quiet for `staleMs` (not even a `ping`, which is answered without waking
+   * the object): its link died without the relay noticing, so that Mac is
+   * let go (4410) and the phone is told at once (4404) instead of being handed
+   * a channel nobody serves, which it would wait on for a minute.
+   */
+  private liveMac(): WebSocket | undefined {
+    const mac = this.flowingMac();
+    if (!mac) return undefined;
+    const s = stateOf(mac);
+    const heard = Math.max(
+      this.ctx.getWebSocketAutoResponseTimestamp(mac)?.getTime() ?? 0,
+      s?.role === 'mac' ? (s.readyAt ?? 0) : 0
+    );
+    // Nothing recorded (a login from before `readyAt`): the benefit of the doubt.
+    if (heard === 0 || Date.now() - heard < this.staleMs) return mac;
+    closeQuietly(mac, 4410, 'stale');
+    this.closeAllPhones();
+    return undefined;
   }
 
   /** The Mac socket that is signed in and taking frames. */

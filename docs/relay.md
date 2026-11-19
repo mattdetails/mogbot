@@ -94,6 +94,9 @@ clear 404 unlinks it (`checkStillThere`; any other answer keeps it).
    - Mac → relay text `{"t":"close","ch":<u32>}` closes that phone's socket (code 1000).
 5. Keep-alive: text `ping` → `pong`, answered by the relay without waking (auto-response). The Mac
    sends one every 30 s and treats 75 s without anything as dead.
+   A Mac that has said nothing, not even a `ping`, for 60 s (`MAC_STALE_MS`) has a dead link the relay
+   hasn't noticed: it is closed `4410 stale`, and a phone connecting then is told `4404 mac_offline`
+   at once, instead of being handed a channel nobody serves and waiting a minute for a hello.
 
 6. **Resuming** (2026-11-18: the path to the relay silently killed the Mac's socket every few
    minutes, and each time every phone was cut off and made a fresh hello). A Mac that adds

@@ -142,6 +142,25 @@ describe('phones', () => {
     expect(await phone.closed).toEqual({ code: 4404, reason: 'mac_offline' });
   });
 
+  it('turns a phone away at once (4404) when the Mac has gone quiet, and lets that Mac go', async () => {
+    const mac = await newMacKey();
+    const macWs = await loginMac(mac);
+    const stub = env.MAC.get(env.MAC.idFromName(mac.fingerprint));
+    // The Mac's link died without the relay noticing: shorten "quiet" to 700 ms.
+    await runInDurableObject(stub, (instance: MacRelay) => {
+      instance.staleMs = 700;
+    });
+    // A live Mac (it pings) is served.
+    macWs.ws.send('ping');
+    expect(await macWs.next()).toBe('pong');
+    const served = await openPhone(mac, macWs);
+    served.phone.ws.close();
+    await new Promise((r) => setTimeout(r, 1000));
+    const phone = await open(`/v1/phone/${mac.fingerprint}`);
+    expect(await phone.closed).toEqual({ code: 4404, reason: 'mac_offline' });
+    expect((await macWs.closed).code).toBe(4410);
+  });
+
   it('closes 4404 when only an unauthenticated Mac is there', async () => {
     const mac = await newMacKey();
     const pending = await open(`/v1/mac/${mac.fingerprint}`);
