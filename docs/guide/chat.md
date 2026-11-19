@@ -7,6 +7,10 @@ Every message, yours and your agent's, is a bubble: yours on the right, your age
 
 ## When your agent is busy
 
+## The message box
+
+The box holds the paperclip, your words, the mic and Send, and nothing else. Send is neutral (near-black in light, near-white in dark), never the agent's colour, and sits faint until there is something to send. The mic is there only while the box is empty. While the agent works and the box is empty, a Stop square sits where Send would be; Stop stops the turn. The model is no longer in the box: change it from **Model** in the chat header (desk) or **Model and controls** in the ⋯ menu (phone).
+
 Send something while it is working and it waits its turn. Under your message you see **Next**, and **Send now** if you'd rather it stop and read yours straight away. The agent's one working line sits below; that is all the chat says about it.
 
 ## A page above the chat
