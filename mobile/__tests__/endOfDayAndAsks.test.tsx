@@ -94,7 +94,7 @@ describe('the end-of-day check-in on the phone', () => {
   it('shows the Mac’s time, and sets an evening or off from the sheet', async () => {
     await render(<EndOfDaySetting />);
     expect(await screen.findByText('6:00 PM')).toBeTruthy();
-    fireEvent.press(screen.getAllByText('End-of-day check-in')[1]);
+    await fireEvent.press(screen.getAllByText('End-of-day check-in')[1]);
     const [title, choices] = mockChoose.mock.calls[0] as [
       string,
       { label: string; run: () => void }[],
@@ -116,7 +116,7 @@ describe('the end-of-day check-in on the phone', () => {
       choices[4].run();
     });
     expect(mockCall).toHaveBeenCalledWith('agents.setEndOfDay', { on: true, at: 1110 });
-    expect(screen.getByText('6:30 PM')).toBeTruthy();
+    expect(await screen.findByText('6:30 PM')).toBeTruthy();
   });
 
   it('is absent on a Mac that doesn’t serve it', async () => {
