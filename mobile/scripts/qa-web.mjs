@@ -3424,7 +3424,7 @@ const ENGINE = [
       await sleep(700);
     },
     check:
-      'The card’s row: the model chip reads “Opus 5.5” with “· High” lighter and a small chevron (no engine name: the model is known)',
+      'The card’s row: only the + at the left and a neutral Send at the right (no model chip, no mic once there are words); the model lives in the ⋯ menu',
     after: clearField,
   },
   {

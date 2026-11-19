@@ -14,7 +14,7 @@
  * @module components/agents/AgentModelMenu
  */
 
-import { CheckIcon, ChevronIcon, SettingsSlidersIcon } from '@/components/icons';
+import { CheckIcon, SettingsSlidersIcon } from '@/components/icons';
 import { Dropdown, DropdownDivider, DropdownItem } from '../primitives/Dropdown';
 import { MenuButton } from '../primitives/MenuButton';
 import {
@@ -27,7 +27,6 @@ import {
   routineModelOf,
   updateAgent,
   type Agent,
-  type EngineInfo,
   type UpdateAgentInput,
 } from '../../lib/agents';
 import { refreshAgents, useAgentsSelector } from '../../lib/agentsStore';
@@ -209,62 +208,6 @@ export function AgentModelMenu({ agent }: { agent: Agent }) {
           aria-label={`Model for ${agent.name}, ${MODEL_MEANS}: ${current}`}
         >
           <span className="agent-chat__action-word">Model</span>
-        </MenuButton>
-      )}
-    >
-      <AgentModelItems agent={agent} />
-    </Dropdown>
-  );
-}
-
-/**
- * What the chip under the message box says: the engine and the model it is
- * set to ("Claude Code · Opus"), and the effort when one is chosen. The
- * model is said by its own name where the engine gives one, since that is
- * what someone checking "which model is this?" looks for; the purpose
- * ("Smartest") is in the menu beside it.
- */
-export function modelChipWords(agent: Agent, engines: EngineInfo[]): string {
-  const engineName =
-    engines.find((e) => e.id === agent.engine)?.label ?? ENGINE_LABEL[agent.engine];
-  const choices = modelChoices(agent.engine, engines);
-  const picked = choices.find((m) => m.value === (agent.model ?? ''));
-  const model = picked ? (picked.detail ?? picked.label) : (agent.model ?? ENGINE_DEFAULT_LABEL);
-  const effort = agent.effort
-    ? EFFORT_CHOICES.find((e) => e.value === agent.effort)?.label
-    : undefined;
-  return [engineName, model, effort].filter(Boolean).join(' · ');
-}
-
-/**
- * The model under the message box, always in view: "Claude Code · Opus ⌄".
- * Opens the same menu as the header's Model (model, effort, account,
- * routines), upward, so switching is one click from where you type.
- */
-export function AgentModelChip({ agent }: { agent: Agent }) {
-  const engines = useAgentsSelector((s) => s.engines);
-  const words = modelChipWords(agent, engines);
-  return (
-    <Dropdown
-      align="right"
-      side="top"
-      portal
-      menuClassName="agent-model-menu"
-      className="agent-composer__model"
-      quietOpen
-      trigger={(p) => (
-        <MenuButton
-          {...p}
-          tabIndex={0}
-          expanded={p['aria-expanded']}
-          variant="ghost"
-          size="compact"
-          className="agent-composer__model-button"
-          rightIcon={<ChevronIcon size={12} />}
-          title={`Model, ${MODEL_MEANS}: ${words}. Click to change.`}
-          aria-label={`Model for ${agent.name}: ${words}. Change model`}
-        >
-          <span className="agent-composer__model-words">{words}</span>
         </MenuButton>
       )}
     >

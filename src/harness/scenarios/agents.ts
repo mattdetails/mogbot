@@ -4037,12 +4037,59 @@ export const agentsScenarios: Scenario[] = [
     },
   },
   {
+    id: 'agents-composer-idle-empty',
+    title: 'Agents — the empty composer',
+    looksRightWhen:
+      'The Chief is idle, nothing typed. One row: the paperclip, “Message Chief of Staff”, the mic and the send arrow. Send is the neutral ink (near-black in light, near-white in dark), never the agent’s colour, at 30% because there is nothing to send. No model chip in the box, so the placeholder never wraps at 390px wide.',
+    command: 'agents.open',
+    requires: '.agent-composer__input',
+    mockEvents: true,
+    clipSelector: '.agent-chat__footer',
+    commands: {
+      agents_overview: overview(TEAM),
+      agents_messages: messagesFor,
+    },
+  },
+  {
+    id: 'agents-composer-typed',
+    title: 'Agents — the composer with words typed',
+    looksRightWhen:
+      'The Chief is idle and “And the 404 page.” is typed. The mic is gone; the send arrow is lit in the neutral ink, never the agent’s colour.',
+    command: 'agents.open',
+    requires: '.agent-composer__input',
+    mockEvents: true,
+    steps: [{ fill: '.agent-composer__input', value: 'And the 404 page.' }],
+    clipSelector: '.agent-chat__footer',
+    commands: {
+      agents_overview: overview(TEAM),
+      agents_messages: messagesFor,
+    },
+  },
+  {
+    id: 'agents-composer-working-empty',
+    title: 'Agents — the composer while it works',
+    looksRightWhen:
+      'The Chief is working and nothing is typed. The mic and a Stop square sit where Send would be (no Send arrow). Clicking Stop stops the turn.',
+    command: 'agents.open',
+    requires: '.agent-composer__stop',
+    mockEvents: true,
+    clipSelector: '.agent-chat__footer',
+    commands: {
+      agents_overview: overview(
+        TEAM.map((a) => (a.id === 'chief' ? { ...a, status: status('working') } : a))
+      ),
+      agents_messages: (args: Record<string, unknown>) =>
+        args.agentId === 'chief' ? streamMessages() : messagesFor(args),
+    },
+  },
+  {
     id: 'agents-composer-idle-typed',
     title: 'Agents — typing while the agent is idle',
     looksRightWhen:
-      'Acme Site is idle. The composer holds “And the 404 page.” on its one row with the send arrow lit; no caption under or above the box, since ↵ simply sends.',
+      'Acme Site is idle. The composer holds “And the 404 page.” on its one row with the send arrow lit (neutral ink) and no mic; no caption under or above the box, since ↵ simply sends.',
     openSelector: AGENTS_TAB,
     requires: '.agent-composer__input',
+    clipSelector: '.agent-chat__footer',
     steps: [
       { click: '[data-agent-id="acme"]' },
       { fill: '.agent-composer__input', value: 'And the 404 page.' },

@@ -25,6 +25,7 @@ import {
   conversationTitle,
   othersWaiting,
   type Conversations,
+  MAC_FEATURES,
 } from '@shipstudio/companion-protocol';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
@@ -100,7 +101,8 @@ import {
 } from '../lib/session';
 import { useAccent } from '../lib/accent';
 import { chatKeyFor, conversationsOffered, jumpStep } from '../lib/conversations';
-import { getApp, useApp } from '../lib/store';
+import { getApp, useApp, useServed } from '../lib/store';
+import { chipLabel } from '../lib/agentControls';
 import { SETUP_KEY, chatItems, isRowFor, sentAt, withSetupCard, type Item } from '../lib/timeline';
 import { setupAnchor, shows as showsSetup } from '../lib/teamSetup';
 import {
@@ -710,6 +712,7 @@ export function ChatView({
     [connected, id, macName, showError]
   );
 
+  const controlsNow = useControlsNow(agent);
   if (!agent) {
     // Only a live overview can say an agent is gone; a saved one may predate it.
     if (hasOverview && connected) {
@@ -732,10 +735,23 @@ export function ChatView({
   // Which conversation this is lives in the ⋯ menu, as Conversations' subtitle
   // (Julian, 2026-11-11: a row under the header for it was always in the way).
   const conversationNow = conversationLine(conversations, viewing, offered);
-  const moreActions = headerActions(agent.name, ring?.percent, offered, conversationNow);
+  const openControls = () => router.push({ pathname: '/controls', params: { id } });
+  const moreActions = headerActions(
+    agent.name,
+    ring?.percent,
+    offered,
+    conversationNow,
+    controlsNow
+  );
   const openMore = () =>
     showActions(undefined, moreActions, (a) =>
-      a === 'usage' ? openUsage() : a === 'conversations' ? openConversations() : openSheet()
+      a === 'usage'
+        ? openUsage()
+        : a === 'conversations'
+          ? openConversations()
+          : a === 'controls'
+            ? openControls()
+            : openSheet()
     );
   const urgentBelow =
     !follow.pinned &&
@@ -1327,9 +1343,17 @@ const ChatHeader = memo(function ChatHeader({
   // Usage, Conversations and About live behind one ⋯ so the title has room
   // (Julian, 2026-11-10: the 17% pill crowded the bar). The figure rides along
   // as the Usage row's subtitle; a usage line in the chat still says when it's low.
-  const moreActions = headerActions(agent.name, percent, offered, conversationNow);
+  const controlsNow = useControlsNow(agent);
+  const openControls = () => router.push({ pathname: '/controls', params: { id } });
+  const moreActions = headerActions(agent.name, percent, offered, conversationNow, controlsNow);
   const run = (a: HeaderAction) =>
-    a === 'usage' ? openUsage() : a === 'conversations' ? openConversations() : openSheet();
+    a === 'usage'
+      ? openUsage()
+      : a === 'conversations'
+        ? openConversations()
+        : a === 'controls'
+          ? openControls()
+          : openSheet();
   void tone;
   return (
     <>
@@ -1617,7 +1641,22 @@ const useStyles = makeStyles((colors) => ({
   },
 }));
 
-type HeaderAction = 'usage' | 'conversations' | 'about';
+type HeaderAction = 'usage' | 'conversations' | 'controls' | 'about';
+
+/**
+ * What it runs on, for the ⋯ menu's Model and controls row ("Opus 5.5 · High"):
+ * only on a Mac that lists its engines and lets this phone change the model,
+ * the effort or the level. Never a name guessed here.
+ */
+function useControlsNow(agent: Agent | undefined): string | undefined {
+  const engines = useApp((s) => s.overview?.engines);
+  const switchable = useServed('agents.update', MAC_FEATURES.engine);
+  const effortable = useServed('agents.update', MAC_FEATURES.effort);
+  const levelable = useServed('agents.setAgentIndependence');
+  if (!agent || !engines || !(switchable || effortable || levelable)) return undefined;
+  const chip = chipLabel(agent, engines);
+  return chip.effort ? `${chip.main} · ${chip.effort}` : chip.main;
+}
 
 /** "Now: Launch plan · another needs you": once there are several, for the ⋯ menu. */
 export function conversationLine(
@@ -1637,9 +1676,21 @@ export function headerActions(
   name: string,
   percent: number | undefined,
   offered: boolean,
-  conversationNow?: string
+  conversationNow?: string,
+  /** What it runs on ("Opus 5.5 · High"); present only when the Mac lets this phone change it. */
+  controlsNow?: string
 ): (Action<HeaderAction> & { subtitle?: string })[] {
   return [
+    ...(controlsNow
+      ? [
+          {
+            id: 'controls' as const,
+            title: 'Model and controls',
+            icon: 'slider.horizontal.3' as const,
+            subtitle: controlsNow,
+          },
+        ]
+      : []),
     {
       id: 'usage',
       title: 'Usage',

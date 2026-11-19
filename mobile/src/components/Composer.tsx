@@ -2,10 +2,11 @@
  * The message field. What it will do is always on the button, never hidden
  * behind a gesture:
  *
- * - idle: the mic and **Send** (dimmed until there's something to send);
- * - working: the mic, **Stop** and **Send**. The mic stays, so you can talk
- *   while it works: what you say queues, as what you type does. With words,
- *   Send queues (the line over the field says it's next, after this one
+ * - idle: the mic and **Send** (30% until there's something to send; the
+ *   mic steps aside once there are words);
+ * - working: the mic and **Stop** in Send's place, so you can talk while it
+ *   works: what you say queues, as what you type does. With words, Send
+ *   (back in Stop's place) queues (the line over the field says it's next, after this one
  *   ends) and **Send now** (interrupt, then send; the send arrow and its
  *   words, as tall as the round buttons) sits at that line's right. A Send
  *   now that waits in the outbox keeps its interrupt (session.ts `send`);
@@ -37,10 +38,11 @@
  *
  * The field is one piece of the system's glass (Glass.tsx) where the phone
  * has it, as the tab bar is; a theme surface where it doesn't. Everything is
- * inside it, as in Claude's own: the + at its left, the mic, Stop and Send at
+ * inside it, as in Claude's own: the + at its left, the mic (only while the box is empty), Stop (in Send's place while a turn runs and nothing is typed) and Send at
  * its right. Once the words wrap, or there are files, or it listens, it's a
  * card: files on top, the words across it, the buttons in a row under them
- * (the + and the model chip, which opens Agent controls, left). The line
+ * (the + left). The model lives in the chat's ⋯ menu (Agent controls), not
+ * here. The line
  * about queueing runs over it, full width, with Send now at its right.
  *
  * What's typed, quoted, @mentioned and attached is the chat's draft
@@ -150,8 +152,6 @@ import {
   type PickedFile,
 } from '../lib/files';
 import { haptic } from '../lib/haptics';
-import { useRouter } from 'expo-router';
-import { chipLabel } from '../lib/agentControls';
 import { OUTBOX_WAIT_MS } from '../lib/outbox';
 import {
   describeError,
@@ -183,7 +183,7 @@ import { AgentKey } from './AgentKey';
 import { Glass, hasLiquidGlass } from './Glass';
 import { StagedTile, type Staged } from './attachments';
 import { choose } from './menu';
-import { DISABLED_OPACITY, Icon, useRipple, T } from './ui';
+import { DISABLED_OPACITY, SEND_OFF_OPACITY, Icon, useRipple, T } from './ui';
 
 const NONE: Agent[] = [];
 
@@ -232,21 +232,8 @@ export function Composer({
   // The Mac's last answer while it's away: "+" stays, disabled, so the field doesn't jump.
   const canAttach = useServed('agents.files');
   const team = useApp((s) => s.overview?.agents ?? NONE);
-  const engines = useApp((s) => s.overview?.engines);
   // Settings → Voice: a voice message takes its audio along too.
   const keepRecording = useApp((s) => s.prefs.voiceRecording);
-  // Only from a Mac that lists its engines: never a name guessed here.
-  const chip = useMemo(() => (engines ? chipLabel(agent, engines) : null), [agent, engines]);
-  // The chip opens Agent controls on a Mac with something there to change:
-  // the model or engine, the effort, or its level (open even mid-turn).
-  const switchable = useServed('agents.update', MAC_FEATURES.engine);
-  const effortable = useServed('agents.update', MAC_FEATURES.effort);
-  const levelable = useServed('agents.setAgentIndependence');
-  const router = useRouter();
-  const openControls =
-    switchable || effortable || levelable
-      ? () => router.push({ pathname: '/controls', params: { id: agent.id } })
-      : undefined;
   const seq = useRef(0);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   useEffect(() => {
@@ -449,7 +436,8 @@ export function Composer({
   }, [agent.id]);
   const blocked = uploading || staged.some((f) => f.error);
   const mode = sendMode(agent, hasContent);
-  const controls = composerControls(agent);
+  const hasText = draft.text.trim().length > 0;
+  const controls = composerControls(agent, hasText);
   const waitingOnYou = needsYou(agent);
   // Offline, Send still works: it waits for the Mac in the outbox.
   const canSend = hasContent && !blocked;
@@ -970,7 +958,6 @@ export function Composer({
               </RoundButton>
             ) : undefined
           }
-          chip={!listening && chip ? <EngineChip {...chip} onPress={openControls} /> : undefined}
         >
           {/* Listening, the card's row: ×, the waveform filling the middle, Stop, Send. */}
           {listening && !held && (
@@ -1020,19 +1007,19 @@ export function Composer({
               hint="Stops listening and sends what you said"
               disabled={!canSend}
               onPress={dictationSend}
-              tone="accent"
+              tone="strong"
             >
               <Icon
                 name="arrow.up"
                 size={iconSize.button}
-                color={accent.onAccent}
-                fallback={<T color={accent.onAccent}>↑</T>}
+                color={colors.surfaceApp}
+                fallback={<T color={colors.surfaceApp}>↑</T>}
               />
             </RoundButton>
           )}
           {/* The mic is always there: dictating while a turn runs queues, as typing does. */}
           {/* Held, it's the same button (same key), so the press carries on. */}
-          {(!listening || held) && controls.includes('mic') && (
+          {(held || (!listening && controls.includes('mic'))) && (
             <RoundButton
               key="mic"
               label={held ? 'Recording a voice message' : 'Dictate'}
@@ -1076,97 +1063,20 @@ export function Composer({
               }
               disabled={!canSend}
               onPress={() => submit(false)}
-              // Dimmed until there's something to send, as Claude's own.
-              tone="accent"
+              // Dimmed to 30% until there's something to send, in the neutral
+              // ink: Send is never the agent's colour.
+              tone="strong"
             >
               <Icon
                 name="arrow.up"
                 size={iconSize.button}
-                color={accent.onAccent}
-                fallback={<T color={accent.onAccent}>↑</T>}
+                color={colors.surfaceApp}
+                fallback={<T color={colors.surfaceApp}>↑</T>}
               />
             </RoundButton>
           )}
         </ComposerField>
       </View>
-    </View>
-  );
-}
-
-/**
- * What the next message runs on, in the card's row beside the +: the model
- * ("Opus 5.5"), and its effort lighter after a dot ("· High"), as Claude's
- * own model chip; the engine only when nothing names a model. Only what the
- * Mac said (`lib/agentControls.ts`). A tap opens Agent controls.
- */
-function EngineChip({
-  main,
-  effort,
-  says,
-  onPress,
-}: {
-  main: string;
-  effort: string | null;
-  says: string;
-  /** Opens Agent controls; absent on a Mac with nothing to change there. */
-  onPress?: () => void;
-}) {
-  const field = useFieldStyles();
-  const { send } = useComposerSize();
-  const shape = [field.chip, { height: send, borderRadius: send / 2 }];
-  if (!onPress) {
-    return (
-      <View accessible accessibilityRole="text" accessibilityLabel={says} style={shape}>
-        <EngineWords main={main} effort={effort} />
-      </View>
-    );
-  }
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={says}
-      accessibilityHint="Opens Agent controls: model, effort and how much it does on its own"
-      onPress={() => {
-        haptic.light();
-        onPress();
-      }}
-      style={({ pressed }) => [shape, pressed ? PRESSED : null]}
-    >
-      <EngineWords main={main} effort={effort} caret />
-    </Pressable>
-  );
-}
-
-function EngineWords({
-  main,
-  effort,
-  caret,
-}: {
-  main: string;
-  effort: string | null;
-  caret?: boolean;
-}) {
-  const colors = useColors();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-      <T
-        variant="small"
-        color={colors.textPrimary}
-        numberOfLines={1}
-        style={{ flexShrink: 1 }}
-        maxFontSizeMultiplier={chromeScale}
-      >
-        {main}
-        {effort ? <T variant="small" color={colors.textMuted}>{` · ${effort}`}</T> : null}
-      </T>
-      {caret ? (
-        <Icon
-          name="chevron.down"
-          size={iconSize.inline}
-          color={colors.textMuted}
-          fallback={<T variant="small">▾</T>}
-        />
-      ) : null}
     </View>
   );
 }
@@ -1178,7 +1088,7 @@ function EngineWords({
  * words would wrap there, or `top` holds files, or it's listening, it becomes
  * a card with the same 24pt corner: `top` first, the words across its whole
  * width (six lines, then they scroll inside), and one row under them with
- * `leading` and `chip` at the left and the buttons at the right. Whether the
+ * `leading` at the left and the buttons at the right. Whether the
  * words wrap is measured on one unwrapped line against the pill's room for
  * them, so it doesn't flip back and forth as the card gives them more width.
  *
@@ -1198,7 +1108,6 @@ export function ComposerField({
   dictation,
   hold = false,
   leading,
-  chip,
   top,
   children,
 }: {
@@ -1233,8 +1142,6 @@ export function ComposerField({
   hold?: boolean;
   /** A round button at the field's left: the + (a 40pt `RoundButton`). */
   leading?: ReactNode;
-  /** Beside `leading` in the card's row, never in the pill. */
-  chip?: ReactNode;
   /** At the card's top, over the words: the files. Makes it a card. */
   top?: ReactNode;
   children?: ReactNode;
@@ -1459,7 +1366,6 @@ export function ComposerField({
         // words gave it, or its buttons sit on the card's top edge, off centre.
         <View style={[field.cardRow, dictation?.bare ? field.cardRowAlone : null]}>
           {leading}
-          {chip}
           {/* Listening, the waveform fills the middle; otherwise the buttons go right. */}
           {listening ? null : <View style={field.spacer} />}
           {children}
@@ -1526,7 +1432,7 @@ export function RoundButton({
   onLongPress?: (e: GestureResponderEvent) => void;
   /** The finger came off, or slid away past `HOLD_CANCEL_DISTANCE`. */
   onPressOut?: (e: GestureResponderEvent) => void;
-  tone: 'accent' | 'quiet' | 'off';
+  tone: 'accent' | 'strong' | 'quiet' | 'off';
   children: ReactNode;
 }) {
   const colors = useColors();
@@ -1553,8 +1459,9 @@ export function RoundButton({
           const look = [
             field.round,
             { width: send, height: send, borderRadius: send / 2 },
-            // Disabled reads one way everywhere: as the + beside it does.
-            disabled && field.off,
+            // Disabled reads one way everywhere: as the + beside it does;
+            // Send, though, sits at the audit's 30%.
+            disabled && (tone === 'strong' ? field.offSend : field.off),
             pressed && field.pressed,
           ];
           // Not `interactive` glass: its own touch handling on iOS 26 took the
@@ -1567,7 +1474,14 @@ export function RoundButton({
             <View
               style={[
                 look,
-                { backgroundColor: tone === 'quiet' ? colors.surfaceSelected : 'transparent' },
+                {
+                  backgroundColor:
+                    tone === 'strong'
+                      ? colors.textStrong
+                      : tone === 'quiet'
+                        ? colors.surfaceSelected
+                        : 'transparent',
+                },
               ]}
             >
               {children}
@@ -1671,14 +1585,6 @@ const useFieldStyles = makeStyles((colors) => ({
   cardRowAlone: { paddingTop: composer.inset },
   spacer: { flex: 1 },
   top: { paddingTop: space.sm },
-  chip: {
-    justifyContent: 'center',
-    paddingHorizontal: space.md,
-    marginRight: composer.inset,
-    marginBottom: composer.inset,
-    flexShrink: 1,
-    backgroundColor: colors.surfaceSelected,
-  },
   // One unwrapped line of the words, unseen: is it wider than the pill has room for?
   // Clipped to the field, so a long line never widens the page (the web build).
   measure: {
@@ -1702,6 +1608,7 @@ const useFieldStyles = makeStyles((colors) => ({
     justifyContent: 'center',
   },
   off: { opacity: DISABLED_OPACITY },
+  offSend: { opacity: SEND_OFF_OPACITY },
   pressed: { transform: [{ scale: 0.92 }] },
 }));
 
