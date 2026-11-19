@@ -519,7 +519,7 @@ pub(crate) async fn send_in(
         }
         if let Some(card) = agents::typed_answer::the_card(&open) {
             let request_id = card.request_id.clone();
-            match answer_card(&app, &agent_id, &request_id, true, None, None, None) {
+            match answer_card_from(&app, &agent_id, &request_id, true, None, None, None, None) {
                 Ok(()) => {
                     let _ = runner::record(
                         &app,
@@ -1508,6 +1508,32 @@ pub async fn agents_answer_approval(
     note: Option<String>,
     choice: Option<usize>,
 ) -> Result<(), CommandError> {
+    answer_approval_from(
+        app,
+        agent_id,
+        request_id,
+        allow,
+        always,
+        note,
+        choice,
+        agents::answer_gate::Source::Desk,
+    )
+    .await
+}
+
+/// [`agents_answer_approval`] saying where the answer is from (the phone's
+/// route passes `Phone`, or `PhoneLockScreen` for a notification's button).
+#[allow(clippy::too_many_arguments)]
+pub async fn answer_approval_from(
+    app: AppHandle,
+    agent_id: String,
+    request_id: String,
+    allow: bool,
+    always: Option<bool>,
+    note: Option<String>,
+    choice: Option<usize>,
+    source: agents::answer_gate::Source,
+) -> Result<(), CommandError> {
     // A login card answered with plain Allow / Deny (a phone from before
     // login cards): Allow starts its first way in on this Mac.
     let login = {
@@ -1545,7 +1571,19 @@ pub async fn agents_answer_approval(
                 .await
         };
     }
-    blocking(move || answer_card(&app, &agent_id, &request_id, allow, always, note, choice)).await
+    blocking(move || {
+        answer_card_from(
+            &app,
+            &agent_id,
+            &request_id,
+            allow,
+            always,
+            note,
+            choice,
+            Some(source),
+        )
+    })
+    .await
 }
 
 /* --------------------------------------------------------------- step in */
@@ -1939,7 +1977,8 @@ pub async fn agents_connection_delete(
     Ok(())
 }
 
-pub(crate) fn answer_card(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn answer_card_from(
     app: &AppHandle,
     agent_id: &str,
     request_id: &str,
@@ -1947,6 +1986,7 @@ pub(crate) fn answer_card(
     always: Option<bool>,
     note: Option<String>,
     choice: Option<usize>,
+    source: Option<agents::answer_gate::Source>,
 ) -> Result<(), CommandError> {
     let note = note
         .map(|n| n.trim().chars().take(MAX_DENY_NOTE).collect::<String>())
@@ -1963,10 +2003,11 @@ pub(crate) fn answer_card(
     // One answer per card (`answer_gate`): the desk, the phone, a typed yes
     // and an admin agent racing on this card, exactly one gets past here;
     // the others are told what it answered, and nothing of theirs runs.
-    let _claim = agents::answer_gate::claim(
+    let _claim = agents::answer_gate::claim_from(
         agent_id,
         request_id,
         &agents::answer_gate::said(allow, always == Some(true), None),
+        source,
     )?;
     let approval = store::find_approval(agent_id, request_id)?
         .ok_or_else(|| CommandError::expected("That request no longer exists."))?;
@@ -2069,8 +2110,12 @@ pub(crate) fn answer_card(
                 continue;
             };
             // Someone answering it has it.
-            let Some(_covered) = agents::answer_gate::try_claim(agent_id, &id, "Always allowed")
-            else {
+            let Some(_covered) = agents::answer_gate::try_claim_from(
+                agent_id,
+                &id,
+                "Always allowed",
+                agents::answer_gate::Source::Rule,
+            ) else {
                 continue;
             };
             let Some(message) = store::allow_always(agent_id, &id, &scope)? else {

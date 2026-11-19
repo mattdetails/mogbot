@@ -762,6 +762,20 @@ export interface StepInCard {
   onPhone?: string;
 }
 
+/**
+ * Where a card's answer came from, recorded by the Mac with the answer:
+ * the desk, the phone, a phone's lock screen, a plan the user allowed, the
+ * app at the user's independence level, an admin agent, or an "Always" rule.
+ */
+export type AnsweredFrom =
+  | 'desk'
+  | 'phone'
+  | 'phoneLockScreen'
+  | 'plan'
+  | 'auto'
+  | 'admin'
+  | 'rule';
+
 export interface Approval {
   requestId: string;
   title: string;
@@ -773,6 +787,8 @@ export interface Approval {
   input?: unknown;
   always?: PermissionScope;
   alwaysAllowed?: boolean;
+  /** Where the answer came from; absent while pending and on answers that didn't say. */
+  answeredFrom?: AnsweredFrom;
   note?: string;
   /** A secure input card: what the agent asked for. */
   secret?: SecretRequest;

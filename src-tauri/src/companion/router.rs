@@ -618,6 +618,8 @@ pub struct ApprovalAnswer {
     pub note: Option<String>,
     /// On a session's question: the option picked, by index.
     pub choice: Option<usize>,
+    /// Allow or Deny tapped on a notification (the phone's lock screen).
+    pub lock_screen: bool,
 }
 
 /// A memory entry is a line worth keeping, not a document.
@@ -1801,6 +1803,8 @@ struct ApprovalParams {
     always: Option<bool>,
     note: Option<String>,
     choice: Option<usize>,
+    /// `"lockScreen"` from a notification's button.
+    from: Option<String>,
 }
 
 /// "rex (read), chief (full)", or "nobody yet": who an apps change names.
@@ -2447,6 +2451,7 @@ async fn run(
                 always: p.always,
                 note: p.note,
                 choice: p.choice,
+                lock_screen: p.from.as_deref() == Some("lockScreen"),
             })
             .await?;
             Ok(Value::Null)

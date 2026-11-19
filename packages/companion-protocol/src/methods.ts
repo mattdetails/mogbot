@@ -271,6 +271,8 @@ export interface Methods {
       always?: boolean;
       note?: string;
       choice?: number;
+      /** `lockScreen`: Allow or Deny tapped on a notification. Says where the answer is from, nothing more. */
+      from?: 'lockScreen';
     };
     result: null;
   };
