@@ -51,7 +51,7 @@ pub fn schema() -> Value {
             "note": { "type": "string" },
             "agent": { "type": "string" },
             "text": { "type": "string" },
-            "what": { "type": "string" }, "affects": { "type": "string" },
+            "what": { "type": "string" }, "affects": { "type": "string" }, "app": { "type": "string", "description": "For blocked: the app it can't reach, so the page can offer Reconnect." },
             "checked_by": { "type": "string", "enum": ["claude", "codex", "opencode"] },
             "verdicts": { "type": "array", "items": { "type": "object", "properties": {
                 "criterion": { "type": "string" },
@@ -329,6 +329,21 @@ pub fn pause_blocks(m: &Mission, text: &str) -> Option<Value> {
     serde_json::to_value(set).ok()
 }
 
+/// A mission marked blocked: what broke, the app it can't reach, who it
+/// stops. Pure.
+pub fn mark_blocked(m: &Mission, args: &Value) -> Result<Mission, String> {
+    let mut next = m.clone();
+    next.state = State::Blocked;
+    next.blocked = Some(Blocked {
+        what: s(args, "what")
+            .ok_or("`what` is required: what broke.")?
+            .to_string(),
+        app: s(args, "app").map(str::to_string),
+        affects: s(args, "affects").map(str::to_string),
+    });
+    Ok(next)
+}
+
 /// What the user decides (their own message, or a button on the desk).
 const USERS_CALL: &[&str] = &["start", "add_more", "stop", "pause", "resume", "accept"];
 
@@ -416,11 +431,7 @@ pub fn act(action: &str, args: &Value, user: bool, now: i64) -> Result<String, S
             "Cleared."
         }
         "blocked" => {
-            next.state = State::Blocked;
-            next.blocked = Some(Blocked {
-                what: s(args, "what").ok_or("`what` is required: what broke.")?.to_string(),
-                affects: s(args, "affects").map(str::to_string),
-            });
+            next = mark_blocked(&m, args)?;
             "Marked blocked. Usage isn't being spent; tell the user what to fix."
         }
         "unblocked" => {
@@ -474,12 +485,39 @@ pub fn act(action: &str, args: &Value, user: bool, now: i64) -> Result<String, S
 
 static LAST_READ: AtomicI64 = AtomicI64::new(0);
 
+/// "3 hours", "40 minutes". Pure.
+pub fn sleep_phrase(ms: i64) -> String {
+    let m = ms / 60_000;
+    if m >= 120 {
+        format!("{} hours", m / 60)
+    } else if m >= 60 {
+        "an hour".to_string()
+    } else {
+        format!("{m} minutes")
+    }
+}
+
 /// From the scheduler tick: read the live missions' engines and pause at a
 /// share. The work runs off the tick.
 pub fn tick(app: &tauri::AppHandle) {
     let now = store::now_ms();
     if !list().iter().any(|m| m.state.is_live()) {
         return;
+    }
+    // Every look: time capped by awake time only, and a long gap said.
+    for m in list().into_iter().filter(|m| m.state.is_live()) {
+        let (mut next, slept) = beat(&m, now);
+        if let Some((from, to)) = slept {
+            next.push_event(
+                "Mission",
+                &format!(
+                    "Your Mac was asleep for {}. Nothing ran and nothing was spent.",
+                    sleep_phrase(to - from)
+                ),
+                now,
+            );
+        }
+        let _ = put(next);
     }
     if now - LAST_READ.load(Ordering::Relaxed) < READ_EVERY_MS {
         return;

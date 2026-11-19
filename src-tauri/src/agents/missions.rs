@@ -261,6 +261,9 @@ pub struct Event {
 #[serde(rename_all = "camelCase")]
 pub struct Blocked {
     pub what: String,
+    /// The app it can't reach, for "Reconnect" ("Native OS").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app: Option<String>,
     /// Who it stops.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub affects: Option<String>,
@@ -354,6 +357,11 @@ pub struct Mission {
     /// What waits on the user.
     #[serde(default)]
     pub asks: Vec<Ask>,
+    /// The last time the app looked at it while it ran, epoch ms. A live
+    /// mission whose beat is old was asleep with the Mac (`beat`), and the
+    /// page says so rather than looking as if it ran.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub heartbeat_at: Option<i64>,
 }
 
 impl Mission {
@@ -377,6 +385,7 @@ impl Mission {
             summary: None,
             agents: Vec::new(),
             asks: Vec::new(),
+            heartbeat_at: None,
         }
     }
 
@@ -432,6 +441,31 @@ pub enum Change {
     PausedAtCap(Option<Engine>),
 }
 
+/// The scheduler looks about once a minute: a longer gap than this since the
+/// last beat was the Mac asleep (or the app closed), not time spent.
+pub const AWAKE_STEP_MS: i64 = 3 * 60_000;
+/// A gap this long gets a line in the updates ("Your Mac was asleep").
+pub const SLEPT_MS: i64 = 10 * 60_000;
+
+/// A beat of the scheduler for a live mission: time-capped shares are charged
+/// only the time the app was really awake, and a long gap since the last beat
+/// is returned as the sleep it was. Pure.
+pub fn beat(m: &Mission, now: i64) -> (Mission, Option<(i64, i64)>) {
+    let mut next = m.clone();
+    if !m.state.is_live() {
+        return (next, None);
+    }
+    let prev = m.heartbeat_at.unwrap_or(now);
+    let gap = (now - prev).max(0);
+    for share in &mut next.shares {
+        if share.kind == ShareKind::Time {
+            share.spent_ms += gap.min(AWAKE_STEP_MS);
+        }
+    }
+    next.heartbeat_at = Some(now);
+    (next, (gap >= SLEPT_MS).then_some((prev, now)))
+}
+
 /// Move a live mission on given fresh readings (one per engine) and the
 /// time. Only a live mission can pause; the others just keep their numbers.
 /// Pure over its inputs.
@@ -440,9 +474,6 @@ pub fn tick(m: &Mission, readings: &[(Engine, Reading)], now: i64) -> (Mission, 
     for share in &mut next.shares {
         if let Some((_, r)) = readings.iter().find(|(e, _)| *e == share.engine) {
             *share = observe(share, *r);
-        }
-        if share.kind == ShareKind::Time && m.state.is_live() {
-            share.spent_ms = now - m.started_at;
         }
     }
     if !m.state.is_live() {

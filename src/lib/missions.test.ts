@@ -9,7 +9,10 @@ import {
   duration,
   fmt,
   hero,
+  isAsleep,
   isBigNumber,
+  reconnectMessage,
+  stateWord,
   shareRow,
   type Mission,
   type MissionCriterion,
@@ -171,6 +174,36 @@ describe('banners (rule 5)', () => {
   });
   it('has no banner while running', () => {
     expect(banner(base())).toBeNull();
+  });
+});
+
+describe('a Mac that slept, and Reconnect', () => {
+  const live = base({ heartbeatAt: 0 });
+  it('is only asleep when live and the last beat is old', () => {
+    expect(isAsleep(live, 4 * 60_000)).toBe(false);
+    expect(isAsleep(live, 6 * 60_000)).toBe(true);
+    expect(isAsleep({ ...live, state: 'paused_cap' }, 99 * 60_000)).toBe(false);
+    expect(isAsleep(base(), 99 * 60_000)).toBe(false);
+  });
+  it('says it, and offers no button, never looking like it runs', () => {
+    expect(stateWord(live, 10 * 60_000)).toBe('Paused while your Mac sleeps');
+    const b = banner(live, 10 * 60_000)!;
+    expect(b.title).toBe('Paused while your Mac sleeps');
+    expect(b.actions).toHaveLength(0);
+    expect(banner(live, 60_000)).toBeNull();
+  });
+  it('offers Reconnect for a blocked mission that names its app', () => {
+    const m = base({
+      state: 'blocked',
+      blocked: { what: "Can't read Native OS", app: 'Native OS' },
+    });
+    expect(banner(m)!.actions.map((a) => a.label)).toEqual([
+      'Reconnect Native OS',
+      'Pause mission',
+    ]);
+    expect(reconnectMessage(m)).toContain('Reconnect Native OS');
+    const plain = base({ state: 'blocked', blocked: { what: 'x' } });
+    expect(banner(plain)!.actions.map((a) => a.action)).toEqual(['pause']);
   });
 });
 

@@ -2133,6 +2133,80 @@ impl Backend for Stub {
         Ok(json!({ "window": window }))
     }
 
+    async fn missions(&self) -> Result<Value, CommandError> {
+        use crate::agents::engine::Engine;
+        use crate::agents::missions::*;
+        let mut m = Mission::new(
+            "Get the pipeline to 20 qualified leads",
+            vec![Criterion {
+                id: "c1".into(),
+                text: "20 leads with a call booked".into(),
+                kind: CriterionKind::Count,
+                target: Some(20.0),
+                start: Some(0.0),
+                value: Some(11.0),
+                unit: Some("leads".into()),
+                status: Status::InProgress,
+                source: Some("Native OS · read 11:02 pm".into()),
+                note: Some("6 from agencies".into()),
+            }],
+            vec![
+                Share::usage(Engine::Claude, 30.0),
+                Share::time(Engine::OpenCode, 86_400_000),
+            ],
+            1_762_675_200_000,
+        );
+        m.state = State::Blocked;
+        m.end_at = Some(1_763_000_000_000);
+        m.asks_first = vec!["Never email a client".into()];
+        m.updates = Updates {
+            when_blocked: true,
+            each_milestone: true,
+            daily_at: Some(1080),
+        };
+        m.blocked = Some(Blocked {
+            what: "Can't read Native OS".into(),
+            app: Some("Native OS".into()),
+            affects: Some("Scout".into()),
+        });
+        m.push_event("Scout", "Booked 2 calls.", 1_762_675_300_000);
+        m.checked_by = Some(Engine::Codex);
+        m.verdicts = vec![Verdict {
+            criterion: "c1".into(),
+            result: Met::Met,
+            evidence: Some("Native OS shows 20".into()),
+        }];
+        m.finished_at = Some(1_762_675_400_000);
+        m.paused_by = Some(Engine::Claude);
+        m.summary = Some("3 more are in conversation.".into());
+        m.agents = vec![MissionAgent {
+            name: "Scout".into(),
+            engine: Engine::Claude,
+            status: "Working".into(),
+        }];
+        m.asks = vec![Ask {
+            id: "a1".into(),
+            text: "Your OK on 12 intro emails".into(),
+            detail: Some("Nothing goes out until you approve.".into()),
+        }];
+        m.shares[0].account_id = Some("acct1".into());
+        m.heartbeat_at = Some(1_762_675_390_000);
+        m.shares[0].used_pct = 11.0;
+        m.shares[0].read_at = Some(1_762_675_350_000);
+        m.id = "m1".into();
+        Ok(serde_json::to_value(vec![m]).unwrap())
+    }
+
+    async fn mission_act(
+        &self,
+        _id: &str,
+        action: &str,
+        _engine: Option<&str>,
+        _points: Option<f64>,
+    ) -> Result<Value, CommandError> {
+        Ok(json!({ "said": action }))
+    }
+
     async fn morning_brief(&self) -> Result<Value, CommandError> {
         Ok(
             json!({ "on": true, "at": 8 * 60, "always": false, "lastPostedAt": 1_762_675_200_000_i64 }),

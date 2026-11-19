@@ -28,6 +28,7 @@ export * from './usage';
 export * from './usageSheet';
 export * from './independence';
 export * from './links';
+export * from './missions';
 export * from './policy';
 export * from './skills';
 export * from './onItsOwn';

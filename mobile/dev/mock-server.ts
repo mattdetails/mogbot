@@ -1061,14 +1061,33 @@ export function createMockServer(opts: MockOptions = {}) {
     icon: 'face-07',
     pinned: false,
     hidden: true,
-    status: { state: 'working', activity: 'Using your Chrome · walmart.com', since: now - 4 * 60_000 },
+    status: {
+      state: 'working',
+      activity: 'Using your Chrome · walmart.com',
+      since: now - 4 * 60_000,
+    },
     pendingApprovals: 1,
     unread: 0,
   });
   messages.set('groceries', [
-    { id: 'gr_1', ts: now - 4 * 60_000, kind: 'user', text: 'can you do this week’s Walmart order? same list as last week' },
-    { id: 'gr_2', ts: now - 4 * 60_000 + 5000, kind: 'agent', text: 'On it: opening Walmart in your Chrome.' },
-    { id: 'gr_3', ts: now - 60_000, kind: 'agent', text: 'Last week’s 6 items are in the cart. Thursday pickup is open, so I picked it.' },
+    {
+      id: 'gr_1',
+      ts: now - 4 * 60_000,
+      kind: 'user',
+      text: 'can you do this week’s Walmart order? same list as last week',
+    },
+    {
+      id: 'gr_2',
+      ts: now - 4 * 60_000 + 5000,
+      kind: 'agent',
+      text: 'On it: opening Walmart in your Chrome.',
+    },
+    {
+      id: 'gr_3',
+      ts: now - 60_000,
+      kind: 'agent',
+      text: 'Last week’s 6 items are in the cart. Thursday pickup is open, so I picked it.',
+    },
     {
       id: 'gr_4',
       ts: now - 50_000,
@@ -1077,7 +1096,8 @@ export function createMockServer(opts: MockOptions = {}) {
       approval: {
         requestId: 'walmart-order',
         title: 'Click “Place order” on walmart.com',
-        summary: 'This would spend your money, in your signed-in Chrome.\n\n6 items, pickup Thursday.',
+        summary:
+          'This would spend your money, in your signed-in Chrome.\n\n6 items, pickup Thursday.',
         detail: 'left_click ref_42 (“Place order”) on walmart.com/checkout',
         status: 'pending',
       },
@@ -1100,8 +1120,18 @@ export function createMockServer(opts: MockOptions = {}) {
     unread: 0,
   });
   messages.set('website', [
-    { id: 'si_1', ts: now - 9 * 60_000, kind: 'user', text: 'Build the new pricing page and check it on mobile.' },
-    { id: 'si_2', ts: now - 9 * 60_000 + 5000, kind: 'agent', text: 'On it: three tiers, monthly and yearly, with the FAQ under them.' },
+    {
+      id: 'si_1',
+      ts: now - 9 * 60_000,
+      kind: 'user',
+      text: 'Build the new pricing page and check it on mobile.',
+    },
+    {
+      id: 'si_2',
+      ts: now - 9 * 60_000 + 5000,
+      kind: 'agent',
+      text: 'On it: three tiers, monthly and yearly, with the FAQ under them.',
+    },
     {
       id: 'si_3',
       ts: now - 8 * 60_000,
@@ -1614,6 +1644,193 @@ export function createMockServer(opts: MockOptions = {}) {
   let morningBrief = { on: true, at: 8 * 60, always: false };
   // The end-of-day check-in (`agents::eod`): on, 18:00.
   let endOfDay = { on: true, at: 18 * 60 };
+  // Missions (`agents.missions`): a running one with something waiting on the
+  // user, one paused at its share, one ready for review.
+  const H = 3_600_000;
+  const missionBase = {
+    asksFirst: [] as string[],
+    updates: { whenBlocked: true, eachMilestone: false, dailyAt: 18 * 60 },
+    events: [] as { agent: string; text: string; at: number }[],
+    verdicts: [] as { criterion: string; result: 'met' | 'not_met' | 'couldnt_check' }[],
+    agents: [
+      { name: 'Scout', engine: 'claude' as const, status: 'Working' },
+      { name: 'Lead Gen', engine: 'codex' as const, status: 'Waiting on you' },
+      { name: 'Mail', engine: 'claude' as const, status: 'Working' },
+    ],
+    asks: [] as { id: string; text: string; detail?: string }[],
+  };
+  const leadsCriterion = (value: number, status: 'in_progress' | 'met') => ({
+    id: 'c1',
+    text: '20 leads with a call booked',
+    kind: 'count' as const,
+    target: 20,
+    value,
+    unit: 'leads with a call booked',
+    status,
+    source: 'Native OS · read 11:02 pm',
+  });
+  type MockMission = import('@shipstudio/companion-protocol').Mission;
+  let missions: MockMission[] = [
+    {
+      ...missionBase,
+      id: 'm-standard',
+      goal: "Get Native's pipeline to 20 qualified leads this month",
+      state: 'running',
+      startedAt: Date.now() - 30 * H,
+      endAt: Date.now() + 10 * 24 * H,
+      summary: '3 more are in conversation.',
+      criteria: [
+        leadsCriterion(11, 'in_progress'),
+        { id: 'c2', text: 'Each has a company and an owner', kind: 'check', status: 'met' },
+        { id: 'c3', text: 'No lead contacted twice', kind: 'check', status: 'holding' },
+      ],
+      shares: [
+        {
+          engine: 'claude',
+          kind: 'usage',
+          pct: 30,
+          usedPct: 11,
+          readAt: Date.now() - 600_000,
+          spentMs: 0,
+        },
+        {
+          engine: 'codex',
+          kind: 'usage',
+          pct: 50,
+          usedPct: 10,
+          readAt: Date.now() - 600_000,
+          spentMs: 0,
+        },
+      ],
+      asks: [
+        {
+          id: 'a1',
+          text: 'Your OK on 12 intro emails',
+          detail: 'Nothing goes out until you approve the exact words.',
+        },
+      ],
+    },
+    {
+      ...missionBase,
+      id: 'm-over-cap',
+      goal: "Get Native's pipeline to 20 qualified leads this month",
+      state: 'paused_cap',
+      pausedBy: 'claude',
+      startedAt: Date.now() - 50 * H,
+      endAt: Date.now() + 10 * 24 * H,
+      summary: '14 of 20 done. Everything so far is saved.',
+      criteria: [leadsCriterion(14, 'in_progress')],
+      shares: [
+        {
+          engine: 'claude',
+          kind: 'usage',
+          pct: 30,
+          usedPct: 31,
+          readAt: Date.now() - 300_000,
+          spentMs: 0,
+        },
+        {
+          engine: 'codex',
+          kind: 'usage',
+          pct: 50,
+          usedPct: 20,
+          readAt: Date.now() - 300_000,
+          spentMs: 0,
+        },
+      ],
+    },
+    {
+      ...missionBase,
+      id: 'm-blocked',
+      goal: "Get Native's pipeline to 20 qualified leads this month",
+      state: 'blocked',
+      startedAt: Date.now() - 30 * H,
+      endAt: Date.now() + 10 * 24 * H,
+      heartbeatAt: Date.now() - 60_000,
+      blocked: {
+        what: "Can't read Native OS",
+        app: 'Native OS',
+        affects:
+          "The login expired at 11:02 pm. Scout and Lead Gen can't count leads until it's back.",
+      },
+      criteria: [leadsCriterion(11, 'in_progress')],
+      shares: [
+        {
+          engine: 'claude',
+          kind: 'usage',
+          pct: 30,
+          usedPct: 11,
+          readAt: Date.now() - 600_000,
+          spentMs: 0,
+        },
+      ],
+    },
+    {
+      ...missionBase,
+      id: 'm-asleep',
+      goal: "Get Native's pipeline to 20 qualified leads this month",
+      state: 'running',
+      startedAt: Date.now() - 40 * H,
+      endAt: Date.now() + 10 * 24 * H,
+      // The Mac went to sleep eight hours ago: a record read from a cache.
+      heartbeatAt: Date.now() - 8 * H,
+      summary: 'Last looked at 8 hours ago.',
+      criteria: [leadsCriterion(11, 'in_progress')],
+      shares: [
+        {
+          engine: 'claude',
+          kind: 'usage',
+          pct: 30,
+          usedPct: 11,
+          readAt: Date.now() - 8 * H,
+          spentMs: 0,
+        },
+      ],
+    },
+    {
+      ...missionBase,
+      id: 'm-done',
+      goal: "Get Native's pipeline to 20 qualified leads this month",
+      state: 'ready',
+      startedAt: Date.now() - 54 * H,
+      finishedAt: Date.now(),
+      checkedBy: 'codex',
+      summary: '2 of 3 met. 1 could not be checked.',
+      criteria: [
+        { ...leadsCriterion(20, 'met'), note: 'Native OS shows 20, read 11:58 pm.' },
+        { id: 'c2', text: 'Each has a company and an owner', kind: 'check', status: 'met' },
+        {
+          id: 'c3',
+          text: 'No lead contacted twice',
+          kind: 'check',
+          status: 'couldnt_check',
+          note: "One lead was emailed on 12 Nov, before the mission. The check couldn't see emails sent outside Mail.",
+        },
+      ],
+      shares: [
+        {
+          engine: 'claude',
+          kind: 'usage',
+          pct: 30,
+          usedPct: 11,
+          readAt: Date.now() - 300_000,
+          spentMs: 0,
+        },
+        {
+          engine: 'codex',
+          kind: 'usage',
+          pct: 50,
+          usedPct: 10,
+          readAt: Date.now() - 300_000,
+          spentMs: 0,
+        },
+      ],
+      agents: [
+        { name: 'Scout', engine: 'claude', status: 'Working' },
+        { name: 'Lead Gen', engine: 'claude', status: 'Working' },
+      ],
+    },
+  ];
   // Every agent's key, as the Mac's `keys::fill` gives one saved before keys: its
   // colour's nearest colourway, an icon from its name then role, the first free
   // letter of its name, the Chief first.
@@ -1647,7 +1864,12 @@ export function createMockServer(opts: MockOptions = {}) {
         broughtIn: true,
       }
     : undefined;
-  const FILED: Record<string, string> = { site: 'f-web', qa: 'f-web', design: 'f-design', ops: 'f-ops' };
+  const FILED: Record<string, string> = {
+    site: 'f-web',
+    qa: 'f-web',
+    design: 'f-design',
+    ops: 'f-ops',
+  };
   if (opts.folders) {
     for (const a of agents) {
       if (FILED[a.id]) a.folder = FILED[a.id];
@@ -3859,6 +4081,24 @@ export function createMockServer(opts: MockOptions = {}) {
     },
     'agents.quietHours': () => ({ window: quietWindow }),
     'agents.morningBrief': () => morningBrief,
+    'agents.missions': () => missions,
+    'agents.missions.act': (p) => {
+      const m = missions.find((x) => x.id === p.id);
+      if (!m) return fail({ type: 'Validation', field: 'id', reason: 'No such mission' });
+      const next: Record<string, MockMission['state']> = {
+        pause: 'paused',
+        resume: 'running',
+        stop: 'stopped',
+        accept: 'done',
+      };
+      if (p.action === 'add_more') {
+        m.shares = m.shares.map((s) => (s.engine === p.engine ? { ...s, pct: s.pct + 10 } : s));
+        if (m.state === 'paused_cap') m.state = 'running';
+      } else if (typeof p.action === 'string' && next[p.action]) {
+        m.state = next[p.action];
+      }
+      return { said: String(p.action) };
+    },
     // As the router does: `on` and `at` (0 to 1439) required.
     'agents.setMorningBrief': (p) => {
       const at = p.at as unknown;
@@ -5674,7 +5914,8 @@ function seedMessages(a: Agent, now: number): AgentMessage[] {
       approval: {
         requestId: 'req_seed',
         title: 'Write files outside its folder',
-        detail: 'cp -r export/icons ~/ShipStudio/acme-site/public/assets/brand/icons/2026-11/final-export',
+        detail:
+          'cp -r export/icons ~/ShipStudio/acme-site/public/assets/brand/icons/2026-11/final-export',
         risk: 'low',
         status: 'pending',
         tool: 'Bash',
@@ -5716,7 +5957,7 @@ function seedMessages(a: Agent, now: number): AgentMessage[] {
         text: '',
         approval: {
           requestId: `req_folded_${from}`,
-          title: "Run the tests",
+          title: 'Run the tests',
           detail: 'pnpm test',
           risk: 'low',
           status,

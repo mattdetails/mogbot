@@ -259,11 +259,25 @@ export const MISSION_CASES: Record<string, Mission> = {
     summary: 'Paused. Nothing is being spent.',
     blocked: {
       what: "Can't read Native OS",
+      app: 'Native OS',
       affects:
         "The login expired at 11:02 pm. Scout and Lead Gen can't count leads until it's back.",
     },
     criteria: [leads(11, { note: 'Last read 11:02 pm', source: 'Last read 11:02 pm' })],
     events: [{ agent: 'Scout', text: 'Native OS asked me to sign in again.', at: now - 25 * MIN }],
+  }),
+  asleep: base({
+    // The Mac slept: the record's last beat is old, so it says so, never "Running".
+    heartbeatAt: now - 8 * H,
+    summary: 'Last looked at 8 hours ago.',
+    criteria: [leads(11, { note: '10 of them from agencies. 6 so far.' })],
+    events: [
+      {
+        agent: 'Mission',
+        text: 'Your Mac was asleep for 6 hours. Nothing ran and nothing was spent.',
+        at: now - 90 * MIN,
+      },
+    ],
   }),
   done: base({
     state: 'ready',
@@ -304,8 +318,10 @@ const WORDS: Record<string, string> = {
     'Codex’s share is hatched: “About 40% share · not read yet”; OpenCode reads “Capped by time · 5 hours of 1 day”; the hero goes DOWN: “142 goal under 20 unread” with the bar showing distance covered.',
   over_cap:
     'Amber banner “Reached about 30% of Claude’s week” with Add 10% of Claude / Finish with Codex only / Stop here; Claude’s row amber “About 31% of about 30% · over”; agents say Paused (Waiting on you survives); no Pause button.',
+  asleep:
+    'Neutral banner “Paused while your Mac sleeps” (no buttons, no Pause) and the chip says the same; the numbers are the last ones read; the note says what it will stop at.',
   blocked:
-    'Red banner “Can’t read Native OS” saying who it affects and that usage isn’t being spent, with Pause mission; criterion shows its last read; agents say Blocked.',
+    'Red banner “Can’t read Native OS” saying who it affects and that usage isn’t being spent, with Reconnect Native OS and Pause mission; criterion shows its last read; agents say Blocked.',
   done: 'Neutral banner “Your call” with Accept / Keep going with 10% more / See the work; “Took 2 days 6 hours”; “Checked by Codex, which did not do the work”; one criterion “Couldn’t check” in amber with its reason; the note says “It used about … Nothing more is spent.”',
 };
 

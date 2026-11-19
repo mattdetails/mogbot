@@ -529,6 +529,20 @@ async fn generate() -> String {
         call("agents.setEndOfDay", json!({ "on": true, "at": 1080 })).await,
     );
     out += &entry(
+        "agentsMissions",
+        "Result<'agents.missions'>",
+        call("agents.missions", json!({})).await,
+    );
+    out += &entry(
+        "agentsMissionsAct",
+        "Result<'agents.missions.act'>",
+        call(
+            "agents.missions.act",
+            json!({ "id": "m1", "action": "pause" }),
+        )
+        .await,
+    );
+    out += &entry(
         "agentsSetImportChoice",
         "Result<'agents.setImportChoice'>",
         call("agents.setImportChoice", json!({ "choice": "declined" })).await,

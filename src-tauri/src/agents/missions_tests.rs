@@ -126,7 +126,8 @@ fn a_paused_or_finished_mission_keeps_its_numbers_but_never_pauses_again() {
 
 #[test]
 fn a_time_cap_and_an_end_date_pause_too() {
-    let m = mission(vec![Share::time(Engine::OpenCode, 5 * H)]);
+    let mut m = mission(vec![Share::time(Engine::OpenCode, 5 * H)]);
+    m.shares[0].spent_ms = 5 * H;
     let (m1, c) = tick(&m, &[], 6 * H);
     assert_eq!(c, Change::PausedAtCap(Some(Engine::OpenCode)));
     assert_eq!(m1.state, State::PausedCap);
@@ -135,6 +136,27 @@ fn a_time_cap_and_an_end_date_pause_too() {
     let (m2, c) = tick(&m, &[], 3 * H);
     assert_eq!(c, Change::PausedAtCap(None));
     assert_eq!(m2.paused_by, None);
+}
+
+#[test]
+fn a_time_cap_counts_awake_time_not_the_nights_a_mac_slept() {
+    let mut m = mission(vec![Share::time(Engine::OpenCode, 24 * H)]);
+    m.heartbeat_at = Some(0);
+    // A normal minute is charged.
+    let (m, slept) = beat(&m, 60_000);
+    assert_eq!(m.shares[0].spent_ms, 60_000);
+    assert_eq!(slept, None);
+    // Eight hours asleep: charged one awake step, and said.
+    let (m, slept) = beat(&m, 60_000 + 8 * H);
+    assert_eq!(m.shares[0].spent_ms, 60_000 + AWAKE_STEP_MS);
+    assert_eq!(slept, Some((60_000, 60_000 + 8 * H)));
+    assert_eq!(m.heartbeat_at, Some(60_000 + 8 * H));
+    // A paused mission isn't charged or stamped.
+    let mut p = m.clone();
+    p.state = State::Paused;
+    let (p2, none) = beat(&p, 90 * H);
+    assert_eq!(p2, p);
+    assert_eq!(none, None);
 }
 
 #[test]

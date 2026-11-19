@@ -834,6 +834,28 @@ impl Backend for DesktopBackend {
         json(cmd::agents_set_end_of_day(self.app.clone(), on, at).await?)
     }
 
+    async fn missions(&self) -> Result<Value, CommandError> {
+        json(cmd::agents_missions().await?)
+    }
+
+    async fn mission_act(
+        &self,
+        id: &str,
+        action: &str,
+        engine: Option<&str>,
+        points: Option<f64>,
+    ) -> Result<Value, CommandError> {
+        let said = cmd::agents_mission_act(
+            self.app.clone(),
+            id.to_string(),
+            action.to_string(),
+            engine.map(str::to_string),
+            points,
+        )
+        .await?;
+        Ok(serde_json::json!({ "said": said }))
+    }
+
     async fn import_status(&self) -> Result<Value, CommandError> {
         import_status_now().await
     }

@@ -16,6 +16,7 @@ import type { OnItsOwn, OnItsOwnNarrow, OnItsOwnTeam } from './onItsOwn';
 import type { QuietHours, QuietWindow } from './quiet';
 import type { MorningBrief } from './brief';
 import type { AgentTasks, EndOfDay } from './tasks';
+import type { EngineId, Mission } from './missions';
 import type { WatchCheckOutcome, WatchOptions } from './whenComposer';
 import type {
   AgentDraft,
@@ -593,6 +594,26 @@ export interface Methods {
    */
   'agents.morningBrief': { params: Record<string, never>; result: MorningBrief };
   /**
+   * Every mission's record (`agents::missions`): goal, criteria, shares, state,
+   * agents and asks. The phone draws the page from the shared rules in
+   * `missions.ts`. Newer Macs only.
+   */
+  'agents.missions': { params: Record<string, never>; result: Mission[] };
+  /**
+   * The user's own call on a mission: pause, resume, stop, add_more (an
+   * `engine` and `points`, 10 by default) or accept. Starting one is the Chief's.
+   * Audited. Newer Macs only.
+   */
+  'agents.missions.act': {
+    params: {
+      id: string;
+      action: 'pause' | 'resume' | 'stop' | 'add_more' | 'accept';
+      engine?: EngineId;
+      points?: number;
+    };
+    result: { said: string };
+  };
+  /**
    * `agents_set_morning_brief`: on or off, its time (minutes after
    * midnight) and whether it posts on quiet days. The user's checks stay as
    * they are. Audited. Newer Macs only.
@@ -976,6 +997,7 @@ export const READ_ONLY_METHODS = [
   'agents.morningBrief',
   'agents.tasks',
   'agents.endOfDay',
+  'agents.missions',
   'agents.import.status',
   'agents.import.exportPrompt',
   'agents.import.exportPreview',
