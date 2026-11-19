@@ -36,6 +36,8 @@ import {
   type AgentLoad,
 } from '../../lib/agentTasks';
 import { usePolling } from '../../hooks/usePolling';
+import { getMissions, missionKey, ordered, STATE_WORD, metCount } from '../../lib/missions';
+import { useMissions } from './MissionPage';
 import { AgentWorkingLine } from './AgentWorkingLine';
 import { AgentEngineBadge } from './AgentEngine';
 import { ApprovalCard, ErrorLine } from './AgentChatItems';
@@ -427,6 +429,11 @@ export function AgentsTeamView({
     { intervalMs: 15_000, name: 'task-board' }
   );
   const asks = useMemo(() => withOpenAsks(loads), [loads]);
+  const missions = useMissions(getMissions);
+  const openMissions = useMemo(
+    () => ordered(missions).filter((m) => m.state !== 'done' && m.state !== 'stopped'),
+    [missions]
+  );
   const columnRef = useRef<HTMLDivElement>(null);
   const [held, setHeld] = useState<Record<string, Held>>({});
   // Rows you opened or closed; the rest follow the count (see OPEN_FIRST).
@@ -857,6 +864,34 @@ export function AgentsTeamView({
               );
             })}
           </Section>
+
+          {openMissions.length > 0 && (
+            <Section title="Missions" count={openMissions.length} empty="">
+              {openMissions.map((m) => {
+                const chief = agents.find((a) => a.isMain);
+                if (!chief) return null;
+                return (
+                  <ActionColumn key={m.id}>
+                    <Row
+                      agent={chief}
+                      line={m.goal}
+                      pill={
+                        m.state === 'paused_cap' || m.state === 'blocked' || m.state === 'ready'
+                          ? {
+                              tone:
+                                m.state === 'blocked' ? ('failed' as const) : ('waiting' as const),
+                              label: STATE_WORD[m.state],
+                            }
+                          : undefined
+                      }
+                      meta={`${metCount(m)} of ${m.criteria.length} met`}
+                      onOpen={() => onOpenAgent(missionKey(m.id))}
+                    />
+                  </ActionColumn>
+                );
+              })}
+            </Section>
+          )}
 
           {asks.length > 0 && (
             <Section
