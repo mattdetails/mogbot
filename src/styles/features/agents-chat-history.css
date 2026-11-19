@@ -34,11 +34,7 @@
   --agents-chat-card-room-top: var(--space-04);
 }
 
-.agent-chat__messages
-  > :is(
-    .agent-chat__row--card,
-    .agent-chat__row--agent[data-blocks]
-  ) {
+.agent-chat__messages > :is(.agent-chat__row--card, .agent-chat__row--agent[data-blocks]) {
   --agents-chat-row-room-end: var(--shadow-card-reach);
 
   padding-inline: var(--shadow-card-reach);
@@ -51,10 +47,7 @@
    scroll range would grow by the difference and lift the chat off the
    composer; the shadow's tail past that is invisible anyway. */
 .agent-chat__messages
-  > :is(
-    .agent-chat__row--card,
-    .agent-chat__row--agent[data-blocks]
-  ):last-child {
+  > :is(.agent-chat__row--card, .agent-chat__row--agent[data-blocks]):last-child {
   --agents-chat-row-room-end: min(var(--shadow-card-reach), var(--spacing-xl));
 }
 
@@ -67,10 +60,9 @@
 }
 
 .agent-chat__messages
-  > :is(
-    .agent-chat__row--card,
-    .agent-chat__row--agent[data-blocks]
-  ):has(+ .agent-chat__row--card) {
+  > :is(.agent-chat__row--card, .agent-chat__row--agent[data-blocks]):has(
+    + .agent-chat__row--card
+  ) {
   margin-bottom: calc((var(--agents-chat-row-room-end) + var(--agents-chat-card-room-top)) * -1);
 }
 
@@ -92,10 +84,9 @@
     + .agent-chat__row--working
   ),
 .agent-chat__messages
-  > :is(
-    .agent-chat__row--card,
-    .agent-chat__row--agent[data-blocks]
-  ):has(+ .agent-chat__row--working) {
+  > :is(.agent-chat__row--card, .agent-chat__row--agent[data-blocks]):has(
+    + .agent-chat__row--working
+  ) {
   margin-bottom: 0;
 }
 
