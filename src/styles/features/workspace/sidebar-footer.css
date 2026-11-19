@@ -221,6 +221,7 @@
   flex: 1 1 auto;
 }
 
+.workspace-sidebar:not(.is-hidden) .agents-foot__new > .agents-list__new-folder,
 .workspace-sidebar:not(.is-hidden) .agents-foot__new > .agents-list__new-room {
   flex: 0 0 var(--control-height-standard);
   width: var(--control-height-standard);
@@ -229,6 +230,7 @@
 }
 
 /* Split, the halves share one border. */
+.agents-foot__new.button-group--split > .agents-list__new-folder,
 .agents-foot__new.button-group--split > .agents-list__new-room {
   margin-inline-start: calc(var(--border-width-default) * -1);
 }

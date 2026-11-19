@@ -642,9 +642,26 @@ pub async fn deliver_all(c: &Companion, alert: &PushAlert, now: u64) -> Vec<Stri
     let Some(relay) = c.push.relay().filter(|_| on) else {
         return Vec::new();
     };
-    let targets: Vec<DeviceRecord> = c
-        .registry
-        .devices()
+    let devices = c.registry.devices();
+    // Why a paired phone gets no push for this alert, one line each, so
+    // "I never get notifications" can be read off the log.
+    for d in &devices {
+        let why = if d.build != BuildKind::Official {
+            Some("a self-built app (no push)")
+        } else if d.push.is_none() {
+            Some("the phone never sent a push token")
+        } else {
+            match c.presence(&d.id) {
+                Presence::Foreground => Some("the app is in front on it"),
+                p if !needs_push(p, now, LIVE_WINDOW_MS) => Some("it went to the background moments ago"),
+                _ => None,
+            }
+        };
+        if let Some(why) = why {
+            tracing::info!(device = %d.id, kind = ?alert.kind, why, "[Companion] no push");
+        }
+    }
+    let targets: Vec<DeviceRecord> = devices
         .into_iter()
         .filter(|d| d.push.is_some() && d.build == BuildKind::Official)
         .filter(|d| needs_push(c.presence(&d.id), now, LIVE_WINDOW_MS))

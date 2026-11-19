@@ -168,9 +168,10 @@ these without updating that doc.
   `gh` writes, publishing, production deploys, sending mail/messages, live payments, network writes
   off this Mac, `sudo`, `rm -r` outside projects/agent homes/temp, credentials, shell profiles,
   launch agents and system tools; in the browser, the final send click, uploads and scripts that
-  submit or post. At "Unleashed" (`go_hard::full_send_program`, never for outside text) sending and
-  posting what the user asked for runs too, and only money, credentials, deleting for good, pushing
-  to production or a protected branch, and system persistence ask. A turn answering outside text at "Bold" also asks for any network write and for
+  submit or post. At "Unleashed" (`go_hard::spends`, never for outside text) everything runs
+  except spending money (the owner, 18 Nov 2026: "do anything except spend money"): credentials,
+  deleting for good, pushing to production and system changes run too, with a warning when it's
+  turned on. A turn answering outside text at "Bold" also asks for any network write and for
   packages fetched by name. Each
   auto-answer leaves a line in "What it did" ("How much agents do on their own"). One Allow on
   an `ask_plan` card (or the user's typed yes to a plan just listed) covers exactly the listed

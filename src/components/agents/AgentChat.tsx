@@ -2405,6 +2405,7 @@ export const AgentChat = memo(function AgentChat({
                     onPickFiles={pickFiles}
                     unfilled={unfilled}
                     lastSent={lastSent}
+                    modelOf={agent}
                   />
                 ) : (
                   <div className="agent-composer agent-composer--blocked" role="status">

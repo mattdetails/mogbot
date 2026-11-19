@@ -76,6 +76,13 @@ import {
   STARTUP_TIMEOUT_MS,
 } from './startupWatchdog';
 import { createTerminalOptions, followAppTheme } from './terminalTheme';
+import { TabAccountBar } from './TabAccountBar';
+import {
+  onTabAccountNotice,
+  settleTabAccount,
+  tabAccountNotice,
+  type TabAccountNotice,
+} from '../../lib/tabAccounts';
 import type { AgentConfig } from '../../lib/agent';
 import '@xterm/xterm/css/xterm.css';
 
@@ -140,6 +147,8 @@ export interface TerminalHandle {
   isExited: () => boolean;
   /** Re-fit the terminal to its container (call after display changes) */
   fit: () => void;
+  /** Restart on another account with the conversation (the account chip). */
+  switchAccount?: (notice: TabAccountNotice) => void;
 }
 
 export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Terminal(
@@ -179,6 +188,16 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
   const restartRequestedRef = useRef(false);
   const [isReady, setIsReady] = useState(false);
   const [isFocused, setIsFocused] = useState(false); // Start unfocused to show overlay until user clicks
+  // The tab's account ran out of usage (lib/tabAccounts): the bar's notice,
+  // the restart onto the next account (set by the spawn effect, which owns
+  // the PTY), and the continue prompt that restart carries.
+  const [accountNotice, setAccountNotice] = useState<TabAccountNotice | null>(null);
+  const switchAccountRef = useRef<((notice: TabAccountNotice) => void) | null>(null);
+  const continuePromptRef = useRef<string | null>(null);
+  // Whether the tab is attached to its live process (a switch can stop it),
+  // and a switch that came before it was.
+  const attachedRef = useRef(false);
+  const pendingSwitchRef = useRef<TabAccountNotice | null>(null);
 
   // Mirror `isActive` to a ref so non-effect closures (input handler,
   // resize observer) can read it without re-creating.
@@ -554,6 +573,8 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
     // Latest startup-watchdog / respawn-delay timers, cleared on unmount.
     let startupTimer: ReturnType<typeof setTimeout> | null = null;
     let respawnTimer: ReturnType<typeof setTimeout> | null = null;
+    // A move to another account killed the process: its exit reopens it.
+    let switchPending = false;
 
     // Open (or re-attach to) the backend PTY session for this tab.
     // `retryCount` is the spawn-threw retry budget (see `maxRetries`). It does
@@ -776,9 +797,23 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
             outputSnippet: outputBuffer.slice(0, 200),
           });
 
+          // Ended by a move to another account: open it again on the next
+          // one (the backend picks it), resuming the same conversation with
+          // the continue prompt in its argv.
+          if (switchPending) {
+            switchPending = false;
+            reopenOnNextAccount();
+            return;
+          }
+
           const retryFreshSession = () => {
             logger.info('[Terminal] Resume failed, retrying as fresh session');
             resumeFallbackUsed = true;
+            // "Continue where you left off" means nothing in a new session.
+            if (continuePromptRef.current !== null) {
+              continuePromptRef.current = null;
+              initialPromptRef.current = undefined;
+            }
             terminalRef.current?.write(
               '\r\n\x1b[33mSession not found, starting fresh...\x1b[0m\r\n'
             );
@@ -876,6 +911,13 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
         // snapshot already covers (offset < endOffset).
         gateOpen = true;
         gate.open(attach.endOffset);
+        attachedRef.current = attach.alive;
+        // A switch to another account that came before the tab was attached.
+        const waitingSwitch = pendingSwitchRef.current;
+        if (waitingSwitch && attach.alive) {
+          pendingSwitchRef.current = null;
+          switchAccountRef.current?.(waitingSwitch);
+        }
 
         // Startup watchdog: if no output is received within the startup
         // window, the agent likely failed to launch (binary not found,
@@ -1125,6 +1167,47 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
       );
     };
 
+    // Open this tab's agent again on the next account: the backend picks
+    // the account as the process opens and carries the transcript into its
+    // folder; `--resume` and the continue prompt pick up the conversation.
+    const reopenOnNextAccount = () => {
+      for (const d of ptyDisposablesRef.current) {
+        try {
+          d.dispose();
+        } catch {
+          /* ignore */
+        }
+      }
+      ptyDisposablesRef.current = [];
+      ptyRef.current = null;
+      attachedRef.current = false;
+      exitedRef.current = false;
+      attemptResume = true;
+      resumeFallbackUsed = false;
+      initialPromptRef.current = continuePromptRef.current ?? undefined;
+      void setupPty(0);
+    };
+
+    switchAccountRef.current = (notice) => {
+      const sid = ptyRef.current?.sessionId;
+      if (!notice.prompt || agent.id !== 'claude-code' || !sessionName) return;
+      continuePromptRef.current = notice.prompt;
+      terminalRef.current?.write(`\r\n\x1b[2m${stripTerminalControls(notice.line)}\x1b[0m\r\n`);
+      void settleTabAccount(sessionName).catch(() => undefined);
+      // Already exited (nothing to kill, no exit to wait for): open it now.
+      if (!sid || exitedRef.current) {
+        reopenOnNextAccount();
+        return;
+      }
+      switchPending = true;
+      killPtySession(sid).catch((err) => {
+        switchPending = false;
+        logger.warn('[Terminal] Could not stop the tab to switch accounts', {
+          error: formatCommandError(asCommandError(err)),
+        });
+      });
+    };
+
     // Show a loading message while agent starts up
     term.write(`\r\n  \x1b[2m${agent.loadingMessage}\x1b[0m`);
 
@@ -1150,6 +1233,8 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
 
     return () => {
       mounted = false;
+      switchAccountRef.current = null;
+      attachedRef.current = false;
       webglTornDown = true;
       disposeWebgl?.();
       resizeObserver.disconnect();
@@ -1167,6 +1252,49 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
     // `autoAcceptModeRef.current` at spawn time, and changing it must not
     // tear down an existing PTY (it's a CLI flag baked in at spawn).
   }, [isReady, projectPath, cleanup, agent, sessionName, shouldResume]);
+
+  // This tab's account running out (lib/tabAccounts): a notice that came while
+  // no tab showed it, then each new one.
+  // A switch made on its own runs at once when the tab is attached to its
+  // process, else as soon as it is (the spawn effect picks it up).
+  useEffect(() => {
+    if (agent.id !== 'claude-code' || !sessionName) return;
+    let live = true;
+    let unlisten: UnlistenFn | null = null;
+    const deliver = (notice: TabAccountNotice) => {
+      if (!live) return;
+      if (notice.kind === 'switch' && !notice.ask) {
+        const run = switchAccountRef.current;
+        if (run && attachedRef.current) run(notice);
+        else pendingSwitchRef.current = notice;
+        return;
+      }
+      setAccountNotice(notice);
+    };
+    void onTabAccountNotice(sessionName, deliver).then((u) => {
+      if (live) unlisten = u;
+      else u();
+    });
+    tabAccountNotice(sessionName)
+      .then((notice) => {
+        if (notice) deliver(notice);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+      unlisten?.();
+    };
+  }, [agent.id, sessionName]);
+
+  const continueOnNextAccount = useCallback(() => {
+    if (accountNotice) switchAccountRef.current?.(accountNotice);
+    setAccountNotice(null);
+  }, [accountNotice]);
+
+  const dismissAccountNotice = useCallback(() => {
+    if (sessionName) void settleTabAccount(sessionName).catch(() => undefined);
+    setAccountNotice(null);
+  }, [sessionName]);
 
   // Click to focus terminal
   const handleClick = useCallback(() => {
@@ -1234,6 +1362,13 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
         cleanup();
       },
       isExited: () => exitedRef.current,
+      switchAccount: (notice: TabAccountNotice) => {
+        // As a notice that switches on its own: now if attached, else as
+        // soon as the tab is (the spawn effect picks it up).
+        const run = switchAccountRef.current;
+        if (run && attachedRef.current) run(notice);
+        else pendingSwitchRef.current = notice;
+      },
       fit: () => {
         if (fitAddonRef.current && terminalRef.current && ptyRef.current) {
           fitAddonRef.current.fit();
@@ -1293,6 +1428,13 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
           cursor: 'text',
         }}
       />
+      {accountNotice && (accountNotice.kind === 'allOut' || accountNotice.ask) && (
+        <TabAccountBar
+          notice={accountNotice}
+          onContinue={continueOnNextAccount}
+          onDismiss={dismissAccountNotice}
+        />
+      )}
     </div>
   );
 });

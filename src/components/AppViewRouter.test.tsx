@@ -21,7 +21,7 @@ vi.mock('./dashboard/ProjectsView', () => ({
     return <main>projects</main>;
   },
 }));
-vi.mock('./agents/AgentsView', () => ({ AgentsView: () => null }));
+vi.mock('./agents/AgentsView', () => ({ AgentsView: () => <section>agents</section> }));
 
 afterEach(() => {
   cleanup();
@@ -56,5 +56,20 @@ describe('the Projects side', () => {
     render(<AppViewRouter {...props} />);
     expect(await screen.findByText('projects')).toBeTruthy();
     expect(screen.getByText(PART)).toBeTruthy();
+  });
+});
+
+describe('side by side', () => {
+  it('shows Agents and the project side together, with a divider between', () => {
+    render(<AppViewRouter {...props} sideBySide />);
+    expect(screen.getByText('agents')).toBeTruthy();
+    expect(screen.getByText('sidebar')).toBeTruthy();
+    expect(screen.getByRole('separator', { name: 'Resize Agents and Projects' })).toBeTruthy();
+  });
+
+  it('one side at a time shows only the view asked for', () => {
+    render(<AppViewRouter {...props} />);
+    expect(screen.queryByText('agents')).toBeNull();
+    expect(screen.queryByRole('separator')).toBeNull();
   });
 });

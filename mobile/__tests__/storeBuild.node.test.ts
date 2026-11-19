@@ -5,6 +5,7 @@
  */
 import appConfig, {
   ANDROID_BLOCKED_PERMISSIONS,
+  APP_VERSION,
   ANDROID_PERMISSIONS,
   PRIVACY_MANIFEST,
   STORE_PUBLISHER,
@@ -115,7 +116,7 @@ describe('the Google Play build', () => {
       const c = appConfig();
       expect(c.android?.package).toBe(brand.companion.bundleId);
       expect(c.android?.versionCode).toBe(12);
-      expect(c.version).toBe('1.0.0');
+      expect(c.version).toBe(APP_VERSION);
     }));
 
   it('refuses a versionCode Play can’t take', () => {

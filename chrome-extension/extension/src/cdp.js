@@ -43,12 +43,33 @@ export const EXPRESSIONS = new Set([
   /* SCROLL_RIGHT_JS */ 'window.scrollBy(120, 0)',
 ]);
 
+/** Collects one piece of a picture's base64 on the page (`ATTACH_CHUNK_FN`). */
+export const ATTACH_CHUNK_FN =
+  "function (id, i, part) { const k = '__mogbotAttach'; const s = window[k] || (window[k] = {}); if (i === 0) s[id] = []; if (!s[id]) return -1; s[id][i] = part; return s[id].length; }";
+
+/**
+ * Hands the collected picture to the page's file input, or drops it on the
+ * node (`ATTACH_FILE_FN`): for sites that ignore a pasted picture.
+ */
+export const ATTACH_FILE_FN =
+  "function (id, name, type, mayDrop) { const s = window['__mogbotAttach'] || {}; const parts = s[id]; delete s[id]; if (!parts) return 'lost'; const b = atob(parts.join('')); const bytes = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) bytes[i] = b.charCodeAt(i); const dt = new DataTransfer(); dt.items.add(new File([bytes], name, { type: type })); const ext = '.' + type.split('/')[1]; const fits = (e) => { const a = (e.accept || '').toLowerCase(); return !e.disabled && (a === '' || a.includes('image') || a.includes(type) || a.includes(ext)); }; const me = this && this.nodeType === 1 ? this : null; const all = []; const walk = (root) => { for (const e of root.querySelectorAll('input[type=file]')) all.push(e); for (const h of root.querySelectorAll('*')) if (h.shadowRoot) walk(h.shadowRoot); }; if (me && me.tagName === 'INPUT' && (me.type || '').toLowerCase() === 'file') all.push(me); else walk(document); const input = all.find((e) => fits(e) && (e.accept || '') !== '') || all.find(fits); if (input) { input.files = dt.files; input.dispatchEvent(new Event('input', { bubbles: true, composed: true })); input.dispatchEvent(new Event('change', { bubbles: true, composed: true })); return 'input'; } if (!mayDrop || !me) return 'none'; for (const t of ['dragenter', 'dragover', 'drop']) me.dispatchEvent(new DragEvent(t, { bubbles: true, cancelable: true, composed: true, dataTransfer: dt })); return 'drop'; }";
+
+/** The largest piece of base64 one call carries (the app sends 512 KB). */
+export const ATTACH_PIECE_MAX = 600 * 1024;
+
+const ATTACH_ID = /^a[0-9a-f]{1,40}$/;
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
+const PICTURE_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+
 /**
  * The only functions the app calls on a page's node (`Runtime.callFunctionOn`),
- * with numbers as their only arguments: the app's own.
+ * with numbers as their only arguments, except the attach functions, whose
+ * arguments are checked one by one: the app's own.
  */
 export const FUNCTIONS = new Set([
   /* SCROLL_WITHIN_FN */ "function (dx, dy) { let e = this && this.nodeType === 1 ? this : this && this.parentElement; for (let i = 0; e && i < 64; i++) { if (e.nodeType === 1 && e !== document.body && e !== document.documentElement) { const s = getComputedStyle(e); const y = dy !== 0 && /(auto|scroll|overlay)/.test(s.overflowY) && e.scrollHeight > e.clientHeight; const x = dx !== 0 && /(auto|scroll|overlay)/.test(s.overflowX) && e.scrollWidth > e.clientWidth; if (x || y) { const t = e.scrollTop, l = e.scrollLeft; e.scrollBy({ left: dx, top: dy, behavior: 'instant' }); return e.scrollTop !== t || e.scrollLeft !== l ? 'moved' : 'end'; } } const r = e.getRootNode && e.getRootNode(); e = e.parentElement || (r && r.host) || null; } return 'none'; }",
+  ATTACH_CHUNK_FN,
+  ATTACH_FILE_FN,
 ]);
 
 /** How long the user's Cancel on Chrome's bar holds. */
@@ -64,6 +85,37 @@ export function protectedUrl(u) {
     /^https:\/\/chromewebstore\.google\.com\//i.test(s) ||
     /^https:\/\/chrome\.google\.com\/webstore/i.test(s)
   );
+}
+
+/** Each function's arguments: numbers only, or exactly the attach ones. */
+function attachArgsOk(fn, args) {
+  const v = args.map((a) => (a && typeof a === 'object' ? a.value : undefined));
+  if (!args.every((a) => a && typeof a === 'object' && Object.keys(a).every((k) => k === 'value')))
+    return false;
+  if (fn === ATTACH_CHUNK_FN)
+    return (
+      v.length === 3 &&
+      typeof v[0] === 'string' &&
+      ATTACH_ID.test(v[0]) &&
+      Number.isInteger(v[1]) &&
+      v[1] >= 0 &&
+      v[1] < 100 &&
+      typeof v[2] === 'string' &&
+      v[2].length <= ATTACH_PIECE_MAX &&
+      BASE64.test(v[2])
+    );
+  if (fn === ATTACH_FILE_FN)
+    return (
+      v.length === 4 &&
+      typeof v[0] === 'string' &&
+      ATTACH_ID.test(v[0]) &&
+      typeof v[1] === 'string' &&
+      v[1].length > 0 &&
+      v[1].length <= 200 &&
+      PICTURE_TYPES.has(v[2]) &&
+      (v[3] === 0 || v[3] === 1)
+    );
+  return args.length <= 4 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
 }
 
 /**
@@ -83,11 +135,7 @@ export function vet(method, params) {
     if (!FUNCTIONS.has(p.functionDeclaration))
       throw new ExtError(CODES.notAllowed, 'only the app’s own functions run');
     const args = Array.isArray(p.arguments) ? p.arguments : [];
-    if (
-      typeof p.objectId !== 'string' ||
-      args.length > 4 ||
-      !args.every((a) => a && typeof a.value === 'number' && Number.isFinite(a.value))
-    )
+    if (typeof p.objectId !== 'string' || !attachArgsOk(p.functionDeclaration, args))
       throw new ExtError(CODES.notAllowed, 'a function call the app never makes');
     return {
       objectId: p.objectId,

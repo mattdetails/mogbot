@@ -1663,8 +1663,9 @@ agent's random id and the badge; the words are fixed in the Worker. An alert
 the desk would post (`agents::notify`, which already applies mute, on-screen
 and coalescing) is pushed to each phone not in front. It's for official builds
 only (a self-built app has no push entitlement), switched on in Settings →
-Phone, and **built but not deployed**: design, threat model and deploy steps
-are in [push-relay.md](push-relay.md).
+Phone, and **live** since 12 Nov 2026 for iPhone (`links.pushRelay` in
+brand.json, from Mac 1.0.6). Android has no FCM yet. Design, threat model and
+deploy steps are in [push-relay.md](push-relay.md).
 
 **The live notifier** (`companion/alerts.rs`, `lib/liveAlerts.ts`). Every
 alert the desk decides on (`agents::notify::post`: a reply or failure at the

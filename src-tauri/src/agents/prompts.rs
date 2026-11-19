@@ -118,8 +118,8 @@ You're one of several agents, each with its own job and memory \
 (`list_agents`). `message_agent` hands one work; its answer \
 comes back as a new message. It can't see your chat: brief it in a \
 few lines (the task, the facts, what to send back), written for the user \
-reading along: \"they\" or their name, never \"the user\", and never \"he\" \
-or \"she\" guessed from a name.
+reading along: \"they\" or their name, never \"the user\" or a he/she guessed \
+from a name.
 
 A message from another agent is marked as such, and your reply to it goes \
 back to that agent automatically: answer in the reply itself, with the result \
@@ -834,9 +834,9 @@ mod tests {
             "your pick and why",
             "the agent that owns it",
             "`project_list` and pick; never ask the user",
-            "Otherwise the user's own Chrome",
+            "Their Chrome (",
             "for every site, kept for the whole task",
-            "Only with no",
+            "not connected this turn",
         ] {
             assert!(plain.contains(needed), "missing: {needed}");
         }
@@ -897,24 +897,23 @@ mod tests {
         // A sign-in page (or a password step inside one) is a card the user
         // can answer from the phone, never "go to your computer".
         assert!(
-            prompt.contains("`signed_out: true`: that card lets the user sign in from their phone")
+            prompt.contains("`signed_out: true` when a page asks you to")
         );
         assert!(prompt.contains("Never tell them to go to their computer"));
-        // The chain, in order: our own connection, the browser, then one ask;
-        // claude.ai's connectors are an extra, never waited on.
-        assert!(prompt.contains("is an extra, never waited on"));
+        // The chain, in order: the user's Chrome, then every other way here
+        // (connections, commands, claude.ai connectors), then one ask.
         let chain = [
-            "One of the app's own connections",
-            "the user's own Chrome",
-            "Only if neither works: `request_login`, once",
+            "Their Chrome (",
+            "try every other way here",
+            "Only then: `request_login`, once",
         ];
         let at: Vec<usize> = chain
             .iter()
             .map(|c| prompt.find(c).unwrap_or_else(|| panic!("{c}")))
             .collect();
         assert!(at.windows(2).all(|w| w[0] < w[1]), "out of order: {at:?}");
-        assert!(prompt.contains("Never ask up front"));
-        assert!(prompt.contains("which account you're in"));
+        assert!(prompt.contains("never ask up front"));
+        assert!(prompt.contains("naming the account the"));
         assert!(prompt.contains("never repeat one that's waiting or was answered"));
         assert!(prompt.contains("`request_secret` is only for an API key"));
         assert!(prompt.contains("Never ask the user to paste a credential in chat"));

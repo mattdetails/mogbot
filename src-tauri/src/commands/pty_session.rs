@@ -652,6 +652,7 @@ pub async fn open_session(
         .try_clone_reader()
         .map_err(|e| format!("clone_reader: {e}"))?;
 
+    let spec_account_env = account_env;
     let account_env = match (account_env, project_path.as_deref()) {
         (false, _) => Default::default(),
         (true, Some(p)) => {
@@ -659,6 +660,26 @@ pub async fn open_session(
         }
         (true, None) => crate::commands::accounts::get_env_vars_for_active_account(),
     };
+
+    // A Claude Code or Codex tab in a Default-workspace project runs on the
+    // account agents would use now, and is switched when it runs out
+    // (`agents::tab_accounts`). Nothing changes for any other tab.
+    let mut account_env = account_env;
+    let mut env_remove = env_remove;
+    if spec_account_env {
+        let picked = crate::agents::tab_accounts::pick(
+            &session_id,
+            agent_id.as_deref(),
+            project_path.as_deref(),
+            &args,
+            &account_env,
+        )
+        .await;
+        env_remove.extend(picked.unset.iter().map(|k| k.to_string()));
+        account_env.extend(picked.env);
+    } else {
+        crate::agents::tab_accounts::forget(&session_id);
+    }
 
     // Hide Ship Studio's preview bridge from the agent we're starting, so it
     // drives our preview and not theirs (see `preview_isolation`). The Codex
@@ -1010,6 +1031,7 @@ pub fn pty_session_resize(session_id: String, cols: u16, rows: u16) -> Result<()
 #[tauri::command]
 #[tracing::instrument]
 pub fn pty_session_kill(session_id: String) -> Result<(), CommandError> {
+    crate::agents::tab_accounts::forget(&session_id);
     // Pop first so repeated kills are no-ops and the reader thread can exit
     // cleanly on its next read.
     let session = {

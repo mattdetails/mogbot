@@ -487,6 +487,7 @@ mod tests {
             is_main: false,
             pinned: false,
             hidden: false,
+            folder: None,
             session_id: None,
             created_at: 0,
             last_activity_at: 0,

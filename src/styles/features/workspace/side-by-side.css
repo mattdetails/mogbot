@@ -1,0 +1,106 @@
+/* Side by side (components/SideBySideLayout): Agents on the left, the
+   project side on the right, a draggable divider between. Each half holds a
+   whole view (`.app`), which fills its pane as it fills the window. */
+
+.side-by-side {
+  display: grid;
+  grid-template-columns:
+    minmax(0, var(--side-by-side-share, 50%)) var(--border-width-default)
+    minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.side-by-side__pane {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.side-by-side__pane > .app,
+.side-by-side__pane > * > .app {
+  height: 100%;
+}
+
+/* A hairline, with a wider invisible grip so it's easy to catch. */
+.side-by-side__divider {
+  position: relative;
+  z-index: var(--z-dropdown);
+  background: var(--border-default);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.side-by-side__divider::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: calc(var(--spacing-xs) * -1);
+  content: '';
+}
+
+.side-by-side__divider:hover,
+.side-by-side__divider:focus-visible,
+.side-by-side--dragging .side-by-side__divider {
+  background: var(--border-strong);
+  outline: none;
+}
+
+/* While dragging, nothing under the pointer (a terminal, a chat) takes it. */
+.side-by-side--dragging {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.side-by-side--dragging .side-by-side__pane {
+  pointer-events: none;
+}
+
+/* The project sidebar draws its edge with fixed lines measured from the
+   window's left, which in the right half lands inside Agents. Here the
+   sidebar draws its own edge instead. */
+.side-by-side__pane--projects .app.workspace .workspace-sidebar::before,
+.side-by-side__pane--projects .app.workspace .workspace-sidebar::after {
+  display: none;
+}
+
+.side-by-side__pane--projects .workspace-sidebar {
+  border-inline-end: var(--border-width-default) solid var(--border-default);
+}
+
+/* The right half isn't under the traffic lights: its title bar needn't
+   leave room for them. */
+.side-by-side__pane--projects .workspace-titlebar {
+  padding-inline-start: var(--spacing-lg);
+}
+
+/* The mode switch beside it: the sidebar's Agents | Projects row. */
+.mode-toggle-row {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+  width: 100%;
+}
+
+.mode-toggle-row > .tabs__list {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mode-toggle-row--stacked {
+  flex-direction: column;
+}
+
+.mode-toggle-row .side-by-side-toggle {
+  flex: 0 0 auto;
+  height: var(--size-control-medium);
+  min-height: var(--size-control-medium);
+  width: var(--size-control-medium);
+}
+
+/* Terminals only (WorkspaceDock `terminalsOnly`): the preview column stays
+   mounted, so nothing reloads when it's one side again, but isn't shown. */
+.workspace-dock__center[hidden] {
+  display: none;
+}

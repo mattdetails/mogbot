@@ -49,14 +49,14 @@ describe('independence', () => {
       );
     }
     expect(INDEPENDENCE_ALWAYS_ASKS).toBe(
-      'Always asks before spending money, using your passwords, or deleting for good.'
+      'Always asks before spending money.'
     );
     // No old name is ever shown.
     const shown = JSON.stringify([INDEPENDENCE_LABEL, INDEPENDENCE_DETAIL, INDEPENDENCE_SHORT]);
     expect(shown).not.toMatch(/full send|go hard|good judgement|check with me/i);
     // Only Unleashed sends, posts or pushes on its own.
     expect(INDEPENDENCE_DETAIL.go_hard).toMatch(/asks before anything leaves it/);
-    expect(INDEPENDENCE_DETAIL.full_send).toMatch(/Sends, posts and pushes/);
+    expect(INDEPENDENCE_DETAIL.full_send).toMatch(/only stops before spending money/);
     expect(independenceOf('full_send')).toBe('full_send');
   });
 

@@ -42,7 +42,7 @@ fn a_curl_format_string_is_text_not_a_command() {
     assert!(!card_at(Level::GoHard, check));
     // A substitution in its arguments still runs, and is judged.
     assert!(card_at(
-        Level::FullSend,
+        Level::GoHard,
         "curl -s \"https://example.test/$(rm -rf ~)\""
     ));
     // Real sends are unchanged.
@@ -102,17 +102,18 @@ fn a_variable_the_line_sets_is_filled_in() {
         (format!("D={project} rm -rf $D"), true),
         ("for d in a b; do rm -rf $d; done".to_string(), true),
     ] {
-        assert_eq!(card_at(Level::FullSend, &command), asks, "{command}");
+        // Judged at Go hard: Unleashed asks only for money now.
+        assert_eq!(card_at(Level::GoHard, &command), asks, "{command}");
     }
 }
 
-/// A new Vercel project's first deployment is its production one: from a
-/// folder not linked yet, `vercel deploy` asks at "Full send"; from a linked
-/// one it is the preview it says it is.
+/// Vercel deploys: Bold asks for every deploy (a network write); Unleashed
+/// asks only for money, so a first deploy, a preview and production all run.
+/// Looking (`whoami`, `--version`) never asks.
 // Unix only: the classifier reads Unix paths; on Windows they don't resolve and ask (the safe side).
 #[cfg(unix)]
 #[test]
-fn the_first_deploy_of_a_new_vercel_project_asks() {
+fn vercel_deploys_ask_at_bold_and_run_at_unleashed() {
     let dir = tempfile::tempdir().unwrap();
     let site = dir.path().join("fictional-site");
     std::fs::create_dir_all(&site).unwrap();
@@ -120,22 +121,22 @@ fn the_first_deploy_of_a_new_vercel_project_asks() {
         cwd: site.clone(),
         ..ctx()
     };
-    let card = |command: &str| auto(Level::FullSend, false, "Bash", &bash(command), &c).is_none();
+    let card = |level: Level, command: &str| auto(level, false, "Bash", &bash(command), &c).is_none();
     let at = site.display();
     let new_project = format!(
         "cd {at} && vercel project add fictional-site --scope fictional-team && \
          vercel link --yes --scope fictional-team --project fictional-site && vercel deploy --yes --scope fictional-team"
     );
-    assert!(card(&new_project));
-    assert!(card(&format!("cd {at} && vercel --yes")));
-    assert!(card(&format!("vercel deploy --cwd {at}")));
-    // Not deploys.
-    assert!(!card(&format!(
-        "cd {at} && vercel whoami && vercel --version"
-    )));
-    std::fs::create_dir_all(site.join(".vercel")).unwrap();
-    std::fs::write(site.join(".vercel/project.json"), "{}").unwrap();
-    assert!(!card(&format!("cd {at} && vercel deploy --yes")));
-    assert!(!card(&format!("cd {at} && vercel")));
-    assert!(card(&format!("cd {at} && vercel deploy --prod")));
+    for command in [
+        new_project.clone(),
+        format!("cd {at} && vercel --yes"),
+        format!("vercel deploy --cwd {at}"),
+        format!("cd {at} && vercel deploy --prod"),
+    ] {
+        assert!(card(Level::GoHard, &command), "Bold asks: {command}");
+        assert!(!card(Level::FullSend, &command), "Unleashed runs: {command}");
+    }
+    let look = format!("cd {at} && vercel whoami && vercel --version");
+    assert!(!card(Level::GoHard, &look));
+    assert!(!card(Level::FullSend, &look));
 }

@@ -28,6 +28,14 @@
 //!    its tools are `mcp__user-chrome__*`; the broker and the stream map
 //!    them back (`e2e_alias`), and the browser gate decides them exactly as
 //!    the real ones.
+//! 4. **Claude Code's own first-run setup** (the text-style screen, then
+//!    "Do you trust the files in this folder?") is recorded per config dir
+//!    too. An interactive Claude Code on an added account (a project's
+//!    terminal tab, Take over, "Continue on…" from the menu bar) showed both
+//!    instead of the resumed chat, which read as the chat being lost. Before
+//!    one starts, this Mac's answers are copied over ([`sync_setup`]): setup
+//!    done, the onboarding version and theme it was done at, and each folder
+//!    this Mac trusts. Only ever added, never taken back or turned off.
 //! 3. **claude.ai connectors** (Gmail, Calendar, Slack through claude.ai)
 //!    belong to each claude.ai account and can't be copied. When a switched
 //!    turn's engine lists its connectors, [`lost_line`] compares them with
@@ -47,6 +55,95 @@ pub const CHROME_SERVER: &str = "user-chrome";
 
 /// Beside an account's `.claude.json`: the server names this sync put there.
 pub const SYNCED_FILE: &str = ".synced-mcp-servers.json";
+
+/// One read-modify-write of an account's `.claude.json` at a time, whichever
+/// part of it is being brought over: agents failing over together each
+/// prepare the same account before their turn, and a write that overlapped
+/// another could put back what it had read before the other's change.
+static CONFIG_WRITES: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/* ------------------------------------------------- first-run setup */
+
+/// Top-level keys that say Claude Code's first-run screens are done, copied
+/// to an account that doesn't have them yet. `hasCompletedOnboarding` is
+/// copied only as `true`; the version and theme only where the account has
+/// none, so the account's own choices are kept.
+const SETUP_KEYS: &[&str] = &["hasCompletedOnboarding", "lastOnboardingVersion", "theme"];
+
+/// Bring this Mac's first-run answers (`native`, its `.claude.json`) to an
+/// account's (`target`): setup done ([`SETUP_KEYS`]) and every folder this
+/// Mac trusts (`projects["<path>"].hasTrustDialogAccepted`). Only adds: a
+/// key the account already has is kept, nothing is set to false, and the
+/// rest of the file (its login, its own projects' settings) is kept as
+/// read. Nothing to add, nothing written. Returns what was added, for the
+/// log and the tests. A `target` that isn't a JSON object is left alone.
+pub fn sync_setup(native: &Path, target: &Path) -> std::io::Result<Vec<String>> {
+    let _one = CONFIG_WRITES.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(Value::Object(from)) = read_json(native)? else {
+        return Ok(Vec::new());
+    };
+    let mut config = match read_json(target)? {
+        Some(Value::Object(m)) => m,
+        Some(_) => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "an account's .claude.json isn't an object",
+            ))
+        }
+        None => Map::new(),
+    };
+    let mut added = Vec::new();
+    for key in SETUP_KEYS {
+        let Some(value) = from.get(*key) else {
+            continue;
+        };
+        let wanted = if *key == "hasCompletedOnboarding" {
+            value.as_bool() == Some(true) && config.get(*key).and_then(Value::as_bool) != Some(true)
+        } else {
+            !config.contains_key(*key)
+        };
+        if wanted {
+            config.insert((*key).to_string(), value.clone());
+            added.push((*key).to_string());
+        }
+    }
+    let trusted = from
+        .get("projects")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flatten()
+        .filter(|(_, p)| p.get("hasTrustDialogAccepted").and_then(Value::as_bool) == Some(true))
+        .map(|(path, _)| path.clone());
+    let mut projects = config
+        .get("projects")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let mut projects_changed = false;
+    for path in trusted {
+        let entry = projects
+            .entry(path.clone())
+            .or_insert_with(|| Value::Object(Map::new()));
+        if !entry.is_object() {
+            *entry = Value::Object(Map::new());
+        }
+        if entry.get("hasTrustDialogAccepted").and_then(Value::as_bool) == Some(true) {
+            continue;
+        }
+        entry["hasTrustDialogAccepted"] = Value::Bool(true);
+        added.push(format!("trust {path}"));
+        projects_changed = true;
+    }
+    if projects_changed {
+        config.insert("projects".into(), Value::Object(projects));
+    }
+    if !added.is_empty() {
+        let bytes = serde_json::to_vec_pretty(&Value::Object(config))
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        write_atomic(target, &bytes)?;
+    }
+    Ok(added)
+}
 
 /* ------------------------------------------------------ MCP servers */
 
@@ -79,11 +176,7 @@ fn read_json(path: &Path) -> std::io::Result<Option<Value>> {
 /// its projects' other settings) is kept as read. A `target` that isn't
 /// JSON is left alone (an error). Nothing to change, nothing written.
 pub fn sync_servers(native: &Path, target: &Path) -> std::io::Result<Synced> {
-    // One sync at a time: agents failing over together each sync the same
-    // account before their turn, and a read-modify-write that overlapped
-    // another could write back what it had read before the other's change.
-    static SYNCING: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    let _one = SYNCING.lock().unwrap_or_else(|e| e.into_inner());
+    let _one = CONFIG_WRITES.lock().unwrap_or_else(|e| e.into_inner());
     let native_config = read_json(native)?;
     let from: Map<String, Value> = native_config
         .as_ref()
@@ -253,7 +346,8 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     written
 }
 
-/// Before a turn on `account`: this Mac's user-scope servers on it too.
+/// Before a turn or a terminal on `account`: this Mac's first-run answers
+/// and user-scope servers on it too.
 pub fn prepare(account: &super::wallet::Account) {
     if account.is_this_mac() || account.engine != super::engine::Engine::Claude {
         return;
@@ -264,6 +358,16 @@ pub fn prepare(account: &super::wallet::Account) {
     let target = super::wallet::folder(account).join(".claude.json");
     if !target.parent().is_some_and(Path::is_dir) {
         return;
+    }
+    match sync_setup(&native, &target) {
+        Ok(added) if !added.is_empty() => tracing::info!(
+            account = %account.id, count = added.len(),
+            "[Agents] brought this Mac's Claude Code setup and folder trust to an added account"
+        ),
+        Ok(_) => {}
+        Err(e) => {
+            tracing::warn!(account = %account.id, "[Agents] couldn't bring this Mac's Claude Code setup to an added account: {e}")
+        }
     }
     match sync_servers(&native, &target) {
         Ok(done) if done.changed() => tracing::info!(

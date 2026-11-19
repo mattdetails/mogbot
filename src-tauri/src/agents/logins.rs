@@ -640,7 +640,10 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
     // there, never in the agents' browser (signed out there).
     let in_users_chrome =
         site_of.is_some_and(|s| super::browser_gate::in_users_chrome_on(&agent.id, s));
-    let agents_browser = site_of.is_some()
+    // The agents' own browser is never offered: the user's Chrome is the
+    // browser (`connections::AGENTS_BROWSER_FOR_TURNS`).
+    let agents_browser = super::connections::AGENTS_BROWSER_FOR_TURNS
+        && site_of.is_some()
         && !in_users_chrome
         && crate::agent_browser::available()
         && !agent.reach.browser_off;
@@ -662,32 +665,21 @@ pub fn build(agent: &Agent, ask: &Ask) -> Result<LoginRequest, CommandError> {
             connection_id: None,
         });
     }
-    if let Some(site) = site_of.filter(|_| !in_users_chrome) {
-        if claude {
-            let helper = if browser_helper_installed() {
-                ""
-            } else {
-                " It needs the Claude in Chrome extension, which isn't set up on this Mac yet."
-            };
-            options.push(LoginOption {
-                id: "browser".into(),
-                method: Method::Browser,
-                label: "Use my browser".into(),
-                detail: format!("{name} works in your own Chrome on this Mac, where you're already signed in to {site}, through Claude in Chrome. It asks you here before every click, post, send or payment; it never sees your password.{helper}"),
-                connection_id: None,
-            });
-        } else if no_connector.is_some() && !agents_browser {
-            // Both ways it can't use in one sentence, then the one fix,
-            // rather than "runs on Codex" said twice.
-            let via_claude_ai =
-                known.is_some_and(|s| matches!(s.connector, Connector::ClaudeAi(_)));
-            no_connector = Some(if via_claude_ai {
-                format!("{title} comes through claude.ai or your own Chrome, and both need Claude Code; {name} runs on Codex. To give it {title}, switch it to Claude Code under Model.")
-            } else {
-                let n = no_connector.unwrap_or_default();
-                format!("{n} Your own Chrome needs Claude Code, and {name} runs on Codex: switch it under Model to use it.")
-            });
-        }
+    if let Some(site) = site_of.filter(|_| !in_users_chrome && !agent.reach.browser_off) {
+        // Every engine: the app's own Chrome extension works for Claude Code,
+        // Codex and OpenCode alike (`user_chrome`).
+        let helper = if crate::user_chrome::settings::enabled() {
+            ""
+        } else {
+            " It needs the app's Chrome extension: Settings → Chrome sets it up in a minute."
+        };
+        options.push(LoginOption {
+            id: "browser".into(),
+            method: Method::Browser,
+            label: "Use my browser".into(),
+            detail: format!("{name} works in your own Chrome on this Mac, where you're already signed in to {site}. Anything that sends, posts or pays asks you here first; it never sees your password.{helper}"),
+            connection_id: None,
+        });
     }
     // Beside the user's own signed-in Chrome (sorted first below), claude.ai's
     // connector is the secondary way in: "Connect on claude.ai".
@@ -803,31 +795,31 @@ pub fn declined_prompt(r: &LoginRequest, note: Option<&str>) -> String {
 pub const RULES: &str = "\
 ## Getting access
 
-Just try first. Never ask up front or for a list. For an app or site, in \
-this order:
+The user's own Chrome, where they're signed in, is the way in to their \
+accounts on the web. Just try; never ask up front or for a list.
 
-1. One of the app's own connections (`mcp__<app>__*`), or its command \
-here (`gh` for GitHub).
-2. Otherwise the user's own Chrome (`mcp__claude-in-chrome__*`), where \
-they're signed in, for every site, kept for the whole task. No Chrome \
-this turn: `request_login` for that site with `browser: \"chrome\"`. Say in \
-one line which account you're in, from what the page shows; never guess. \
-Reading is free in either. Leave their Chrome as you found it: use the tab \
-`createIfEmpty` opens, close yours when done. Before a send, post, \
-payment, delete or share, say exactly what goes and from which account; \
-the action asks on a card. A claude.ai connector \
-(`mcp__claude_ai_*`) is an extra, never waited on. Never \
-type a password. A browser asking you to sign in or for a code: stop and go to step 3 \
-with `signed_out: true`: that card lets the user sign in from their phone \
-or Mac. Never tell them to go \
-to their computer or finish in a tab you left open. Wrong account in \
-their Chrome? `select_browser` / \
-`switch_browser` to another connected one (`list_connected_browsers`), else \
-`ask_bring_browser_to_front` once, never `request_login`; once right, \
-`remember_browser_account`. Chrome not answering? The fix is Settings → \
+1. Their Chrome (`mcp__claude-in-chrome__*`) first, for every site, kept \
+for the whole task. Before saying you can't reach something, open it there \
+and look: the honest reasons are that they aren't signed in to it in that \
+Chrome profile, or the sign-in expired; say which, naming the account the \
+page shows; never guess. Reading is free. Leave their Chrome as you found \
+it: use the tab `createIfEmpty` opens, close yours when done. Before a \
+send, post, payment, delete or share, say exactly what goes and from \
+which account; the action asks on a card. Never type a password. Wrong \
+account? `select_browser` / `switch_browser` to another connected one \
+(`list_connected_browsers`), else `ask_bring_browser_to_front` once; once \
+right, `remember_browser_account`. Chrome not answering? The fix is Settings → \
 Chrome, never the Claude extension.
-3. Only if neither works: `request_login`, once, for that app; do what \
-it answers. One ask at a time; never repeat one that's waiting or was answered.";
+2. Chrome can't do it (not connected this turn, not answering, or the site \
+blocks it)? Don't stop: try every other way here: a command (`gh` for \
+GitHub), an app connection (`mcp__<app>__*`), a claude.ai connector \
+(`mcp__claude_ai_*`), an API, a teammate (`who_can_reach`).
+3. Only then: `request_login`, once (`browser: \"chrome\"` when Chrome \
+itself is missing: its card walks them through installing or reconnecting \
+the app's Chrome extension; `signed_out: true` when a page asks you to \
+sign in or for a code, so they can do it from their phone or Mac). Never \
+tell them to go to their computer or finish in a tab you left open. One \
+ask at a time; never repeat one that's waiting or was answered.";
 
 /* ---------------------------------------------------------- live state */
 
@@ -3024,17 +3016,13 @@ mod tests {
         with_root(|| {
             let recruiter = agent("Recruiter", Engine::Claude);
             let gmail = build(&recruiter, &ask("gmail", &["read", "send"])).unwrap();
-            // The agents' own browser first (signed in from the phone), then
-            // the user's own; claude.ai's connector is the extra, last.
-            assert_eq!(gmail.options[0].method, Method::AgentBrowser);
-            assert_eq!(gmail.options[0].id, AGENTS_BROWSER_OPTION);
-            assert_eq!(gmail.options[0].label, "Sign in here");
-            assert!(gmail.options[0].detail.contains("from your phone"));
-            assert!(gmail.options[0].detail.contains("not your personal Chrome"));
-            assert_eq!(gmail.options[1].method, Method::Browser);
-            assert_eq!(gmail.options[1].label, "Use my browser");
-            assert_eq!(gmail.options[2].method, Method::ClaudeAi);
-            assert_eq!(gmail.options[2].label, "Connect on claude.ai");
+            // The user's own Chrome first, never the agents' own browser;
+            // claude.ai's connector is the extra, last.
+            assert!(gmail.options.iter().all(|o| o.method != Method::AgentBrowser));
+            assert_eq!(gmail.options[0].method, Method::Browser);
+            assert_eq!(gmail.options[0].label, "Use my browser");
+            assert_eq!(gmail.options[1].method, Method::ClaudeAi);
+            assert_eq!(gmail.options[1].label, "Connect on claude.ai");
             assert!(gmail.key.is_none(), "no password field for Gmail");
             assert_eq!(gmail.access(), Access::Full);
             assert!(gmail.abilities[1].label.contains("asks you"));
@@ -3044,8 +3032,7 @@ mod tests {
             assert_eq!(linear.access(), Access::Read);
 
             let linkedin = build(&recruiter, &ask("LinkedIn", &["post"])).unwrap();
-            assert_eq!(linkedin.options[0].method, Method::AgentBrowser);
-            assert_eq!(linkedin.options[1].method, Method::Browser);
+            assert_eq!(linkedin.options[0].method, Method::Browser);
             assert!(linkedin
                 .no_connector
                 .as_deref()
@@ -3055,7 +3042,7 @@ mod tests {
             let x = build(&recruiter, &ask("x", &["post"])).unwrap();
             assert_eq!(
                 x.options.iter().map(|o| o.method).collect::<Vec<_>>(),
-                vec![Method::AgentBrowser, Method::Browser, Method::Key]
+                vec![Method::Browser, Method::Key]
             );
             assert_eq!(x.key.as_ref().unwrap().kind, secrets::Kind::ApiKey);
 
@@ -3071,7 +3058,7 @@ mod tests {
             let walmart = build(&recruiter, &ask("walmart.com", &[])).unwrap();
             assert_eq!(
                 walmart.options.iter().map(|o| o.method).collect::<Vec<_>>(),
-                vec![Method::AgentBrowser, Method::Browser]
+                vec![Method::Browser]
             );
             assert!(walmart.key.is_none());
             // Unless the agent says it needs a key.
@@ -3120,34 +3107,22 @@ mod tests {
     }
 
     #[test]
-    fn codex_agents_are_told_plainly_what_they_cant_use() {
+    fn codex_agents_use_the_users_chrome_too() {
         with_root(|| {
             let codex = agent("Posts", Engine::Codex);
             let gmail = build(&codex, &ask("gmail", &[])).unwrap();
-            // The agents' browser works on either engine: a Codex agent
-            // signs in to Gmail there. Claude Code's ways in aren't offered.
+            // The user's own Chrome works on every engine, through the app's
+            // extension: a Codex agent signs in to Gmail there.
             assert_eq!(
                 gmail.options.iter().map(|o| o.method).collect::<Vec<_>>(),
-                vec![Method::AgentBrowser]
+                vec![Method::Browser]
             );
-            assert!(gmail.no_connector.as_deref().unwrap().contains("Codex"));
-            assert!(!gmail
-                .no_connector
-                .as_deref()
-                .unwrap()
-                .contains("Using your browser needs Claude Code"));
             // Its browser taken away: nothing here can sign it in.
             let mut off = agent("Quiet", Engine::Codex);
             off.reach.browser_off = true;
             let none = build(&off, &ask("gmail", &[])).unwrap();
             assert!(none.options.is_empty());
-            // One sentence for both ways it can't use, and the one fix.
-            let told = none.no_connector.as_deref().unwrap();
-            assert_eq!(told.matches("runs on Codex").count(), 1, "{told}");
-            assert!(
-                told.contains("switch it to Claude Code under Model"),
-                "{told}"
-            );
+            assert!(none.no_connector.is_some());
             assert!(asked_reply(&none).contains("don't ask for a password"));
             let linear = build(&codex, &ask("linear", &[])).unwrap();
             assert_eq!(
@@ -3175,11 +3150,10 @@ mod tests {
             )
             .unwrap();
             let card = build(&social, &ask("gmail", &[])).unwrap();
-            // A claude.ai connection made already is offered, after the browsers.
-            assert_eq!(card.options[0].method, Method::AgentBrowser);
-            assert_eq!(card.options[1].method, Method::Browser);
-            assert_eq!(card.options[2].method, Method::Existing);
-            assert_eq!(card.options[2].label, "Use work@acme.com");
+            // A claude.ai connection made already is offered, after the browser.
+            assert_eq!(card.options[0].method, Method::Browser);
+            assert_eq!(card.options[1].method, Method::Existing);
+            assert_eq!(card.options[1].label, "Use work@acme.com");
             // The agent it's already granted to isn't offered it again.
             let again = build(&recruiter, &ask("gmail", &[])).unwrap();
             assert!(again.options.iter().all(|o| o.method != Method::Existing));
@@ -3514,9 +3488,8 @@ mod tests {
                     .collect::<Vec<_>>(),
                 vec!["Recruiter", "Mailroom", "Calendar"]
             );
-            // One sign-in in the agents' browser answers the whole row.
-            assert_eq!(google.options[0].method, Method::AgentBrowser);
-            assert_eq!(google.options[1].method, Method::Browser);
+            // The user's own Chrome answers the whole row; never the agents' browser.
+            assert_eq!(google.options[0].method, Method::Browser);
             let gh = t.needs.iter().find(|n| n.key == "github").unwrap();
             assert_eq!(
                 gh.cards.len(),

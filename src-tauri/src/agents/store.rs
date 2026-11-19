@@ -73,6 +73,10 @@ pub struct Agent {
     pub pinned: bool,
     #[serde(default)]
     pub hidden: bool,
+    /// The folder it is filed in on the agent list (`agents::folders`), by
+    /// id. `None`: in no folder. Never the Chief, which stays first.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder: Option<String>,
     /// Claude Code session this agent resumes. `None` until its first turn.
     #[serde(default)]
     pub session_id: Option<String>,
@@ -1350,6 +1354,7 @@ fn register_new(id: String, name: String, new: NewAgent) -> Result<Agent, Comman
         // The one agent you're told to talk to stays put at the top; unpinnable.
         pinned: new.is_main,
         hidden: false,
+        folder: None,
         session_id: None,
         created_at: now,
         last_activity_at: now,

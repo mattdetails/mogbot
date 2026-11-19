@@ -21,6 +21,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from 'react';
+import { AgentModelChip } from './AgentModelMenu';
 import { ArrowUpIcon, MicrophoneIcon, PaperclipIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
 import { TextArea } from '../primitives/TextField';
@@ -96,6 +97,8 @@ interface AgentComposerProps {
   unfilled?: string | null;
   /** The last message you sent in this chat, for ↑ in an empty composer. */
   lastSent?: () => string | null;
+  /** The agent whose model is shown as a switcher beside the mic (`AgentModelChip`). */
+  modelOf?: Agent;
 }
 
 /**
@@ -187,6 +190,7 @@ export const AgentComposer = memo(function AgentComposer({
   onPickFiles,
   unfilled,
   lastSent,
+  modelOf,
 }: AgentComposerProps) {
   const draft = useComposerDraft(agentId);
   const setDraft = useMemo(() => (text: string) => setComposerDraft(agentId, text), [agentId]);
@@ -226,9 +230,22 @@ export const AgentComposer = memo(function AgentComposer({
 
   // Grow with the text, up to a cap, like a messaging app.
   const lengthRef = useRef(-1);
+  // Once the words wrap they move up to a row of their own, the whole width
+  // of the box, and the tools go to a row underneath, as on the phone. They
+  // stay up there until the box is empty, so the row never flips back and
+  // forth as the wider field fits the same words on one line again.
+  const [wrapped, setWrapped] = useState(false);
   useLayoutEffect(() => {
     const el = inputRef.current;
     if (!el) return;
+    if (draft === '') {
+      if (wrapped) setWrapped(false);
+    } else if (!wrapped) {
+      const style = getComputedStyle(el);
+      const oneLine =
+        parseFloat(style.lineHeight) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      if (el.scrollHeight > oneLine * 1.5) setWrapped(true);
+    }
     // Text added that still fits changes nothing: leave the height alone. Its
     // measuring pass (height `auto` and back) made the browser lay the whole
     // chat out again on every key, thousands of rows in a long one.
@@ -249,12 +266,13 @@ export const AgentComposer = memo(function AgentComposer({
     void el.offsetHeight;
     el.style.transition = '';
     el.style.height = next;
-  }, [draft, inputRef]);
+  }, [draft, inputRef, wrapped]);
   useFollowDictation(inputRef, draft, dictating);
 
   return (
     <form
       className="agent-composer"
+      data-wrapped={wrapped || undefined}
       data-queueing={(queueing && !learned) || undefined}
       data-dictation={dictation.phase}
       data-has-attachments={
@@ -372,6 +390,7 @@ export const AgentComposer = memo(function AgentComposer({
           </p>
         )}
         <div className="agent-composer__actions">
+          {!dictating && modelOf && <AgentModelChip agent={modelOf} />}
           <IconButton
             ref={micRef}
             tabIndex={0}

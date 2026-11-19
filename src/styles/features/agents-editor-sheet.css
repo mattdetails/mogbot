@@ -233,15 +233,30 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  /* The hover fill sits under the row's words, never over them (it hid
+     the whole row: Julian, 2026-11-16). */
+  isolation: isolate;
 }
 
 .agent-sheet__nav-row::after {
   content: '';
   position: absolute;
+  z-index: -1;
   inset: 0 calc(var(--settings-card-inset) * -1);
   border-radius: inherit;
   pointer-events: none;
   transition: background var(--transition-interaction);
+}
+
+/* At the card's top or bottom, the fill follows its rounded corners. */
+.agent-sheet__nav-row:first-child::after {
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+}
+
+.agent-sheet__nav-row:last-child::after {
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
 }
 
 .agent-sheet__nav-row:hover::after {

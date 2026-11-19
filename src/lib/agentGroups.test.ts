@@ -1,30 +1,36 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockIPC } from '@tauri-apps/api/mocks';
 import {
   addGroup,
   inYourOrder,
   reorder,
   getAgentGroups,
   moveToGroup,
-  parseGroups,
+  parseLocal,
   removeGroup,
   sectionAgents,
   setGroupMode,
+  shownMode,
+  startNamingGroup,
+  syncFolders,
   toggleCollapsed,
 } from './agentGroups';
 import type { Agent } from './agents';
 
-const agent = (id: string, project?: string) => ({ id, name: id, project }) as unknown as Agent;
+const agent = (id: string, project?: string, pinned = false) =>
+  ({ id, name: id, project, pinned }) as unknown as Agent;
 const name = (path: string) => path.split('/').pop() ?? path;
 
-describe('parseGroups', () => {
-  it('reads anything malformed as off', () => {
-    expect(parseGroups(null).mode).toBe('off');
-    expect(parseGroups('{nope').mode).toBe('off');
-    expect(parseGroups('{"mode":"weird"}').mode).toBe('off');
+describe('parseLocal', () => {
+  it('reads anything malformed as nothing chosen', () => {
+    expect(parseLocal(null).mode).toBe('off');
+    expect(parseLocal('{nope').mode).toBe('off');
+    expect(parseLocal('{"mode":"weird"}').mode).toBe('off');
+    expect(parseLocal(null).chosenOff).toBe(false);
   });
 
-  it('drops assignments to groups that no longer exist', () => {
-    const got = parseGroups(
+  it('keeps a window’s old groups to bring to the Mac, dropping the unreadable', () => {
+    const got = parseLocal(
       JSON.stringify({
         mode: 'custom',
         groups: [
@@ -35,9 +41,19 @@ describe('parseGroups', () => {
         collapsed: ['group:g1', 3],
       })
     );
-    expect(got.groups).toEqual([{ id: 'g1', name: 'Acme' }]);
-    expect(got.assign).toEqual({ a: 'g1' });
+    expect(got.legacyGroups).toEqual([{ id: 'g1', name: 'Acme' }]);
+    expect(got.legacyAssign).toEqual({ a: 'g1' });
     expect(got.collapsed).toEqual(['group:g1']);
+  });
+});
+
+describe('shownMode', () => {
+  it('shows folders once there are any, unless you chose one list or projects', () => {
+    expect(shownMode({ mode: 'off', chosenOff: false }, 0, false)).toBe('off');
+    expect(shownMode({ mode: 'off', chosenOff: false }, 2, false)).toBe('custom');
+    expect(shownMode({ mode: 'off', chosenOff: false }, 0, true)).toBe('custom');
+    expect(shownMode({ mode: 'off', chosenOff: true }, 2, false)).toBe('off');
+    expect(shownMode({ mode: 'project', chosenOff: false }, 2, false)).toBe('project');
   });
 });
 
@@ -59,7 +75,7 @@ describe('sectionAgents', () => {
     ]);
   });
 
-  it('your own groups: in your order, empty ones too, then Ungrouped', () => {
+  it('folders: in your order, empty ones too, then the rest', () => {
     const got = sectionAgents(
       list,
       {
@@ -75,37 +91,112 @@ describe('sectionAgents', () => {
     expect(got.map((s) => [s.title, s.agents.map((a) => a.id)])).toEqual([
       ['Client', ['a', 'c']],
       ['Empty', []],
-      ['Ungrouped', ['b', 'd']],
+      ['Not in a folder', ['b', 'd']],
     ]);
     expect(got[0].groupId).toBe('g1');
     expect(got[2].groupId).toBeUndefined();
   });
+
+  it('pinned agents sit above the folders, or first in their own', () => {
+    const team = [agent('a'), agent('b', undefined, true), agent('c', undefined, true)];
+    const settings = {
+      mode: 'custom' as const,
+      groups: [{ id: 'g1', name: 'SEO' }],
+      assign: { a: 'g1', b: 'g1' },
+    };
+    const top = sectionAgents(team, { ...settings, pinned: 'top' }, name);
+    expect(top.map((s) => [s.title, s.agents.map((a) => a.id)])).toEqual([
+      ['Pinned', ['b', 'c']],
+      ['SEO', ['a']],
+      ['Not in a folder', []],
+    ]);
+    const inFolder = sectionAgents(team, { ...settings, pinned: 'inFolder' }, name);
+    expect(inFolder.map((s) => [s.title, s.agents.map((a) => a.id)])).toEqual([
+      ['SEO', ['b', 'a']],
+      ['Not in a folder', ['c']],
+    ]);
+  });
 });
 
-describe('changing groups', () => {
+describe('changing folders', () => {
+  let calls: [string, unknown][] = [];
   beforeEach(() => {
     localStorage.clear();
-    for (const g of getAgentGroups().groups) removeGroup(g.id);
-    setGroupMode('off');
+    calls = [];
+    mockIPC((cmd, args) => {
+      calls.push([cmd, args]);
+      if (cmd === 'agents_folder_create')
+        return { id: 'f1', name: (args as { name: string }).name };
+      return null;
+    });
+    syncFolders({ folders: [], pinned: 'top' }, []);
+    // Nothing chosen: folders show once there are any.
+    setGroupMode('custom');
   });
 
-  it('adds, assigns, folds and removes, and keeps it across a reload', () => {
-    const id = addGroup('  Acme  ');
-    expect(id).not.toBeNull();
+  it('makes a folder on the Mac, filing the agent it was opened for', async () => {
+    startNamingGroup('scout');
     expect(getAgentGroups().mode).toBe('custom');
-    expect(addGroup('acme')).toBe(id);
-    moveToGroup('scout', id);
-    toggleCollapsed(`group:${id}`);
-    const saved = parseGroups(localStorage.getItem('shipstudio.agents.groups'));
-    expect(saved.assign).toEqual({ scout: id });
-    expect(saved.collapsed).toEqual([`group:${id}`]);
-    removeGroup(id!);
+    const folder = await addGroup('  Acme  ');
+    expect(folder?.id).toBe('f1');
+    expect(calls).toContainEqual(['agents_folder_create', { name: 'Acme', agent: 'scout' }]);
+    expect(getAgentGroups().assign).toEqual({ scout: 'f1' });
+    expect(getAgentGroups().naming).toBeUndefined();
+  });
+
+  it('files, folds and removes, the folds kept across a reload', async () => {
+    syncFolders({ folders: [{ id: 'f1', name: 'Acme' }], pinned: 'top' }, []);
+    await moveToGroup('scout', 'f1');
+    expect(calls).toContainEqual(['agents_set_folder', { agentId: 'scout', folder: 'f1' }]);
+    toggleCollapsed('group:f1');
+    expect(parseLocal(localStorage.getItem('shipstudio.agents.groups')).collapsed).toEqual([
+      'group:f1',
+    ]);
+    await removeGroup('f1');
+    expect(calls).toContainEqual(['agents_folder_delete', { id: 'f1' }]);
     expect(getAgentGroups().assign).toEqual({});
     expect(getAgentGroups().collapsed).toEqual([]);
   });
 
-  it('never names a group with nothing', () => {
-    expect(addGroup('   ')).toBeNull();
+  it('takes who is in which folder from the agents', () => {
+    syncFolders({ folders: [{ id: 'f1', name: 'SEO' }], pinned: 'inFolder' }, [
+      { ...agent('a'), folder: 'f1' } as Agent,
+      agent('b'),
+    ]);
+    expect(getAgentGroups().assign).toEqual({ a: 'f1' });
+    expect(getAgentGroups().pinned).toBe('inFolder');
+    expect(getAgentGroups().mode).toBe('custom');
+  });
+
+  it('never names a folder with nothing', async () => {
+    expect(await addGroup('   ')).toBeNull();
+    expect(calls.some(([cmd]) => cmd === 'agents_folder_create')).toBe(false);
+  });
+
+  it('brings a window’s old groups to the Mac once', async () => {
+    localStorage.setItem(
+      'shipstudio.agents.groups',
+      JSON.stringify({ mode: 'custom', groups: [{ id: 'g1', name: 'Acme' }], assign: { a: 'g1' } })
+    );
+    vi.resetModules();
+    const fresh = await import('./agentGroups');
+    fresh.syncFolders({ folders: [], pinned: 'top' }, []);
+    await vi.waitFor(() =>
+      expect(calls).toContainEqual([
+        'agents_folders_bring_in',
+        { groups: [{ id: 'g1', name: 'Acme' }], assign: { a: 'g1' } },
+      ])
+    );
+    await vi.waitFor(() =>
+      expect(parseLocal(localStorage.getItem('shipstudio.agents.groups')).legacyGroups).toEqual([])
+    );
+    // Brought in already (by this window or another): never asked again.
+    calls = [];
+    fresh.syncFolders(
+      { folders: [{ id: 'g1', name: 'Acme' }], pinned: 'top', broughtIn: true },
+      []
+    );
+    expect(calls.some(([cmd]) => cmd === 'agents_folders_bring_in')).toBe(false);
   });
 });
 
@@ -123,8 +214,8 @@ describe('your own order', () => {
   });
 
   it('reads a saved order, and falls back to activity without one', () => {
-    expect(parseGroups(JSON.stringify({ sort: 'yours', order: ['a'] })).sort).toBe('yours');
-    expect(parseGroups(JSON.stringify({ sort: 'yours', order: [] })).sort).toBe('activity');
-    expect(parseGroups(null).sort).toBe('activity');
+    expect(parseLocal(JSON.stringify({ sort: 'yours', order: ['a'] })).sort).toBe('yours');
+    expect(parseLocal(JSON.stringify({ sort: 'yours', order: [] })).sort).toBe('activity');
+    expect(parseLocal(null).sort).toBe('activity');
   });
 });

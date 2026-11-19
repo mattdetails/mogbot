@@ -42,14 +42,14 @@ pub fn level_line(level: Level) -> &'static str {
         }
         Level::GoHard => concat!("Does local work on this ", crate::computer::noun!(), "; asks before anything leaves it."),
         Level::FullSend => {
-            "Sends, posts and pushes too; only stops for money, logins, deleting for good or going live."
+            "Does anything you ask; only stops before spending money."
         }
     }
 }
 
 /// True at every level: `INDEPENDENCE_ALWAYS_ASKS`.
 pub const ALWAYS_ASKS: &str =
-    "Always asks before spending money, using your passwords, or deleting for good.";
+    "Always asks before spending money.";
 
 /// With the exact-text switch on (`outward`).
 pub const EXACT_TEXT: &str =

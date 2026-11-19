@@ -47,7 +47,7 @@ describe('AgentIndependenceSettings', () => {
     }
     expect(
       screen.getByText(
-        'Always asks before spending money, using your passwords, or deleting for good.'
+        'Always asks before spending money.'
       )
     ).toBeInTheDocument();
   });
@@ -102,7 +102,7 @@ describe('AgentIndependenceSettings', () => {
     render(<AgentIndependenceSettings />);
     expect(slider()).toHaveAttribute('aria-valuenow', '3');
     expect(
-      screen.getByText(/only stops for money, logins, deleting for good or going live/)
+      screen.getByText(/only stops before spending money/)
     ).toBeInTheDocument();
   });
 

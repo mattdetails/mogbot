@@ -50,7 +50,10 @@ On **Agent**, the rows are grouped:
 - **What it does**: its name and its one line.
 - **What it should know**: its briefing.
 - **How it runs**: Claude Code, Codex or OpenCode (a choice once two are set up), the model, and
-  the project it works in.
+  the project it works in. The model is also named in the message box ("Claude Code · Opus"):
+  click it to switch the model or effort from its next message. A one-line message keeps the
+  box on one row; once it wraps, the words get the box's full width and the paperclip, the model,
+  the microphone and Send move to a row underneath.
 - **On its own**: its independence, what it may always do beyond its level, and the Admin switch.
 - **What it can use**: its apps and access, and its skills.
 
@@ -126,6 +129,24 @@ words come back.
 If your default microphone is a Bluetooth headset
 (AirPods and the like), dictation listens through your computer's built-in microphone instead, so your
 headphones keep playing music at full quality rather than switching to call mode.
+
+## Folders
+
+Once you have a few agents, you can put them in folders, for example Website, SEO, Design and
+Outreach. Folders are optional; until you make one, your agents stay in one list.
+
+- Right-click an agent and choose **New folder…** to make a folder with that agent in it. You
+  can also ask the Chief ("put Lead Gen and Social Posts in an Outreach folder").
+- Drag an agent onto a folder, or use **Move to …** in its menu. **Remove from folder** takes it
+  out.
+- Right-click a folder's name to rename or remove it. Removing a folder keeps its agents.
+- **Pinned agents** sit above your folders, or first inside their own folder. To switch, use a
+  folder's menu or ⌘K.
+- Your Chief of Staff always stays at the top, outside any folder.
+
+Folders are kept on your computer, so your phone and the Chief see the same ones. ⌘K → **Show
+agents in one list** hides them in that window, and **Group agents by project** groups by
+project instead.
 
 ## Share an agent as a recipe
 

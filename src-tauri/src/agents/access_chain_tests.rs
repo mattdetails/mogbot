@@ -392,10 +392,10 @@ fn the_agents_browser_comes_before_the_users_own_chrome() {
         assert_eq!(decide(&social, &r, &out_everywhere, &both, &[]), Step::Ask);
         // Signed out with only the agents' browser to try: a card.
         assert_eq!(decide(&social, &r, &out, &agents_only, &[]), Step::Ask);
-        // A site with no connector of its own: that card's first way in is
-        // the agents' browser.
+        // A site with no connector of its own: the card never offers the
+        // agents' own browser (the user's Chrome is the browser).
         let li = logins::build(&social, &ask("linkedin")).unwrap();
-        assert_eq!(li.options[0].method, logins::Method::AgentBrowser);
+        assert!(li.options.iter().all(|o| o.method != logins::Method::AgentBrowser));
         // Never for outside text.
         let outside = Here {
             outside: true,

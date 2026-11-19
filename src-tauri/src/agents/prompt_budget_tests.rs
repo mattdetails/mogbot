@@ -8,10 +8,11 @@ use super::*;
 /// A plain agent on Claude Code: 12,054 characters when this was set
 /// (3,827 tokens as Claude Code counted it); 12,697 with the agents' browser
 /// in "Getting access", after trimming elsewhere; 13,477 after the Chief
-/// review (Codex 14,062, the Chief 17,175).
-const PLAIN_BUDGET: usize = 13_500;
+/// review (Codex 14,062, the Chief 17,175); 13,589 with the opening "On it"
+/// line (#36) and the security batch's lines.
+const PLAIN_BUDGET: usize = 13_700;
 /// The same agent on Codex (its sandbox section): 13,262.
-const CODEX_BUDGET: usize = 14_100;
+const CODEX_BUDGET: usize = 14_300;
 /// The Chief of Staff, with no team yet: 16,646.
 const CHIEF_BUDGET: usize = 17_500;
 

@@ -10,10 +10,16 @@ import { formatClock as clockOf } from '../../packages/companion-protocol/src/cl
 import type { FileDiff } from './git';
 import type { AgentSecret, SecretRequest } from './agentSecrets';
 import type {
+  AgentFolders,
   LocalLink,
   StepInCard,
   Watch,
   WatchSource,
+} from '../../packages/companion-protocol/src/model';
+export type {
+  AgentFolder,
+  AgentFolders,
+  PinnedPlacement,
 } from '../../packages/companion-protocol/src/model';
 import type { SettingsProposal } from '../../packages/companion-protocol/src/policy';
 import type { LearnSkills, SkillCard } from '../../packages/companion-protocol/src/skills';
@@ -219,6 +225,8 @@ export interface Agent {
   independence?: AgentIndependence;
   pinned: boolean;
   hidden: boolean;
+  /** The folder it is filed in on the agent list, by id (`agents::folders`). Absent: none. */
+  folder?: string;
   sessionId: string | null;
   createdAt: number;
   lastActivityAt: number;
@@ -531,6 +539,8 @@ export interface AgentsOverview {
   importChoice?: ImportChoice;
   /** This Mac shows a 24-hour clock (`agents::clock`); every time the app writes follows it. */
   hour24?: boolean;
+  /** The agent list's folders and where pinned agents sit (`agents::folders`). */
+  folders?: AgentFolders;
 }
 
 /** Mirrors `agents::import_choice::Choice`. */

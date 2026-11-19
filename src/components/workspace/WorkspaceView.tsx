@@ -1,4 +1,5 @@
 import { chatAgentTarget, commentAgents } from '../../lib/commentAgents';
+import { useSideBySide } from '../../lib/sideBySide';
 import { agentIn, useAgentsList } from '../../lib/agentsStore';
 import type { WorkspaceViewProps } from './workspaceViewTypes';
 export type { WorkspaceViewProps } from './workspaceViewTypes';
@@ -745,6 +746,7 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
     sessionRegistry.setTerminalTabAttention(currentProject.path, activeTerminalTab, false);
   }, [currentProject.path, activeTerminalTab, setAttentionTabs]);
 
+  const { on: sideBySide } = useSideBySide();
   const modesNode = (
     <WorkspaceModes
       hasPreview={hasPreview}
@@ -777,7 +779,8 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
     onToggleVariablesPanel: variables.toggle,
     layoutMenu: <WorkspaceLayoutMenu />,
     teamPresence: team.presence,
-    modes: modesNode,
+    // Side by side the project half is its terminals only: no mode tabs.
+    modes: sideBySide ? null : modesNode,
     integrations,
     onGitHubStatusChange: handleGitHubStatusChange,
     onGitHubConnect: handleGitHubConnect,
@@ -953,6 +956,7 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
                     rail slot the layout gives it. This is just the tree. */}
                 <WorkspaceDock
                   focusMode={isPreviewHidden}
+                  terminalsOnly={sideBySide}
                   preview={
                     <WorkspacePreviewPane
                       activeCommentAgentId={activeTerminalTab}

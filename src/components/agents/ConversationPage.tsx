@@ -88,6 +88,8 @@ const HEIGHT_KEY = 'agents.page.height:';
 /** The shortest a dragged page gets, and the most of the window it may take. */
 export const PAGE_MIN_HEIGHT = 80;
 const PAGE_MAX_SHARE = 0.75;
+/** The page's height before it's dragged: the CSS cap (`agents-page.css`). */
+const PAGE_DEFAULT_HEIGHT = 320;
 
 /** The height the user dragged this page to, or null: the default cap. */
 function readHeight(id: string): number | null {
@@ -324,7 +326,7 @@ function PagePanel({ agent, page }: { agent: Agent; page: Page }) {
           orientation="horizontal"
           className="agent-page__resize"
           label="Resize the page"
-          value={Math.round(height ?? bodyRef.current?.offsetHeight ?? 0)}
+          value={Math.round(height ?? PAGE_DEFAULT_HEIGHT)}
           min={PAGE_MIN_HEIGHT}
           max={Math.round(maxHeight())}
           onResize={resizeTo}

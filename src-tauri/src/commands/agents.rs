@@ -83,6 +83,9 @@ pub struct AgentsOverview {
     /// This Mac shows a 24-hour clock (`agents::clock`), so the desk and the
     /// phone write times the way the Mac's own sentences do.
     pub hour24: bool,
+    /// The agent list's folders and where pinned agents sit
+    /// (`agents::folders`); none until the user makes one.
+    pub folders: agents::folders::View,
 }
 
 /// Store work (file reads and writes) on a blocking thread, off the async
@@ -133,6 +136,7 @@ pub async fn agents_overview(app: AppHandle) -> Result<AgentsOverview, CommandEr
             agents::independence::level(),
             agents::import_choice::choice(),
             agents::clock::hour24(),
+            agents::folders::view(),
         );
         Ok((moved, rest))
     })
@@ -141,7 +145,7 @@ pub async fn agents_overview(app: AppHandle) -> Result<AgentsOverview, CommandEr
     if moved {
         agents = blocking(agent_views).await?;
     }
-    let (defaults, independence, import_choice, hour24) = rest;
+    let (defaults, independence, import_choice, hour24, folders) = rest;
     Ok(AgentsOverview {
         agents,
         engine_ready,
@@ -150,6 +154,7 @@ pub async fn agents_overview(app: AppHandle) -> Result<AgentsOverview, CommandEr
         independence,
         import_choice,
         hour24,
+        folders,
     })
 }
 
