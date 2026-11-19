@@ -5427,7 +5427,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 613
+      "consumerCount": 612
     },
     {
       "name": "--text-muted",
@@ -5947,7 +5947,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 564
+      "consumerCount": 563
     },
     {
       "name": "--font-size-control",
@@ -6939,7 +6939,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 613
+      "consumerCount": 612
     },
     {
       "name": "--text-quiet",
