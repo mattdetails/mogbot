@@ -28,6 +28,14 @@ import { TextButton } from '../primitives/TextButton';
 import { StatusPill } from '../primitives/StatusPill';
 import { AgentKey } from './AgentKey';
 import { AgentsBoard } from './AgentsBoard';
+import {
+  asksLine,
+  getTaskBoard,
+  taskAge,
+  withOpenAsks,
+  type AgentLoad,
+} from '../../lib/agentTasks';
+import { usePolling } from '../../hooks/usePolling';
 import { AgentWorkingLine } from './AgentWorkingLine';
 import { AgentEngineBadge } from './AgentEngine';
 import { ApprovalCard, ErrorLine } from './AgentChatItems';
@@ -407,6 +415,15 @@ export function AgentsTeamView({
   const { showToast } = useOptionalToast();
   const lines = useRecentLines(agents, messages);
   const team = useMemo(() => summarizeTeam(agents, lines), [agents, lines]);
+  // Open asks per agent, from the app's own lists (`agents/tasks.rs`).
+  const [loads, setLoads] = useState<AgentLoad[]>([]);
+  usePolling(
+    async () => {
+      setLoads(await getTaskBoard());
+    },
+    { intervalMs: 15_000, name: 'task-board' }
+  );
+  const asks = useMemo(() => withOpenAsks(loads), [loads]);
   const columnRef = useRef<HTMLDivElement>(null);
   const [held, setHeld] = useState<Record<string, Held>>({});
   // Rows you opened or closed; the rest follow the count (see OPEN_FIRST).
@@ -949,6 +966,32 @@ export function AgentsTeamView({
               />
             )}
           </Section>
+
+          {asks.length > 0 && (
+            <Section title="Open asks" count={asks.length} empty="" quiet>
+              {asks.map((load) => {
+                const agent = agents.find((a) => a.id === load.agentId);
+                if (!agent) return null;
+                const pill =
+                  load.stuck > 0
+                    ? { tone: 'failed' as const, label: `${load.stuck} stuck` }
+                    : load.overloaded
+                      ? { tone: 'waiting' as const, label: 'Overloaded' }
+                      : undefined;
+                return (
+                  <ActionColumn key={load.agentId}>
+                    <Row
+                      agent={agent}
+                      line={asksLine(load)}
+                      pill={pill}
+                      meta={`${load.open.length} open · ${taskAge(load.open[0].createdAt)}`}
+                      onOpen={() => onOpenAgent(agent.id)}
+                    />
+                  </ActionColumn>
+                );
+              })}
+            </Section>
+          )}
 
           {team.scheduled.length > 0 && (
             <Section title="Coming up" empty="" quiet>

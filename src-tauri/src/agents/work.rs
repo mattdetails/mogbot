@@ -853,6 +853,12 @@ fn ours_tool(tool: &str, field: &dyn Fn(&str) -> Option<String>) -> Option<Actio
             "Looking back through the chat",
             "look back through the chat",
         ),
+        super::tasks::TOOL => act(
+            StepKind::Read,
+            "Looked at its task list",
+            "Looking at its task list",
+            "look at its task list",
+        ),
         "team_requests" => act(
             StepKind::Message,
             "Looked at what the team is asking for",

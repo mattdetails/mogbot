@@ -169,7 +169,16 @@ pub(in crate::agents) fn system_prompt_for(
         prompt.push_str("\n\n");
         prompt.push_str(&roster);
     }
+    // Its own open asks, so none drops between turns (`tasks`).
+    if let Some(own) = crate::agents::tasks::briefing_for(agent) {
+        prompt.push_str("\n\n");
+        prompt.push_str(&own);
+    }
     if agent.is_main {
+        if let Some(board) = crate::agents::tasks::board_for_chief() {
+            prompt.push_str("\n\n");
+            prompt.push_str(&board);
+        }
         if let Some(team) = store::list()
             .ok()
             .and_then(|all| prompts::team(&all, &agent.id))
