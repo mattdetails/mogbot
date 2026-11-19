@@ -267,7 +267,12 @@ export function AccountRow({
           )}
         </span>
         {/* Signed out, the pill says it once. */}
-        <span className="usage-row__left">{k.state === 'off' ? '' : roomWords(k)}</span>
+        <span className="usage-row__left">
+          {k.state === 'off' ? '' : roomWords(k).split(' · ')[0]}
+          {k.state !== 'off' && roomWords(k).includes(' · ') && (
+            <span className="usage-row__asof">{roomWords(k).split(' · ')[1]}</span>
+          )}
+        </span>
         <span className="usage-row__state">
           {/* The row says it short; its refill chip says when, its page in full. */}
           <StatusPill tone={PILL[k.state]}>

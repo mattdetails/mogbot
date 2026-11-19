@@ -35,7 +35,7 @@ import type {
   UsagePace,
   UsageRun,
 } from './model';
-import { QUOTA_WARN_PERCENT, resetPhrase } from './quota';
+import { QUOTA_WARN_PERCENT, readDay, resetPhrase } from './quota';
 import { RUNS_ON_ANY, RUNS_ON_ANY_DETAIL, runsOnDetail } from './cardWords';
 import { planLabel } from './usage';
 import { roughWhen } from './usageSheet';
@@ -56,6 +56,19 @@ const DAY_MS = 24 * HOUR_MS;
 export const LOW_LEFT = 10;
 /** At or over this much left on the account in use, there is plenty. */
 export const PLENTY_LEFT = 50;
+
+/**
+ * A figure older than this is said with when it is from ("0% used · as of
+ * 5:00 AM"). The Mac reads every account about every 10 minutes, so a
+ * reading this old means the reads have stopped (a sign-in that needs
+ * refreshing, a Mac that was asleep), and the figure must not pass as current.
+ */
+export const READING_STALE_MS = 60 * 60 * 1000;
+
+/** "0% used · as of 5:00 AM": a figure with when it was read (`readDay`'s words). */
+export function asOfFigure(figure: string, readAt: number, now = Date.now()): string {
+  return `${figure} · as of ${readDay(readAt, now)}`;
+}
 
 /** "Out of usage": the one phrase for an account at its limit, everywhere. */
 export const OUT_OF_USAGE = 'Out of usage';
@@ -151,8 +164,14 @@ export interface StackKey {
   left: number | null;
   /** Used of what it adds (`100 - share`): what its row's bar fills to; null with no reading. */
   used: number | null;
-  /** Its row's words: "62% used", "Not read yet", "Not signed in", "Adds no room". */
+  /**
+   * Its row's words: "62% used", "Not read yet", "Not signed in", "Adds no
+   * room"; "62% used · as of 5:00 AM" when the reading is older than
+   * `READING_STALE_MS`, so an old figure never passes as current.
+   */
   figure: string;
+  /** When the reading behind `figure` was taken (ms); null with no reading. */
+  readAt: number | null;
   tone: KeyTone;
   limits: KeyLimit[];
   /** "Riley · 1.2M tokens · 14 messages", this week, most first. */
@@ -920,6 +939,17 @@ function keyOf(
   const shareLimit = left === null ? null : (week ?? tightest);
   const share = shareLimit ? shareLimit.left : left;
   const used = share === null ? null : 100 - share;
+  const readAt =
+    used === null || !line
+      ? null
+      : general.length > 0
+        ? Math.max(
+            ...line.windows
+              .filter((w) => live(w, now) && !modelOf(w.kind))
+              .map((w) => w.observedAt)
+          )
+        : null;
+  const fresh = readAt === null || !Number.isFinite(readAt) || now - readAt <= READING_STALE_MS;
   const figure =
     state === 'same'
       ? 'Adds no room'
@@ -927,7 +957,9 @@ function keyOf(
         ? 'Not signed in'
         : used === null
           ? 'Not read yet'
-          : `${used}% used`;
+          : fresh || readAt === null
+            ? `${used}% used`
+            : asOfFigure(`${used}% used`, readAt, now);
   const fix: StackKey['fix'] = !row.signedIn
     ? { action: 'sign_in', text: 'Sign in to use it.' }
     : same
@@ -948,6 +980,7 @@ function keyOf(
     left,
     used,
     figure,
+    readAt: Number.isFinite(readAt) ? readAt : null,
     tight: same || left === null || left === 0 ? null : tightest,
     tone,
     limits: same ? [] : limits,

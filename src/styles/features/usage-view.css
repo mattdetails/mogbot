@@ -862,6 +862,13 @@
   white-space: nowrap;
 }
 
+/* "as of 5:00 AM": when an old reading is from, under the figure. */
+.usage-row__asof {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--font-size-body-sm);
+}
+
 .usage-row[data-tone='quiet'] .usage-row__left {
   color: var(--text-muted);
 }

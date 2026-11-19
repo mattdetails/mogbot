@@ -506,6 +506,28 @@ export function usagePerfCommands() {
 }
 
 /** The overview, an account's page, and the sidebar row, for one state. */
+/**
+ * sam@example.com sat idle: its sign-in lapsed and its reads stopped 7 hours
+ * ago, so the figure is the last one read, said with when ("0% used · as of …").
+ */
+const STALE = {
+  accounts: TWO.accounts,
+  inv: {
+    ...TWO.inv,
+    accounts: (TWO.inv.accounts as Acc[]).map((a) =>
+      a.id === 'default'
+        ? {
+            ...a,
+            windows: [
+              win('five_hour', 0, 3 * H, { observedAt: now - 7 * H }),
+              win('seven_day', 0, 2 * 24 * H, { observedAt: now - 7 * H }),
+            ],
+          }
+        : a
+    ),
+  },
+};
+
 function trio(
   id: string,
   title: string,
@@ -584,6 +606,17 @@ export const agentsUsageViewScenarios: Scenario[] = [
       account: 'default',
       looksRightWhen:
         'The out account’s page: its pill reads “Out until …”; its used-up limit cards say “Out until …” over a full bar.',
+    }
+  ),
+  ...trio(
+    'stale-reading',
+    'an account that stopped being read',
+    'sam@example.com’s row says “0% used · as of <a time 7 hours ago>”, not a bare “0% used”; Work’s row is a plain “N% used”.',
+    STALE,
+    {
+      account: 'default',
+      looksRightWhen:
+        'sam@example.com’s page: its limits still show their last reading; the row it came from says when.',
     }
   ),
   ...trio(

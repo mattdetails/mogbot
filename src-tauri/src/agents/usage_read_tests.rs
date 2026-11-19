@@ -482,3 +482,14 @@ fn the_organization_header_is_read_only_when_it_says_one() {
     // The header never becomes a window.
     assert!(parse_claude_headers(&[h(ORG_HEADER, "org-1")], 0).is_none());
 }
+
+#[test]
+fn a_sign_in_refresh_is_tried_once_then_again_after_a_quarter_hour() {
+    let t = 1_000_000_000_000;
+    assert!(refresh_due(None, t));
+    assert!(!refresh_due(Some(t), t + 60_000));
+    assert!(!refresh_due(Some(t), t + 14 * 60_000));
+    assert!(refresh_due(Some(t), t + 15 * 60_000));
+    // A clock that went back never blocks it for good.
+    assert!(refresh_due(Some(t), t - 1));
+}
