@@ -853,6 +853,12 @@ fn ours_tool(tool: &str, field: &dyn Fn(&str) -> Option<String>) -> Option<Actio
             "Looking back through the chat",
             "look back through the chat",
         ),
+        super::missions_run::TOOL => act(
+            StepKind::Note,
+            "Updated a mission",
+            "Updating a mission",
+            "update a mission",
+        ),
         super::tasks::ADD_TOOL | super::tasks::UPDATE_TOOL => act(
             StepKind::Note,
             "Updated its task list",
