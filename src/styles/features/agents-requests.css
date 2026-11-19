@@ -389,7 +389,7 @@
   /* More below: the last line fades out over 24px instead of being cut mid-line. */
   mask-image: linear-gradient(
     to bottom,
-    #000 calc(100% - 24px),
+    black calc(100% - 24px),
     transparent
   ); /* css-ok: a mask's opacity ramp, not a colour */
 }
