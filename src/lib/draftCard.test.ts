@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { Approval } from './agents';
-import { draftOf, editedNote, gmailUrl, joinHeaders, splitHeaders } from './draftCard';
+import {
+  DRAFT_NOTE,
+  draftFrom,
+  draftOf,
+  draftTitle,
+  editedNote,
+  gmailUrl,
+  joinHeaders,
+  splitHeaders,
+  splitRecipient,
+} from './draftCard';
 
 const card = (over: Partial<Approval>): Approval =>
   ({ requestId: 'r', title: 't', detail: '', status: 'pending', ...over }) as Approval;
@@ -64,5 +74,46 @@ describe('gmailUrl', () => {
     expect(u.searchParams.get('su')).toBe('Hi there');
     expect(u.searchParams.get('body')).toBe('Line\nTwo');
     expect(u.searchParams.has('cc')).toBe(false);
+  });
+});
+
+describe('title and account', () => {
+  const email = (target: string, text: string, over: Partial<Approval> = {}): Approval =>
+    card({ plan: { actions: [{ kind: 'send', target, summary: 's', text }] }, ...over });
+  it('names who and where, and Gmail only when the app knows the account', () => {
+    const known = email('Aurelie Martin <a@b.co>', 'Subject: Hi\n\nWords', { sendFrom: 'me@x.co' });
+    const d = draftOf(known)!;
+    expect(d).toMatchObject({ name: 'Aurelie Martin', to: 'a@b.co' });
+    expect(draftTitle(d, known)).toBe('Email to Aurelie Martin · Gmail');
+    expect(draftFrom(d, known)).toBe('From me@x.co · goes out as you');
+    const unknown = email('a@b.co', 'Subject: Hi\n\nWords');
+    const u = draftOf(unknown)!;
+    expect(draftTitle(u, unknown)).toBe('Email to a@b.co');
+    expect(draftFrom(u, unknown)).toBe('goes out as you');
+  });
+  it('a subject starting Re: is a reply', () => {
+    const a = email('Aurelie <a@b.co>', 'Subject: Re: Beta\n\nWords');
+    expect(draftTitle(draftOf(a)!, a)).toBe('Reply to Aurelie');
+  });
+  it('a Slack reply names its place and the connected account', () => {
+    const a = card({
+      slackReply: {
+        channel: 'C',
+        threadTs: '1',
+        place: '#beta',
+        text: 'Hi',
+        accountName: 'robin · Acme',
+      },
+    });
+    expect(draftTitle(draftOf(a)!, a)).toBe('Reply in #beta · Slack');
+    expect(draftFrom(draftOf(a)!, a)).toBe('From robin · Acme · goes out as you');
+  });
+  it('splits Name <address> and keeps the one footer note', () => {
+    expect(splitRecipient('"Aurelie M" <a@b.co>')).toEqual({
+      name: 'Aurelie M',
+      address: 'a@b.co',
+    });
+    expect(splitRecipient('a@b.co')).toEqual({ name: '', address: 'a@b.co' });
+    expect(DRAFT_NOTE).toBe('These exact words go out under your name.');
   });
 });

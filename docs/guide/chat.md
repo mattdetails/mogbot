@@ -15,7 +15,7 @@ An agent can keep a page for a conversation, like a tracker or a status board. I
 
 ## Drafts to send
 
-When an agent wants to send an email or a Slack reply as you, you get a draft card: who it goes to, and the exact words. **Edit** changes the words first (for an email, also CC and Subject). **Discard** stops it. **Send** is your OK. **Draft in Gmail** opens your own Gmail with the draft filled in, and sends nothing.
+When an agent wants to send an email or a Slack reply as you, you get a draft card. Its title says who and where ("Email to Aurelie · Gmail", "Reply to Aurelie", "Reply in #beta · Slack"; Gmail is named only when the app knows your Gmail account). One block holds To, CC and Subject and the exact words, which scroll if they are long; under it, "From <account> · goes out as you" (just "goes out as you" when the app doesn't know the account) and "These exact words go out under your name." The buttons: **Discard** stops it, **Edit** changes the words first (for an email, also CC and Subject), **Draft in Gmail** opens your own Gmail with the draft filled in and sends nothing, and **Send** is your OK.
 
 A Slack reply posts the words as you edited them. For an email, an edit goes back to your agent, which shows you the new version on a fresh card; what you approve is always exactly what is sent.
 

@@ -166,6 +166,9 @@ export function LiveSecretHint({ agentId, agentName }: { agentId: string; agentN
   );
 }
 
+/** Narrower than this, the composer's placeholder is just "Message". */
+const NARROW_COMPOSER_PX = 480;
+
 export const AgentComposer = memo(function AgentComposer({
   agentId,
   agentName,
@@ -235,6 +238,17 @@ export const AgentComposer = memo(function AgentComposer({
   // stay up there until the box is empty, so the row never flips back and
   // forth as the wider field fits the same words on one line again.
   const [wrapped, setWrapped] = useState(false);
+  // Under about 480px the model chip takes the row: the placeholder shortens to
+  // "Message" so it stays on one line.
+  const formRef = useRef<HTMLFormElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useLayoutEffect(() => {
+    const el = formRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const watch = new ResizeObserver(() => setNarrow(el.clientWidth < NARROW_COMPOSER_PX));
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, []);
   useLayoutEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -274,6 +288,7 @@ export const AgentComposer = memo(function AgentComposer({
 
   return (
     <form
+      ref={formRef}
       className="agent-composer"
       data-wrapped={wrapped || undefined}
       data-queueing={(queueing && !learned) || undefined}
@@ -297,7 +312,7 @@ export const AgentComposer = memo(function AgentComposer({
         className="agent-composer__input"
         rows={1}
         value={draft}
-        placeholder={dictating ? '' : `Message ${agentName}`}
+        placeholder={dictating ? '' : narrow ? 'Message' : `Message ${agentName}`}
         readOnly={dictating}
         onChange={(e) => {
           setDraft(e.target.value);

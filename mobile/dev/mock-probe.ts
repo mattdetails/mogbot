@@ -274,6 +274,7 @@ export function addProbeAccount(
         text: '',
         approval: {
           requestId: 'req_mail',
+          sendFrom: 'julian@example.com',
           title: 'Do these under your name?',
           detail: '',
           status: 'pending',
@@ -281,7 +282,7 @@ export function addProbeAccount(
             actions: [
               {
                 kind: 'send',
-                target: 'aurelie@example.com',
+                target: 'Aurelie Martin <aurelie@example.com>',
                 summary: 'Email Aurelie about the beta',
                 text: 'Subject: Beta squad\nCC: sam@example.com\n\nHi Aurelie,\n\nAgents are the team, projects are where the work lives. An agent can be tied to a project and works in its own copy, so your folder stays yours.\n\nJulian',
               },

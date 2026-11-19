@@ -799,6 +799,7 @@ fn the_card_shows_the_exact_words_and_where_they_go() {
         place: "#launch".into(),
         text: "Done: 3 of 4 items. Sam owns the last.".into(),
         account: Some("T0NW:U0ROBIN".into()),
+        account_name: None,
     };
     let card = reply_card(&r);
     assert_eq!(card.title, "Reply in Slack?");
@@ -1339,6 +1340,7 @@ fn an_edited_reply_posts_the_edit_and_a_blank_or_unchanged_one_posts_the_origina
         place: "#beta".into(),
         text: "Agents are the team.".into(),
         account: None,
+        account_name: None,
     };
     let (e, was) = with_edit(
         r.clone(),

@@ -2,6 +2,11 @@
 /* Component contracts: stable owner-specific dimensions and component recipes. */
 
 :root {
+  /* The draft card's recessed block (AgentDraftCard, the phone's DraftCard): the label column,
+     each row's and the words' vertical padding, and where the words start to scroll. */
+  --draft-label-width: 72px;
+  --draft-row-pad: 11px;
+  --draft-body-max: 320px;
   --size-control-standard: 30px;
   --size-control-large: 36px;
   --size-control-medium: 24px;

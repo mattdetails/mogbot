@@ -264,7 +264,7 @@ describe('the scale', () => {
       new RegExp(`^radius\\.(${Object.keys(radius).join('|')})$`),
       /^[\w.]+ \/ 2$/,
       /^squircle\([\w.]+\)$/,
-      /^composer\.(corner|fieldCorner)$/,
+      /^composer\.(corner|fieldCorner|tail)$/,
       // An agent key's corners: its geometry, the desk's (lib/agentKey.ts).
       /^g\.(corner|faceCorner|socketCorner)$/,
     ];

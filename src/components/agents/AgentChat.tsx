@@ -1745,8 +1745,11 @@ export const AgentChat = memo(function AgentChat({
     async (requestId: string, allow: boolean, always?: boolean, note?: string, choice?: number) => {
       try {
         await answerApproval(agent.id, requestId, allow, always, note, choice);
+        return true;
       } catch (error) {
         showToast(formatCommandError(asCommandError(error)), 'error');
+        // A draft card keeps the person's words and says so.
+        return false;
       }
     }
   );

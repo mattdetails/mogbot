@@ -21,7 +21,7 @@ import type { AgentMessage } from '../../lib/agents';
 interface SecretCardProps {
   message: AgentMessage;
   agentName: string;
-  onAnswer: (requestId: string, allow: boolean) => Promise<void>;
+  onAnswer: (requestId: string, allow: boolean) => Promise<unknown>;
   arrived?: boolean;
 }
 

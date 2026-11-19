@@ -862,3 +862,22 @@ fn a_posts_listed_words_cover_every_step_of_it_on_its_site() {
         NOW + LONGEST_MS + 1
     ));
 }
+
+#[test]
+fn only_one_email_can_name_the_account_it_goes_out_from() {
+    // Never guessed: a push, a post or several actions name no account.
+    let one = |kind, target: &str| Plan {
+        actions: vec![action(kind, target, "s")],
+        why: None,
+    };
+    assert_eq!(send_from(&one(Kind::Push, "owner/repo")), None);
+    assert_eq!(send_from(&one(Kind::Send, "#launch")), None);
+    let two = Plan {
+        actions: vec![
+            action(Kind::Send, "a@b.co", "s"),
+            action(Kind::Send, "c@d.co", "s"),
+        ],
+        why: None,
+    };
+    assert_eq!(send_from(&two), None);
+}

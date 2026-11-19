@@ -15,30 +15,39 @@
 import { memo, useState } from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { Button } from '../primitives/Button';
-import { TextButton } from '../primitives/TextButton';
 import { TextArea, TextField } from '../primitives/TextField';
 import { AgentCard } from './AgentCard';
-import { PencilIcon, SlackIcon } from '@/components/icons';
-import { draftOf, editedNote, gmailUrl, type Draft } from '../../lib/draftCard';
-import type { AgentMessage } from '../../lib/agents';
+import { PencilIcon, SlackIcon, WarningIcon } from '@/components/icons';
+import {
+  DRAFT_NOTE,
+  draftFrom,
+  draftOf,
+  draftTitle,
+  editedNote,
+  gmailUrl,
+} from '../../lib/draftCard';
+import { answerApproval, type AgentMessage } from '../../lib/agents';
+import { asCommandError, formatCommandError } from '../../lib/errors';
+import { useOptionalToast } from '../../contexts/ToastContext';
 
 interface DraftCardProps {
   message: AgentMessage;
   agentName: string;
-  onAnswer: (requestId: string, allow: boolean, always?: boolean, note?: string) => Promise<void>;
+  onAnswer: (
+    requestId: string,
+    allow: boolean,
+    always?: boolean,
+    note?: string
+  ) => Promise<void | boolean>;
   arrived?: boolean;
 }
 
-const TITLE: Record<Draft['kind'], string> = {
-  email: 'Send this email?',
-  slack: 'Reply in Slack?',
-  post: 'Post this?',
-};
+/** Sends the Mac refused, by request: a card that is drawn again (the chat re-read) still says so. */
+const REFUSED = new Set<string>();
 
 export const AgentDraftCard = memo(function AgentDraftCard({
   message,
   agentName,
-  onAnswer,
   arrived,
 }: DraftCardProps) {
   const approval = message.approval;
@@ -47,7 +56,10 @@ export const AgentDraftCard = memo(function AgentDraftCard({
   const [subject, setSubject] = useState(draft?.subject ?? '');
   const [cc, setCc] = useState(draft?.cc ?? '');
   const [body, setBody] = useState(draft?.body ?? '');
+  const { showToast } = useOptionalToast();
   const [busy, setBusy] = useState(false);
+  // The Mac refused the send: the card stays, the words are kept, and it says so.
+  const [failed, setFailed] = useState(() => REFUSED.has(message.approval?.requestId ?? ''));
   const [openedPending] = useState(approval?.status === 'pending');
   if (!approval || !draft) return null;
   const pending = approval.status === 'pending';
@@ -58,8 +70,16 @@ export const AgentDraftCard = memo(function AgentDraftCard({
 
   const answer = async (allow: boolean, note?: string) => {
     setBusy(true);
+    setFailed(false);
+    REFUSED.delete(approval.requestId);
     try {
-      await onAnswer(approval.requestId, allow, false, note);
+      await answerApproval(message.agentId, approval.requestId, allow, false, note);
+    } catch (error) {
+      showToast(formatCommandError(asCommandError(error)), 'error');
+      if (allow) {
+        REFUSED.add(approval.requestId);
+        setFailed(true);
+      }
     } finally {
       setBusy(false);
     }
@@ -81,31 +101,22 @@ export const AgentDraftCard = memo(function AgentDraftCard({
         className="agent-approval agent-draft"
         data={{ status: approval.status }}
         icon={draft.kind === 'email' ? <PencilIcon size={14} /> : <SlackIcon size={14} />}
-        title={TITLE[draft.kind]}
-        meta={`from ${agentName}, sends as you`}
+        title={draftTitle(draft, approval)}
+        note={pending ? DRAFT_NOTE : undefined}
         actions={
           pending ? (
             <>
               <Button
                 tabIndex={0}
-                variant="secondary"
+                variant="ghost"
                 disabled={busy}
                 onClick={() => void answer(false)}
               >
                 Discard
               </Button>
-              {isEmail && (
-                <TextButton
-                  tabIndex={0}
-                  disabled={busy}
-                  onClick={() => void openUrl(gmailUrl(now))}
-                  title="Opens it in your Gmail to finish there. Nothing is sent."
-                >
-                  Draft in Gmail
-                </TextButton>
-              )}
-              <TextButton
+              <Button
                 tabIndex={0}
+                variant="secondary"
                 disabled={busy}
                 onClick={() => {
                   if (editing) {
@@ -117,7 +128,18 @@ export const AgentDraftCard = memo(function AgentDraftCard({
                 }}
               >
                 {editing ? 'Cancel edit' : 'Edit'}
-              </TextButton>
+              </Button>
+              {isEmail && (
+                <Button
+                  tabIndex={0}
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => void openUrl(gmailUrl(now))}
+                  title="Opens it in your Gmail to finish there. Nothing is sent."
+                >
+                  Draft in Gmail
+                </Button>
+              )}
               <Button
                 tabIndex={0}
                 variant="strong"
@@ -135,8 +157,8 @@ export const AgentDraftCard = memo(function AgentDraftCard({
             ? undefined
             : approval.status === 'allowed'
               ? isEmail
-                ? `Sent · ${agentName} is carrying on`
-                : 'Sent'
+                ? `Sent to ${draft.name || draft.to} · ${agentName} is carrying on`
+                : `Sent to ${draft.to}`
               : approval.status === 'denied'
                 ? approval.note?.startsWith('I edited it')
                   ? 'Edited · sent back for your OK'
@@ -146,13 +168,26 @@ export const AgentDraftCard = memo(function AgentDraftCard({
         outcomeTone={approval.status === 'allowed' ? 'done' : undefined}
         resolved={openedPending && !pending}
       >
-        <dl className="agent-draft__head">
-          <dt>{isEmail ? 'To' : 'In'}</dt>
-          <dd>{draft.to}</dd>
+        <div className="agent-draft__block">
+          <div className="agent-draft__row">
+            <span className="agent-draft__label">{isEmail ? 'To' : 'In'}</span>
+            <span className="agent-draft__value">{draft.to}</span>
+            {isEmail && pending && !cc && !editing && (
+              <Button
+                tabIndex={0}
+                variant="secondary"
+                size="compact"
+                className="agent-draft__add"
+                onClick={() => setEditing(true)}
+              >
+                + Cc
+              </Button>
+            )}
+          </div>
           {isEmail && (editing || cc) && (
-            <>
-              <dt>CC</dt>
-              <dd>
+            <div className="agent-draft__row">
+              <span className="agent-draft__label">CC</span>
+              <span className="agent-draft__value">
                 {editing ? (
                   <TextField
                     aria-label="CC"
@@ -164,13 +199,13 @@ export const AgentDraftCard = memo(function AgentDraftCard({
                 ) : (
                   cc
                 )}
-              </dd>
-            </>
+              </span>
+            </div>
           )}
           {isEmail && (editing || subject) && (
-            <>
-              <dt>Subject</dt>
-              <dd>
+            <div className="agent-draft__row">
+              <span className="agent-draft__label">Subject</span>
+              <span className="agent-draft__value">
                 {editing ? (
                   <TextField
                     aria-label="Subject"
@@ -181,26 +216,28 @@ export const AgentDraftCard = memo(function AgentDraftCard({
                 ) : (
                   subject
                 )}
-              </dd>
-            </>
+              </span>
+            </div>
           )}
-        </dl>
-        {editing && pending ? (
-          <TextArea
-            aria-label="What it says"
-            className="agent-draft__edit"
-            rows={Math.min(14, Math.max(4, body.split('\n').length + 1))}
-            value={body}
-            disabled={busy}
-            onChange={(e) => setBody(e.target.value)}
-          />
-        ) : (
-          <div className="agent-draft__body">{draft.body}</div>
-        )}
-        {pending && (
-          <p className="agent-card__note">
-            These exact words go out under your name.
-            {isEmail && ' Edit changes them first; Draft in Gmail lets you finish it there.'}
+          <div className="agent-draft__text">
+            {editing && pending ? (
+              <TextArea
+                aria-label="What it says"
+                className="agent-draft__edit"
+                rows={Math.min(14, Math.max(4, body.split('\n').length + 1))}
+                value={body}
+                disabled={busy}
+                onChange={(e) => setBody(e.target.value)}
+              />
+            ) : (
+              draft.body
+            )}
+          </div>
+        </div>
+        <p className="agent-draft__from">{draftFrom(draft, approval)}</p>
+        {failed && pending && (
+          <p className="agent-draft__failed" role="alert">
+            <WarningIcon size={12} /> Couldn’t send. Your words are kept.
           </p>
         )}
       </AgentCard>

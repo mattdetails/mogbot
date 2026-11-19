@@ -464,6 +464,21 @@ pub fn parse(args: &Value) -> Result<Plan, String> {
     Ok(Plan { actions, why })
 }
 
+/// The Gmail account a one-email plan goes out from, when the app knows it:
+/// what the page showed the last time an agent used Gmail
+/// (`browser_profiles::remembered`). Never guessed, so no account says nothing.
+pub fn send_from(plan: &Plan) -> Option<String> {
+    let [only] = plan.actions.as_slice() else {
+        return None;
+    };
+    if only.kind != Kind::Send || !only.target.contains('@') {
+        return None;
+    }
+    super::browser_profiles::remembered("mail.google.com")
+        .and_then(|r| r.account)
+        .filter(|a| !a.trim().is_empty())
+}
+
 /// An action's exact words, as the card shows them under it.
 fn text_line(a: &PlanAction) -> String {
     a.text

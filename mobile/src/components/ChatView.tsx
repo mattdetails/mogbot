@@ -954,7 +954,7 @@ export function ChatView({
           exiting={ZoomOut.duration(120)}
           style={[
             styles.jumpWrap,
-            { bottom: composerHeight + space.md, right: space.lg + side.right },
+            { bottom: composerHeight + space.lg, right: space.lg + side.right },
             overKeyboard,
           ]}
         >
@@ -1317,6 +1317,7 @@ const ChatHeader = memo(function ChatHeader({
   const styles = useStyles();
   const router = useRouter();
   const accent = useAccent();
+  const colors = useColors();
   const id = agent.id;
   const buttons = (TALK_OFFERED ? 1 : 0) + 1;
   const header = <Header agent={agent} buttons={buttons} />;
@@ -1378,10 +1379,14 @@ const ChatHeader = memo(function ChatHeader({
             hidden={!TALK_OFFERED}
             icon="waveform"
             accessibilityLabel={`Talk to ${agent.name}`}
-            tintColor={accent.accent}
+            tintColor={colors.textPrimary}
             onPress={openTalk}
           />
-          <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More" tintColor={accent.accent}>
+          <Stack.Toolbar.Menu
+            icon="ellipsis"
+            accessibilityLabel="More"
+            tintColor={colors.textPrimary}
+          >
             {moreActions.map((m) => (
               <Stack.Toolbar.MenuAction
                 key={m.id}
@@ -1546,8 +1551,8 @@ const useStyles = makeStyles((colors) => ({
   // A new speaker gets clear room; consecutive items from the same speaker
   // (a change summary, a reply, a file, an approval card) are separate blocks
   // and still need air between them.
-  item: { paddingTop: space.xl + space.xs },
-  itemGrouped: { paddingTop: space.lg },
+  item: { paddingTop: space.xl },
+  itemGrouped: { paddingTop: space.tight },
   itemAttached: { paddingTop: space.tight },
   // A Line under a Line: their own padding is the gap.
   itemAfterLine: { paddingTop: space.xs },
@@ -1583,10 +1588,11 @@ const useStyles = makeStyles((colors) => ({
     borderBottomColor: colors.borderDefault,
   },
   jumpWrap: { position: 'absolute', right: space.lg },
+  // Neutral, 36pt, never over a row: the chat's list ends above it (right-aligned 16pt over the composer).
   jump: {
-    minWidth: 44,
-    height: 44,
-    paddingHorizontal: space.md,
+    minWidth: 36,
+    height: 36,
+    paddingHorizontal: space.sm,
     borderRadius: radius.pill,
     flexDirection: 'row',
     gap: space.tight,
@@ -1594,11 +1600,7 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: 'center',
     backgroundColor: colors.surfaceControl,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.cardBorder,
-    shadowColor: colors.black,
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    borderColor: colors.borderStrong,
   },
   toast: {
     position: 'absolute',
