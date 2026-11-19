@@ -82,7 +82,11 @@ fn any_agent_reads_and_copies_out_of_the_team_folder_at_go_hard() {
             format!("echo hi >> \"{other}/CLAUDE.md\""),
             "cat ~/Library/Keychains/login.keychain-db".to_string(),
         ] {
-            assert_eq!(bash_card(level, &c), level != Level::FullSend, "asks at Go hard, runs at Unleashed: {c}");
+            assert_eq!(
+                bash_card(level, &c),
+                level != Level::FullSend,
+                "asks at Go hard, runs at Unleashed: {c}"
+            );
         }
         assert_eq!(
             card_at(
@@ -410,10 +414,7 @@ fn project_settings_ask_at_go_hard_and_run_at_unleashed() {
         "gh api -X PUT repos/fictional/site/collaborators/sam",
         "gh api -X PUT repos/fictional/site/branches/main/protection --input rules.json",
     ] {
-        assert!(
-            !bash_card(Level::FullSend, c),
-            "runs at Unleashed: {c}"
-        );
+        assert!(!bash_card(Level::FullSend, c), "runs at Unleashed: {c}");
         assert!(bash_card(Level::GoHard, c), "should ask at Go hard: {c}");
     }
     // Looking runs at Full send.
@@ -471,7 +472,11 @@ fn a_commit_then_push_to_main_in_one_command_asks() {
     );
     for level in [Level::GoHard, Level::FullSend] {
         let asks = level == Level::GoHard;
-        assert_eq!(card_at(level, false, "Bash", &bash(&cmd), &c), asks, "{level:?}");
+        assert_eq!(
+            card_at(level, false, "Bash", &bash(&cmd), &c),
+            asks,
+            "{level:?}"
+        );
         assert_eq!(
             card_at(level, false, "Bash", &bash("git push origin HEAD:main"), &c),
             asks,

@@ -653,7 +653,9 @@ pub async fn deliver_all(c: &Companion, alert: &PushAlert, now: u64) -> Vec<Stri
         } else {
             match c.presence(&d.id) {
                 Presence::Foreground => Some("the app is in front on it"),
-                p if !needs_push(p, now, LIVE_WINDOW_MS) => Some("it went to the background moments ago"),
+                p if !needs_push(p, now, LIVE_WINDOW_MS) => {
+                    Some("it went to the background moments ago")
+                }
                 _ => None,
             }
         };

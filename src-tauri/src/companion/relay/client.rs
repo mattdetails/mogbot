@@ -318,7 +318,6 @@ impl Open {
         self.sent_upto = self.sent_upto.max(seq);
     }
 
-
     /// Queue one payload for the channel; false when it's stuck (its queue
     /// full, or [`channel::MAX_QUEUED_BYTES`] already waiting).
     fn offer(&self, payload: Vec<u8>) -> bool {

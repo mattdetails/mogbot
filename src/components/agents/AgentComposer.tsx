@@ -239,6 +239,7 @@ export const AgentComposer = memo(function AgentComposer({
     const el = inputRef.current;
     if (!el) return;
     if (draft === '') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- layout measurement decides the row
       if (wrapped) setWrapped(false);
     } else if (!wrapped) {
       const style = getComputedStyle(el);

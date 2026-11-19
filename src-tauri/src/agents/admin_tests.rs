@@ -246,7 +246,10 @@ fn with_its_context_local_work_is_exactly_what_go_hard_answers() {
         assert_eq!(local(&c), Kind::Local, "{:?}", c.tool);
     }
     for c in [
-        card("mcp__claude-in-chrome__computer", json!({ "action": "left_click" })),
+        card(
+            "mcp__claude-in-chrome__computer",
+            json!({ "action": "left_click" }),
+        ),
         card("mcp__stripe__create_charge", json!({ "amount": 10 })),
     ] {
         assert_eq!(local(&c), Kind::Yours, "{:?}", c.tool);

@@ -301,11 +301,7 @@ mod tests {
             );
             let ours =
                 crate::user_chrome::allowed(f.ours_on, f.ours_connected, f.policy, &a, f.outside);
-            let expected = if ours {
-                Route::YourChrome
-            } else {
-                Route::None
-            };
+            let expected = if ours { Route::YourChrome } else { Route::None };
             assert_eq!(decide(f).route, expected, "{f:?}");
         }
     }
@@ -320,9 +316,6 @@ mod tests {
             .unwrap(),
             json!({ "route": "your_chrome", "why": "your_chrome_connected" })
         );
-        assert_eq!(
-            serde_json::to_value(Why::NotSetUp).unwrap(),
-            "not_set_up"
-        );
+        assert_eq!(serde_json::to_value(Why::NotSetUp).unwrap(), "not_set_up");
     }
 }

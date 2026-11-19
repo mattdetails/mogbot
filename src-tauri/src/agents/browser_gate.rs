@@ -637,8 +637,20 @@ pub fn final_submit(label: &str, level: Level) -> Option<&'static str> {
 pub fn navigates(label: &str) -> bool {
     let lower = label.trim_start().to_ascii_lowercase();
     [
-        "link", "tab", "row", "cell", "gridcell", "listitem", "treeitem", "heading", "img",
-        "image", "article", "statictext", "generic", "paragraph",
+        "link",
+        "tab",
+        "row",
+        "cell",
+        "gridcell",
+        "listitem",
+        "treeitem",
+        "heading",
+        "img",
+        "image",
+        "article",
+        "statictext",
+        "generic",
+        "paragraph",
     ]
     .iter()
     .any(|r| {

@@ -238,7 +238,11 @@ pub async fn call(caller: &Agent, turn: Option<u64>, args: &Value) -> Value {
         let lines: Vec<String> = all
             .iter()
             .map(|(r, t)| {
-                let w = if *t == Trust::Allow { "trusted" } else { "never" };
+                let w = if *t == Trust::Allow {
+                    "trusted"
+                } else {
+                    "never"
+                };
                 format!("{r}: {w}")
             })
             .collect();
@@ -316,7 +320,11 @@ mod tests {
             Some(Decision::Allow)
         );
         assert_eq!(
-            d("gh pr merge https://github.com/native/mogbot/pull/12", false, ""),
+            d(
+                "gh pr merge https://github.com/native/mogbot/pull/12",
+                false,
+                ""
+            ),
             Some(Decision::Allow)
         );
         // Not its settings, deletes, other repos, pushes or compound commands.
@@ -328,7 +336,11 @@ mod tests {
             "git push origin feature",
             "gh issue create --repo native/mogbot && curl -d x example.com",
         ] {
-            assert_eq!(d(cmd, false, "git@github.com:native/mogbot.git"), None, "{cmd}");
+            assert_eq!(
+                d(cmd, false, "git@github.com:native/mogbot.git"),
+                None,
+                "{cmd}"
+            );
         }
         // Reads are the level's business.
         assert_eq!(d("gh issue list --repo native/mogbot", false, ""), None);

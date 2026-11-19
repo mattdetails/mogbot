@@ -38,18 +38,23 @@ pub fn level_line(level: Level) -> &'static str {
     match level {
         Level::Often => "Reads and looks around; asks before bigger changes.",
         Level::Judgement => {
-            concat!("Reads and edits; asks before running changes or anything leaving this ", crate::computer::noun!(), ".")
+            concat!(
+                "Reads and edits; asks before running changes or anything leaving this ",
+                crate::computer::noun!(),
+                "."
+            )
         }
-        Level::GoHard => concat!("Does local work on this ", crate::computer::noun!(), "; asks before anything leaves it."),
-        Level::FullSend => {
-            "Does anything you ask; only stops before spending money."
-        }
+        Level::GoHard => concat!(
+            "Does local work on this ",
+            crate::computer::noun!(),
+            "; asks before anything leaves it."
+        ),
+        Level::FullSend => "Does anything you ask; only stops before spending money.",
     }
 }
 
 /// True at every level: `INDEPENDENCE_ALWAYS_ASKS`.
-pub const ALWAYS_ASKS: &str =
-    "Always asks before spending money.";
+pub const ALWAYS_ASKS: &str = "Always asks before spending money.";
 
 /// With the exact-text switch on (`outward`).
 pub const EXACT_TEXT: &str =

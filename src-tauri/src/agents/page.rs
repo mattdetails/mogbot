@@ -616,7 +616,11 @@ pub fn for_agent(file: Option<&PageFile>) -> String {
     format!(
         "The page as it is (v{}{}): {body}",
         current.version,
-        if pinned { "" } else { ", not pinned above the chat" }
+        if pinned {
+            ""
+        } else {
+            ", not pinned above the chat"
+        }
     )
 }
 
@@ -649,7 +653,9 @@ pub fn receipt(file: &PageFile, changed: bool) -> String {
     } else if current.version == 1 {
         s.push_str(" It isn't pinned above the chat (the user didn't ask for that): it's kept, and they can pin it from the chat header.");
     } else {
-        s.push_str(" It isn't above the chat; it's kept current all the same, and the user can pin it.");
+        s.push_str(
+            " It isn't above the chat; it's kept current all the same, and the user can pin it.",
+        );
     }
     s
 }

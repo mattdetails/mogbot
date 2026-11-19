@@ -896,9 +896,7 @@ mod tests {
         assert!(prompt.contains("Never ask for a password"));
         // A sign-in page (or a password step inside one) is a card the user
         // can answer from the phone, never "go to your computer".
-        assert!(
-            prompt.contains("`signed_out: true` when a page asks you to")
-        );
+        assert!(prompt.contains("`signed_out: true` when a page asks you to"));
         assert!(prompt.contains("Never tell them to go to their computer"));
         // The chain, in order: the user's Chrome, then every other way here
         // (connections, commands, claude.ai connectors), then one ask.

@@ -37,6 +37,7 @@ function useReading<T>(read: () => Promise<T>): Reading<T> {
     }
   }, [read]);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the first reading, fetched once on open
     void load();
   }, [load]);
   usePolling(load, { intervalMs: 5000, enabled: true });

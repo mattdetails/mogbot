@@ -3874,7 +3874,9 @@ pub(super) fn exposure_asks(
 ) -> bool {
     !full_send
         && exposed
-        && ctx.is_none_or(|ctx| super::autoallow::outside_mark_asks(tool, input, ctx, full_send, direct))
+        && ctx.is_none_or(|ctx| {
+            super::autoallow::outside_mark_asks(tool, input, ctx, full_send, direct)
+        })
 }
 
 fn holds_for_exact_text(caller: &store::Agent, tool: &str, input: &Value) -> bool {

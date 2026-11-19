@@ -49,8 +49,8 @@ describe('chromeNeedsAttention', () => {
 
 describe('ChromeNotice', () => {
   it('says it isn’t installed, with one button that turns it on', async () => {
-    invoke.mockImplementation(async (cmd: string) =>
-      cmd === 'agents_user_chrome_set_enabled' ? status({ enabled: true }) : status()
+    invoke.mockImplementation((cmd: string) =>
+      Promise.resolve(cmd === 'agents_user_chrome_set_enabled' ? status({ enabled: true }) : status())
     );
     render(
       <ModalProvider>

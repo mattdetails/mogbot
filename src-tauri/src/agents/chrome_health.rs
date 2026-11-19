@@ -270,9 +270,7 @@ mod tests {
         assert!(down.contains("Mogbot for Chrome"));
         assert!(!down.contains("mcp__browser__*"));
         let rules = super::super::logins::RULES;
-        assert!(rules.contains(
-            "never the Claude extension"
-        ));
+        assert!(rules.contains("never the Claude extension"));
     }
 
     #[test]
