@@ -347,6 +347,7 @@ because the dev server's development React measures React rather than the app.
 node scripts/perf-agents.mjs --build                 # build, serve on 1805, measure everything
 node scripts/perf-agents.mjs --build open,stream     # some phases only
 node scripts/perf-agents.mjs --build --trace         # plus a main-thread breakdown per phase
+INVAL=1 node scripts/perf-agents.mjs --build stream --trace   # and what invalidated style, most often first
 node scripts/perf-agents.mjs --build --profile       # plus .cpuprofile files
 node scripts/perf-agents.mjs --build --css "<rules>" # try a CSS change without rebuilding
 ```
@@ -365,6 +366,12 @@ profile and `--cdp` port (default 9711). Results land in `--out` (default
 | `stream` | A 3.5 KB reply as 235 drafts, one per 40 ms | < 15% main thread |
 | `reopened` | `openEvents` and `stream` again after reopening the chat | as above |
 | `idle` | Six agents left "working", nothing else happening | < 3% main thread |
+
+A sibling or descendant `:has()` in the chat's CSS is a measured cost, not a
+style preference: `:has(+ .agent-chat__row--card)` made each streamed draft
+restyle ~300 elements (11% of the main thread). Say what a line needs as a
+`data-` attribute set in React (`data-actions`, `data-next` from
+`useNextLine`) and select on that.
 
 Long chats: `--lines 5000` serves a chat that long (the scenario reads
 `?lines=`), and five more phases, not in `all`, measure what a long chat costs:

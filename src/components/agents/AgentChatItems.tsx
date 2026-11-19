@@ -263,6 +263,7 @@ export const AgentBubble = memo(function AgentBubble({
       className="agent-chat__row agent-chat__row--agent"
       data-arrived={arrived || undefined}
       data-stopped={message.stopped || undefined}
+      data-actions={(!streaming && attachments.length === 0) || undefined}
       data-attachments={attachments.length > 0 || undefined}
       data-local-links={(message.localLinks?.length ?? 0) > 0 || undefined}
       data-blocks={blocks ? true : undefined}
@@ -559,6 +560,7 @@ export const ErrorLine = memo(function ErrorLine({
       className="agent-chat__row agent-chat__row--agent agent-chat__row--card"
       data-limit={limited || undefined}
       data-failed={!limited || undefined}
+      data-actions
       data-arrived={arrived || undefined}
       data-work={message.work && agent ? true : undefined}
       data-message-ids={message.id}
