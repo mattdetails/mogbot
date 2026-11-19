@@ -169,14 +169,24 @@ describe('Agent controls', () => {
         screen.getByTestId('independence-stop-full_send', { includeHiddenElements: true })
       );
     });
-    expect(alert).toHaveBeenCalledWith(
+    // Unleashed warns first (the slider's own confirm)…
+    expect(alert).toHaveBeenNthCalledWith(
+      1,
+      'Turn on Unleashed?',
+      expect.stringMatching(/still asks before spending money/),
+      expect.any(Array)
+    );
+    const warn = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    await act(async () => warn[1].onPress?.());
+    // …then, past the team's level, asks that too.
+    expect(alert).toHaveBeenLastCalledWith(
       'Let Designer do more than the team?',
-      expect.stringMatching(/Sends, posts and pushes too/),
+      expect.stringMatching(/Does anything you ask/),
       expect.any(Array)
     );
     expect(mockCall).not.toHaveBeenCalledWith('agents.setAgentIndependence', expect.anything());
     // Its own button applies it.
-    const buttons = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+    const buttons = alert.mock.calls[1][2] as { text: string; onPress?: () => void }[];
     await act(async () => buttons[1].onPress?.());
     expect(mockCall).toHaveBeenCalledWith('agents.setAgentIndependence', {
       agentId: 'design',

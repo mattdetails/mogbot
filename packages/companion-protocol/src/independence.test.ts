@@ -49,7 +49,7 @@ describe('independence', () => {
       );
     }
     expect(INDEPENDENCE_ALWAYS_ASKS).toBe(
-      'Always asks before spending money.'
+      'Always asks before spending money, using your passwords, or deleting for good.'
     );
     // No old name is ever shown.
     const shown = JSON.stringify([INDEPENDENCE_LABEL, INDEPENDENCE_DETAIL, INDEPENDENCE_SHORT]);

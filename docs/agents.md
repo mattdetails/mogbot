@@ -1538,7 +1538,7 @@ left end and "Just does it" at the right:
 | **Bold** (a new install starts here, `independence::NEW_INSTALL`) | `go_hard` | Does local work on this Mac; asks before anything leaves it. |
 | **Unleashed** | `full_send` | Does anything; only stops before spending money. |
 
-Under it, at every stop: "Always asks before spending money." The names were "Check with me often", "Use
+Under it, at every stop: "Always asks before spending money, using your passwords, or deleting for good." The names were "Check with me often", "Use
 good judgement", "Go hard" and "Full send" until the slider; the stored ids,
 the protocol and the tools kept the old ids, and the Chief still reads the old
 names as the same levels (`Level::parse`). Each line is held to what the level

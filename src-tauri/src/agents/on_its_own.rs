@@ -49,7 +49,7 @@ pub fn level_line(level: Level) -> &'static str {
 
 /// True at every level: `INDEPENDENCE_ALWAYS_ASKS`.
 pub const ALWAYS_ASKS: &str =
-    "Always asks before spending money.";
+    "Always asks before spending money, using your passwords, or deleting for good.";
 
 /// With the exact-text switch on (`outward`).
 pub const EXACT_TEXT: &str =

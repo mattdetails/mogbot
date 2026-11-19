@@ -70,7 +70,7 @@ export function independenceDetail(level: AgentIndependence, kind?: ComputerKind
 
 /** Always under the slider: true at every stop. */
 export const INDEPENDENCE_ALWAYS_ASKS =
-  'Always asks before spending money.';
+  'Always asks before spending money, using your passwords, or deleting for good.';
 
 /** What still asks at each level: the same line at every stop. */
 export const INDEPENDENCE_STILL_ASKS: Record<AgentIndependence, string> = {
