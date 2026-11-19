@@ -30,6 +30,29 @@ struct Shared {
     next: AtomicU32,
     /// When set, pings go unanswered: a path that went quiet.
     mute: std::sync::atomic::AtomicBool,
+    /// Offer the resumable framing at login (docs/relay.md, "Resuming").
+    resume: std::sync::atomic::AtomicBool,
+    /// Taking frames from the Mac and saying nothing back: a path gone dead.
+    deaf: std::sync::atomic::AtomicBool,
+    /// Drops the Mac's connection without a close frame.
+    cut: tokio::sync::Notify,
+    /// Per channel, the resumable counters and what the Mac hasn't acked.
+    chans: Mutex<HashMap<u32, Chan>>,
+}
+
+#[derive(Default)]
+struct Chan {
+    /// The last sequence given to a phone→Mac frame, and taken from the Mac.
+    tx: u32,
+    rx: u32,
+    held: Vec<(u32, Vec<u8>)>,
+}
+
+fn seq_bytes(ch: u32, seq: u32, payload: &[u8]) -> Vec<u8> {
+    let mut f = ch.to_be_bytes().to_vec();
+    f.extend_from_slice(&seq.to_be_bytes());
+    f.extend_from_slice(payload);
+    f
 }
 
 struct Fake {
@@ -144,11 +167,13 @@ async fn relay_mac(
             .await;
         return;
     }
-    tx.send(Message::Text(
-        json!({ "t": "ready", "account": account }).to_string(),
-    ))
-    .await
-    .unwrap();
+    let resumable = auth["resume"] == 1 && shared.resume.load(Ordering::SeqCst);
+    let ready = if resumable {
+        json!({ "t": "ready", "account": account, "resume": true })
+    } else {
+        json!({ "t": "ready", "account": account })
+    };
+    tx.send(Message::Text(ready.to_string())).await.unwrap();
     let (mac_tx, mut mac_rx) = mpsc::unbounded_channel::<Message>();
     *shared.mac.lock().unwrap() = Some(mac_tx.clone());
     tokio::spawn(async move {
@@ -158,8 +183,63 @@ async fn relay_mac(
             }
         }
     });
-    while let Some(Ok(msg)) = rx.next().await {
+    loop {
+        let msg = tokio::select! {
+            m = rx.next() => match m { Some(Ok(m)) => m, _ => break },
+            _ = shared.cut.notified() => break,
+        };
+        if resumable && shared.deaf.load(Ordering::SeqCst) {
+            // Nothing this Mac says gets anywhere, and it hears nothing.
+            continue;
+        }
         match msg {
+            Message::Text(t) if resumable && t.contains("\"resume\"") => {
+                let v: Value = serde_json::from_str(&t).unwrap();
+                let mine: HashMap<u32, u32> = v["chs"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|e| (e["ch"].as_u64().unwrap() as u32, e["rx"].as_u64().unwrap() as u32))
+                    .collect();
+                let mut chans = shared.chans.lock().unwrap();
+                let mut answer = vec![];
+                let mut replay = vec![];
+                for (ch, c) in chans.iter_mut() {
+                    let Some(macrx) = mine.get(ch) else { continue };
+                    c.held.retain(|(s, _)| s > macrx);
+                    answer.push(json!({ "ch": ch, "rx": c.rx }));
+                    replay.extend(c.held.iter().map(|(_, f)| f.clone()));
+                }
+                let _ = mac_tx.send(Message::Text(json!({ "t": "resumed", "chs": answer }).to_string()));
+                for f in replay {
+                    let _ = mac_tx.send(Message::Binary(f));
+                }
+            }
+            Message::Text(t) if resumable && t.contains("\"ack\"") => {
+                let v: Value = serde_json::from_str(&t).unwrap();
+                let ch = v["ch"].as_u64().unwrap() as u32;
+                let seq = v["seq"].as_u64().unwrap() as u32;
+                if let Some(c) = shared.chans.lock().unwrap().get_mut(&ch) {
+                    c.held.retain(|(s, _)| *s > seq);
+                }
+            }
+            Message::Binary(data) if resumable => {
+                let ch = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
+                let seq = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
+                let mut chans = shared.chans.lock().unwrap();
+                let Some(c) = chans.get_mut(&ch) else { continue };
+                if seq <= c.rx {
+                    continue;
+                }
+                assert_eq!(seq, c.rx + 1, "the Mac left a hole");
+                c.rx = seq;
+                if let Some(phone) = shared.phones.lock().unwrap().get(&ch) {
+                    let _ = phone.send(Message::Binary(data[8..].to_vec()));
+                }
+                if seq % 8 == 0 {
+                    let _ = mac_tx.send(Message::Text(json!({ "t": "ack", "ch": ch, "seq": seq }).to_string()));
+                }
+            }
             Message::Text(t) if t == "ping" => {
                 if !shared.mute.load(std::sync::atomic::Ordering::SeqCst) {
                     let _ = mac_tx.send(Message::Text("pong".into()));
@@ -208,6 +288,9 @@ async fn relay_phone(
     let ch = shared.next.fetch_add(1, Ordering::SeqCst) + 1;
     let (phone_tx, mut phone_rx) = mpsc::unbounded_channel::<Message>();
     shared.phones.lock().unwrap().insert(ch, phone_tx);
+    if shared.resume.load(Ordering::SeqCst) {
+        shared.chans.lock().unwrap().insert(ch, Chan::default());
+    }
     mac.send(Message::Text(json!({ "t": "open", "ch": ch }).to_string()))
         .unwrap();
     tokio::spawn(async move {
@@ -220,6 +303,21 @@ async fn relay_phone(
     });
     while let Some(Ok(msg)) = rx.next().await {
         match msg {
+            Message::Binary(data) if shared.resume.load(Ordering::SeqCst) => {
+                let framed = {
+                    let mut chans = shared.chans.lock().unwrap();
+                    let c = chans.entry(ch).or_default();
+                    c.tx += 1;
+                    let framed = seq_bytes(ch, c.tx, &data);
+                    c.held.push((c.tx, framed.clone()));
+                    framed
+                };
+                // To whoever is the Mac now; held until it acks either way.
+                let now = shared.mac.lock().unwrap().clone();
+                if let Some(now) = now {
+                    let _ = now.send(Message::Binary(framed));
+                }
+            }
             Message::Binary(data) => {
                 let mut framed = ch.to_be_bytes().to_vec();
                 framed.extend_from_slice(&data);
@@ -615,11 +713,7 @@ async fn a_stranger_who_only_shakes_hands_is_closed_once_idle() {
 fn a_channel_holds_at_most_its_byte_budget() {
     let (tx, rx) = mpsc::channel::<Vec<u8>>(CHANNEL_QUEUE);
     let queued = Arc::new(AtomicUsize::new(0));
-    let o = Open {
-        tx,
-        generation: 1,
-        queued: queued.clone(),
-    };
+    let o = Open::new(tx, 1, queued.clone());
     let piece = channel::MAX_PAYLOAD;
     let fits = channel::MAX_QUEUED_BYTES / piece;
     for _ in 0..fits {
@@ -669,5 +763,68 @@ async fn a_link_the_path_silently_killed_is_made_again_within_seconds() {
     .await
     .expect("the Mac never came back");
     assert!(started.elapsed() < Duration::from_secs(5));
+    stop_tx.send(()).unwrap();
+}
+
+/// 2026-11-18: the link to the relay died silently every few minutes and each
+/// time every phone was cut off. With the resumable framing the phone's socket
+/// and its keys carry on: what the Mac said into the dead socket is sent again.
+#[tokio::test]
+async fn a_dead_link_is_resumed_without_the_phone_noticing() {
+    let (c, _stub) = Stub::companion();
+    let fingerprint = c.registry.identity().unwrap().fingerprint();
+    let (_record, token, _) = c
+        .registry
+        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .unwrap();
+    let port = loopback(c.clone()).await;
+    let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
+    relay.shared.resume.store(true, Ordering::SeqCst);
+    let link = Arc::new(Link::default());
+    let (stop_tx, stop_rx) = oneshot::channel();
+    let cfg = Config { base: relay.base(), port: Some(port) };
+    tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
+    until("the link", || link.route().is_some()).await;
+    let url = link.route().unwrap().url;
+
+    let mut phone = Phone::connect(&url, &fingerprint).await;
+    phone.send(challenge()).await;
+    assert_eq!(phone.next().await["t"], "identity");
+    phone.send(hello(&token)).await;
+    assert_eq!(phone.next().await["t"], "welcome");
+
+    let ask = |id: u64| json!({ "t": "req", "id": id, "method": "rooms.list", "params": {} });
+    phone.send(ask(1)).await;
+    assert_eq!(phone.next_of("res").await["id"], 1);
+
+    // The path goes dead: the Mac's frames vanish and nothing answers.
+    relay.shared.deaf.store(true, Ordering::SeqCst);
+    phone.send(ask(2)).await; // the Mac answers into the void
+    until("the Mac to give the link up", || link.status().state != RelayState::Connected).await;
+    relay.shared.deaf.store(false, Ordering::SeqCst);
+    until("the link again", || link.status().state == RelayState::Connected).await;
+
+    // The same phone socket, the same keys: the lost answer arrives, and a
+    // new request is answered in step.
+    let lost = phone.next_of("res").await;
+    assert_eq!(lost["id"], 2, "{lost}");
+    phone.send(ask(3)).await;
+    assert_eq!(phone.next_of("res").await["id"], 3);
+    stop_tx.send(()).unwrap();
+}
+
+#[tokio::test]
+async fn a_relay_that_doesnt_offer_resume_gets_the_old_framing() {
+    // The fake says `ready` with no `resume`: the Mac must send and take
+    // 4-byte-header frames, which the end-to-end test above already shows.
+    // What this holds is that it didn't keep channels across a link.
+    let (c, _stub) = Stub::companion();
+    let relay = fake_relay(json!({ "id": "user_1", "email": null })).await;
+    let link = Arc::new(Link::default());
+    let (stop_tx, stop_rx) = oneshot::channel();
+    let cfg = Config { base: relay.base(), port: None };
+    tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
+    until("the link", || link.status().state == RelayState::Connected).await;
+    assert!(!relay.shared.resume.load(Ordering::SeqCst));
     stop_tx.send(()).unwrap();
 }

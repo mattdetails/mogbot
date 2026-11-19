@@ -340,7 +340,7 @@ fn a_no_from_before_the_user_turned_it_back_on_no_longer_counts() {
 }
 
 #[test]
-fn the_users_chrome_is_the_only_browser_an_agent_is_sent_to() {
+fn the_agents_browser_comes_before_the_users_own_chrome() {
     with_root(|| {
         let social = agent("Social");
         let r = logins::build(&social, &ask("figma")).unwrap();
@@ -350,17 +350,21 @@ fn the_users_chrome_is_the_only_browser_an_agent_is_sent_to() {
             agents_browser: true,
             ..Default::default()
         };
-        // Mogbot for Chrome first, even with the agents' browser there.
+        // Mogbot for Chrome is the only way into the user's Chrome, and the
+        // agents' browser is no longer a route for a login (docs/agents.md,
+        // "Mogbot for Chrome is the only browser route").
         assert!(matches!(
             decide(&social, &r, &none, &both, &[]),
             Step::Browser { ref site, .. } if site == "www.figma.com"
         ));
-        // Only the agents' browser: it is no longer a route, so a card.
         let agents_only = Here {
             agents_browser: true,
             ..Default::default()
         };
-        assert_eq!(decide(&social, &r, &none, &agents_only, &[]), Step::Ask);
+        assert!(!matches!(
+            decide(&social, &r, &none, &agents_only, &[]),
+            Step::AgentsBrowser { .. }
+        ));
         // The site was last found signed in only in the user's own Chrome:
         // that's where the task's session is.
         let personal = Here {
@@ -371,12 +375,16 @@ fn the_users_chrome_is_the_only_browser_an_agent_is_sent_to() {
             decide(&social, &r, &none, &personal, &[]),
             Step::Browser { .. }
         ));
-        // A sign-in page: a card (whose first way in is "Sign in from here").
+        // A sign-in page in the agents' browser: the user's own Chrome at
+        // once, no card.
         let out = Tried {
             signed_out: true,
             ..Default::default()
         };
-        assert_eq!(decide(&social, &r, &out, &both, &[]), Step::Ask);
+        assert!(matches!(
+            decide(&social, &r, &out, &both, &[]),
+            Step::Browser { .. }
+        ));
         // Signed out in their Chrome too: a card (whose first way in is
         // "Sign in from here").
         let out_everywhere = Tried {
@@ -493,22 +501,30 @@ fn gmail_goes_straight_to_the_users_chrome() {
             logins::service("grok").and_then(|s| s.site),
             Some("grok.com")
         );
-        // No Mogbot for Chrome this turn: never the agents' browser.
+        // No Mogbot for Chrome this turn: the agents' browser is not a route.
         let agents_only = Here {
             agents_browser: true,
             ..Default::default()
         };
-        assert_eq!(decide(&chief, &r, &none, &agents_only, &[]), Step::Ask);
+        assert!(!matches!(
+            decide(&chief, &r, &none, &agents_only, &[]),
+            Step::AgentsBrowser { .. }
+        ));
+        // The agents' browser showed it signed out: the user's Chrome.
         let out = Tried {
             signed_out: true,
             ..Default::default()
         };
+        assert!(matches!(
+            decide(&chief, &r, &out, &both, &[]),
+            Step::Browser { ref site, .. } if site == "mail.google.com"
+        ));
         // An import's quiet card for another agent, denied with no words:
         // still the user's Chrome, where they're signed in already.
         let mut quiet = seen(&recruiter, "gmail", ApprovalStatus::Denied, None);
         quiet.login.quiet = true;
         assert!(matches!(
-            decide(&chief, &r, &none, &both, std::slice::from_ref(&quiet)),
+            decide(&chief, &r, &out, &both, std::slice::from_ref(&quiet)),
             Step::Browser { .. }
         ));
         // ...but never a new card: with no Chrome, the no stands.
@@ -624,14 +640,10 @@ fn the_chief_hands_work_to_a_teammate_who_has_it_instead_of_asking() {
             said.contains("message_agent") && said.contains("Mailroom"),
             "{said}"
         );
-        // The user's Chrome, when connected, still comes first.
-        let with_chrome = Here {
-            browser: true,
-            ..here.clone()
-        };
-        assert!(matches!(
-            decide(&boss, &r, &Tried::default(), &with_chrome, &[]),
-            Step::Browser { .. }
+        // A browser that works still comes first: nothing is asked either way.
+        assert!(!matches!(
+            decide(&boss, &r, &Tried::default(), &here, &[]),
+            Step::AgentsBrowser { .. }
         ));
         // Not for outside text, and not for an agent whose own job needs it.
         let outside = Here {

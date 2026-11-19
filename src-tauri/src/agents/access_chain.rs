@@ -382,8 +382,10 @@ fn browser_step(r: &LoginRequest, tried: &Tried, here: &Here) -> Option<Step> {
     let (site, title) = (site.to_string(), r.title.clone());
     // Mogbot for Chrome is the only browser an agent is sent to: the built-in
     // agents' browser is no longer a route (its signed-in sessions are only
-    // used by the phone sign-in), so a signed-out page ends the browser steps.
-    if here.browser && !tried.signed_out {
+    // used by the phone sign-in). A sign-in page seen anywhere but in that
+    // Chrome sends the agent there; one seen in it ends the browser steps.
+    let chrome_failed = tried.signed_out && (tried.in_chrome || !here.agents_browser);
+    if here.browser && !chrome_failed {
         return Some(Step::Browser { site, title });
     }
     None

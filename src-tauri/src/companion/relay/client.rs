@@ -8,7 +8,7 @@
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant, SystemTime};
@@ -46,6 +46,14 @@ const CHANNEL_QUEUE: usize = 256;
 /// The largest message from the relay (a phone payload is at most 256 KiB).
 const MAX_MESSAGE: usize = 1024 * 1024;
 
+/// A resumable channel is acked every this many frames, each way.
+const ACK_EVERY: u32 = 8;
+/// Frames the relay hasn't acked, per channel, before the channel is let go.
+const MAX_UNACKED_BYTES: usize = 4 * 1024 * 1024;
+/// Longer than the relay keeps phones for a Mac that went (30 s), so channels
+/// the relay has let go aren't held here.
+const RESUME_KEEP: Duration = Duration::from_secs(40);
+
 /// Where to sign in and what to serve HTTP from.
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -74,9 +82,20 @@ pub async fn run(c: Arc<Companion>, cfg: Config, link: Arc<Link>, mut stop: ones
     let mut backoff = BACKOFF_MIN;
     link.set_running();
     changed(&c);
+    let mut chans = Chans::new();
+    let mut lost: Option<Instant> = None;
     loop {
-        let ended = session(&c, &cfg, &link, &mut stop).await;
+        // Channels kept across a blip are let go once the relay would have.
+        if lost.is_some_and(|t| t.elapsed() > RESUME_KEEP) {
+            chans.open.clear();
+            lost = None;
+        }
+        let ended = session(&c, &cfg, &link, &mut stop, &mut chans).await;
+        if ended != Ended::Failed {
+            lost = Some(Instant::now());
+        }
         if ended == Ended::Stopped {
+            chans.open.clear();
             link.set_off();
             changed(&c);
             return;
@@ -180,7 +199,7 @@ async fn next_text(ws: &mut Ws) -> Option<String> {
 
 /// Connect and sign in. `None` for anything short of `ready`; with it, the
 /// account the relay has this Mac's key linked to.
-async fn sign_in(c: &Companion, base: &str) -> Option<(Ws, String, Option<Account>)> {
+async fn sign_in(c: &Companion, base: &str) -> Option<(Ws, String, Option<Account>, bool)> {
     let Some(identity) = c.registry.identity() else {
         tracing::warn!("[Relay] no identity key yet (Keychain locked?); trying again later");
         return None;
@@ -209,7 +228,12 @@ async fn sign_in(c: &Companion, base: &str) -> Option<(Ws, String, Option<Accoun
     if challenge["t"] != "challenge" {
         return None;
     }
+    // Asks for the resumable framing; a relay that doesn't know it answers
+    // `ready` without `resume` and everything stays as it was.
     let auth = crypto::login_auth(&identity, challenge["nonce"].as_str()?)?;
+    let mut auth_v: Value = serde_json::from_str(&auth).ok()?;
+    auth_v["resume"] = json!(1);
+    let auth = auth_v.to_string();
     ws.send(Message::Text(auth)).await.ok()?;
     let ready: Value = serde_json::from_str(&next_text(&mut ws).await?).ok()?;
     if ready["t"] != "ready" {
@@ -217,7 +241,8 @@ async fn sign_in(c: &Companion, base: &str) -> Option<(Ws, String, Option<Accoun
         return None;
     }
     let account = parse_account(&ready["account"]);
-    Some((ws, fingerprint, account))
+    let resume = ready["resume"] == true;
+    Some((ws, fingerprint, account, resume))
 }
 
 struct Open {
@@ -225,9 +250,75 @@ struct Open {
     generation: u64,
     /// Bytes queued for the channel and not yet taken.
     queued: Arc<AtomicUsize>,
+    /// Resumable framing (docs/relay.md, "Resuming"): the sequence of the
+    /// next payload to the phone, the frames the relay hasn't acked, how far
+    /// they have been written to the current socket, and the last sequence
+    /// taken from the phone.
+    next: u32,
+    sent_upto: u32,
+    unacked: VecDeque<(u32, Vec<u8>)>,
+    unacked_bytes: usize,
+    rx: u32,
+}
+
+/// What outlives a socket: the channels and the queue their tasks write to.
+struct Chans {
+    open: HashMap<u32, Open>,
+    generation: u64,
+    out_tx: mpsc::Sender<Out>,
+    out_rx: mpsc::Receiver<Out>,
+}
+
+impl Chans {
+    fn new() -> Self {
+        let (out_tx, out_rx) = mpsc::channel::<Out>(CHANNEL_QUEUE);
+        Chans {
+            open: HashMap::new(),
+            generation: 0,
+            out_tx,
+            out_rx,
+        }
+    }
+}
+
+/// A resumable frame: channel, sequence, payload.
+fn seq_frame(ch: u32, seq: u32, payload: &[u8]) -> Message {
+    let mut data = Vec::with_capacity(payload.len() + 8);
+    data.extend_from_slice(&ch.to_be_bytes());
+    data.extend_from_slice(&seq.to_be_bytes());
+    data.extend_from_slice(payload);
+    Message::Binary(data)
+}
+
+fn ack_text(ch: u32, seq: u32) -> Message {
+    Message::Text(json!({ "t": "ack", "ch": ch, "seq": seq }).to_string())
 }
 
 impl Open {
+    fn new(tx: mpsc::Sender<Vec<u8>>, generation: u64, queued: Arc<AtomicUsize>) -> Self {
+        Open {
+            tx,
+            generation,
+            queued,
+            next: 1,
+            sent_upto: 0,
+            unacked: VecDeque::new(),
+            unacked_bytes: 0,
+            rx: 0,
+        }
+    }
+
+    /// The relay has everything up to `seq`.
+    fn acked(&mut self, seq: u32) {
+        while self.unacked.front().is_some_and(|(s, _)| *s <= seq) {
+            if let Some((_, p)) = self.unacked.pop_front() {
+                self.unacked_bytes -= p.len();
+            }
+        }
+        self.sent_upto = self.sent_upto.max(seq);
+    }
+
+
     /// Queue one payload for the channel; false when it's stuck (its queue
     /// full, or [`channel::MAX_QUEUED_BYTES`] already waiting).
     fn offer(&self, payload: Vec<u8>) -> bool {
@@ -246,24 +337,39 @@ async fn session(
     cfg: &Config,
     link: &Arc<Link>,
     stop: &mut oneshot::Receiver<()>,
+    st: &mut Chans,
 ) -> Ended {
     let signed_in = tokio::select! {
         s = sign_in(c, &cfg.base) => s,
         _ = &mut *stop => return Ended::Stopped,
     };
-    let Some((mut ws, fingerprint, account)) = signed_in else {
+    let Some((mut ws, fingerprint, account, resume)) = signed_in else {
         return Ended::Failed;
     };
     let (cmd_tx, mut commands) = mpsc::channel::<Command>(8);
     let linked = account.is_some();
     if link.set_up(&cfg.base, &fingerprint, account, cmd_tx) {
-        tracing::info!(linked, "[Relay] link up");
+        tracing::info!(linked, resume, "[Relay] link up");
         changed(c);
     }
 
-    let (out_tx, mut out_rx) = mpsc::channel::<Out>(CHANNEL_QUEUE);
-    let mut open: HashMap<u32, Open> = HashMap::new();
-    let mut generation = 0u64;
+    // A relay that can't resume channels closed its phones when the old link
+    // went: whatever was held here is for phones that are gone.
+    // One that can is told what is held, and says what to carry on with.
+    let mut awaiting = resume;
+    if resume {
+        let held: Vec<Value> = st
+            .open
+            .iter()
+            .map(|(ch, o)| json!({ "ch": ch, "rx": o.rx }))
+            .collect();
+        let frame = json!({ "t": "resume", "chs": held }).to_string();
+        if ws.send(Message::Text(frame)).await.is_err() {
+            return Ended::WasUp;
+        }
+    } else {
+        st.open.clear();
+    }
     let mut last_heard = Instant::now();
     let up_since = Instant::now();
     let mut ping = tokio::time::interval_at(tokio::time::Instant::now() + PING_EVERY, PING_EVERY);
@@ -306,36 +412,102 @@ async fn session(
                             }
                             continue;
                         }
+                        if v["t"] == "resumed" && resume {
+                            // What the relay holds for each channel decides what is sent
+                            // again; a channel it doesn't name is gone.
+                            let mut theirs: HashMap<u32, u32> = HashMap::new();
+                            for e in v["chs"].as_array().into_iter().flatten() {
+                                if let (Some(ch), Some(rx)) = (
+                                    e["ch"].as_u64().and_then(|n| u32::try_from(n).ok()),
+                                    e["rx"].as_u64().and_then(|n| u32::try_from(n).ok()),
+                                ) {
+                                    theirs.insert(ch, rx);
+                                }
+                            }
+                            st.open.retain(|ch, _| theirs.contains_key(ch));
+                            let mut failed = false;
+                            let mut chs: Vec<u32> = st.open.keys().copied().collect();
+                            chs.sort_unstable();
+                            for ch in chs {
+                                let Some(o) = st.open.get_mut(&ch) else { continue };
+                                let rx = theirs[&ch];
+                                o.acked(rx);
+                                o.sent_upto = rx;
+                                for (seq, payload) in o.unacked.iter() {
+                                    if ws.send(seq_frame(ch, *seq, payload)).await.is_err() {
+                                        failed = true;
+                                        break;
+                                    }
+                                    o.sent_upto = *seq;
+                                }
+                                if failed {
+                                    break;
+                                }
+                            }
+                            awaiting = false;
+                            if failed {
+                                break Ended::WasUp;
+                            }
+                            continue;
+                        }
+                        if v["t"] == "ack" && resume {
+                            if let (Some(ch), Some(seq)) = (
+                                v["ch"].as_u64().and_then(|n| u32::try_from(n).ok()),
+                                v["seq"].as_u64().and_then(|n| u32::try_from(n).ok()),
+                            ) {
+                                if let Some(o) = st.open.get_mut(&ch) {
+                                    o.acked(seq);
+                                }
+                            }
+                            continue;
+                        }
                         let Some(ch) = v["ch"].as_u64().and_then(|n| u32::try_from(n).ok()) else { continue };
                         match v["t"].as_str() {
                             Some("open") => {
-                                if open.len() >= MAX_CHANNELS {
+                                if st.open.len() >= MAX_CHANNELS {
                                     let _ = ws.send(close_text(ch)).await;
                                     continue;
                                 }
-                                generation += 1;
+                                st.generation += 1;
                                 let (tx, rx) = mpsc::channel::<Vec<u8>>(CHANNEL_QUEUE);
                                 let queued = Arc::new(AtomicUsize::new(0));
                                 let inbound = channel::Inbound::new(rx, queued.clone());
                                 // A number reused: the old one is gone.
-                                open.insert(ch, Open { tx, generation, queued });
-                                tokio::spawn(channel::run(c.clone(), ch, generation, cfg.port, inbound, out_tx.clone()));
+                                st.open.insert(ch, Open::new(tx, st.generation, queued));
+                                tokio::spawn(channel::run(c.clone(), ch, st.generation, cfg.port, inbound, st.out_tx.clone()));
                             }
                             Some("close") => {
-                                open.remove(&ch);
+                                st.open.remove(&ch);
                             }
                             _ => {}
                         }
                     }
                     Some(Ok(Message::Binary(data))) => {
-                        if data.len() < 4 {
+                        let header = if resume { 8 } else { 4 };
+                        if data.len() < header {
                             continue;
                         }
                         let ch = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
-                        let Some(o) = open.get(&ch) else { continue };
-                        if !o.offer(data[4..].to_vec()) {
+                        let Some(o) = st.open.get_mut(&ch) else { continue };
+                        if resume {
+                            let seq = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
+                            if seq <= o.rx {
+                                continue; // sent again after the blip
+                            }
+                            if seq != o.rx + 1 {
+                                // A hole: the channel's keys would be out of step.
+                                st.open.remove(&ch);
+                                let _ = ws.send(close_text(ch)).await;
+                                continue;
+                            }
+                            o.rx = seq;
+                            if seq % ACK_EVERY == 0 && ws.send(ack_text(ch, seq)).await.is_err() {
+                                break Ended::WasUp;
+                            }
+                        }
+                        if !o.offer(data[header..].to_vec()) {
                             // A phone sending faster than its channel is served.
-                            open.remove(&ch);
+                            st.open.remove(&ch);
                             let _ = ws.send(close_text(ch)).await;
                         }
                     }
@@ -356,9 +528,32 @@ async fn session(
                     }
                 }
             }
-            Some(out) = out_rx.recv() => match out {
+            Some(out) = st.out_rx.recv() => match out {
                 Out::Payload(ch, payload) => {
-                    if !open.contains_key(&ch) {
+                    let Some(o) = st.open.get_mut(&ch) else { continue };
+                    if resume {
+                        // Kept until the relay acks it, so a socket that died
+                        // under it doesn't lose it.
+                        let seq = o.next;
+                        o.next += 1;
+                        o.unacked_bytes += payload.len();
+                        if o.unacked_bytes > MAX_UNACKED_BYTES {
+                            st.open.remove(&ch);
+                            if ws.send(close_text(ch)).await.is_err() {
+                                break Ended::WasUp;
+                            }
+                            continue;
+                        }
+                        if awaiting {
+                            o.unacked.push_back((seq, payload));
+                            continue;
+                        }
+                        let frame = seq_frame(ch, seq, &payload);
+                        o.unacked.push_back((seq, payload));
+                        if ws.send(frame).await.is_err() {
+                            break Ended::WasUp;
+                        }
+                        o.sent_upto = seq;
                         continue;
                     }
                     let mut data = Vec::with_capacity(payload.len() + 4);
@@ -369,7 +564,7 @@ async fn session(
                     }
                 }
                 Out::Authed(ch, generation) => {
-                    if open.get(&ch).is_some_and(|o| o.generation == generation)
+                    if st.open.get(&ch).is_some_and(|o| o.generation == generation)
                         && ws.send(authed_text(ch)).await.is_err()
                     {
                         break Ended::WasUp;
@@ -377,8 +572,8 @@ async fn session(
                 }
                 Out::Ended(ch, generation) => {
                     // Still open on the relay's side: close the phone's socket.
-                    if open.get(&ch).is_some_and(|o| o.generation == generation) {
-                        open.remove(&ch);
+                    if st.open.get(&ch).is_some_and(|o| o.generation == generation) {
+                        st.open.remove(&ch);
                         if ws.send(close_text(ch)).await.is_err() {
                             break Ended::WasUp;
                         }
@@ -433,9 +628,12 @@ async fn session(
             }
         }
     };
-    // Every channel's sender goes with the map: their tasks end, and each
-    // socket handler sees its phone go.
-    drop(open);
+    // Without resume, every channel's sender goes: their tasks end, and each
+    // socket handler sees its phone go. With it they are kept for the next
+    // link (`run` lets them go if the relay stays away).
+    if !resume || ended == Ended::Stopped {
+        st.open.clear();
+    }
     ended
 }
 

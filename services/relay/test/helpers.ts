@@ -136,3 +136,30 @@ export function framed(ch: number, payload: Uint8Array): Uint8Array {
   out.set(payload, 4);
   return out;
 }
+
+/** Like {@link loginMac}, asking for the resumable framing; returns the socket after `ready`. */
+export async function loginMacResume(mac: Mac, account: unknown = null): Promise<Client> {
+  const ws = await open(`/v1/mac/${mac.fingerprint}`);
+  const challenge = await ws.json();
+  ws.ws.send(
+    JSON.stringify({
+      t: 'auth',
+      v: 1,
+      resume: 1,
+      publicKey: mac.publicKey,
+      signature: await sign(mac, challenge.nonce as string),
+    })
+  );
+  expect(await ws.json()).toEqual({ t: 'ready', account, resume: true });
+  return ws;
+}
+
+/** A resumable frame: channel, sequence, payload. */
+export function seqFrame(ch: number, seq: number, payload: Uint8Array): Uint8Array {
+  const out = new Uint8Array(8 + payload.length);
+  const v = new DataView(out.buffer);
+  v.setUint32(0, ch);
+  v.setUint32(4, seq);
+  out.set(payload, 8);
+  return out;
+}
