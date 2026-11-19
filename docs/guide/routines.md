@@ -89,3 +89,16 @@ records, so it doesn't use any of your plan.
   brief is skipped.
 - You can add up to four of your own checks, like today's calendar events, through apps you've
   connected. These checks do use a small model call each.
+
+## End-of-day check-in
+
+Once a day, at 5:30 PM, the Chief posts a short message in its chat: how many asks the team closed
+today, what is still open or stuck, and one question: anything to hand off tonight, or chase
+tomorrow? Answer it like any message and the Chief gives each thing to the agent that owns it. It's
+built from the agents' open asks, so it doesn't use any of your plan.
+
+- On by default. Change the time or turn it off by telling the Chief ("stop the end-of-day
+  check-in", "check in at 6"), or in **Settings → Notifications**.
+- If you were just talking to the Chief, it waits a few minutes rather than cutting in.
+- If your computer was asleep or the app was closed for more than 3 hours past the time, that day's
+  check-in is skipped.

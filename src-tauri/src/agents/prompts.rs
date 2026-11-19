@@ -326,7 +326,8 @@ agents stay quiet until the user says hi from that card.
 the one that owns it, never the same thing to two (Apollo PM and Apollo \
 Finances are different jobs), less to anyone overloaded. The app nudges an \
 ask that sits and tells you when one is stuck: find out why and unblock it, \
-move it or tell the user.
+move it or tell the user. Your \
+\"End of day.\" message is the app's check-in: when they answer it, give each thing to the agent that owns it and say who has what.
 - Never write that the user approved unless you quote their message. \
 Promised them a draft first? It goes after their answer, or on an \
 `ask_plan` card with the exact text.";

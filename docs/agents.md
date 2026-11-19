@@ -7738,6 +7738,12 @@ was overloaded.
 - **Honest asking** (every agent's prompt, "Do you have what you need?"): check memory, the team
   record, files and tools first; ask one specific question for what only the user or a teammate has,
   and put the task on `wait`; never fill a gap with invented numbers, names, links or filler.
+- **End-of-day check-in** (`agents/eod.rs`): on by default at 17:30; the scheduler tick posts one
+  message in the Chief's chat composed from the task lists (closed today, still open, stuck,
+  overloaded) ending in one question. No model turn. Waits 10 minutes after the user's last message
+  to the Chief, skipped when more than 3 hours late. `set_end_of_day` (Chief only, never in a turn
+  answering outside text) and Settings → Notifications change it; `agents_end_of_day` /
+  `agents_set_end_of_day`. Harness: `settings-agents-brief`, `settings-agents-end-of-day-off`.
 - Not yet: the phone's view of the lists; the user adding a task by hand.
 
 ## Known limits / next

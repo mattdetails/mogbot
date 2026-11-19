@@ -439,6 +439,25 @@ pub fn all_loads(now: i64) -> Vec<Load> {
     v
 }
 
+/// Asks closed since `since`, per agent (name, count), the most first. Only
+/// done ones: a dropped ask isn't work done.
+pub fn closed_since(since: i64) -> Vec<(String, usize)> {
+    let mut out: Vec<(String, usize)> = store::list()
+        .unwrap_or_default()
+        .iter()
+        .filter(|a| !a.hidden)
+        .filter_map(|a| {
+            let n = read(&a.id)
+                .iter()
+                .filter(|t| t.state == State::Done && t.updated_at >= since)
+                .count();
+            (n > 0).then(|| (a.name.clone(), n))
+        })
+        .collect();
+    out.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+    out
+}
+
 /// Another agent already has something like `title` open: who and what.
 pub fn similar_elsewhere(title: &str, except: &str) -> Option<(String, String, String)> {
     let now = store::now_ms();

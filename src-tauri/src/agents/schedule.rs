@@ -1946,6 +1946,8 @@ fn tick(app: &AppHandle) -> Result<(), CommandError> {
     super::brief::tick(app);
     // Asks that sit open on an agent's list are nudged (`tasks`).
     super::tasks::tick(app);
+    // The end-of-day check-in at the user's time (`eod`).
+    super::eod::tick(app);
     Ok(())
 }
 

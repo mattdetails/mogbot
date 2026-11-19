@@ -48,6 +48,7 @@ import { AgentPreviewFixSetting } from './AgentPreviewFixSetting';
 import { AgentLowPowerSetting } from './AgentLowPowerSetting';
 import { AgentQuietHoursSetting } from './AgentQuietHoursSetting';
 import { AgentMorningBriefSetting } from './AgentMorningBriefSetting';
+import { AgentEndOfDaySetting } from './AgentEndOfDaySetting';
 import { PhoneSettingsPanel } from '../phone/PhoneModal';
 import { RemoteAccessSettingsPanel } from '../remote/RemoteAccessModal';
 import { useStayOn } from '../../hooks/useStayOn';
@@ -257,7 +258,7 @@ export function NotificationsPage() {
     <div className="agents-settings">
       <section className="settings-group" aria-labelledby="agents-settings-quiet">
         <h3 className="settings-group__title" id="agents-settings-quiet">
-          Quiet hours and the morning brief
+          Quiet hours and daily check-ins
         </h3>
         <div className="settings-section">
           <SectionBoundary name="quiet-hours">
@@ -265,6 +266,7 @@ export function NotificationsPage() {
           </SectionBoundary>
           <SectionBoundary name="morning-brief">
             <AgentMorningBriefSetting />
+            <AgentEndOfDaySetting />
           </SectionBoundary>
         </div>
       </section>
