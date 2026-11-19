@@ -115,3 +115,24 @@ fn the_users_calls_are_refused_without_the_user() {
     // Reading and reporting need no one.
     assert!(act("list", &json!({}), false, 0).is_ok());
 }
+
+#[test]
+fn a_blocked_mission_can_name_the_app_to_reconnect() {
+    let m = from_args(&args(), 0).unwrap();
+    let m = mark_blocked(
+        &m,
+        &json!({ "what": "Cant read Native OS", "app": "Native OS" }),
+    )
+    .unwrap();
+    assert_eq!(
+        m.blocked.as_ref().unwrap().app.as_deref(),
+        Some("Native OS")
+    );
+}
+
+#[test]
+fn sleep_is_said_in_hours_or_minutes() {
+    assert_eq!(sleep_phrase(40 * 60_000), "40 minutes");
+    assert_eq!(sleep_phrase(70 * 60_000), "an hour");
+    assert_eq!(sleep_phrase(8 * 3_600_000), "8 hours");
+}

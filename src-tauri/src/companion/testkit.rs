@@ -2166,6 +2166,7 @@ impl Backend for Stub {
         };
         m.blocked = Some(Blocked {
             what: "Can't read Native OS".into(),
+            app: Some("Native OS".into()),
             affects: Some("Scout".into()),
         });
         m.push_event("Scout", "Booked 2 calls.", 1_762_675_300_000);
@@ -2189,6 +2190,7 @@ impl Backend for Stub {
             detail: Some("Nothing goes out until you approve.".into()),
         }];
         m.shares[0].account_id = Some("acct1".into());
+        m.heartbeat_at = Some(1_762_675_390_000);
         m.shares[0].used_pct = 11.0;
         m.shares[0].read_at = Some(1_762_675_350_000);
         m.id = "m1".into();

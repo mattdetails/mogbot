@@ -80,7 +80,7 @@ export interface Mission {
   endAt?: number;
   asksFirst: string[];
   updates: { whenBlocked: boolean; eachMilestone: boolean; dailyAt?: number };
-  blocked?: { what: string; affects?: string };
+  blocked?: { what: string; app?: string; affects?: string };
   events: MissionEvent[];
   checkedBy?: EngineId;
   verdicts: { criterion: string; result: 'met' | 'not_met' | 'couldnt_check'; evidence?: string }[];
@@ -89,6 +89,8 @@ export interface Mission {
   summary?: string;
   agents: MissionAgent[];
   asks: MissionAsk[];
+  /** The last time the Mac looked at it while it ran; an old one means it was asleep. */
+  heartbeatAt?: number;
   /** More updates than `events` holds, when a source knows (the harness). */
   eventCount?: number;
 }
@@ -266,9 +268,38 @@ export interface Banner {
   /** What each button does: the app's call, by action id. */
   actions: {
     label: string;
-    action: 'add_more' | 'finish_with' | 'stop' | 'pause' | 'accept' | 'see' | 'resume';
+    action:
+      | 'add_more'
+      | 'finish_with'
+      | 'stop'
+      | 'pause'
+      | 'accept'
+      | 'see'
+      | 'resume'
+      | 'reconnect';
     engine?: EngineId;
   }[];
+}
+
+/** A beat older than this on a live mission: the Mac was asleep (or the app closed). */
+export const ASLEEP_MS = 5 * 60_000;
+
+/**
+ * A live mission the Mac hasn't looked at for a while isn't running, however
+ * its record reads: "Paused while your Mac sleeps". On the phone, reading a
+ * kept record from a Mac that went to sleep says so rather than looking live.
+ */
+export function isAsleep(m: Mission, now: number): boolean {
+  return (
+    (m.state === 'starting' || m.state === 'running') &&
+    m.heartbeatAt !== undefined &&
+    now - m.heartbeatAt > ASLEEP_MS
+  );
+}
+
+/** The state's words, with the sleep said. */
+export function stateWord(m: Mission, now: number): string {
+  return isAsleep(m, now) ? 'Paused while your Mac sleeps' : STATE_WORD[m.state];
 }
 
 /**
@@ -276,7 +307,7 @@ export interface Banner {
  * with the other engine / Stop here), red when blocked (what broke, who it
  * affects, that usage isn't being spent), neutral when ready for review.
  */
-export function banner(m: Mission): Banner | null {
+export function banner(m: Mission, now?: number): Banner | null {
   if (m.state === 'paused_cap') {
     const e = m.pausedBy;
     const share = m.shares.find((s) => s.engine === e);
@@ -313,7 +344,10 @@ export function banner(m: Mission): Banner | null {
       tone: 'red',
       title: b?.what ?? 'Blocked',
       text: `${b?.affects ? `${b.affects} ` : ''}Your usage isn't being spent.`.trim(),
-      actions: [{ label: 'Pause mission', action: 'pause' }],
+      actions: [
+        ...(b?.app ? [{ label: `Reconnect ${b.app}`, action: 'reconnect' as const }] : []),
+        { label: 'Pause mission', action: 'pause' as const },
+      ],
     };
   }
   if (m.state === 'ready') {
@@ -330,6 +364,14 @@ export function banner(m: Mission): Banner | null {
         },
         { label: 'See the work', action: 'see' },
       ],
+    };
+  }
+  if (now !== undefined && isAsleep(m, now)) {
+    return {
+      tone: 'neutral',
+      title: 'Paused while your Mac sleeps',
+      text: 'It carries on when your Mac wakes. Nothing runs and nothing is spent until then.',
+      actions: [],
     };
   }
   if (m.state === 'paused') {
@@ -430,6 +472,12 @@ export function bottomNote(m: Mission): string {
     return `It used about ${sharesPhrase(m, true)}. Nothing more is spent.`;
   }
   return `It stops at about ${sharesPhrase(m, false)}${end ? `, or on ${end}` : ''}.`;
+}
+
+/** What "Reconnect" says to the Chief, which has the login card for that app. */
+export function reconnectMessage(m: Mission): string {
+  const app = m.blocked?.app ?? 'the app';
+  return `Reconnect ${app}: my mission "${m.goal.slice(0, 80)}" is blocked on it.`;
 }
 
 /** The heading chip for a state, always words. */

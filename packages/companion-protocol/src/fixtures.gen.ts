@@ -493,6 +493,7 @@ export const agentsMissions = [
     ],
     "blocked": {
       "affects": "Scout",
+      "app": "Native OS",
       "what": "Can't read Native OS"
     },
     "checkedBy": "codex",
@@ -520,6 +521,7 @@ export const agentsMissions = [
     ],
     "finishedAt": 1762675400000,
     "goal": "Get the pipeline to 20 qualified leads",
+    "heartbeatAt": 1762675390000,
     "id": "m1",
     "pausedBy": "claude",
     "shares": [

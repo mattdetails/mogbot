@@ -134,6 +134,7 @@ function Screens() {
                 options={{ headerShown: false, animation: 'slide_from_bottom' }}
               />
               <Stack.Screen name="usage" options={sheet(colors, [0.75, 1])} />
+              <Stack.Screen name="missions" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen name="usage-account" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen name="controls" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen

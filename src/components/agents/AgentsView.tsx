@@ -36,7 +36,7 @@ import { AgentChat } from './AgentChat';
 import { PaneBoundary, SidebarBoundary } from './AgentsErrorBoundary';
 import { AgentsTeamView } from './AgentsTeamView';
 import { MissionPage, useMissions } from './MissionPage';
-import { getMissions, missionIdOf } from '../../lib/missions';
+import { getMissions, missionIdOf, reconnectMessage } from '../../lib/missions';
 import { AgentBriefingModal } from './AgentWorkDetail';
 import { AgentsRoutinesView, type BulkAsk } from './AgentsRoutinesView';
 import { ROUTINES_ID } from '../../lib/agentDesk';
@@ -69,6 +69,7 @@ import {
   needsAttention,
   needsYou,
   noEngineInstalled,
+  sendAgentMessage,
   sortAgents,
   stopAgent,
   TEAM_ID,
@@ -1244,6 +1245,14 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
                   >
                     <MissionPage
                       mission={openMission}
+                      onReconnect={() => {
+                        const chief = agents.find((x) => x.isMain);
+                        if (!chief) return;
+                        void sendAgentMessage(chief.id, reconnectMessage(openMission)).catch(
+                          () => {}
+                        );
+                        openAgent(chief.id);
+                      }}
                       onOpenChief={() => {
                         const chief = agents.find((x) => x.isMain);
                         if (chief) openAgent(chief.id);

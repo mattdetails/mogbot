@@ -1139,6 +1139,43 @@ const PROBE = [
       'Accounts, one list per engine: the three Claude accounts, sam@example.com in use; Work out of usage with when it refills and Builder running only on it; Personal not signed in; each row opens its own page',
   },
   {
+    // Missions: the desk's page as a card, from the shared rules. One running
+    // with something waiting on the user, one paused at its share, one ready.
+    name: 'probe-mission-running',
+    route: '/missions?id=m-standard',
+    ready: 'Usage to spend',
+    check:
+      'Running, day 2: “11 of 20 leads with a call booked”, 11 of 20 ticks lit; Claude Code “About 11% of about 30%”, Codex “About 10% of about 50%”; Waiting on you with one ask and a real Review button; three agents with their engines; the note “It stops at about 30% of Claude’s week, 50% of Codex’s week, or on …”; Pause',
+  },
+  {
+    name: 'probe-mission-over-cap',
+    route: '/missions?id=m-over-cap',
+    ready: 'Usage to spend',
+    check:
+      'Amber banner “Reached about 30% of Claude’s week” with Add 10% of Claude and Stop here; Claude’s share “About 31% of about 30% · over” with amber beyond the marker; agents say Paused',
+  },
+  {
+    name: 'probe-mission-asleep',
+    route: '/missions?id=m-asleep',
+    ready: 'Usage to spend',
+    check:
+      'Chip and banner both say “Paused while your Mac sleeps”, no buttons and no Pause; the last numbers read; never “Running”',
+  },
+  {
+    name: 'probe-mission-blocked',
+    route: '/missions?id=m-blocked',
+    ready: 'Usage to spend',
+    check:
+      'Red-outlined banner “Can’t read Native OS” saying who it affects and that usage isn’t being spent, with Reconnect Native OS and Pause mission',
+  },
+  {
+    name: 'probe-mission-done',
+    route: '/missions?id=m-done',
+    ready: 'Usage to spend',
+    check:
+      'Ready for review, “Took 2 days 6 hours”: “Your call” with Accept; 20 of 20; the note “It used about 11% of Claude’s week, 10% of Codex’s week. Nothing more is spent.”; agents say Done',
+  },
+  {
     name: 'probe-runs-on',
     route: '/controls?id=builder',
     ready: 'Builder',

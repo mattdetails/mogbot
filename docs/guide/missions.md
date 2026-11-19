@@ -26,6 +26,24 @@ The page shows the goal, one number for progress, how much of each share is used
 you, each criterion, who is on it and what happened. A banner appears only for state: amber when it
 paused at its share, red when something it needs is broken, neutral when it's ready for your review.
 
+## While your Mac sleeps
+
+Missions run on your Mac, so they stop while it sleeps. The page says "Paused while your Mac sleeps"
+and, from your phone, shows the last thing it read rather than looking as if it were running. When
+the Mac wakes it carries on, adds a line saying how long it was asleep, and a time cap only counts the
+time it was awake.
+
+## If something it needs breaks
+
+A red banner says what broke and who it affects, that your usage isn't being spent, and offers
+**Reconnect** for that app (it asks your Chief of Staff for the sign-in card) and **Pause mission**.
+
+## On your phone
+
+**Missions** appears at the top of the Agents list while one is open. It shows the same page in one
+column: the count, each share worded "about", what waits on you with a Review button, each
+criterion and who is on it, and Pause, Add 10% or Accept when those apply.
+
 ## Stopping at the share
 
 Usage is read about every ten minutes, so a share is soft: a step that's running finishes first and

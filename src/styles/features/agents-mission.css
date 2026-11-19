@@ -44,6 +44,10 @@
   background: var(--status-running);
 }
 
+.mission[data-state='asleep'] .mission__dot {
+  background: var(--text-muted);
+}
+
 .mission[data-state='paused_cap'] .mission__dot {
   background: var(--accent-warning);
 }

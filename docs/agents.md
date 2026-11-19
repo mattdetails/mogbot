@@ -7784,9 +7784,20 @@ but the budget is a share of the user's own engines, not dollars).
   rules in `lib/missions.ts` (hero tick/bar/down/criteria, share rows, asks strip, banners, +N more,
   status overrides, bottom note), tested against the eight cases; harness `mission-<case>` and
   `mission-<case>-phone`.
-- **Not built:** a setup screen and Save for later (the Chief's card starts it), "Paused while your
-  Mac sleeps", a Reconnect action on a blocked mission, the phone's views, a forecast for "Day N of
-  about M".
+- **Asleep.** Each scheduler beat stamps a live mission (`heartbeat_at`, `missions::beat`); time-capped
+  shares are charged only the awake step (3 minutes at most per beat), and a gap of 10 minutes or more
+  adds a line ("Your Mac was asleep for 6 hours. Nothing ran and nothing was spent."). A live record
+  whose beat is older than 5 minutes is shown as "Paused while your Mac sleeps" (`isAsleep`), which is
+  how a cached read on the phone stays honest.
+- **Reconnect.** A blocked mission can name its `app`; the banner's Reconnect sends the Chief a plain
+  message ("Reconnect Native OS: …"), and the Chief raises the login card it already has.
+- **Phone.** `agents.missions` (read) and `agents.missions.act` (pause, resume, stop, add_more, accept;
+  audited; never start). The record's types and every presentation rule live in
+  `packages/companion-protocol/src/missions.ts`, shared by the desk page and the phone card
+  (`MissionCard`, `app/missions.tsx`, a "Missions" line on the Agents list). qa:web:
+  `probe-mission-{running,over-cap,asleep,blocked,done}`.
+- **Not built:** a setup screen and Save for later (the Chief's card starts it), a forecast for "Day N
+  of about M", Finish with the other engine as a button that acts.
 
 ## Known limits / next
 

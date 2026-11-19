@@ -22,7 +22,8 @@ import {
   ENGINE_NAME,
   EVENTS_SHOWN,
   MISSIONS_EVENT,
-  STATE_WORD,
+  isAsleep,
+  stateWord,
   agentStatus,
   asksStrip,
   banner,
@@ -171,10 +172,13 @@ function BannerView({
 export function MissionPage({
   mission,
   onOpenChief,
+  onReconnect,
 }: {
   mission: Mission;
   /** "Review all": the asks are answered in the Chief's chat. */
   onOpenChief?: () => void;
+  /** "Reconnect": ask the Chief, which has the login card for that app. */
+  onReconnect?: () => void;
 }) {
   const { showToast } = useOptionalToast();
   const [busy, setBusy] = useState(false);
@@ -185,7 +189,7 @@ export function MissionPage({
     return () => window.clearInterval(t);
   }, []);
 
-  const b = banner(mission);
+  const b = banner(mission, now);
   const asks = asksStrip(mission.asks);
   const criteria = showAllCriteria ? mission.criteria : mission.criteria.slice(0, CRITERIA_SHOWN);
   const hiddenCriteria = mission.criteria.length - criteria.length;
@@ -193,13 +197,18 @@ export function MissionPage({
   const totalEvents = mission.eventCount ?? mission.events.length;
   const agents = mission.agents.slice(0, AGENTS_SHOWN);
   const end = endDate(mission);
-  const running = mission.state === 'starting' || mission.state === 'running';
+  const running =
+    (mission.state === 'starting' || mission.state === 'running') && !isAsleep(mission, now);
 
   const act = async (a: Banner['actions'][number]) => {
     if (a.action === 'see') {
       document
         .getElementById(`mission-criteria-${mission.id}`)
         ?.scrollIntoView?.({ block: 'start' });
+      return;
+    }
+    if (a.action === 'reconnect') {
+      onReconnect?.();
       return;
     }
     setBusy(true);
@@ -219,11 +228,15 @@ export function MissionPage({
   };
 
   return (
-    <article className="mission" data-state={mission.state} aria-label={`Mission: ${mission.goal}`}>
+    <article
+      className="mission"
+      data-state={isAsleep(mission, now) ? 'asleep' : mission.state}
+      aria-label={`Mission: ${mission.goal}`}
+    >
       <header className="mission__head">
         <p className="mission__state">
           <span className="mission__dot" aria-hidden="true" />
-          {STATE_WORD[mission.state]} · {dayLabel(mission, now)}
+          {stateWord(mission, now)} · {dayLabel(mission, now)}
         </p>
         <h2 className="mission__goal">{mission.goal}</h2>
         {mission.summary && <p className="mission__summary">{mission.summary}</p>}

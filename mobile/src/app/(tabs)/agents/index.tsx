@@ -38,6 +38,7 @@ import { ChatView } from '../../../components/ChatView';
 import { GlanceRow } from '../../../components/usageStack';
 import { useGlance } from '../../../lib/glance';
 import { AgentAccent } from '../../../lib/accent';
+import { MissionsRow } from '../../../components/MissionsRow';
 import { ConnectionBar, LinkProblem, useNow } from '../../../components/ConnectionPill';
 import { DemoCard } from '../../../components/DemoCard';
 import { Button, Icon, IconButton, useRipple, T, tap } from '../../../components/ui';
@@ -354,6 +355,7 @@ export default function Agents() {
           <ConnectionBar style={styles.connection} />
           <Refused />
           <ImportChoiceCard />
+          <MissionsRow />
           {glanceShown && glance && (
             <View style={styles.quota}>
               <GlanceRow glance={glance} onPress={() => router.push('/usage')} />
