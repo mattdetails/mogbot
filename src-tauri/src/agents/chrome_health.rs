@@ -265,13 +265,13 @@ mod tests {
         // The incident: "open Chrome with the Claude extension running,
         // signed in to the same account". The turn's own words and every
         // agent's standing rules point at Your Chrome instead.
-        let down = super::super::connections::CHROME_DOWN_PROMPT;
-        assert!(down.contains("Never tell the user to sign out of or into the Claude extension"));
-        assert!(down.contains("Settings → Chrome"));
-        assert!(down.contains("mcp__browser__*"));
+        let down = super::super::connections::NO_CHROME_PROMPT;
+        assert!(down.contains("Never tell them to install or sign in to the Claude extension"));
+        assert!(down.contains("Mogbot for Chrome"));
+        assert!(!down.contains("mcp__browser__*"));
         let rules = super::super::logins::RULES;
         assert!(rules.contains(
-            "Chrome not answering? The fix is Settings → Chrome, never the Claude extension."
+            "never the Claude extension"
         ));
     }
 

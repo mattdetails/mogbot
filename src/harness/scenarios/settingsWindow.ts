@@ -16,6 +16,8 @@ const VIEWPORT = { width: 1280, height: 860 };
 const WHAT_EACH_SHOWS: Record<SettingsPage, string> = {
   // Only in a build with the relay: its scenarios are `settings-account-*` (account.ts).
   account: 'Your account: signed in with Sign out…, or Sign in.',
+  connected:
+    'One row per way in (Mogbot for Chrome, Your AI, Apps, Your phone, Other assistants), each saying Connected or Not set up with a button to its page.',
   agents:
     'What agents run on first (New agents start on, a model per engine, the Routines line), then On this Mac (menu bar, quick message, keep awake, keep running when closed, open at login, stopped previews, battery), Disk space when it shows, and Bring agents in with Import….',
   independence:
@@ -26,7 +28,7 @@ const WHAT_EACH_SHOWS: Record<SettingsPage, string> = {
     'Your phone: the phone panel itself (get the app, or turn on phone access, pair and the paired phones) right on the page; then Other assistants: Remote access’s own setup or live view. No Open buttons and no dialog on top.',
   notifications:
     'Quiet hours and the morning brief first (Quiet hours, Morning brief, Post even when there’s nothing new: the switches and times), a hairline, then What notifies you as lines with no controls: Replies, Requests for your OK, Your phone, Dock badge and Mute an agent.',
-  chrome: 'The agents’ own browser, then Your Chrome with its switch.',
+  chrome: 'Mogbot for Chrome with its switch, the way agents use it now, and its setup steps.',
   apps: 'Slack, then apps you said no to when there are any.',
   projects:
     'Three groups, a hairline between each: Where projects live (Projects folder with its path field, Shared libraries with Manage…), Commits (the commit-message and credit switches), Previews and terminals (keep dev servers running, thumbnails, terminal GPU). Rows at the agents’ pages’ rhythm.',

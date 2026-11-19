@@ -5,8 +5,7 @@
  * Off until the user turns it on. Types mirroring the Rust status, the
  * invoke wrappers, and the Settings words.
  *
- * Not `agentBrowser.ts` (Claude in Chrome) and not `agentsOwnBrowser.ts`
- * (the team's own Chrome profile).
+ * The only way agents reach Chrome: no Claude in Chrome, no built-in browser.
  *
  * @module lib/userChrome
  */
@@ -119,11 +118,11 @@ export const addUserChromeFromStore = () => invoke<void>('agents_user_chrome_add
 
 /* ------------------------------------------------------------- the words */
 
-export const USER_CHROME_TITLE = 'Your Chrome';
+export const USER_CHROME_TITLE = 'Mogbot for Chrome';
 
 /** Said once when the extension connects while its settings are open. */
 export const USER_CHROME_CONNECTED =
-  'Your Chrome is connected. Agents use it from their next message.';
+  'Mogbot for Chrome is connected. Agents use it from their next message.';
 
 /** The line under the switch. */
 export function userChromeLine(s: UserChromeStatus | null): string {
@@ -268,26 +267,16 @@ export function browserLabel(b: UserChromeBrowser, i: number): string {
 
 /** Settings → Chrome: the way agents reach your Chrome now, in one sentence. */
 export function routeLine(now: ChromeRouteNow): string {
-  switch (now.route) {
-    case 'your_chrome':
-      return 'Your Chrome, for every agent on Claude Code or Codex and on any account. Switching accounts never needs a browser sign-in.';
-    case 'claude_in_chrome':
-      return now.why === 'your_chrome_not_connected'
-        ? 'Claude in Chrome for now, because Your Chrome isn’t connected. Open Chrome with the app’s extension and agents go back to it by themselves.'
-        : 'Claude in Chrome, for agents on Claude Code. It’s tied to the Claude account signed in to its extension, so switching accounts can mean signing in again. Your Chrome doesn’t have that problem.';
-    default:
-      return routeNoneLine(now.why, 'this agent');
+  if (now.route === 'your_chrome') {
+    return 'Mogbot for Chrome, for every agent on Claude Code or Codex and on any account. Switching accounts never needs a browser sign-in.';
   }
+  return routeNoneLine(now.why, 'this agent');
 }
 
 function routeNoneLine(why: ChromeRouteWhy, agentName: string): string {
   switch (why) {
-    case 'claude_in_chrome_down':
-      return 'None right now: Claude in Chrome isn’t answering and Your Chrome isn’t connected. Agents use their own browser meanwhile.';
     case 'your_chrome_not_connected':
-      return 'None right now: Your Chrome isn’t connected. Open Chrome with the app’s extension and agents use it by themselves.';
-    case 'codex_needs_your_chrome':
-      return 'None: agents on Codex reach your Chrome only through Your Chrome, which isn’t on.';
+      return 'Not connected: open Chrome with Mogbot for Chrome added and agents use it by themselves. It’s the only way agents reach your Chrome.';
     case 'off_for_agent':
       return `None: you took the browser away from ${agentName}.`;
     case 'not_allowed':
@@ -295,34 +284,36 @@ function routeNoneLine(why: ChromeRouteWhy, agentName: string): string {
     case 'outside_text':
       return 'None while it answers someone else’s message.';
     default:
-      return 'None: neither Your Chrome nor Claude in Chrome is set up, so agents use their own browser.';
+      return 'Not set up: Mogbot for Chrome is the only way agents reach your Chrome, and it isn’t installed yet.';
   }
 }
 
 /** "What it can reach": the browser row's name, by the way it uses now. */
 export function routeName(now: ChromeRouteNow): string {
-  switch (now.route) {
-    case 'your_chrome':
-      return 'Chrome, through Your Chrome';
-    case 'claude_in_chrome':
-      return 'Chrome, through Claude in Chrome';
-    default:
-      return 'Not reaching your Chrome now';
-  }
+  return now.route === 'your_chrome'
+    ? 'Chrome, through Mogbot for Chrome'
+    : 'Not reaching your Chrome now';
 }
 
 /** "What it can reach": why it uses that way, for one agent. */
 export function routeWhy(now: ChromeRouteNow, agentName: string): string {
-  switch (now.route) {
-    case 'your_chrome':
-      return 'The app’s own extension: the same on any account and engine, so switching accounts never needs a browser sign-in.';
-    case 'claude_in_chrome':
-      return now.why === 'your_chrome_not_connected'
-        ? 'Your Chrome isn’t connected, so it falls back to Claude in Chrome, which is tied to the Claude account signed in to its extension.'
-        : 'Tied to the Claude account signed in to its extension: switching accounts can mean signing in again. Set up Your Chrome (Settings → Chrome) to stop that.';
-    default:
-      return routeNoneLine(now.why, agentName);
-  }
+  return now.route === 'your_chrome'
+    ? 'The app’s own extension: the same on any account and engine, so switching accounts never needs a browser sign-in.'
+    : routeNoneLine(now.why, agentName);
+}
+
+/* ---------------------------------------- the notice: not installed or not connected */
+
+/** Mogbot for Chrome is on this Mac's list but not answering: install or reconnect. */
+export function chromeNeedsAttention(s: UserChromeStatus | null): boolean {
+  return !!s && s.supported && !(s.enabled && s.browsers.length > 0);
+}
+
+/** The notice's one line, by how far setup got. */
+export function chromeNoticeLine(s: UserChromeStatus): string {
+  return s.enabled && s.chromeInstalled
+    ? 'Mogbot for Chrome isn’t connected, so agents can’t use the sites you’re signed in to. Open Chrome, or finish setting it up.'
+    : 'Agents reach the sites you’re signed in to through Mogbot for Chrome, and it isn’t installed yet.';
 }
 
 /* --------------------------------------------- a profile managed by work */

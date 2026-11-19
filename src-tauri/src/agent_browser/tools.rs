@@ -283,7 +283,7 @@ fn where_line(svc: &Service, tab: &Tab) -> String {
             line.push_str(" To sign in, call request_login for it with signed_out: true.");
         }
     } else if crate::agents::browser::signed_in("", &landed) == Some(false) {
-        line.push_str("\n\nSigned out here (a sign-in or signed-out page). Don't type anything into it: if you have the Claude in Chrome tools (mcp__claude-in-chrome__*), open it there now, where the user is signed in, without asking; else call request_login for this service with signed_out: true, and the user signs in from their phone or here.");
+        line.push_str("\n\nSigned out here (a sign-in or signed-out page). Don't type anything into it: if you have Mogbot for Chrome (mcp__user_chrome__*), open it there now, where the user is signed in, without asking; else call request_login for this service with signed_out: true, and the user signs in from their phone or here.");
     }
     line
 }

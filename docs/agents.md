@@ -7890,3 +7890,19 @@ prompt said to push "only with `push`", the tool that serves projects only.
 A push outside the projects now goes through git and its card
 (`prompts::PROJECTS`). Not covered: Codex, a project-bound agent's push,
 and resuming a killed turn (it ends honestly instead).
+
+
+## Mogbot for Chrome is the only browser route (1.0.23 access work)
+
+- Agents reach the user's Chrome only through Mogbot for Chrome (`user_chrome`). `chrome_route::decide`
+  never returns Claude in Chrome: every turn runs `--no-chrome` with `mcp__claude-in-chrome` blocked,
+  and the prompt says there is no built-in browser, Claude in Chrome or claude.ai connector to try
+  (`connections::USER_CHROME_PROMPT`, or `NO_CHROME_PROMPT` when it isn't connected this turn).
+  `logins::RULES`, the arrival line and the access chain's browser step say the same; the access chain
+  no longer sends an agent to the built-in agents' browser (phone sign-in still uses it).
+- The user hears it from the app, not from an agent: `ChromeNotice` (every chat; the Chief's after its
+  first result) with one button, and Settings → Connected (`ConnectedPage`) lists every way in.
+- A project's dev-server approval covers an agent's own copy of it (`dev_consent::approved_for`):
+  the copy asks only when what it would run differs from what was approved.
+- Not done: removing the "Connect on claude.ai" choice from login cards and the Settings words for
+  Claude in Chrome's own team switch (`browser::team_enabled`) outside the route.

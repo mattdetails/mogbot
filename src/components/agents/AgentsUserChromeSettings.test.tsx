@@ -276,11 +276,8 @@ describe('which way agents use, and why', () => {
     expect(routeLine({ route: 'your_chrome', why: 'your_chrome_connected' })).toMatch(
       /any account\. Switching accounts never needs a browser sign-in/
     );
-    expect(routeLine({ route: 'claude_in_chrome', why: 'your_chrome_off' })).toMatch(
-      /switching accounts can mean signing in again/
-    );
-    expect(routeLine({ route: 'claude_in_chrome', why: 'your_chrome_not_connected' })).toMatch(
-      /^Claude in Chrome for now, because Your Chrome isn’t connected/
+    expect(routeLine({ route: 'none', why: 'your_chrome_not_connected' })).toMatch(
+      /^Not connected: open Chrome with Mogbot for Chrome added/
     );
     expect(routeWhy({ route: 'none', why: 'off_for_agent' }, 'Ops')).toBe(
       'None: you took the browser away from Ops.'
@@ -289,11 +286,11 @@ describe('which way agents use, and why', () => {
 
   it('shows the route under the switch, even while Your Chrome is off', async () => {
     invoke.mockResolvedValue(
-      status({ enabled: false, route: { route: 'claude_in_chrome', why: 'your_chrome_off' } })
+      status({ enabled: false, route: { route: 'none', why: 'not_set_up' } })
     );
     render(<AgentsUserChromeSettings />);
     expect(await screen.findByText('Agents use now')).toBeTruthy();
-    expect(screen.getByText(/tied to the Claude account signed in to its extension/)).toBeTruthy();
+    expect(screen.getByText(/Mogbot for Chrome is the only way agents reach your Chrome/)).toBeTruthy();
   });
 });
 

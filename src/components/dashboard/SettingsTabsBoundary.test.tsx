@@ -22,6 +22,7 @@ import { SETTINGS_PAGES, openingPage, visibleSettingsPages } from '../../lib/set
 beforeEach(() => overrideRelayForHarness(false));
 afterEach(() => overrideRelayForHarness(null));
 
+vi.mock('../agents/ConnectedPage', () => ({ ConnectedPage: () => <p>connected page</p> }));
 vi.mock('../agents/AgentsSettings', () => ({
   AgentsPage: () => <p>agents page</p>,
   IndependencePage: () => <p>independence page</p>,
@@ -107,6 +108,8 @@ describe('Settings window', () => {
     expect(screen.getByText('independence page')).toBeInTheDocument();
     fireEvent.keyDown(nav('Independence'), { key: 'ArrowUp' });
     fireEvent.keyDown(nav('Agents'), { key: 'ArrowUp' });
+    expect(nav('Connected')).toHaveAttribute('aria-current', 'page');
+    fireEvent.keyDown(nav('Connected'), { key: 'ArrowUp' });
     expect(nav('Advanced')).toHaveAttribute('aria-current', 'page');
   });
 });

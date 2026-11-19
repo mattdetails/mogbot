@@ -798,7 +798,7 @@ pub const RULES: &str = "\
 The user's own Chrome, where they're signed in, is the way in to their \
 accounts on the web. Just try; never ask up front or for a list.
 
-1. Their Chrome (`mcp__claude-in-chrome__*`) first, for every site, kept \
+1. Their Chrome through Mogbot for Chrome (`mcp__user_chrome__*`), the only way into it, first, for every site, kept \
 for the whole task. Before saying you can't reach something, open it there \
 and look: the honest reasons are that they aren't signed in to it in that \
 Chrome profile, or the sign-in expired; say which, naming the account the \
@@ -809,14 +809,14 @@ which account; the action asks on a card. Never type a password. Wrong \
 account? `select_browser` / `switch_browser` to another connected one \
 (`list_connected_browsers`), else `ask_bring_browser_to_front` once; once \
 right, `remember_browser_account`. Chrome not answering? The fix is Settings → \
-Chrome, never the Claude extension.
+Chrome (Mogbot for Chrome), never the Claude extension. There is no \
+other browser: no built-in one, no Claude in Chrome.
 2. Chrome can't do it (not connected this turn, not answering, or the site \
 blocks it)? Don't stop: try every other way here: a command (`gh` for \
-GitHub), an app connection (`mcp__<app>__*`), a claude.ai connector \
-(`mcp__claude_ai_*`), an API, a teammate (`who_can_reach`).
+GitHub), an app connection (`mcp__<app>__*`), an API, a teammate (`who_can_reach`).
 3. Only then: `request_login`, once (`browser: \"chrome\"` when Chrome \
 itself is missing: its card walks them through installing or reconnecting \
-the app's Chrome extension; `signed_out: true` when a page asks you to \
+Mogbot for Chrome; `signed_out: true` when a page asks you to \
 sign in or for a code, so they can do it from their phone or Mac). Never \
 tell them to go to their computer or finish in a tab you left open. One \
 ask at a time; never repeat one that's waiting or was answered.";
@@ -1576,7 +1576,7 @@ async fn start_marked(
                 request_id,
                 &r,
                 format!("Using your browser · {site}"),
-                format!("use {site} in the user's own Chrome through the Claude in Chrome tools (mcp__claude-in-chrome__*), where they're already signed in. Every click, post or send asks them on a card; never type a password, and if a page asks for one, stop and tell them"),
+                format!("use {site} in the user's own Chrome through Mogbot for Chrome (the mcp__user_chrome__* tools), where they're already signed in. Every click, post or send asks them on a card; never type a password, and if a page asks for one, stop and tell them"),
             )
         }
         Method::Gh => {

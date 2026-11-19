@@ -196,6 +196,7 @@ import { asCommandError, formatCommandError } from '../../lib/errors';
 import { ImportTalkBar } from './ImportTalkBar';
 import { ImportGuideAsk, ImportGuideProvider, useImportGuide } from './ImportGuide';
 import { ChiefPhoneOffer, reachedFirstResult } from './ChiefPhoneOffer';
+import { ChromeNotice } from './ChromeNotice';
 import { WaitingForYouBar } from './WaitingForYouBar';
 import { TeamSetupCard } from './TeamSetupCard';
 import {
@@ -2218,6 +2219,11 @@ export const AgentChat = memo(function AgentChat({
                     {((greetingOnly && importChoice !== 'undecided') || freshAsked) &&
                       engineReady &&
                       chiefStarters}
+                    {/* Mogbot for Chrome: missing or not connected, in every chat; the
+              Chief's waits for the first result, as the phone's does. */}
+                    {engineReady && !busy && (!agent.isMain || reachedFirstResult(shown)) && (
+                      <ChromeNotice />
+                    )}
                     {/* The phone, offered once the first thing asked for is back. */}
                     {agent.isMain &&
                       engineReady &&
