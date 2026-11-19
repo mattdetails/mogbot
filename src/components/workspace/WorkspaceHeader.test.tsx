@@ -310,3 +310,36 @@ describe('WorkspaceHeader title bar', () => {
     expect(props.onToggleVariablesPanel).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('WorkspaceHeader in terminal only', () => {
+  it.each([true, false])(
+    'drops the preview tools and the Layout menu, keeps Branches and Push (compact toolbar: %s)',
+    (compactWorkspaceToolbarEnabled) => {
+      const props = headerProps();
+      props.compactWorkspaceToolbarEnabled = compactWorkspaceToolbarEnabled;
+      props.terminalOnly = true;
+      props.layoutMenu = <button type="button">Layout</button>;
+      props.terminalOnlyToggle = <button type="button">Terminal only</button>;
+      render(<HeaderHarness props={props} />);
+
+      for (const name of ['Session', 'Elements', 'Variables', 'Assets', 'Layout']) {
+        expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+      }
+      expect(screen.getByRole('button', { name: 'Terminal only' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Branches' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Push' })).toBeInTheDocument();
+    }
+  );
+
+  it('puts the switch after the Layout menu while the preview shows', () => {
+    const props = headerProps();
+    props.layoutMenu = <button type="button">Layout</button>;
+    props.terminalOnlyToggle = <button type="button">Terminal only</button>;
+    render(<HeaderHarness props={props} />);
+
+    const layout = screen.getByRole('button', { name: 'Layout' });
+    const toggle = screen.getByRole('button', { name: 'Terminal only' });
+    expect(layout.compareDocumentPosition(toggle)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.getByRole('button', { name: 'Elements' })).toBeInTheDocument();
+  });
+});

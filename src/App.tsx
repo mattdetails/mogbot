@@ -73,6 +73,7 @@ import { trackEvent, trackPageview } from './lib/analytics';
 import { useCompactWorkspaceToolbar } from './hooks/useCompactWorkspaceToolbar';
 import { useKeepDevServersRunning } from './hooks/useKeepDevServersRunning';
 import { useDevServerRetention } from './hooks/useDevServerRetention';
+import { setTerminalOnly, useTerminalOnly } from './lib/terminalOnly';
 import { installAppLifecycleTracking } from './lib/appLifecycle';
 import { useQuitGuard } from './hooks/useQuitGuard';
 import { useStayOn } from './hooks/useStayOn';
@@ -483,11 +484,14 @@ function AppContents({ initialProjectPath }: AppProps) {
     importLocalFolder: importLocalFolderNow,
   });
 
+  // Terminal only (lib/terminalOnly) counts as a hidden preview, as Focus does.
+  const terminalOnly = useTerminalOnly(currentProject?.path);
+
   useDevServerRetention({
     keepDevServersRunning,
     view,
     workspaceTab,
-    isPreviewHidden,
+    isPreviewHidden: isPreviewHidden || terminalOnly,
     currentProjectPath: currentProject?.path ?? null,
     serverLifecycleVersion,
     stopAllServersExcept,
@@ -863,13 +867,24 @@ function AppContents({ initialProjectPath }: AppProps) {
 
   // Side by side, the project half is its terminals only (Focus): the
   // preview and code stay where they were for when it's one side again.
+  // Terminal only (lib/terminalOnly) is Focus too, on top of the project's own
+  // state; anything that asks for the preview back (Branches, Create branch)
+  // leaves it.
   const sideBySide = modeNav.sideBySide;
+  const terminalOnlyPath = terminalOnly ? (currentProject?.path ?? null) : null;
+  const setPreviewHiddenLeavingTerminalOnly = useCallback(
+    (hidden: boolean) => {
+      if (!hidden && terminalOnlyPath) setTerminalOnly(terminalOnlyPath, false);
+      setIsPreviewHidden(hidden);
+    },
+    [terminalOnlyPath, setIsPreviewHidden]
+  );
   const layoutProps = useMemo(
     () => ({
       showHealthLogs,
       setShowHealthLogs,
-      isPreviewHidden: sideBySide || isPreviewHidden,
-      setIsPreviewHidden: sideBySide ? noopSetPreviewHidden : setIsPreviewHidden,
+      isPreviewHidden: sideBySide || terminalOnly || isPreviewHidden,
+      setIsPreviewHidden: sideBySide ? noopSetPreviewHidden : setPreviewHiddenLeavingTerminalOnly,
       workspaceTab,
       setWorkspaceTab,
     }),
@@ -877,10 +892,11 @@ function AppContents({ initialProjectPath }: AppProps) {
       showHealthLogs,
       setShowHealthLogs,
       isPreviewHidden,
-      setIsPreviewHidden,
+      setPreviewHiddenLeavingTerminalOnly,
       workspaceTab,
       setWorkspaceTab,
       sideBySide,
+      terminalOnly,
     ]
   );
 
