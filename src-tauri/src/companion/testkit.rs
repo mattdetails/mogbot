@@ -2148,6 +2148,36 @@ impl Backend for Stub {
         Ok(json!({ "on": on, "at": at, "always": always }))
     }
 
+    async fn tasks(&self, agent_id: &str) -> Result<Value, CommandError> {
+        Ok(json!({
+            "agentId": agent_id,
+            "name": "Ops",
+            "role": "Deploys and on-call",
+            "doing": "Rotating the staging certificates",
+            "open": [
+                { "id": "t1", "title": "Rotate the staging certificates", "source": "user",
+                  "state": "doing", "createdAt": 1_762_675_200_000_i64,
+                  "updatedAt": 1_762_675_300_000_i64, "chased": 0, "lastChasedAt": 0 },
+                { "id": "t2", "title": "Send Dana the deploy notes", "source": "agent",
+                  "from": { "id": "chief", "name": "Chief of Staff" },
+                  "state": "waiting", "waitingOn": "Dana's reply",
+                  "createdAt": 1_762_675_250_000_i64, "updatedAt": 1_762_675_350_000_i64,
+                  "chased": 1, "lastChasedAt": 1_762_675_350_000_i64 }
+            ],
+            "recent": [],
+            "overloaded": false,
+            "stuck": 0
+        }))
+    }
+
+    async fn end_of_day(&self) -> Result<Value, CommandError> {
+        Ok(json!({ "on": true, "at": 18 * 60 }))
+    }
+
+    async fn set_end_of_day(&self, on: bool, at: u32) -> Result<Value, CommandError> {
+        Ok(json!({ "on": on, "at": at }))
+    }
+
     async fn usage_set_mode(&self, mode: &str) -> Result<Value, CommandError> {
         self.usage_changes
             .lock()

@@ -99,7 +99,8 @@ fix to an agent on a card rather than changing it quietly. It's built from the a
 so it doesn't use any of your plan.
 
 - On by default. Change the time or turn it off by telling the Chief ("stop the end-of-day
-  check-in", "check in at 7"), or in **Settings → Notifications**.
+  check-in", "check in at 7"), or in **Settings → Notifications**, on the desk or on the phone (the
+  phone offers the common evenings, 4:30 to 7:00 PM, and Off, on a 12-hour clock).
 - A day with nothing done and nothing open posts nothing. If you talked to the Chief in the last
   hour, it waits.
 - If your computer was asleep or the app was closed for more than 3 hours past the time, that day's

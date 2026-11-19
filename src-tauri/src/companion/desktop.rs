@@ -816,6 +816,24 @@ impl Backend for DesktopBackend {
         json(cmd::agents_set_morning_brief(self.app.clone(), on, at, always, None).await?)
     }
 
+    async fn tasks(&self, agent_id: &str) -> Result<Value, CommandError> {
+        let agent = crate::agents::store::get(agent_id)?;
+        let load = tokio::task::spawn_blocking(move || {
+            crate::agents::tasks::load_of(&agent, crate::agents::store::now_ms())
+        })
+        .await
+        .map_err(crate::agents::err_other)?;
+        json(load)
+    }
+
+    async fn end_of_day(&self) -> Result<Value, CommandError> {
+        json(cmd::agents_end_of_day().await?)
+    }
+
+    async fn set_end_of_day(&self, on: bool, at: u32) -> Result<Value, CommandError> {
+        json(cmd::agents_set_end_of_day(self.app.clone(), on, at).await?)
+    }
+
     async fn import_status(&self) -> Result<Value, CommandError> {
         import_status_now().await
     }

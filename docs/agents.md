@@ -7745,7 +7745,9 @@ was overloaded.
   to the Chief, skipped when more than 3 hours late or when nothing ran. One `choices` block: All good /
   Something missed / Not tonight. `set_end_of_day` (Chief only, never in a turn
   answering outside text) and Settings → Notifications change it; `agents_end_of_day` /
-  `agents_set_end_of_day`. Harness: `settings-agents-brief`, `settings-agents-end-of-day-off`.
+  `agents_set_end_of_day`. The phone reads and sets it with `agents.endOfDay` / `agents.setEndOfDay`
+  (Settings → Notifications; audited), and the agent sheet's Open asks reads `agents.tasks`
+  (`tasks::load_of`, read-only; `mobile/src/components/OpenAsks.tsx`). Harness: `settings-agents-brief`, `settings-agents-end-of-day-off`.
 - **Interviews** (Chief prompt, "Interviews"; ⌘K `agents.interviewMe`, `agents.train.<id>`): no new
   engine. A palette command sends the Chief a plain message; its prompt runs one question at a time
   (six at most), summarises, asks for one yes, then saves: "me" into its memory (and offers agents),

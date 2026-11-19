@@ -17,6 +17,10 @@ many are open and how long the oldest has waited. Press a row to open that agent
 - **Stuck** means an ask sat open after two reminders, or the agent hit an error on it. Your Chief
   of Staff says so in its chat.
 
+On the phone, open an agent's sheet (tap its name in the chat) and **Open asks** lists what it has
+open: each line's title and whether it is Doing, Next, Waiting (and on whom) or Stuck. It is read
+from your computer, so it only appears when the app there is new enough.
+
 Each line is Doing (one at a time), Next, Waits on you or Done. An agent can't remove a line without
 ending it Done or Dropped, with a reason.
 
