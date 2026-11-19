@@ -1,5 +1,6 @@
 import type { ExpoConfig } from 'expo/config';
 import {
+  withAndroidManifest,
   withAppBuildGradle,
   withDangerousMod,
   withFinalizedMod,
@@ -148,6 +149,27 @@ android {`;
     throw new Error('app/build.gradle: no release signingConfig to give the upload key to.');
   return next;
 }
+/**
+ * Hardware Play infers as required (a portrait-locked screen, Wi-Fi from the
+ * Wi-Fi state permission) marked optional, so tablets, Chromebooks and XR
+ * devices can install the app too: Play flagged both on build 25.
+ */
+export const OPTIONAL_FEATURES = ['android.hardware.screen.portrait', 'android.hardware.wifi'];
+export const withOptionalFeatures: ConfigPlugin = (config) =>
+  withAndroidManifest(config, (c) => {
+    const manifest = c.modResults.manifest as unknown as {
+      'uses-feature'?: { $: Record<string, string> }[];
+    };
+    const features = (manifest['uses-feature'] ?? []).filter(
+      (f) => !OPTIONAL_FEATURES.includes(f.$['android:name'])
+    );
+    for (const name of OPTIONAL_FEATURES) {
+      features.push({ $: { 'android:name': name, 'android:required': 'false' } });
+    }
+    manifest['uses-feature'] = features;
+    return c;
+  });
+
 const withUploadKey: ConfigPlugin = (config) =>
   withAppBuildGradle(config, (c) => {
     if (c.modResults.language !== 'groovy')
@@ -501,6 +523,6 @@ export default (): ExpoConfig => {
       ...(projectId ? { eas: { projectId } } : {}),
     },
   };
-  const signed = withJavaSafeNamespace(withUploadKey(config));
+  const signed = withOptionalFeatures(withJavaSafeNamespace(withUploadKey(config)));
   return liveActivity() ? signed : withoutWidgets(signed);
 };
