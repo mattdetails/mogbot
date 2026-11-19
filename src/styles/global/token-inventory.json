@@ -5419,7 +5419,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 652
+      "consumerCount": 653
     },
     {
       "name": "--text-secondary",
@@ -5667,7 +5667,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 81
+      "consumerCount": 82
     },
     {
       "name": "--accent-error-light",
@@ -5947,7 +5947,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 563
+      "consumerCount": 564
     },
     {
       "name": "--font-size-control",
@@ -6323,7 +6323,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 823
+      "consumerCount": 824
     },
     {
       "name": "--spacing-sm",
@@ -6931,7 +6931,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 652
+      "consumerCount": 653
     },
     {
       "name": "--text-secondary",
@@ -7115,7 +7115,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 81
+      "consumerCount": 82
     },
     {
       "name": "--accent-error-light",

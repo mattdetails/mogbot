@@ -41,16 +41,7 @@ import {
   send,
 } from '../lib/session';
 import type { PendingSend } from '../lib/sync';
-import {
-  keySize,
-  composer,
-  fonts,
-  iconSize,
-  lineHeight,
-  space,
-  type,
-  PRESSED,
-} from '../lib/theme';
+import { keySize, composer, fonts, iconSize, lineHeight, space, type, PRESSED } from '../lib/theme';
 import { makeStyles, useColors } from '../lib/appearance';
 import { Attachments } from './attachments';
 import { LocalLinks } from './localLinks';
@@ -749,15 +740,11 @@ function PeerRow({ message }: { message: AgentMessage }) {
             size={iconSize.inline}
             color={colors.textMuted}
           />
-          <T variant="caption" color={colors.textSecondary} style={{ fontFamily: fonts.medium }}>
+          <T variant="label" color={colors.textMuted} style={{ fontFamily: fonts.medium }}>
             {label}
           </T>
         </View>
-        <T
-          variant="small"
-          color={colors.textSecondary}
-          numberOfLines={open || !long ? undefined : 4}
-        >
+        <T variant="small" color={colors.textMuted} numberOfLines={open || !long ? undefined : 4}>
           {message.text}
         </T>
         {long && (
@@ -1000,13 +987,8 @@ const useStyles = makeStyles((colors) => ({
   count: { fontVariant: ['tabular-nums'] },
   stats: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.md },
   peer: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
-  peerBody: {
-    flex: 1,
-    gap: space['2xs'],
-    paddingLeft: space.sm,
-    borderLeftWidth: 2,
-    borderLeftColor: colors.borderDefault,
-  },
+  // A system line, not a message: no fill, no rule, the muted ink.
+  peerBody: { flex: 1, gap: space['2xs'] },
   peerHead: { flexDirection: 'row', alignItems: 'center', gap: space.tight },
   working: { paddingVertical: space.xs },
   workingRow: {

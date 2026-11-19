@@ -1044,7 +1044,7 @@ interface ApprovalCardProps extends Arrival {
     note?: string,
     /** On a session's question: the index of the option picked. */
     choice?: number
-  ) => Promise<void>;
+  ) => Promise<void | boolean>;
   /**
    * Team's compact form: field values clamp to two lines with "Show all",
    * and the outcome says what happens next.

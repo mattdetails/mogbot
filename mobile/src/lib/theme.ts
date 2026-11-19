@@ -786,6 +786,8 @@ export function saturate(hex: string, keep: number): string {
  */
 export const baseType = {
   caption: 12,
+  /** A system line's label (a cross-agent row's "From X"). */
+  label: 13,
   small: 14,
   body: 16,
   /** The message field's words: iOS's own body size, a step up from a message's. */

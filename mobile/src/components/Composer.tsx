@@ -1020,13 +1020,13 @@ export function Composer({
               hint="Stops listening and sends what you said"
               disabled={!canSend}
               onPress={dictationSend}
-              tone="accent"
+              tone="inverse"
             >
               <Icon
                 name="arrow.up"
                 size={iconSize.button}
-                color={accent.onAccent}
-                fallback={<T color={accent.onAccent}>↑</T>}
+                color={colors.textOnBubbleUser}
+                fallback={<T color={colors.textOnBubbleUser}>↑</T>}
               />
             </RoundButton>
           )}
@@ -1077,13 +1077,13 @@ export function Composer({
               disabled={!canSend}
               onPress={() => submit(false)}
               // Dimmed until there's something to send, as Claude's own.
-              tone="accent"
+              tone="inverse"
             >
               <Icon
                 name="arrow.up"
                 size={iconSize.button}
-                color={accent.onAccent}
-                fallback={<T color={accent.onAccent}>↑</T>}
+                color={colors.textOnBubbleUser}
+                fallback={<T color={colors.textOnBubbleUser}>↑</T>}
               />
             </RoundButton>
           )}
@@ -1526,7 +1526,7 @@ export function RoundButton({
   onLongPress?: (e: GestureResponderEvent) => void;
   /** The finger came off, or slid away past `HOLD_CANCEL_DISTANCE`. */
   onPressOut?: (e: GestureResponderEvent) => void;
-  tone: 'accent' | 'quiet' | 'off';
+  tone: 'accent' | 'inverse' | 'quiet' | 'off';
   children: ReactNode;
 }) {
   const colors = useColors();
@@ -1559,6 +1559,7 @@ export function RoundButton({
           ];
           // Not `interactive` glass: its own touch handling on iOS 26 took the
           // touch from the Pressable now and then, and a tap on Send did nothing.
+          // Send is neutral, never the agent's colour: the inverse circle, as your bubble.
           return tone === 'accent' ? (
             <Glass tint={accent.accent} style={look}>
               {children}
@@ -1567,7 +1568,14 @@ export function RoundButton({
             <View
               style={[
                 look,
-                { backgroundColor: tone === 'quiet' ? colors.surfaceSelected : 'transparent' },
+                {
+                  backgroundColor:
+                    tone === 'inverse'
+                      ? colors.surfaceBubbleUser
+                      : tone === 'quiet'
+                        ? colors.surfaceSelected
+                        : 'transparent',
+                },
               ]}
             >
               {children}

@@ -32,7 +32,7 @@ export function CrossoverCard({
   arrived,
 }: {
   message: AgentMessage;
-  onAnswer: (requestId: string, allow: boolean, always?: boolean) => Promise<void>;
+  onAnswer: (requestId: string, allow: boolean, always?: boolean) => Promise<unknown>;
   arrived?: boolean;
 }) {
   const approval = message.approval;

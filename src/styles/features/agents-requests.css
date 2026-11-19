@@ -376,6 +376,15 @@
   line-height: var(--line-height-reading);
 }
 
+.agent-draft__failed {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0;
+  font-size: var(--font-size-body-sm);
+  color: var(--accent-error, var(--text-primary));
+}
+
 .agent-draft__from {
   margin: 0;
   font-size: var(--font-size-body-sm);

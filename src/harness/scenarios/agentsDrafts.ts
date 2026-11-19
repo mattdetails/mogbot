@@ -28,14 +28,15 @@ const emailCard = (
     text: string;
     summary?: string;
   },
-  sendFrom?: string
+  sendFrom?: string,
+  status: 'pending' | 'allowed' = 'pending'
 ) =>
   msg('approval', '', 3, {
     approval: {
       requestId: 'mail1',
       title: 'Do these under your name?',
       detail: '',
-      status: 'pending',
+      status,
       ...(sendFrom ? { sendFrom } : {}),
       plan: {
         actions: [
@@ -67,7 +68,8 @@ const scenario = (
   title: string,
   looksRightWhen: string,
   card: ReturnType<typeof msg>,
-  viewport = VIEW
+  viewport = VIEW,
+  more: Partial<Scenario> = {}
 ): Scenario => ({
   id,
   title: `Agents — draft card: ${title}`,
@@ -83,6 +85,7 @@ const scenario = (
         ? [msg('user', 'Reply to Aurelie about the beta, cc Sam.', 6), card]
         : messagesFor(args),
   },
+  ...more,
 });
 
 const COMMON =
@@ -90,9 +93,16 @@ const COMMON =
 
 const ADDRESS = 'Aurelie Martin <aurelie@example.com>';
 
+// Built once: a card re-read with a new id would remount and lose its state.
+const FAILED_CARD = emailCard(
+  { target: ADDRESS, text: `Subject: Beta squad\nCC: sam@example.com\n\n${BODY}` },
+  'julian@example.com'
+);
+const FAILED_CHAT = [msg('user', 'Reply to Aurelie about the beta, cc Sam.', 6), FAILED_CARD];
+
 export const agentsDraftScenarios: Scenario[] = [
   scenario(
-    'agents-draft-email',
+    'agents-email-draft',
     'the standard email',
     `Title “Email to Aurelie Martin · Gmail”; To, CC, Subject rows; “From julian@example.com · goes out as you”. ${COMMON}`,
     emailCard(
@@ -104,13 +114,13 @@ export const agentsDraftScenarios: Scenario[] = [
     )
   ),
   scenario(
-    'agents-draft-no-cc',
+    'agents-email-draft-no-cc',
     'no CC',
     `No CC row; the To row carries a “+ Cc” button at its right. ${COMMON}`,
     emailCard({ target: ADDRESS, text: `Subject: Beta squad\n\n${BODY}` }, 'julian@example.com')
   ),
   scenario(
-    'agents-draft-five-cc',
+    'agents-email-draft-many-cc',
     'five CCs',
     `The CC row wraps its five addresses inside its column without widening the block. ${COMMON}`,
     emailCard(
@@ -122,7 +132,7 @@ export const agentsDraftScenarios: Scenario[] = [
     )
   ),
   scenario(
-    'agents-draft-long-body',
+    'agents-email-draft-long-body',
     'a 3,000-character body',
     `The words scroll inside the block at about 320px; the card does not grow past it. ${COMMON}`,
     emailCard(
@@ -131,13 +141,13 @@ export const agentsDraftScenarios: Scenario[] = [
     )
   ),
   scenario(
-    'agents-draft-no-subject',
+    'agents-email-draft-no-subject',
     'no subject',
     `No Subject row; the hairline under the last row still separates the words. ${COMMON}`,
     emailCard({ target: ADDRESS, text: `CC: sam@example.com\n\n${BODY}` }, 'julian@example.com')
   ),
   scenario(
-    'agents-draft-reply',
+    'agents-email-draft-reply',
     'a reply',
     `Title “Reply to Aurelie Martin” (the subject starts “Re:”). ${COMMON}`,
     emailCard({
@@ -147,13 +157,13 @@ export const agentsDraftScenarios: Scenario[] = [
     })
   ),
   scenario(
-    'agents-draft-unknown-account',
+    'agents-email-draft-unknown-account',
     'an account the app doesn’t know',
     `Title “Email to Aurelie Martin” (no “· Gmail”) and the line under the block says only “goes out as you”: no account is guessed. ${COMMON}`,
     emailCard({ target: ADDRESS, text: `Subject: Beta squad\n\n${BODY}` })
   ),
   scenario(
-    'agents-draft-narrow',
+    'agents-email-draft-narrow',
     'a 390px-wide window',
     `At 390px the buttons wrap onto a second row, right-aligned, and none is clipped. ${COMMON}`,
     emailCard(
@@ -163,15 +173,44 @@ export const agentsDraftScenarios: Scenario[] = [
     NARROW
   ),
   scenario(
-    'agents-draft-slack',
+    'agents-email-draft-slack',
     'a Slack reply',
     `Title “Reply in #mogbot-beta-squad · Slack”; one “In” row and the words; “From robin · Acme · goes out as you”; Discard, Edit, Send. ${COMMON}`,
     slackCard('robin · Acme')
   ),
   scenario(
-    'agents-draft-slack-unknown-account',
+    'agents-email-draft-slack-unknown-account',
     'a Slack reply, account unknown',
     `As the Slack reply, with “goes out as you” alone under the block. ${COMMON}`,
     slackCard()
+  ),
+  scenario(
+    'agents-email-draft-failed-send',
+    'a send the Mac refused',
+    `After pressing Send the card stays pending with every word kept, and under the block a warning line “Couldn’t send. Your words are kept.”; the buttons are live again. ${COMMON}`,
+    FAILED_CARD,
+    VIEW,
+    {
+      requires: '.agent-draft__failed',
+      steps: [{ click: '[data-agent-id="chief"]' }, { click: '.agent-draft [data-allow]' }],
+      commands: {
+        agents_overview: overview(),
+        agents_messages: (args: Record<string, unknown>) =>
+          args.agentId === 'chief' ? FAILED_CHAT : messagesFor(args),
+        agents_answer_approval: () => {
+          throw new Error('Your Mac didn’t answer.');
+        },
+      },
+    }
+  ),
+  scenario(
+    'agents-email-draft-sent',
+    'sent',
+    'The card has collapsed to its outcome line: the title and “Sent to Aurelie Martin · <agent> is carrying on”, with the request one click away. There is no Undo: a sent email can’t be taken back from here, and no time is shown because the app records none for the send.',
+    emailCard(
+      { target: ADDRESS, text: `Subject: Beta squad\nCC: sam@example.com\n\n${BODY}` },
+      'julian@example.com',
+      'allowed'
+    )
   ),
 ];

@@ -72,10 +72,14 @@ function Toggle({
       accessibilityLabel={label}
       accessibilityHint={hint}
       accessibilityState={{ expanded: open }}
-      style={({ pressed }) => [styles.head, inline && styles.headInline, pressed && PRESSED]}
+      style={({ pressed }) => [
+        styles.head,
+        inline ? styles.headInline : styles.headFold,
+        pressed && PRESSED,
+      ]}
     >
       {/* In the steps' icon column, where the working line's key cap sat. */}
-      <View style={!inline && styles.icon}>
+      <View style={!inline && styles.foldIcon}>
         <Icon
           name={open ? 'chevron.down' : 'chevron.right'}
           size={iconSize.inline}
@@ -621,6 +625,10 @@ const useStyles = makeStyles((colors) => ({
   // The count and time never wrap: the words give way first.
   meta: { flexShrink: 0 },
   headInline: { gap: space.xs },
+  // The folded "Worked" line: its chevron on the bubble's text edge (the bubble's 16pt
+  // padding), its words after it, not centred in the steps' icon column.
+  headFold: { paddingLeft: space.lg },
+  foldIcon: { width: iconSize.inline, alignItems: 'flex-start' },
   // Under the line, on the words' edge.
   liveIndent: { paddingLeft: LEAD + space.sm, gap: space.xs },
   // Quiet actions at the right edge, a row of their own on a phone's line.
