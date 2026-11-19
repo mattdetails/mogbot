@@ -3,7 +3,7 @@
  * Remote Access reads it: anything waiting on a decision first. The Mac
  * sends each change as it happens (`projects.changed`); pull to re-read.
  * Tap a tab to watch it, answer it, or type to it; start a new one; or
- * photograph the project's live preview.
+ * look at the project's site: its picture sits on the card (`ProjectPreview`).
  *
  * The phone is for the chat, so this is the plain-language view of what's
  * running: no branch names or git counts up front, just how many files
@@ -31,12 +31,12 @@ import { Spinner } from '../../../components/agent';
 import { ConnectionBar, LinkProblem, useNow } from '../../../components/ConnectionPill';
 import { DemoCard } from '../../../components/DemoCard';
 import { SessionState, useTaskName } from '../../../components/session';
-import { choose } from '../../../components/menu';
+import { ProjectPreview } from '../../../components/ProjectPreview';
 import { Button, Icon, useRipple, T } from '../../../components/ui';
 import { agentKeyState, formatAgo, workingLine } from '../../../lib/agents';
 import { AgentKey } from '../../../components/AgentKey';
 import { haptic } from '../../../lib/haptics';
-import { canCall, describeError, previewScreenshot, refreshProjects } from '../../../lib/session';
+import { canCall, describeError, refreshProjects } from '../../../lib/session';
 import { useApp } from '../../../lib/store';
 import { largeTitle } from '../../../lib/navigation';
 import { useRefresh } from '../../../lib/refresh';
@@ -143,7 +143,7 @@ export default function Projects() {
                   No projects on {macName} when it was last seen.
                 </T>
               ) : (
-                sorted.map((p) => <ProjectCard key={p.path} project={p} onError={setError} />)
+                sorted.map((p) => <ProjectCard key={p.path} project={p} />)
               )}
             </>
           )
@@ -160,7 +160,7 @@ export default function Projects() {
             No projects on {macName} yet.
           </T>
         ) : (
-          sorted.map((p) => <ProjectCard key={p.path} project={p} onError={setError} />)
+          sorted.map((p) => <ProjectCard key={p.path} project={p} />)
         )}
         {error && live && (
           <T variant="small" color={colors.accentErrorLight} style={styles.note}>
@@ -172,45 +172,15 @@ export default function Projects() {
   );
 }
 
-function ProjectCard({
-  project,
-  onError,
-}: {
-  project: ProjectSummary;
-  onError: (text: string | null) => void;
-}) {
+function ProjectCard({ project }: { project: ProjectSummary }) {
   const colors = useColors();
   const styles = useStyles();
   const router = useRouter();
   const live = useLinkLive();
   const canStart = useApp((s) => canCall('sessions.start', s.welcome));
   const canShoot = useApp((s) => canCall('preview.screenshot', s.welcome));
-  const [shooting, setShooting] = useState(false);
   const agents = useApp((s) => s.overview?.agents);
   const atWork = useMemo(() => agentsAtWork(agents ?? [], project.path), [agents, project.path]);
-
-  const shoot = () =>
-    choose('Screenshot the preview', [
-      { label: 'Desktop', run: () => void take('desktop') },
-      { label: 'Phone', run: () => void take('phone') },
-    ]);
-  const take = async (device: 'desktop' | 'phone') => {
-    setShooting(true);
-    onError(null);
-    try {
-      const shot = await previewScreenshot(project.path, device);
-      haptic.success();
-      router.push({
-        pathname: '/viewer',
-        params: { uri: shot.uri, name: `${project.name} · ${device}`, mime: shot.mime },
-      });
-    } catch (e) {
-      haptic.error();
-      onError(describeError(e));
-    } finally {
-      setShooting(false);
-    }
-  };
 
   // What's changed, in words: not the branch, and not git's "uncommitted".
   const meta = project.dirtyFiles
@@ -249,7 +219,8 @@ function ProjectCard({
           />
         ))
       )}
-      {(canStart || canShoot) && (
+      {canShoot && <ProjectPreview path={project.path} name={project.name} />}
+      {canStart && (
         <View style={styles.tools}>
           {canStart && (
             <Button
@@ -264,17 +235,6 @@ function ProjectCard({
                   params: { project: project.path, name: project.name },
                 })
               }
-            />
-          )}
-          {canShoot && (
-            <Button
-              title={shooting ? 'Taking screenshot…' : 'Screenshot'}
-              icon="camera"
-              size="compact"
-              variant="ghost"
-              busy={shooting}
-              disabled={!live}
-              onPress={shoot}
             />
           )}
         </View>

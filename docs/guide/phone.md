@@ -88,3 +88,7 @@ Mac** (or computer): until you do, notifications arrive only while the phone app
 
 While you dictate on the phone, its screen stays on, so it can't lock mid-sentence and lose your
 words. It locks as usual once you stop.
+
+## A project's site on the phone
+
+On the Projects tab each project has a **Preview** row. Tap **Show the site** and your computer takes a picture of the site it is running; the picture sits right on the project's card, at Phone or Desktop width, with when it was taken. Tap the circular arrow for a new one, or the picture to open it full size. It needs the site running on your computer; if it isn't, the card says so.

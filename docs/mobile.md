@@ -822,8 +822,14 @@ request, the diff and the photo viewer push over them. At
   has no words of the agent's), leaving out the input box, the spinner and
   "esc to interrupt", shortcut hints, tool output and boxes. **Show
   terminal** opens the raw screen in a sideways-scrolling well with a fading
-  right edge. You can type to it, start a new task or take a preview
-  screenshot (a private blob, never a public link).
+  right edge. You can type to it or start a new task. A project's site has a
+  **Preview** row on its own card (`components/ProjectPreview.tsx`): "Show the site"
+  takes a picture on the Mac (`preview.screenshot`, a private blob, never a public
+  link) and shows it right there at Phone or Desktop width, with when it was taken and a
+  refresh beside the toggle; tapping it opens the full-size viewer. The last picture per
+  project and width is kept for the session (`lib/previewShots.ts`), so coming back shows it
+  at once. It needs the site running on the Mac; if it isn't, the card says so and what to
+  do. `pnpm qa:web --phases project-preview` captures it.
 - **Connection screen.** Every layer of the link (below).
 - **Settings.** The paired Mac; Accounts & usage (the Usage card, Without
   asking, Logins, Bring agents in); New agents start on; Notifications, Quiet
