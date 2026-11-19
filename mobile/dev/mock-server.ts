@@ -2640,6 +2640,12 @@ export function createMockServer(opts: MockOptions = {}) {
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
     return { agentId, current: c.current, items, routines: { ...routinePlaces.get(agentId) } };
   }
+  let dictationWords: { word: string; learned: boolean; heardAs: string[] }[] = [
+    { word: 'Mogbot', learned: false, heardAs: [] },
+    { word: 'Memberstack', learned: false, heardAs: [] },
+    { word: 'Tailscale', learned: true, heardAs: ['tail scale', 'tailscales'] },
+    { word: 'Bradford', learned: true, heardAs: ['Bradfurd'] },
+  ];
   const methods: Partial<Record<MethodName, Handler>> = {
     'agents.conversations': (p) => convList(String(p.agentId)),
     'agents.conversationSelect': (p) => {
@@ -3840,6 +3846,14 @@ export function createMockServer(opts: MockOptions = {}) {
       if (typeof p.codexModel === 'string') saved.codexModel = p.codexModel || null;
       emit({ type: 'agents.registry', overview: overview() });
       return defaults();
+    },
+    // The computer's dictation words: two typed, two learned from fixes.
+    'dictation.words': () => ({ words: dictationWords }),
+    'dictation.removeWord': (p) => {
+      dictationWords = dictationWords.filter(
+        (w) => w.word.toLowerCase() !== String(p.word).toLowerCase()
+      );
+      return { words: dictationWords };
     },
     'agents.quietHours': () => ({ window: quietWindow }),
     'agents.morningBrief': () => morningBrief,

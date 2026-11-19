@@ -151,6 +151,8 @@ pub const METHODS: &[&str] = &[
     "agents.teamSetup.later",
     "agents.teamSetup.check",
     "dictation.transcribe",
+    "dictation.words",
+    "dictation.removeWord",
 ];
 
 /// `READ_ONLY_METHODS` in methods.ts (the served subset): not audited.
@@ -192,6 +194,7 @@ pub const READ_ONLY_METHODS: &[&str] = &[
     "rooms.messages",
     "projects.list",
     "sessions.read",
+    "dictation.words",
 ];
 
 /// Signing in on the Mac from the phone (`agents/phone_signin.rs`): never
@@ -1078,6 +1081,14 @@ pub trait Backend: Send + Sync + 'static {
         agent_id: Option<String>,
         room_id: Option<String>,
     ) -> Result<super::dictation::Transcribed, CommandError>;
+    /// `dictation.words`: the words list the computer keeps (Settings →
+    /// Agents → Dictation), typed ones first, then learned.
+    async fn dictation_words(&self) -> super::dictation::WordsView;
+    /// `dictation.removeWord`: take one off the list (it is never learned again).
+    async fn dictation_remove_word(
+        &self,
+        word: &str,
+    ) -> Result<super::dictation::WordsView, CommandError>;
     /// Something the Phone panel shows changed (a pair request, a connect).
     fn changed(&self);
 }
@@ -1416,6 +1427,11 @@ struct WorkStepsParams {
 struct BlobParam {
     #[serde(rename = "blobId")]
     blob_id: String,
+}
+
+#[derive(Deserialize)]
+struct RemoveWordParams {
+    word: String,
 }
 
 #[derive(Deserialize)]
@@ -2023,6 +2039,7 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
         "agents.revokePermission" => format!("revoke {} {}", field("ruleId"), field("agentId")),
         // Never the words: what was said is the user's.
         "dictation.transcribe" => "wrote out a dictation".into(),
+        "dictation.removeWord" => format!("dictation: removed the word {}", field("word")),
         "agents.skillEdit" => format!("edit skill {} of {}", field("slug"), field("agentId")),
         "agents.skillRemove" => format!("remove skill {} of {}", field("slug"), field("agentId")),
         "agents.onItsOwnNarrow" => format!(
@@ -3347,6 +3364,11 @@ async fn run(
                 &b.transcribe(samples, some(p.agent_id), some(p.room_id))
                     .await?,
             ))
+        }
+        "dictation.words" => Ok(to_value(&b.dictation_words().await)),
+        "dictation.removeWord" => {
+            let p: RemoveWordParams = parse(params)?;
+            Ok(to_value(&b.dictation_remove_word(&p.word).await?))
         }
         _ => Err(WireError::protocol(
             ProtocolCode::UnknownMethod,

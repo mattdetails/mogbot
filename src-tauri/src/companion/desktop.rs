@@ -1479,6 +1479,25 @@ impl Backend for DesktopBackend {
         crate::remote_access::companion_audit(actor, tool, detail, ok);
     }
 
+    async fn dictation_words(&self) -> super::dictation::WordsView {
+        let store = tokio::task::spawn_blocking(crate::voice::words::load)
+            .await
+            .unwrap_or_default();
+        super::dictation::words_view(&store)
+    }
+
+    async fn dictation_remove_word(
+        &self,
+        word: &str,
+    ) -> Result<super::dictation::WordsView, CommandError> {
+        let word = word.to_string();
+        let store = tokio::task::spawn_blocking(move || crate::voice::words::remove(&word))
+            .await
+            .map_err(|e| CommandError::from(e.to_string()))?
+            .map_err(|e| CommandError::from(format!("Couldn't save your words: {e}")))?;
+        Ok(super::dictation::words_view(&store))
+    }
+
     async fn transcribe(
         &self,
         samples_16k: Vec<f32>,

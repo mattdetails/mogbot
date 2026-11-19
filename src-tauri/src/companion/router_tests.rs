@@ -1738,6 +1738,39 @@ async fn a_preview_screenshot_is_a_private_blob() {
 }
 
 #[tokio::test]
+async fn the_phone_lists_the_dictation_words_and_can_remove_one() {
+    use crate::companion::testkit::Stub;
+    use crate::voice::words::Word;
+    let (c, stub) = Stub::companion();
+    {
+        let mut store = stub.words.lock().unwrap();
+        store.words = vec![
+            Word { word: "Mogbot".into(), learned: false, added: 1 },
+            Word { word: "Tailscale".into(), learned: true, added: 2 },
+        ];
+        store.fixes = vec![crate::voice::words::Fix {
+            heard: "tail scale".into(),
+            fixed: "Tailscale".into(),
+            count: 2,
+            last: 3,
+        }];
+    }
+    let me = caller("dev_a");
+    let listed = dispatch(&c, &me, "dictation.words", json!({})).await.unwrap();
+    assert_eq!(listed["words"][0]["word"], "Mogbot");
+    assert_eq!(listed["words"][0]["learned"], false);
+    assert_eq!(listed["words"][1]["heardAs"][0], "tail scale");
+    let after = dispatch(&c, &me, "dictation.removeWord", json!({ "word": "Tailscale" }))
+        .await
+        .unwrap();
+    assert_eq!(after["words"].as_array().unwrap().len(), 1);
+    assert!(dispatch(&c, &me, "dictation.removeWord", json!({})).await.is_err());
+    // Reading isn't audited; removing is.
+    assert!(READ_ONLY_METHODS.contains(&"dictation.words"));
+    assert!(!READ_ONLY_METHODS.contains(&"dictation.removeWord"));
+}
+
+#[tokio::test]
 async fn the_phone_may_only_pin_mute_and_hide() {
     use crate::companion::testkit::{Stub, AGENT};
     let (c, stub) = Stub::companion();

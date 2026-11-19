@@ -1189,6 +1189,13 @@ The phone can start work as well as answer it. Each piece is gated by
   the draft is what the live words left, and Undo puts them back. Send while
   listening waits for them (capped) and then sends. No model yet
   (`preparing`), a failure or an older computer: today's words stand.
+  **Your words** (`dictation.words`, `dictation.removeWord`; `components/DictationWordsSetting.tsx`,
+  Settings → Dictation words): the list the computer keeps for Whisper and the names pass
+  (Settings → Agents → Dictation there, `dictation-words.json`), typed ones first, then ones
+  learned from fixes with what each was heard as. Read-only on the phone, plus **Remove**
+  (audited on the computer; a removed word is never learned again). Adding stays on the
+  computer. Shown only when the computer serves it and the list isn't empty.
+  `pnpm qa:web --phases dictation-words` captures it.
   **On iOS 26 and later "on the phone" is SpeechAnalyzer** with
   SpeechTranscriber (`modules/speech-analyzer`, a local Expo module;
   `lib/speechAnalyzer.ts` puts it in front of expo-speech-recognition with
