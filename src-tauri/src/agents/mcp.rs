@@ -3113,6 +3113,7 @@ async fn ask_inner(
         approval.summary = summary;
     }
     approval.risk = risk_of(caller, call, plan.is_some() || raw);
+    approval.send_from = plan.as_ref().and_then(super::plan_grant::send_from);
     approval.plan = plan;
     if call.is_some() {
         approval.from_outside =
@@ -3360,6 +3361,7 @@ pub(crate) fn new_card(
         skill: None,
         slack_reply: None,
         risk: None,
+        send_from: None,
     }
 }
 

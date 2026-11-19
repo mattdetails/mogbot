@@ -695,7 +695,16 @@ export interface Approval {
   /** "Run turns on “Personal” first?": a plain Allow / Deny; Allow makes the switch. Nothing waits on it. */
   accountSwitch?: { engine: 'claude' | 'codex'; id: string; name: string };
   /** "Reply in Slack?": the exact words and where; Allow posts them as you (`lib/slack`). Nothing waits on it. */
-  slackReply?: { channel: string; threadTs: string; place: string; text: string };
+  slackReply?: {
+    channel: string;
+    threadTs: string;
+    place: string;
+    text: string;
+    /** The connected Slack account's name ("robin · Acme"), only when the Mac knows it. */
+    accountName?: string;
+  };
+  /** The Gmail account a one-email plan goes out from, only when the Mac knows it (never guessed). */
+  sendFrom?: string;
   /** "Save “…” as a skill?": Allow is Save, Deny is Not now (`lib/agentSkills`). Nothing waits on it. */
   skill?: SkillCard;
   /**

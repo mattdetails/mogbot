@@ -728,6 +728,7 @@ fn starting_fresh_waits_for_a_card_or_a_delegated_answer() {
             skill: None,
             slack_reply: None,
             risk: None,
+            send_from: None,
         });
         store::append_message(&card).unwrap();
         let err = begin_fresh(&a.id).unwrap_err().to_string();

@@ -557,6 +557,16 @@ export const levelSlider = { track: 4, tick: 8, thumb: 24, row: 44 } as const;
  * `line` and `corner` are the user bubble's (components/chat.tsx), which
  * keeps iMessage's 20pt line and 18pt corner; the field has its own.
  */
+/** The draft card's recessed block (`DraftCard`): the desk's `--draft-*` tokens. */
+export const draft = {
+  /** The draft card's label column (To, CC, Subject). */
+  labelWidth: 72,
+  /** Above and below each row, and the words: the desk's 11px. */
+  rowPad: 11,
+  /** Where the words start to scroll. */
+  bodyMax: 320,
+} as const;
+
 export const composer = {
   /** The bubble's 16pt text on a 20pt line. */
   line: 20,

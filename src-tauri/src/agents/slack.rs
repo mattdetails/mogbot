@@ -953,6 +953,15 @@ pub struct ReplyCard {
     /// only while that is the account connected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<String>,
+    /// That account's name as the card says it ("robin · Acme"): only the
+    /// connected account's own user and team, never guessed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_name: Option<String>,
+}
+
+/// "robin · Acme": a connected account's user and team, as a card names it.
+pub fn account_name(a: &Account) -> String {
+    format!("{} · {}", a.user, a.team)
 }
 
 /// `team:user`, as a [`ReplyCard`] names the account it's for.
@@ -1217,6 +1226,7 @@ async fn settle(app: &AppHandle) {
             place: p.place.clone(),
             text,
             account: saved.account.as_ref().map(account_key),
+            account_name: saved.account.as_ref().map(account_name),
         };
         match decide(
             p.own,
