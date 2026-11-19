@@ -881,3 +881,75 @@ fn only_one_email_can_name_the_account_it_goes_out_from() {
     };
     assert_eq!(send_from(&two), None);
 }
+
+#[test]
+fn a_target_written_as_a_sentence_covers_the_places_it_names_and_redeploys() {
+    // Fisher Farms Site's real plans (19 Nov 2026), on the fictional repo.
+    let m = mac();
+    let id = "plan-test-sentence";
+    grant(
+        id,
+        &Plan {
+            actions: vec![action(
+                Kind::Deploy,
+                "Vercel, Julian's Personal team (julian-fictional), preview only",
+                "Deploy the remake as a Vercel preview",
+            )],
+            why: None,
+        },
+        NOW,
+    );
+    assert!(covers(
+        id,
+        Level::FullSend,
+        &m,
+        "vercel deploy --yes --scope julian-fictional --name shippy 2>&1 | tail -12"
+    ));
+    // Fixed and redeployed while the plan lasts: still the work said yes to.
+    assert!(covers(
+        id,
+        Level::FullSend,
+        &m,
+        "npx astro build 2>&1 | tail -2; vercel deploy --yes --scope julian-fictional"
+    ));
+
+    let id2 = "plan-test-sentence-2";
+    grant(
+        id2,
+        &Plan {
+            actions: vec![action(
+                Kind::Deploy,
+                "Vercel project shippy (Julian's Personal team)",
+                "Production deploy",
+            )],
+            why: None,
+        },
+        NOW,
+    );
+    assert!(covers(
+        id2,
+        Level::FullSend,
+        &m,
+        "vercel deploy --prod --yes"
+    ));
+
+    // A sentence naming only kinds of place, or another project, covers nothing.
+    let id3 = "plan-test-sentence-3";
+    grant(
+        id3,
+        &Plan {
+            actions: vec![
+                action(Kind::Deploy, "Vercel production project", "Deploy"),
+                action(Kind::Deploy, "Vercel project other-site (a team)", "Deploy"),
+            ],
+            why: None,
+        },
+        NOW,
+    );
+    assert!(!covers(
+        id3,
+        Level::FullSend,
+        &m,
+        "vercel deploy --prod --yes"
+    ));
+}

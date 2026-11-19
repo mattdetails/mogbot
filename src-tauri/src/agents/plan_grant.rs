@@ -138,7 +138,7 @@ pub fn schema() -> Value {
                     "type": "object",
                     "properties": {
                         "kind": { "type": "string", "enum": kinds },
-                        "target": { "type": "string", "description": "Where: the repo (owner/repo), the project, the channel, the site or address." },
+                        "target": { "type": "string", "description": "Where, as its bare name: the repo (owner/repo), the project's name (fisher-farms-site), the channel, the site or address. Not a sentence." },
                         "summary": { "type": "string", "description": "What it does, in a few words the user reads on the card, said to them (\"your site\", never their name)." },
                         "text": { "type": "string", "description": "For a send, post, comment, email, issue or pull request: everything it will send (title and body), word for word. Required to cover it when the user OKs exact text; the call must send exactly these words. For an email (target is the address), start the text with `Subject: …` and, if any, `CC: …` lines, then a blank line and the body: the card shows it as a draft the user can edit, discard, send or open in Gmail." }
                     },
@@ -674,7 +674,46 @@ const DEPLOY_HOSTS: &[&str] = &[
     ".surge.sh",
 ];
 
+/// Words in a target that name a kind of place, never a place itself.
+const TARGET_FILLER: &[&str] = &[
+    "the",
+    "and",
+    "only",
+    "preview",
+    "production",
+    "prod",
+    "project",
+    "team",
+    "personal",
+    "site",
+    "vercel",
+    "netlify",
+    "github",
+    "repo",
+    "app",
+    "deploy",
+    "address",
+    "domain",
+];
+
+/// A target written as a sentence ("Vercel project fisher-farms-site
+/// (Julian's Personal team)", "Vercel, Julian's Personal team
+/// (juliangalluzzo), preview only") covers the places it names. Seen 19 Nov
+/// 2026: every target on Fisher Farms Site's allowed plans was a sentence,
+/// none matched, and each deploy right after the Allow asked again.
 fn target_ok(target: &str, places: &[String]) -> bool {
+    if target_ok_whole(target, places) {
+        return true;
+    }
+    let words: Vec<&str> = target
+        .split(|c: char| c.is_whitespace() || matches!(c, '(' | ')' | ',' | ';' | '[' | ']'))
+        .map(|w| w.trim_matches(|c: char| matches!(c, '.' | ':' | '"' | '\'' | '`')))
+        .filter(|w| w.len() >= 3 && !TARGET_FILLER.contains(&w.to_ascii_lowercase().as_str()))
+        .collect();
+    words.len() > 1 && words.iter().any(|w| target_ok_whole(w, places))
+}
+
+fn target_ok_whole(target: &str, places: &[String]) -> bool {
     let t = norm(target);
     if t.len() < 2 {
         return false;
@@ -728,7 +767,11 @@ fn find(
         }
     }
     for (gi, g) in grants.iter().enumerate().filter(|(_, g)| live(g)) {
-        if g.made.contains(made) {
+        // A listed deploy covers deploying that project again while the
+        // plan lasts: fixing and redeploying is the work the user said yes
+        // to (Fisher Farms Site, 19 Nov: six redeploys, six cards).
+        let redeploy = call.kind == Kind::Deploy;
+        if redeploy || g.made.contains(made) {
             if let Some(si) = g
                 .slots
                 .iter()
