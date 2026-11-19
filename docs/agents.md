@@ -7895,3 +7895,8 @@ prompt said to push "only with `push`", the tool that serves projects only.
 A push outside the projects now goes through git and its card
 (`prompts::PROJECTS`). Not covered: Codex, a project-bound agent's push,
 and resuming a killed turn (it ends honestly instead).
+
+
+## Draft cards (sends as the user)
+
+A card holding exactly one message with its exact words draws as a draft (`AgentDraftCard`, `lib/draftCard.ts`): a Slack reply card (`slackReply`), or an `ask_plan` card of one `send` or `post` action with `text`. An email is a plan action whose target is an address; its `text` starts with `Subject: …` and optionally `CC: …` lines, a blank line, then the body. Edit changes subject, CC and body; Discard denies; Send allows; "Draft in Gmail" opens Gmail's compose window (`mail.google.com/mail/?view=cm`) filled in and sends nothing. A Slack reply's edit travels in the answer's `note` (up to 4000 characters, only honoured on a Slack card's Allow: `slack::with_edit`) and the posted words are quoted in the line that follows. A plan draft's edit is a deny whose note holds the final words, telling the agent to put exactly them on a new card, so the exact-text rule still holds. Send is neutral, never accent.

@@ -140,7 +140,7 @@ pub fn schema() -> Value {
                         "kind": { "type": "string", "enum": kinds },
                         "target": { "type": "string", "description": "Where: the repo (owner/repo), the project, the channel, the site or address." },
                         "summary": { "type": "string", "description": "What it does, in a few words the user reads on the card, said to them (\"your site\", never their name)." },
-                        "text": { "type": "string", "description": "For a send, post, comment, email, issue or pull request: everything it will send (title and body), word for word. Required to cover it when the user OKs exact text; the call must send exactly these words." }
+                        "text": { "type": "string", "description": "For a send, post, comment, email, issue or pull request: everything it will send (title and body), word for word. Required to cover it when the user OKs exact text; the call must send exactly these words. For an email (target is the address), start the text with `Subject: …` and, if any, `CC: …` lines, then a blank line and the body: the card shows it as a draft the user can edit, discard, send or open in Gmail." }
                     },
                     "required": ["kind", "target", "summary"]
                 }

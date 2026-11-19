@@ -1039,7 +1039,7 @@ pub async fn post_reply(
     Ok(ts)
 }
 
-async fn post_and_say(app: &AppHandle, agent_id: &str, r: &ReplyCard) {
+async fn post_and_say(app: &AppHandle, agent_id: &str, r: &ReplyCard, edited: bool) {
     if !same_account(r, load().account.as_ref()) {
         note(
             app,
@@ -1058,7 +1058,18 @@ async fn post_and_say(app: &AppHandle, agent_id: &str, r: &ReplyCard) {
     };
     let api = slack_api::HttpApi::new(token);
     match post_reply(&api, &r.channel, &r.thread_ts, &r.text).await {
-        Ok(_) => note(app, agent_id, format!("Posted in Slack ({}).", r.place)),
+        Ok(_) => note(
+            app,
+            agent_id,
+            if edited {
+                format!(
+                    "Posted in Slack ({}), as you edited it: “{}”",
+                    r.place, r.text
+                )
+            } else {
+                format!("Posted in Slack ({}).", r.place)
+            },
+        ),
         Err(e) => {
             if matches!(e, ApiError::SignIn(_)) {
                 let _ = change(|s| s.needs_sign_in = true);
@@ -1073,16 +1084,35 @@ async fn post_and_say(app: &AppHandle, agent_id: &str, r: &ReplyCard) {
     }
 }
 
+/// A reply card's words with the user's edit in place of them, and whether
+/// there was one (a blank or unchanged edit is no edit).
+pub fn with_edit(mut r: ReplyCard, edited: Option<&str>) -> (ReplyCard, bool) {
+    match edited
+        .map(str::trim)
+        .filter(|e| !e.is_empty() && *e != r.text)
+    {
+        Some(e) => {
+            r.text = e.to_string();
+            (r, true)
+        }
+        None => (r, false),
+    }
+}
+
 /// The reply card answered (desk, phone or a typed yes): Allow posts it.
 pub fn answer_card(
     app: &AppHandle,
     agent_id: &str,
     approval: &store::Approval,
     allow: bool,
+    edited: Option<String>,
 ) -> Result<(), CommandError> {
     let Some(r) = approval.slack_reply.clone() else {
         return Err(CommandError::expected("That isn't a Slack reply card."));
     };
+    // The user edited the words on the card: those are what's posted, and the
+    // line afterwards says so.
+    let (r, was_edited) = with_edit(r, edited.as_deref());
     let status = if allow {
         store::ApprovalStatus::Allowed
     } else {
@@ -1098,7 +1128,9 @@ pub fn answer_card(
     super::notify::refresh_badge(app);
     if allow {
         let (app, agent_id) = (app.clone(), agent_id.to_string());
-        tauri::async_runtime::spawn(async move { post_and_say(&app, &agent_id, &r).await });
+        tauri::async_runtime::spawn(
+            async move { post_and_say(&app, &agent_id, &r, was_edited).await },
+        );
     } else {
         note(app, agent_id, "Not posted in Slack.".into());
     }
@@ -1194,7 +1226,7 @@ async fn settle(app: &AppHandle) {
             &r.text,
             &known,
         ) {
-            Posting::Auto => post_and_say(app, &agent.id, &r).await,
+            Posting::Auto => post_and_say(app, &agent.id, &r, false).await,
             Posting::Card => {
                 let mut m = runner::new_message(&agent.id, MessageKind::Approval, "");
                 m.approval = Some(reply_card(&r));

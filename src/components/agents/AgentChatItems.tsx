@@ -5,6 +5,8 @@
  * @module components/agents/AgentChatItems
  */
 
+import { AgentDraftCard } from './AgentDraftCard';
+import { draftOf } from '../../lib/draftCard';
 import {
   memo,
   useEffect,
@@ -1247,6 +1249,17 @@ const ApprovalCardBody = memo(function ApprovalCard({
   }
   if (approval.login) {
     return <LoginCard message={message} agentName={agentName} arrived={arrived} />;
+  }
+  // One message to send as you, with its exact words: a draft to edit, discard or send.
+  if (draftOf(approval)) {
+    return (
+      <AgentDraftCard
+        message={message}
+        agentName={agentName}
+        onAnswer={onAnswer}
+        arrived={arrived}
+      />
+    );
   }
   if (approval.secret) {
     return (

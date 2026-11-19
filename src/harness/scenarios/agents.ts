@@ -2339,7 +2339,7 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-slack-reply',
     title: 'Agents — an ask from Slack, and its reply waiting for your OK',
     looksRightWhen:
-      'The Chief’s chat: your bubble “draft the launch note…” with a small muted “From Slack · #launch” under it; the Chief’s reply; then a card “Reply in Slack?” whose lead says “In #launch, in the thread it was asked in. Goes out under your name, exactly:” and quotes the reply word for word, with neutral Allow / Deny (never accent) and no Always allow; last, a quiet centred line “Sam asked in Slack (your DM with Sam): …”, not a bubble of yours.',
+      'The Chief’s chat: your bubble “draft the launch note…” with a small muted “From Slack · #launch” under it; the Chief’s reply; then a draft card “Reply in Slack?” showing “In #launch” and the reply word for word in a quiet panel, with Discard, Edit and a neutral Send (never accent); last, a quiet centred line “Sam asked in Slack (your DM with Sam): …”, not a bubble of yours.',
     requires: '.agent-chat__row--user',
     openSelector: AGENTS_TAB,
     steps: [{ click: '[data-agent-id="chief"]' }],
@@ -2347,6 +2347,42 @@ export const agentsScenarios: Scenario[] = [
       agents_overview: overview(),
       agents_messages: (args: Record<string, unknown>) =>
         args.agentId === 'chief' ? SLACK_CHAT : messagesFor(args),
+    },
+  },
+  {
+    id: 'agents-email-draft',
+    title: 'Agents — an email draft: edit, CC, discard, send, or draft it in Gmail',
+    looksRightWhen:
+      'The Chief’s chat ends in a draft card “Send this email?”: To, CC and Subject rows, the body in a quiet panel, “These exact words go out under your name.”, and Discard, Draft in Gmail, Edit and a neutral Send.',
+    requires: '.agent-draft',
+    openSelector: AGENTS_TAB,
+    steps: [{ click: '[data-agent-id="chief"]' }],
+    commands: {
+      agents_overview: overview(),
+      agents_messages: (args: Record<string, unknown>) =>
+        args.agentId === 'chief'
+          ? [
+              msg('user', 'Reply to Aurelie about the beta, cc Sam.', 6),
+              msg('approval', '', 3, {
+                approval: {
+                  requestId: 'mail1',
+                  title: 'Do these under your name?',
+                  detail: '',
+                  status: 'pending',
+                  plan: {
+                    actions: [
+                      {
+                        kind: 'send',
+                        target: 'aurelie@example.com',
+                        summary: 'Email Aurelie about the beta',
+                        text: 'Subject: Beta squad\nCC: sam@example.com\n\nHi Aurelie,\n\nAgents are the team, projects are where the work lives. An agent can be tied to a project and works in its own copy, so your folder stays yours.\n\nJulian',
+                      },
+                    ],
+                  },
+                },
+              }),
+            ]
+          : messagesFor(args),
     },
   },
   {

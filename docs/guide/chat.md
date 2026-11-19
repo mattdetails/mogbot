@@ -12,3 +12,9 @@ Send something while it is working and it waits its turn. Under your message you
 ## A page above the chat
 
 An agent can keep a page for a conversation, like a tracker or a status board. It only sits above the chat if you asked for that. Otherwise it is kept, and the **Page** button in the chat header pins it.
+
+## Drafts to send
+
+When an agent wants to send an email or a Slack reply as you, you get a draft card: who it goes to, and the exact words. **Edit** changes the words first (for an email, also CC and Subject). **Discard** stops it. **Send** is your OK. **Draft in Gmail** opens your own Gmail with the draft filled in, and sends nothing.
+
+A Slack reply posts the words as you edited them. For an email, an edit goes back to your agent, which shows you the new version on a fresh card; what you approve is always exactly what is sent.
