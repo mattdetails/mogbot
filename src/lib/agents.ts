@@ -667,6 +667,8 @@ export interface Approval {
   /** Where the answer came from (desk, phone, phoneLockScreen, plan, auto, admin, rule); absent while pending. */
   /** What "Always allow" would cover, or why it can't be (one sentence, made on the Mac). */
   alwaysNote?: string;
+  /** What is at risk, in one sentence, from the parsed call (see companion-protocol). */
+  riskNote?: string;
   answeredFrom?: 'desk' | 'phone' | 'phoneLockScreen' | 'plan' | 'auto' | 'admin' | 'rule';
   /** What you told the agent when you declined. */
   note?: string;

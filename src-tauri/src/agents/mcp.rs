@@ -3399,6 +3399,7 @@ pub(crate) fn new_card(
             spends,
             call.is_some(),
         ),
+        risk_note: call.and_then(|(tool, input)| super::risk_note::of(tool, input)),
         always,
         always_allowed: false,
         // What it does and why, in words; the raw call goes behind Details.
