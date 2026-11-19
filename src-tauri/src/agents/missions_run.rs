@@ -23,13 +23,13 @@ pub const EVENT: &str = "agents-missions-changed";
 /// Readings are taken at most this often.
 const READ_EVERY_MS: i64 = 9 * 60_000;
 
-pub const DESCRIPTION: &str = "Missions: a goal with a contract and a share of the user's usage. After a short talk with the user (the goal; two to five checkable criteria, \"What counts as done\"; a share of each engine's week, always \"about\"; what asks first; how often to update) show one agreement card, and on their yes call `start`. Then record what you're told: `progress` (a criterion's `value`, `status`, `source` like \"Native OS · read 11:02 pm\"), `event` (one sentence, which agent), `blocked`/`unblocked`. When the criteria look met, get a separate check on another engine and record it with `judged` (`checked_by`, one verdict per criterion: met, not_met or couldnt_check) so the user can review; never mark it done yourself. `add_more`, `stop`, `pause`, `resume` and `accept` are the user's calls, made in their own message. The app pauses a mission at about its share; running work is never killed. Money is never spent.";
+pub const DESCRIPTION: &str = "Missions: a goal with a contract and a share of the user's usage. After a short talk with the user (the goal; two to five checkable criteria, \"What counts as done\"; a share of each engine's week, always \"about\"; what asks first; how often to update) show one agreement card, and on their yes call `start`. Then record what you're told: `progress` (a criterion's `value`, `status`, `source` like \"Native OS · read 11:02 pm\"), `event` (one sentence, which agent), `summary` (where it stands, one sentence), `agent` (who is on it: `agent`, `engine`, `status`), `ask`/`ask_done` (what waits on the user: `text`, `what`), `blocked`/`unblocked`. When the criteria look met, get a separate check on another engine and record it with `judged` (`checked_by`, one verdict per criterion: met, not_met or couldnt_check) so the user can review; never mark it done yourself. `add_more`, `stop`, `pause`, `resume` and `accept` are the user's calls, made in their own message. The app pauses a mission at about its share; running work is never killed. Money is never spent.";
 
 pub fn schema() -> Value {
     json!({
         "type": "object",
         "properties": {
-            "action": { "type": "string", "enum": ["list", "start", "progress", "event", "blocked", "unblocked", "judged", "add_more", "stop", "pause", "resume", "accept"] },
+            "action": { "type": "string", "enum": ["list", "start", "progress", "event", "summary", "agent", "ask", "ask_done", "blocked", "unblocked", "judged", "add_more", "stop", "pause", "resume", "accept"] },
             "id": { "type": "string", "description": "The mission's id." },
             "goal": { "type": "string" },
             "criteria": { "type": "array", "items": { "type": "object", "properties": {
@@ -343,6 +343,37 @@ pub fn act(action: &str, args: &Value, user: bool, now: i64) -> Result<String, S
             let text = s(args, "text").ok_or("`text` is required.")?;
             next.push_event(s(args, "agent").unwrap_or("Chief of Staff"), text, now);
             "Recorded."
+        }
+        "summary" => {
+            next.summary = Some(s(args, "text").ok_or("`text` is required.")?.to_string());
+            "Recorded."
+        }
+        "agent" => {
+            let name = s(args, "agent").ok_or("`agent` is required.")?.to_string();
+            let engine = engine_of(s(args, "engine").ok_or("`engine` is required.")?)?;
+            let status = s(args, "status").unwrap_or("Working").to_string();
+            match next.agents.iter_mut().find(|a| a.name == name) {
+                Some(a) => {
+                    a.engine = engine;
+                    a.status = status;
+                }
+                None => next.agents.push(MissionAgent { name, engine, status }),
+            }
+            "Recorded."
+        }
+        "ask" => {
+            let text = s(args, "text").ok_or("`text` is required: what waits on the user.")?;
+            next.asks.push(Ask {
+                id: format!("a{}", next.asks.len() + 1 + (now % 1000) as usize),
+                text: text.to_string(),
+                detail: s(args, "what").map(str::to_string),
+            });
+            "Recorded. Ask the user in your chat too."
+        }
+        "ask_done" => {
+            let id = s(args, "criterion").ok_or("`criterion` is the ask's id here.")?;
+            next.asks.retain(|a| a.id != id);
+            "Cleared."
         }
         "blocked" => {
             next.state = State::Blocked;

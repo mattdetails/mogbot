@@ -276,6 +276,27 @@ pub struct Updates {
     pub daily_at: Option<u32>,
 }
 
+/// An agent working on the mission, and what it is doing now.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MissionAgent {
+    pub name: String,
+    pub engine: Engine,
+    /// "Working", "Waiting on you", "Planning", "Idle": its own word; the
+    /// page overrides it when the mission itself is paused, blocked or done.
+    pub status: String,
+}
+
+/// Something the mission is waiting on the user for.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Ask {
+    pub id: String,
+    pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Met {
@@ -325,6 +346,14 @@ pub struct Mission {
     /// When a cap or the end date stopped it, and which engine's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub paused_by: Option<Engine>,
+    /// One plain sentence on where it stands, in the Chief's words.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub agents: Vec<MissionAgent>,
+    /// What waits on the user.
+    #[serde(default)]
+    pub asks: Vec<Ask>,
 }
 
 impl Mission {
@@ -345,6 +374,9 @@ impl Mission {
             verdicts: Vec::new(),
             finished_at: None,
             paused_by: None,
+            summary: None,
+            agents: Vec::new(),
+            asks: Vec::new(),
         }
     }
 
