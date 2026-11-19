@@ -3712,6 +3712,28 @@ export const agentsScenarios: Scenario[] = [
         args.agentId === 'chief' ? streamMessages() : messagesFor(args),
     },
   },
+  ...[
+    { id: 'agents-working-streaming', width: 1440, height: 900 },
+    { id: 'agents-working-streaming-390', width: 390, height: 844 },
+  ].map(
+    ({ id, width, height }): Scenario => ({
+      id,
+      title: `Agents — working: its reply is streaming in${width < 600 ? ' (390px)' : ''}`,
+      looksRightWhen:
+        'The reply is being written (the second block stops mid-way): under it ONE row with the agent’s key and three dots in a pill, and no phrase, no timer: dots show only while the reply streams. The row sits 10px under the bubble.',
+      command: 'agents.open',
+      requires: '.agent-working__pill',
+      mockEvents: true,
+      viewport: { width, height },
+      commands: {
+        agents_overview: overview(
+          TEAM.map((a) => (a.id === 'chief' ? { ...a, status: status('working') } : a))
+        ),
+        agents_messages: (args: Record<string, unknown>) =>
+          args.agentId === 'chief' ? streamMessages() : messagesFor(args),
+      },
+    })
+  ),
   {
     id: 'agents-queue-hint',
     title: 'Agents — typing while it works: the queue hint',

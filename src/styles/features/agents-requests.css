@@ -657,3 +657,13 @@
   font-weight: var(--font-weight-body);
   color: var(--text-muted);
 }
+
+/* Keyboard hints (A / D / O / L) mean nothing on a touch screen or in a narrow
+   window with no keyboard: they are not drawn there. */
+@media (pointer: coarse), (max-width: 480px) {
+  .agent-chat__row--card[data-keys]:focus-within .agent-approval__key.agent-approval__key,
+  .agent-approval__key,
+  .agents-catchup kbd {
+    display: none;
+  }
+}

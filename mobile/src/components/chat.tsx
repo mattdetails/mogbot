@@ -900,12 +900,15 @@ export function WorkingRow({
   agent,
   onError,
   bare,
+  needsOk,
 }: {
   label: string;
   agent?: Agent;
   onError?: (text: string) => void;
   /** Under a speaker's name in a room: no second key cap. */
   bare?: boolean;
+  /** Waiting on a card of this chat: "Needs your OK on N" with a real Review, no status. */
+  needsOk?: { onReview: () => void };
 }) {
   const colors = useColors();
   const styles = useStyles();
@@ -913,6 +916,24 @@ export function WorkingRow({
   const live = label ? liveCallShown(work, agent?.status.activity) : undefined;
   const ticking = !!label && (work != null || live != null);
   const now = useClock(ticking);
+  if (needsOk && agent) {
+    return (
+      <Animated.View entering={FadeIn.duration(250)} style={styles.working}>
+        <View style={styles.needsOkRow} testID="needs-ok-row">
+          <AgentKey id={agent.id} name={agent.name} color={agent.color} size={keySize.sm} />
+          <T
+            variant="small"
+            color={colors.textSecondary}
+            numberOfLines={1}
+            style={styles.needsOkText}
+          >
+            {label}
+          </T>
+          <Button title="Review" variant="outline" size="compact" onPress={needsOk.onReview} />
+        </View>
+      </Animated.View>
+    );
+  }
   return (
     <Animated.View entering={FadeIn.duration(250)} style={styles.working}>
       {agent && label ? (
@@ -991,6 +1012,15 @@ const useStyles = makeStyles((colors) => ({
   peerBody: { flex: 1, gap: space['2xs'] },
   peerHead: { flexDirection: 'row', alignItems: 'center', gap: space.tight },
   working: { paddingVertical: space['2xs'] },
+  // Waiting on you: the key, the words, a real Review; the button wraps under the words when narrow.
+  needsOkRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: space.sm,
+    minHeight: 40,
+  },
+  needsOkText: { flexShrink: 1 },
   workingRow: {
     flexDirection: 'row',
     alignItems: 'center',

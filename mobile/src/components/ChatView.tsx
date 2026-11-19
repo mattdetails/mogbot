@@ -713,6 +713,17 @@ export function ChatView({
   );
 
   const controlsNow = useControlsNow(agent);
+
+  // The working row's Review: the first waiting card, its answers in reach.
+  const reviewNeeds = useCallback(() => {
+    const card = messages.find((m) => m.approval?.status === 'pending');
+    if (!card) return;
+    const index = items.findIndex((i) => i.key === card.id);
+    if (index < 0) return;
+    wantedPosition.current = 0;
+    list.current?.scrollToIndex({ index, viewPosition: 0, animated: true });
+  }, [messages, items]);
+
   if (!agent) {
     // Only a live overview can say an agent is gone; a saved one may predate it.
     if (hasOverview && connected) {
@@ -844,6 +855,7 @@ export function ChatView({
                       onError={showError}
                       onLongPress={onMessageAction}
                       onToggleFold={toggleFold}
+                      onReview={reviewNeeds}
                       lit={!!target && isRowFor(item, target)}
                       arrived={arrived.has(item.key)}
                     />
@@ -1072,6 +1084,7 @@ const ItemView = memo(function ItemView({
   onError,
   onLongPress,
   onToggleFold,
+  onReview,
   lit,
   afterLine,
   arrived,
@@ -1104,7 +1117,12 @@ const ItemView = memo(function ItemView({
     ) : item.kind === 'setup' ? (
       <TeamSetupCard chief={agent.name} onError={onError} />
     ) : (
-      <WorkingRow label={item.label} agent={agent} onError={onError} />
+      <WorkingRow
+        label={item.label}
+        agent={agent}
+        onError={onError}
+        needsOk={item.needsOk && onReview ? { onReview } : undefined}
+      />
     );
   // One row that can't be drawn says so in a Line; the chat goes on.
   const body = <RowBoundary resetKey={rowResetKey(item)}>{drawn}</RowBoundary>;
@@ -1166,6 +1184,8 @@ interface ItemProps {
   onLongPress: (m: AgentMessage) => void;
   /** A "Rewound" row tapped: its lines shown or folded again. */
   onToggleFold: (rewindId: string) => void;
+  /** The working row's Review ("Needs your OK on N"): brings the first waiting card up. */
+  onReview?: () => void;
   lit?: boolean;
 }
 

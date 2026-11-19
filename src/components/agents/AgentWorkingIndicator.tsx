@@ -57,6 +57,8 @@ interface WorkingIndicatorProps {
    * with a real Review, instead of a status.
    */
   needsOk?: { line: string; onReview: () => void };
+  /** Its reply is streaming in: dots in a pill, no phrase. */
+  typing?: boolean;
 }
 
 /**
@@ -78,6 +80,7 @@ export function WorkingIndicator({
   place,
   bare,
   needsOk,
+  typing,
 }: WorkingIndicatorProps) {
   // Each step holds a moment and a blink of "Thinking" between two never
   // shows (the sidebar's rule), so the line doesn't flicker step to step.
@@ -174,7 +177,12 @@ export function WorkingIndicator({
           )}
         </span>
         {place && <span className="agent-working__place">{place}</span>}
-        {live.toggle ? (
+        {typing ? (
+          // The reply is being written: the three dots in a pill, and nothing else.
+          <span className="agent-working__pill" role="status">
+            <TypingDots label={`${agent?.name ?? 'It'} is writing`} />
+          </span>
+        ) : live.toggle ? (
           <TextButton
             tabIndex={0}
             className="agent-working__toggle"
@@ -198,7 +206,7 @@ export function WorkingIndicator({
         ) : (
           text
         )}
-        {needsOk && (
+        {needsOk && !typing && (
           <Button
             tabIndex={0}
             variant="secondary"
