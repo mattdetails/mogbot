@@ -651,7 +651,7 @@ pub async fn deliver_all(c: &Companion, alert: &PushAlert, now: u64) -> Vec<Stri
         } else if d.push.is_none() {
             Some("the phone never sent a push token")
         } else {
-            match c.presence(&d.id) {
+            match c.presence_at(&d.id, now) {
                 Presence::Foreground => Some("the app is in front on it"),
                 p if !needs_push(p, now, LIVE_WINDOW_MS) => {
                     Some("it went to the background moments ago")
@@ -666,7 +666,7 @@ pub async fn deliver_all(c: &Companion, alert: &PushAlert, now: u64) -> Vec<Stri
     let targets: Vec<DeviceRecord> = devices
         .into_iter()
         .filter(|d| d.push.is_some() && d.build == BuildKind::Official)
-        .filter(|d| needs_push(c.presence(&d.id), now, LIVE_WINDOW_MS))
+        .filter(|d| needs_push(c.presence_at(&d.id, now), now, LIVE_WINDOW_MS))
         .collect();
     if targets.is_empty()
         || !c
@@ -746,6 +746,7 @@ mod tests {
     use super::*;
     use crate::companion::testkit::Stub;
     use crate::companion::wire::PairDevice;
+    use crate::companion::FOREGROUND_STALE_MS;
 
     #[derive(Default)]
     struct FakeRelay {
@@ -868,6 +869,39 @@ mod tests {
         );
         assert_eq!(opaque("Finance agent"), None, "never a name");
         assert_eq!(opaque(&"a".repeat(65)), None);
+    }
+
+    /// A phone on the relay that was in front and then went silent (the app
+    /// suspended, the phone left): nothing tells the Mac the channel is dead,
+    /// so only its silence can. Before this it stayed "in front" for good and
+    /// was never pushed (call issue 8: no push for a phone without Tailscale).
+    #[tokio::test]
+    async fn a_phone_that_was_in_front_and_went_silent_is_pushed() {
+        let (c, relay, id) = setup(BuildKind::Official);
+        set_push(&c, &id, Some(TOKEN.into()), PushEnvironment::Production)
+            .await
+            .unwrap();
+        let conn = c.open_conn(&id, true).unwrap();
+        let t0 = super::super::now_ms();
+        assert_eq!(c.presence_at(&id, t0), Presence::Foreground);
+        // Just heard from: in front, so no push.
+        assert!(deliver_all(&c, &alert(PushKind::NeedsYou), t0 + 20_000)
+            .await
+            .is_empty());
+        // It pings while in front: still in front a minute on.
+        c.heard_from(conn);
+        let heard = super::super::now_ms();
+        assert_eq!(c.presence_at(&id, heard + 20_000), Presence::Foreground);
+        // Silent for three heartbeats: not in front any more, and pushed.
+        let later = heard + FOREGROUND_STALE_MS + 1;
+        assert!(matches!(
+            c.presence_at(&id, later),
+            Presence::Background { .. }
+        ));
+        let sent = deliver_all(&c, &alert(PushKind::NeedsYou), later).await;
+        assert_eq!(sent, vec![id.clone()]);
+        assert!(relay.calls().iter().any(|l| l == &format!("send {id}")));
+        c.close_conn(conn);
     }
 
     #[tokio::test]
