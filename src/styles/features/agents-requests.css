@@ -511,7 +511,8 @@
   margin-left: var(--spacing-xs);
   font: inherit;
   font-size: var(--font-size-body-sm);
-  opacity: 0.6;
+  /* A text role, not opacity: 0.6 over the button's ink fell under 4.5:1 (axe). */
+  color: var(--text-secondary);
 }
 
 .agents-catchup__next {
