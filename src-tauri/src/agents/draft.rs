@@ -391,7 +391,7 @@ pub fn claude_args(model: Option<&str>) -> Vec<String> {
     args
 }
 
-async fn run_claude(
+pub(super) async fn run_claude(
     binary: &std::path::Path,
     text: &str,
     model: Option<String>,
@@ -424,7 +424,7 @@ async fn run_claude(
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
-async fn run_codex(
+pub(super) async fn run_codex(
     binary: &std::path::Path,
     text: &str,
     model: Option<String>,
