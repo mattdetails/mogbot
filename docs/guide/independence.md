@@ -117,6 +117,8 @@ sign-in card: connect the app, use your own browser, or paste an API key.
 If Settings → Agents → Let agents use your Chrome says it couldn't start because another copy of
 Mogbot holds the Chrome link, a second copy of the app is running on this Mac. Quit it: the app
 tries again every 30 seconds and links your Chrome by itself as soon as the other copy is gone.
+If something else changes the link while Mogbot holds it (another copy rewriting Chrome's host
+file or the link's key), Mogbot notices within a minute and puts it back by itself.
 
 ## Pictures in your Chrome
 

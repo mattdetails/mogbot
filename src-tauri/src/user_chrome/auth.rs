@@ -128,8 +128,16 @@ pub fn prepare_dir(dir: &Path) -> std::io::Result<()> {
 /// is the one the socket's owner checks, and rewriting it under another
 /// copy's live socket locks every host out of that copy.
 pub fn fresh_token(dir: &Path) -> std::io::Result<String> {
-    prepare_dir(dir)?;
     let token = random_hex(32);
+    write_token(dir, &token)?;
+    Ok(token)
+}
+
+/// Write `token` as the link's token (0600, atomically), in a 0700 folder.
+/// The self-heal (`heal`) puts the token this copy proves with back when
+/// something else rewrote the file.
+pub fn write_token(dir: &Path, token: &str) -> std::io::Result<()> {
+    prepare_dir(dir)?;
     let path = token_path(dir);
     let tmp = dir.join(".token.tmp");
     let _ = std::fs::remove_file(&tmp);
@@ -147,7 +155,7 @@ pub fn fresh_token(dir: &Path) -> std::io::Result<String> {
         f.sync_all()?;
     }
     std::fs::rename(&tmp, &path)?;
-    Ok(token)
+    Ok(())
 }
 
 /// The token, as the host reads it. Refuses a token file anyone else could

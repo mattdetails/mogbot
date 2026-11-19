@@ -28,6 +28,7 @@
 pub mod auth;
 pub mod clipboard;
 pub mod frame;
+pub mod heal;
 #[cfg(any(unix, windows))]
 pub mod host;
 /// No native host elsewhere ([`SUPPORTED`]).
@@ -79,6 +80,11 @@ pub fn registry() -> Arc<link::Registry> {
 pub struct Running {
     task: tokio::task::JoinHandle<()>,
     socket: PathBuf,
+    /// The token this copy's hosts prove with ([`heal`] puts it back).
+    token: String,
+    /// The socket file this copy bound, by device and inode: one that was
+    /// removed or replaced no longer reaches this copy ([`heal`] re-binds).
+    socket_id: Option<(u64, u64)>,
 }
 
 impl Running {
@@ -116,8 +122,14 @@ pub async fn start_at(dir: &Path, registry: Arc<link::Registry>) -> std::io::Res
                 return Err(e);
             }
         };
-        let task = tokio::spawn(link::serve(listener, token, registry));
-        Ok(Running { task, socket })
+        let socket_id = heal::socket_id(&socket);
+        let task = tokio::spawn(link::serve(listener, token.clone(), registry));
+        Ok(Running {
+            task,
+            socket,
+            token,
+            socket_id,
+        })
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -161,6 +173,9 @@ pub async fn start() {
     if let Err(e) = prepare_install() {
         tracing::warn!(error = %e, "[UserChrome] couldn't set up the host or the extension's files");
     }
+    // Release builds: every minute, put the host manifest, the token and
+    // the socket back if something else changed them.
+    heal::watch();
     if try_listen().await {
         return;
     }
@@ -433,3 +448,7 @@ pub async fn set_enabled(on: bool) -> Result<Status, crate::errors::CommandError
 #[cfg(all(test, unix))]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(all(test, unix))]
+#[path = "heal_tests.rs"]
+mod heal_tests;

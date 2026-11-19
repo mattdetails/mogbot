@@ -106,6 +106,15 @@ permissions, no content scripts.
   switch is on (`user_chrome::RETRY_EVERY`), so the app takes the link back
   as soon as whatever held it goes. Settings → Chrome says why meanwhile
   ("another copy of <app> holds the Chrome link") and that it's retrying.
+- **A link that's listening heals itself** (release builds, `user_chrome::heal`).
+  Every 60 seconds while the switch is on it checks that the host manifest
+  still names this app's binary, that the token file still holds the token
+  its link checks, and that the socket file is still the one it bound (by
+  device and inode). Whatever another copy changed is put back and logged:
+  the manifest rewritten, the token written back (the same token, so hosts
+  already proving it carry on), the socket bound again in place of a
+  removed or replaced one (only the accept loop changes; each linked Chrome
+  keeps its connection). Debug builds never run it.
 - **Per turn**: the bridge's route takes the turn's bearer secret as every
   other agent route does (`agents/reach.rs`), and answers 404 while the
   switch is off.
