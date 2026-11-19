@@ -791,6 +791,8 @@ export interface Approval {
   answeredFrom?: AnsweredFrom;
   /** One sentence on what "Always allow" would cover, or why it can't be; made on the Mac. Absent when the card never offers it. */
   alwaysNote?: string;
+  /** One sentence on what is at risk (deletes, publishes, installs, sends data, spends), from the parsed call; absent when nothing is recognised. */
+  riskNote?: string;
   note?: string;
   /** A secure input card: what the agent asked for. */
   secret?: SecretRequest;
