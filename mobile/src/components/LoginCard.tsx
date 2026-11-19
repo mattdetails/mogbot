@@ -67,7 +67,7 @@ import { CARD_TITLE_SCALE, fonts, space, type } from '../lib/theme';
 import { makeStyles, useAppearance, useColors } from '../lib/appearance';
 import { Receipt, useArmed, useCardStyles } from './ApprovalCard';
 import { DeclineReceiptLine, useDeclineReceipt, useRecheckWhenBack } from './loginExtras';
-import { ACTION, Card, CardActions, offlineNote, TextAction, useActionShare } from './surfaces';
+import { ACTION, ACTION_ROW, Card, CardActions, offlineNote, TextAction, useActionShare } from './surfaces';
 import { Button, T } from './ui';
 import { useComputer } from '../lib/computer';
 
@@ -377,6 +377,27 @@ export function LoginCard({
   const off = !connected || !!busy || !armed;
   // The one way in the card leads with; a key is never it (it opens a field).
   const lead = first && first.method !== 'key' ? first : undefined;
+  const notNowButton = (
+    <Button
+      title="Not now"
+      variant="outline"
+      busy={busy === 'decline'}
+      disabled={off}
+      onPress={() => void decline()}
+      style={answerShare}
+    />
+  );
+  const leadButton = lead ? (
+    <Button
+      title={failed && login.flow?.option === lead.id ? 'Try again' : label(lead)}
+      // The affirmative answer is the neutral filled one, never the accent.
+      variant="answer"
+      busy={busy === lead.id}
+      disabled={off}
+      onPress={() => void start(lead)}
+      style={answerShare}
+    />
+  ) : null;
   const signinHereExtra =
     signinServed &&
     login.options.some((o) => o.method === 'browser') &&
@@ -493,30 +514,16 @@ export function LoginCard({
       )}
       {errorLine}
       <CardActions>
-        <Button
-          title="Not now"
-          variant="outline"
-          busy={busy === 'decline'}
-          disabled={off}
-          onPress={() => void decline()}
-          style={answerShare}
-        />
-        {lead && (
-          <Button
-            title={failed && login.flow?.option === lead.id ? 'Try again' : label(lead)}
-            // The affirmative answer is the neutral filled one, never the accent.
-            variant="answer"
-            busy={busy === lead.id}
-            disabled={off}
-            onPress={() => void start(lead)}
-            style={answerShare}
-          />
-        )}
+        {/* Side by side, Not now leads (as every Deny · Allow); stacked, the answer goes first. */}
+        {answerShare === ACTION_ROW && leadButton}
+        {notNowButton}
+        {answerShare !== ACTION_ROW && leadButton}
       </CardActions>
       {!lead && keyWay}
       {hasOtherWays && (
         <TextAction
-          label={showOtherWays ? 'Hide other ways' : 'Other ways'}
+          label="Other ways"
+          expanded={showOtherWays}
           muted
           onPress={() => {
             haptic.select();
