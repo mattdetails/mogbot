@@ -719,8 +719,14 @@ fn at_go_hard_a_compose_address_alone_never_asks() {
 #[test]
 fn full_send_still_asks_for_money_accounts_and_secrets_in_the_browser() {
     // Buy credits asks; Delete account runs (Unleashed asks only for money).
-    assert_eq!(in_editor(Level::FullSend, "computer", click("ref_8")), Gate::Ask);
-    assert_eq!(in_editor(Level::FullSend, "computer", click("ref_10")), Gate::Allow);
+    assert_eq!(
+        in_editor(Level::FullSend, "computer", click("ref_8")),
+        Gate::Ask
+    );
+    assert_eq!(
+        in_editor(Level::FullSend, "computer", click("ref_10")),
+        Gate::Allow
+    );
     // Any click on a checkout page, or a pay host.
     let checkout = json!({"action": "left_click", "coordinate": [10, 10], "tabId": 4});
     assert_eq!(in_editor(Level::FullSend, "computer", checkout), Gate::Ask);
@@ -1388,4 +1394,55 @@ fn a_click_found_under_the_point_is_judged_by_what_it_clicks() {
             "{label}"
         );
     }
+}
+
+/// Julian, 2026-11-18: Social Posts' Walmart video sat in a project folder,
+/// so at "Go hard" its upload asked on top of the post's own card. Pictures
+/// and videos in the projects folder are the agent's work; a PDF there, a
+/// file elsewhere, a climb out or a projects folder that is the whole home
+/// still ask.
+#[test]
+fn project_pictures_and_videos_upload_without_a_second_card() {
+    let base = std::env::temp_dir().join(format!("own-media-{}", std::process::id()));
+    let home = base.join("agent-home");
+    let projects = base.join("ShipStudio");
+    let other = base.join("Documents");
+    for d in [&home, &projects.join("acme/scratch"), &other] {
+        std::fs::create_dir_all(d).unwrap();
+    }
+    let file = |dir: &std::path::Path, name: &str| {
+        let p = dir.join(name);
+        std::fs::write(&p, b"x").unwrap();
+        p.to_string_lossy().to_string()
+    };
+    let video = file(&projects.join("acme/scratch"), "walmart.mp4");
+    let pdf_in_project = file(&projects.join("acme"), "contract.pdf");
+    let pdf_in_home = file(&home, "deck.pdf");
+    let elsewhere = file(&other, "photo.jpg");
+    let up = |p: &str| json!({ "paths": [p] });
+
+    assert!(own_media_in(&home, Some(&projects), &up(&video)));
+    assert!(own_media_in(&home, Some(&projects), &up(&pdf_in_home)));
+    assert!(!own_media_in(&home, Some(&projects), &up(&pdf_in_project)));
+    assert!(!own_media_in(&home, Some(&projects), &up(&elsewhere)));
+    assert!(!own_media_in(&home, None, &up(&video)));
+    let climb = format!("{}/acme/../../Documents/photo.jpg", projects.display());
+    assert!(!own_media_in(&home, Some(&projects), &up(&climb)));
+    // One file outside spoils the lot.
+    assert!(!own_media_in(
+        &home,
+        Some(&projects),
+        &json!({ "paths": [video, elsewhere] })
+    ));
+    // A projects folder that is the user's whole home counts for nothing.
+    let user_home = dirs::home_dir().unwrap();
+    let in_home = user_home.join(format!(".own-media-{}.jpg", std::process::id()));
+    std::fs::write(&in_home, b"x").unwrap();
+    assert!(!own_media_in(
+        &home,
+        Some(&user_home),
+        &up(&in_home.to_string_lossy())
+    ));
+    let _ = std::fs::remove_file(&in_home);
+    let _ = std::fs::remove_dir_all(&base);
 }

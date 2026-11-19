@@ -1703,9 +1703,11 @@ below; it asks only for:
   `createPost`, `send_email` and `publishPost` ask, while `capturePost`,
   `upsertSocialPosts` and `listPosts` run ("post" there names posts). Code
   hosts' and databases' writes ask too; uploads in the browser, except a
-  picture, video or PDF inside the agent's own home (`browser_gate::own_media`:
-  the post's words already had their OK, and a card per picture was twelve
-  extra cards for twelve posts)
+  picture, video or PDF inside the agent's own home, or a picture or video in
+  the projects folder unless that folder is the home folder or above it
+  (`browser_gate::own_media`: the post's words already had their OK, and a
+  card per picture was twelve extra cards for twelve posts; a rendered video
+  in a project asked again, 2026-11-18)
 - a network request with a secret in its address, query or headers
   (`agents/egress.rs`, below): `curl` (and its `-u` / `-b` /
   `--oauth2-bearer`), `wget`, `http`, `gh api`, a `git` remote with a

@@ -37,9 +37,10 @@ publishing a release or package, changing settings that affect what others see (
 repository visibility), and anything that would keep running on your computer by itself (like a launch
 agent or a change to your shell profile).
 
-At Bold, a picture, video or PDF the agent made in its own folder goes onto a page (a post's
-image) without a card: you already OK'd the post's words. Uploading any of your own files still
-asks.
+At Bold, a picture, video or PDF the agent made in its own folder, or a picture or video in your
+projects folder (where agents make and render work), goes onto a page (a post's image or video)
+without a card: you already OK'd the post's words. Uploading any of your other files, or a PDF from
+a project, still asks.
 
 ## Text from outside
 
