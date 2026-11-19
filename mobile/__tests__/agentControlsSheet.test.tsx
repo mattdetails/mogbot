@@ -173,7 +173,7 @@ describe('Agent controls', () => {
     expect(alert).toHaveBeenNthCalledWith(
       1,
       'Turn on Unleashed?',
-      expect.stringMatching(/still asks before spending money/),
+      expect.stringMatching(/stops only before spending money/),
       expect.any(Array)
     );
     const warn = alert.mock.calls[0][2] as { text: string; onPress?: () => void }[];
