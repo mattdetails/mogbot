@@ -67,9 +67,9 @@ fn progress_sets_the_number_and_the_status_follows_it() {
         m.criteria[0].source.as_deref(),
         Some("Native OS · read 11:02 pm")
     );
-    let m = progress(&m, &json!({ "criterion": "c1", "value": 20 })).unwrap();
+    let m = progress(&m, &json!({ "criterion": "c1", "value": 20 }), 0).unwrap();
     assert_eq!(m.criteria[0].status, Status::Met);
-    assert!(progress(&m, &json!({ "criterion": "nope" })).is_err());
+    assert!(progress(&m, &json!({ "criterion": "nope" }), 0).is_err());
 }
 
 #[test]

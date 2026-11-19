@@ -267,3 +267,71 @@ fn events_are_newest_first_and_bounded() {
     assert_eq!(m.events.len(), EVENTS_KEPT);
     assert_eq!(m.events[0].text, format!("step {}", EVENTS_KEPT + 4));
 }
+
+fn counted(value: f64) -> Mission {
+    let mut m = mission(vec![Share::usage(Engine::Claude, 30.0)]);
+    m.criteria[0].value = Some(value);
+    m
+}
+
+#[test]
+fn a_day_estimate_needs_two_readings_and_fifteen_percent() {
+    let day = 24 * H;
+    // 4 of 20 (20%), one day in: about five days in all.
+    let mut m = counted(4.0);
+    m.progress_log = vec![ProgressPoint { at: 1, value: 2.0 }];
+    assert_eq!(estimate_days(&m, day), None, "one reading is not enough");
+    m.progress_log.push(ProgressPoint { at: 2, value: 4.0 });
+    assert_eq!(estimate_days(&m, day), Some(5));
+    // Under 15% done: no estimate, never a guess.
+    let mut slow = counted(2.0);
+    slow.progress_log = m.progress_log.clone();
+    assert_eq!(estimate_days(&slow, day), None);
+}
+
+#[test]
+fn the_estimate_is_never_less_than_the_day_it_is_and_is_fixed_once_made() {
+    let day = 24 * H;
+    // Nearly done at day 3: the estimate can't say fewer than 3 days.
+    let mut m = counted(19.0);
+    m.progress_log = vec![
+        ProgressPoint { at: 1, value: 10.0 },
+        ProgressPoint { at: 2, value: 19.0 },
+    ];
+    assert_eq!(estimate_days(&m, 2 * day + H), Some(3));
+    let fixed = with_estimate(&m, 2 * day + H);
+    assert_eq!(fixed.estimated_days, Some(3));
+    // A later, slower reading does not move it: running past is said, not hidden.
+    let mut later = fixed.clone();
+    later.criteria[0].value = Some(19.0);
+    assert_eq!(with_estimate(&later, 9 * day).estimated_days, Some(3));
+}
+
+#[test]
+fn a_goal_that_goes_down_measures_the_distance_covered() {
+    let mut m = counted(0.0);
+    m.criteria[0].kind = CriterionKind::Reduce;
+    m.criteria[0].start = Some(220.0);
+    m.criteria[0].target = Some(20.0);
+    m.criteria[0].value = Some(120.0);
+    assert_eq!(first_progress(&m), Some(0.5));
+    m.criteria[0].value = Some(220.0);
+    assert_eq!(first_progress(&m), Some(0.0));
+}
+
+#[test]
+fn readings_log_only_a_changed_number_and_stay_bounded() {
+    let mut m = counted(3.0);
+    m = log_reading(&m, 1);
+    m = log_reading(&m, 2);
+    assert_eq!(
+        m.progress_log.len(),
+        1,
+        "the same number is not a new reading"
+    );
+    for i in 0..100 {
+        m.criteria[0].value = Some(i as f64 + 10.0);
+        m = log_reading(&m, 10 + i);
+    }
+    assert!(m.progress_log.len() <= 60);
+}

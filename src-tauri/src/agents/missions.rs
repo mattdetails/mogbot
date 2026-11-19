@@ -362,6 +362,21 @@ pub struct Mission {
     /// page says so rather than looking as if it ran.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub heartbeat_at: Option<i64>,
+    /// The first numeric criterion's readings over time, for the estimate.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub progress_log: Vec<ProgressPoint>,
+    /// "Day N of about M": M, fixed the first time the app could estimate
+    /// it (two readings, 15% done), so running past it can be said.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub estimated_days: Option<u32>,
+}
+
+/// One reading of the mission's headline number.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgressPoint {
+    pub at: i64,
+    pub value: f64,
 }
 
 impl Mission {
@@ -386,6 +401,8 @@ impl Mission {
             agents: Vec::new(),
             asks: Vec::new(),
             heartbeat_at: None,
+            progress_log: Vec::new(),
+            estimated_days: None,
         }
     }
 
@@ -439,6 +456,77 @@ pub enum Change {
     None,
     /// Paused at this engine's cap (or `None`: at the end date).
     PausedAtCap(Option<Engine>),
+}
+
+const DAY_MS: i64 = 24 * 3_600_000;
+/// An estimate needs this many readings and this share done.
+pub const ESTIMATE_MIN_READINGS: usize = 2;
+pub const ESTIMATE_MIN_DONE: f64 = 0.15;
+const LOG_KEPT: usize = 60;
+
+/// How far the mission's first numeric criterion has come, 0..=1: a count by
+/// its target, a goal that goes down by the distance covered. `None` when
+/// there is no such criterion or no number yet. Pure.
+pub fn first_progress(m: &Mission) -> Option<f64> {
+    let c = m.criteria.iter().find(|c| {
+        matches!(c.kind, CriterionKind::Count | CriterionKind::Reduce) && c.target.is_some()
+    })?;
+    let (v, t) = (c.value?, c.target?);
+    match c.kind {
+        CriterionKind::Reduce => {
+            let start = c.start.unwrap_or_else(|| v.max(t));
+            let span = start - t;
+            (span > 0.0).then(|| ((start - v) / span).clamp(0.0, 1.0))
+        }
+        _ => (t > 0.0).then(|| (v / t).clamp(0.0, 1.0)),
+    }
+}
+
+/// A new reading of the headline number into the log (only a changed one). Pure.
+pub fn log_reading(m: &Mission, now: i64) -> Mission {
+    let mut next = m.clone();
+    let value = m
+        .criteria
+        .iter()
+        .find(|c| {
+            matches!(c.kind, CriterionKind::Count | CriterionKind::Reduce) && c.target.is_some()
+        })
+        .and_then(|c| c.value);
+    if let Some(value) = value {
+        if next.progress_log.last().map(|p| p.value) != Some(value) {
+            next.progress_log.push(ProgressPoint { at: now, value });
+            if next.progress_log.len() > LOG_KEPT {
+                next.progress_log.remove(0);
+            }
+        }
+    }
+    next
+}
+
+/// "About M" days in all: elapsed time over the share done, rounded up to a
+/// whole day and never less than the day it is. Only with two readings and
+/// 15% done; never otherwise, never invented. Pure.
+pub fn estimate_days(m: &Mission, now: i64) -> Option<u32> {
+    if m.progress_log.len() < ESTIMATE_MIN_READINGS {
+        return None;
+    }
+    let done = first_progress(m)?;
+    if done < ESTIMATE_MIN_DONE {
+        return None;
+    }
+    let elapsed = (now - m.started_at).max(0) as f64;
+    let total_days = (elapsed / done / DAY_MS as f64).ceil() as u32;
+    let today = (elapsed / DAY_MS as f64).floor() as u32 + 1;
+    Some(total_days.max(today))
+}
+
+/// Fix the estimate the first time one can be made. Pure.
+pub fn with_estimate(m: &Mission, now: i64) -> Mission {
+    let mut next = m.clone();
+    if next.estimated_days.is_none() {
+        next.estimated_days = estimate_days(&next, now);
+    }
+    next
 }
 
 /// The scheduler looks about once a minute: a longer gap than this since the

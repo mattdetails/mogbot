@@ -194,7 +194,7 @@ fn status_of(w: &str) -> Option<Status> {
 }
 
 /// Record one criterion's progress. Pure.
-pub fn progress(m: &Mission, args: &Value) -> Result<Mission, String> {
+pub fn progress(m: &Mission, args: &Value, now: i64) -> Result<Mission, String> {
     let id = s(args, "criterion").ok_or("`criterion` is required (its id from `list`).")?;
     let mut next = m.clone();
     let c = next
@@ -224,7 +224,8 @@ pub fn progress(m: &Mission, args: &Value) -> Result<Mission, String> {
     if next.state == State::Starting {
         next.state = State::Running;
     }
-    Ok(next)
+    // The headline number's readings, and the estimate once there are enough.
+    Ok(with_estimate(&log_reading(&next, now), now))
 }
 
 /// The judge's verdicts from the tool's arguments. Pure.
@@ -391,7 +392,7 @@ pub fn act(action: &str, args: &Value, user: bool, now: i64) -> Result<String, S
     let mut next = m.clone();
     let said = match action {
         "progress" => {
-            next = progress(&m, args)?;
+            next = progress(&m, args, now)?;
             "Recorded."
         }
         "event" => {

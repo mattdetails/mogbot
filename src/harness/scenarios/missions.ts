@@ -80,6 +80,7 @@ const base = (over: Partial<Mission>): Mission => ({
 
 export const MISSION_CASES: Record<string, Mission> = {
   standard: base({
+    estimatedDays: 3,
     summary: '3 more are in conversation.',
     criteria: [
       leads(11, { note: '10 of them from agencies. 6 so far.' }),

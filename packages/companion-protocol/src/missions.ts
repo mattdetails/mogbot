@@ -91,6 +91,8 @@ export interface Mission {
   asks: MissionAsk[];
   /** The last time the Mac looked at it while it ran; an old one means it was asleep. */
   heartbeatAt?: number;
+  /** "Day N of about M": M, fixed when two readings and 15% done first allowed an estimate. */
+  estimatedDays?: number;
   /** More updates than `events` holds, when a source knows (the harness). */
   eventCount?: number;
 }
@@ -173,10 +175,36 @@ export function hero(m: Mission): Hero {
   };
 }
 
+/** The line under the hero: where the number came from, and how far to go. */
+export function heroNote(h: Hero): { left?: string; right?: string } {
+  if (h.kind === 'criteria') return {};
+  const left = h.source;
+  if (h.kind === 'reduce')
+    return { left, right: `${fmt(Math.max(0, h.value - h.target))} to clear` };
+  return { left, right: `${fmt(Math.max(0, h.target - h.value))} to go` };
+}
+
+export type CriterionMark = 'ok' | 'go' | 'no' | 'warn' | 'err';
+
+/**
+ * The status mark before a criterion (words stay on the right, never colour
+ * only): a check when met, a ring with a dot in progress, an empty ring not
+ * started, an amber ring when it couldn't be checked or isn't met, red when
+ * the mission is blocked on its source.
+ */
+export function criterionMark(c: MissionCriterion, m: Mission): CriterionMark {
+  if (c.status === 'met' || c.status === 'holding') return 'ok';
+  if (c.status === 'couldnt_check' || c.status === 'not_met') return 'warn';
+  if (m.state === 'blocked' && c.source) return 'err';
+  if (c.status === 'not_started') return 'no';
+  return 'go';
+}
+
 /* -------------------------------------------------------------- shares */
 
 export interface ShareRow {
   engine: EngineId;
+  kind: 'usage' | 'time';
   name: string;
   /** 0..100 of the bar the share's marker sits at, and how far it is filled. */
   marker: number;
@@ -217,6 +245,7 @@ export function shareRow(s: MissionShare): ShareRow {
     const cap = s.capMs ?? 0;
     return {
       engine: s.engine,
+      kind: 'time',
       name,
       marker: 100,
       fill: cap > 0 ? Math.min(100, (s.spentMs / cap) * 100) : 0,
@@ -229,6 +258,7 @@ export function shareRow(s: MissionShare): ShareRow {
   if (unread) {
     return {
       engine: s.engine,
+      kind: 'usage',
       name,
       marker: s.pct,
       fill: 0,
@@ -238,12 +268,13 @@ export function shareRow(s: MissionShare): ShareRow {
     };
   }
   const over = s.usedPct >= s.pct && s.pct > 0;
-  const scale = Math.max(s.pct, s.usedPct, 1);
+  // The bar is the whole week, 0 to 100%, with the cap marked on it.
   return {
     engine: s.engine,
+    kind: 'usage',
     name,
-    marker: (s.pct / scale) * 100,
-    fill: (Math.min(s.usedPct, scale) / scale) * 100,
+    marker: Math.min(100, s.pct),
+    fill: Math.min(100, s.usedPct),
     over,
     unread: false,
     text: `About ${fmt(s.usedPct)}% of about ${fmt(s.pct)}%${over ? ' · over' : ''}`,
@@ -446,7 +477,15 @@ export function dayLabel(m: Mission, now: number): string {
   }
   const since = now - m.startedAt;
   if (since < 10 * 60_000) return 'Just now';
-  return `Day ${Math.floor(since / DAY) + 1}`;
+  const day = Math.floor(since / DAY) + 1;
+  // "of about M" only when the Mac could estimate it (two readings, 15% done);
+  // never invented. Past it, said plainly, in no colour.
+  if (m.estimatedDays !== undefined) {
+    return day > m.estimatedDays
+      ? `Day ${day} · running longer than expected`
+      : `Day ${day} of about ${m.estimatedDays}`;
+  }
+  return `Day ${day}`;
 }
 
 /** The date as "30 Nov", the same field in the header and the bottom note (rule 9). */

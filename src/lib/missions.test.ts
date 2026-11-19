@@ -236,6 +236,14 @@ describe('the note and the day (rule 9)', () => {
       "It used about 11% of Claude's week, 10% of Codex's week. Nothing more is spent."
     );
   });
+  it('says "of about M" only when the Mac estimated it, and when it runs past', () => {
+    const day = 24 * 3_600_000;
+    expect(dayLabel(base({ startedAt: 0 }), day + 1)).toBe('Day 2');
+    expect(dayLabel(base({ startedAt: 0, estimatedDays: 3 }), day + 1)).toBe('Day 2 of about 3');
+    expect(dayLabel(base({ startedAt: 0, estimatedDays: 3 }), 3 * day + 1)).toBe(
+      'Day 4 · running longer than expected'
+    );
+  });
   it('counts days, says just now, and says how long it took', () => {
     expect(dayLabel(base({ startedAt: 0 }), 5 * 60_000)).toBe('Just now');
     expect(dayLabel(base({ startedAt: 0 }), 26 * 3_600_000)).toBe('Day 2');

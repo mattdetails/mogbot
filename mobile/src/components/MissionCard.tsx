@@ -262,6 +262,37 @@ export function MissionCard({
         })}
       </View>
 
+      {asks.all > 0 && (
+        <View style={styles.block}>
+          <SectionTitle title="Waiting on you" style={styles.flushTitle} />
+          {asks.shown.map((a) => (
+            <View key={a.id} style={styles.ask}>
+              <View style={[styles.askDot, { backgroundColor: colors.accentWarning }]} />
+              <View style={styles.grow}>
+                <T variant="body" color={colors.textStrong}>
+                  {a.text}
+                </T>
+                {!!a.detail && (
+                  <T variant="small" color={colors.textMuted}>
+                    {a.detail}
+                  </T>
+                )}
+              </View>
+            </View>
+          ))}
+          {asks.more > 0 && (
+            <T variant="small" color={colors.textMuted}>
+              and {asks.more} more
+            </T>
+          )}
+          <Button
+            title={asks.all > 1 ? `Review all ${asks.all}` : 'Review'}
+            variant="answer"
+            onPress={onReview}
+          />
+        </View>
+      )}
+
       <View style={styles.block}>
         <SectionTitle title="What counts as done" style={styles.flushTitle} />
         {mission.criteria.slice(0, 4).map((c) => (
@@ -303,37 +334,6 @@ export function MissionCard({
           </T>
         )}
       </View>
-
-      {asks.all > 0 && (
-        <View style={[styles.banner, { backgroundColor: colors.surfacePanel }]}>
-          <SectionTitle title="Waiting on you" style={styles.flushTitle} />
-          {asks.shown.map((a) => (
-            <View key={a.id}>
-              <T variant="body" color={colors.textStrong}>
-                {a.text}
-              </T>
-              {!!a.detail && (
-                <T variant="small" color={colors.textMuted}>
-                  {a.detail}
-                </T>
-              )}
-            </View>
-          ))}
-          {asks.more > 0 && (
-            <T variant="small" color={colors.textMuted}>
-              and {asks.more} more
-            </T>
-          )}
-          <View style={styles.actions}>
-            <Button
-              title={asks.all > 1 ? `Review all ${asks.all}` : 'Review'}
-              variant="secondary"
-              size="compact"
-              onPress={onReview}
-            />
-          </View>
-        </View>
-      )}
 
       {mission.agents.length > 0 && (
         <View style={styles.block}>
@@ -386,7 +386,7 @@ export function MissionCard({
 
 const useStyles = makeStyles((colors) => ({
   card: {
-    gap: space.md,
+    gap: space.lg,
     padding: space.lg,
     borderRadius: radius.card,
     backgroundColor: colors.surfacePanel,
@@ -416,5 +416,7 @@ const useStyles = makeStyles((colors) => ({
   banner: { gap: space.sm, padding: space.md, borderRadius: radius.control },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   agent: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  ask: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  askDot: { width: space.sm, height: space.sm, borderRadius: radius.pill, marginTop: space.tight },
   grow: { flex: 1, minWidth: 0 },
 }));
