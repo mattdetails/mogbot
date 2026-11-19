@@ -669,6 +669,8 @@ export interface Approval {
   alwaysNote?: string;
   /** What is at risk, in one sentence, from the parsed call (see companion-protocol). */
   riskNote?: string;
+  /** Always allow is refused on this card; alwaysNote says why. */
+  alwaysRefused?: boolean;
   answeredFrom?: 'desk' | 'phone' | 'phoneLockScreen' | 'plan' | 'auto' | 'admin' | 'rule';
   /** What you told the agent when you declined. */
   note?: string;

@@ -356,6 +356,74 @@ pub fn always_note(scope: Option<&Scope>, spends: bool, is_tool_call: bool) -> O
     Some(format!("Every future {what} from this agent."))
 }
 
+/// Why a card's own "Always allow" must be refused: the call is on Bold's
+/// floor (`go_hard::floor`: spending, deleting for good, pushing, sending as
+/// the user, credentials, `sudo`, system persistence), which no standing rule
+/// may cover, whoever made it. The reason is in a few plain words, from the
+/// parsed command where there is one; without a context to judge by it
+/// refuses, as `plan` does.
+pub fn never_always(agent: &Agent, tool: &str, input: &Value) -> Option<&'static str> {
+    never_always_in(Ctx::for_agent(agent).as_ref(), tool, input)
+}
+
+fn never_always_in(ctx: Option<&Ctx>, tool: &str, input: &Value) -> Option<&'static str> {
+    if super::go_hard::spends(tool, input) {
+        return Some("it spends money");
+    }
+    let on_floor = match ctx {
+        Some(ctx) => super::go_hard::floor(tool, input, ctx),
+        None => true,
+    };
+    if !on_floor {
+        return None;
+    }
+    let why = floor_reason(tool, input);
+    // A plain push is on Bold's ask list but not on the floor no rule may
+    // cover (money, credentials, `sudo`, deleting for good, force pushes,
+    // system persistence): "Mogbot repo: go ahead" is a rule worth keeping.
+    (why != PLAIN_PUSH).then_some(why)
+}
+
+const PLAIN_PUSH: &str = "it publishes for others to see";
+
+fn floor_reason(tool: &str, input: &Value) -> &'static str {
+    let Some(command) = input.get("command").and_then(Value::as_str).filter(|_| tool == "Bash")
+    else {
+        return "this kind of request asks every time";
+    };
+    for words in super::go_hard::commands(command) {
+        let all: Vec<&str> = words.iter().map(String::as_str).collect();
+        let all = super::go_hard::unwrapped(&all);
+        let Some((prog, args)) = all.split_first() else {
+            continue;
+        };
+        match super::go_hard::base(prog) {
+            "rm" | "rmdir" | "trash" | "unlink" | "shred" => return "it deletes for good",
+            "sudo" | "doas" => return "it runs as the administrator",
+            "git" if args.contains(&"push") => {
+                let forced = args.iter().any(|a| {
+                    matches!(*a, "-f" | "--force" | "--force-with-lease" | "--mirror" | "--delete")
+                        || a.starts_with("--force")
+                        || a.starts_with('+')
+                });
+                return if forced {
+                    "it force-pushes or deletes on the remote"
+                } else {
+                    PLAIN_PUSH
+                };
+            }
+            "launchctl" | "crontab" | "defaults" | "pmset" | "scutil" | "systemsetup" => {
+                return "it changes how this Mac runs"
+            }
+            "security" | "gpg" | "ssh-add" | "op" | "pass" | "aws" | "gcloud" => {
+                return "it touches credentials"
+            }
+            _ => {}
+        }
+    }
+    "this kind of request asks every time"
+}
+
 /// "post to social media · Acme CRM", "run `npm test`", "open pages on example.com".
 pub fn phrase(scope: &Scope) -> String {
     match scope.kind {

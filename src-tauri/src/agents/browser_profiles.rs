@@ -600,6 +600,7 @@ pub async fn bring_to_front(
         answered_from: None,
         always_note: None,
         risk_note: None,
+        always_refused: false,
         from_outside: None,
         front: Some(front),
         settings: None,

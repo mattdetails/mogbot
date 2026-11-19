@@ -793,6 +793,8 @@ export interface Approval {
   alwaysNote?: string;
   /** One sentence on what is at risk (deletes, publishes, installs, sends data, spends), from the parsed call; absent when nothing is recognised. */
   riskNote?: string;
+  /** Always allow is refused on this card (money, deleting for good, sudo, force pushes, system changes, credentials); `alwaysNote` says why. */
+  alwaysRefused?: boolean;
   note?: string;
   /** A secure input card: what the agent asked for. */
   secret?: SecretRequest;

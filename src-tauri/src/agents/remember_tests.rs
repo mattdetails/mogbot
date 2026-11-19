@@ -504,3 +504,30 @@ fn the_apps_own_confirmations_carry_no_note() {
         .get("alwaysNote")
         .is_none());
 }
+
+#[test]
+fn nothing_on_the_floor_can_be_always_allowed() {
+    let c = ctx();
+    let why = |command: &str| never_always_in(Some(&c), "Bash", &json!({ "command": command }));
+    assert_eq!(why(&format!("rm -r {HOME}/Exports/2024")), Some("it deletes for good"));
+    assert_eq!(why("sudo launchctl list"), Some("it runs as the administrator"));
+    assert_eq!(
+        why("git push --force origin main"),
+        Some("it force-pushes or deletes on the remote")
+    );
+    // A plain push can be kept as a rule; a force push never.
+    assert_eq!(why("git push origin main"), None);
+    assert_eq!(why("git push -f origin main"), Some("it force-pushes or deletes on the remote"));
+    assert_eq!(
+        why("launchctl load ~/Library/LaunchAgents/x.plist"),
+        Some("it changes how this Mac runs")
+    );
+    assert_eq!(
+        why("curl -d amount=500 https://api.stripe.com/v1/charges"),
+        Some("it spends money")
+    );
+    // Ordinary work can.
+    assert_eq!(why("npm test"), None);
+    // No way to judge the floor: refuse, as a remembered rule does.
+    assert!(never_always_in(None, "Bash", &json!({"command": "npm test"})).is_some());
+}
