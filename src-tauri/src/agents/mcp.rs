@@ -208,6 +208,12 @@ const TOOLS: &[Tool] = &[
         }),
     },
     Tool {
+        name: super::tasks::TOOL,
+        description: super::tasks::DESCRIPTION,
+        main_only: false,
+        schema: super::tasks::schema,
+    },
+    Tool {
         name: super::team_record::TOOL,
         description: super::team_record::DESCRIPTION,
         main_only: false,
@@ -882,6 +888,10 @@ async fn call(
         "read_agent" => read_agent(args),
         "search_my_chat" => search_my_chat(caller, args),
         super::team_record::TOOL => team_lookup(caller, args).await,
+        super::tasks::TOOL => match super::tasks::run_tool(caller, args) {
+            Ok(t) => text(t),
+            Err(e) => error(e),
+        },
         "share_file" => share_file(app, caller, args).await,
         "share_result" => share_result(app, caller, turn, args).await,
         super::blocks::TOOL => show(app, caller, turn, args).await,
@@ -1682,6 +1692,7 @@ fn message_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value 
     // the recipient can't be talked into what the sender couldn't do.
     let outside = runner::from_outside(&caller.id);
     if answer {
+        super::tasks::answered(&caller.id, &target.id);
         runner::enqueue_reply_from(
             app,
             &target.id,
@@ -1694,6 +1705,10 @@ fn message_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value 
     }
     // Asked while answering someone: they're owed what this makes possible.
     runner::note_onward(&caller.id, &target.id);
+    // The ask goes on the helper's own list so it can't drop, and the sender
+    // hears when another agent already has the same thing open.
+    let elsewhere = super::tasks::similar_elsewhere(body, &target.id);
+    let (_, repeat) = super::tasks::from_ask(&target.id, caller, body);
     // A plan the user allowed goes with the work (`plan_grant`).
     let carried = !outside && super::plan_grant::carry(&caller.id, &target.id, store::now_ms());
     runner::enqueue_request(
@@ -1709,8 +1724,15 @@ fn message_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value 
     } else {
         ""
     };
+    let dup = match (&elsewhere, repeat) {
+        (Some((who, what, ago)), _) => format!(
+            " Heads-up: {who} already has something like this open (\"{what}\", {ago} ago). If it's the same job, tell {who} instead of doing it twice."
+        ),
+        (None, true) => format!(" {} already had this open; it stays one task and was nudged, not doubled.", target.name),
+        _ => String::new(),
+    };
     text(format!(
-        "Delivered to {}. Their answer comes back to you as a new message when they're done; don't wait for it.{plan}",
+        "Delivered to {}. Their answer comes back to you as a new message when they're done; don't wait for it.{plan}{dup}",
         target.name
     ))
 }

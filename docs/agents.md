@@ -7708,6 +7708,38 @@ aren't pruned (only the floor's card stops them); a room turn doesn't get the
 low-disk note. The card wiring in `mcp::decide_inner` is covered by
 `disk::floor_asks` unit tests, not by an end-to-end approval test.
 
+## Task lists and the Chief as manager (`agents/tasks.rs`)
+
+Observed on the 18 Nov calls: an ask given to an agent was gone once it got busy, two agents with
+near-identical jobs (Apollo PM, Apollo Finances) both got the same update, and nobody could see who
+was overloaded.
+
+- **One list per agent**, `<home>/tasks.json`, kept by the app. A request from another agent
+  (`message_agent`) lands on the helper's list as it is delivered, deduped (the same ask from the
+  same sender is bumped, never doubled); the helper's turn answering it marks it done, ending in an
+  error marks it stuck. The agent adds the user's asks it can't finish in one reply with the `tasks`
+  tool (`add`, `done`, `drop`, `wait` naming on whom, `list`, `board`). Every turn's briefing ends
+  with the agent's own open list, so a restart never loses one.
+- **Overloaded** is a plain rule, shown as the rule: 6 or more open, or 3 or more with the oldest
+  over a day. Never a model's judgement.
+- **The board.** The Chief's briefing carries every agent's job (its role in a few words), open
+  count, oldest age, overloaded or stuck flag, what it is doing now and its first ask, capped at
+  1,400 characters, plus who has nothing open. `message_agent` tells the sender when another agent
+  already has a like ask open (word overlap of 70% of the shorter), so it tells that agent instead
+  of doing it twice.
+- **Chasing.** The scheduler tick (every 5 minutes at most) nudges an ask still open after 3 hours
+  (8 for the user's own asks on a list), as a request from whoever asked, twice at most. Never while
+  the agent is busy, has a message queued, is being driven (Take over), in quiet hours or in "Save my
+  limits". After the second nudge goes unanswered for another wait, it is marked stuck and the Chief's
+  chat says so in one line (nothing goes silent).
+- **Desk.** What's in flight has an "Open asks" section: each agent with something open, an
+  Overloaded or "N stuck" pill, its first asks and how old (`agents_task_board`). Harness:
+  `agents-inflight-asks`.
+- **Honest asking** (every agent's prompt, "Do you have what you need?"): check memory, the team
+  record, files and tools first; ask one specific question for what only the user or a teammate has,
+  and put the task on `wait`; never fill a gap with invented numbers, names, links or filler.
+- Not yet: the phone's view of the lists; the user adding a task by hand.
+
 ## Known limits / next
 
 - Three engines: Claude Code, Codex and OpenCode (see "Engines"). Another

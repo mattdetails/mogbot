@@ -102,6 +102,13 @@ fn emit_registry(app: &AppHandle) {
     let _ = app.emit(runner::EVENT_REGISTRY, ());
 }
 
+/// Every agent's open asks and load, for What's in flight (`agents::tasks`).
+#[tauri::command]
+#[tracing::instrument]
+pub async fn agents_task_board() -> Result<Vec<agents::tasks::Load>, CommandError> {
+    blocking(|| Ok(agents::tasks::all_loads(crate::agents::store::now_ms()))).await
+}
+
 #[tauri::command]
 #[tracing::instrument(skip(app))]
 pub async fn agents_overview(app: AppHandle) -> Result<AgentsOverview, CommandError> {

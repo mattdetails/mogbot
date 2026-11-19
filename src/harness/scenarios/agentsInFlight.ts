@@ -266,7 +266,78 @@ function board(needing: number) {
 const LOOK =
   'Keys keep their look (colourway, legend, lit states) but the page is ordered by attention: Needs you first, Working now, Finished recently, then everyone else as a quieter grid of smaller keys, names only (the last line on hover or focus). Each heading carries its count. No wall of “…” previews. Answers are neutral, never accent.';
 
+const ask = (id: string, title: string, hoursAgo: number, from = 'Chief of Staff', extra = {}) => ({
+  id,
+  title,
+  source: 'agent' as const,
+  from: { id: 'chief', name: from },
+  state: 'open' as const,
+  createdAt: now - hoursAgo * 60 * MIN,
+  updatedAt: now - hoursAgo * 60 * MIN,
+  chased: 0,
+  ...extra,
+});
+
+const load = (agentId: string, name: string, role: string, open: unknown[], extra = {}) => ({
+  agentId,
+  name,
+  role,
+  doing: null,
+  open,
+  recent: [],
+  overloaded: false,
+  overloadedWhy: null,
+  stuck: 0,
+  ...extra,
+});
+
+/** Who has what open: one overloaded, one stuck, one light. */
+function asksBoard() {
+  return {
+    ...board(0),
+    agents_task_board: [
+      load(
+        'finance',
+        'Finance',
+        'Keeps the books',
+        [
+          ask('a1', 'Reconcile October against the bank', 30),
+          ask('a2', 'Chase the Globex invoice', 26),
+          ask('a3', 'Update the Apollo budget sheet', 20),
+          ask('a4', 'Draft the Q4 tax estimate', 9),
+          ask('a5', 'Send Northwind the payment link', 5),
+          ask('a6', 'Categorise the card spend', 2),
+        ],
+        { overloaded: true, overloadedWhy: '6 asks open' }
+      ),
+      load(
+        'recruiter',
+        'Recruiter',
+        'Screens candidates',
+        [
+          ask('b1', 'Reply to the three candidates from overnight', 7, 'Chief of Staff', {
+            state: 'stuck',
+          }),
+        ],
+        { stuck: 1 }
+      ),
+      load('research', 'Research', 'Watches competitors', [
+        ask('c1', 'Pull the two pricing changes into one table', 1),
+      ]),
+    ],
+  };
+}
+
 export const agentsInFlightScenarios: Scenario[] = [
+  {
+    id: 'agents-inflight-asks',
+    title: 'Agents — What’s in flight, open asks per agent',
+    looksRightWhen: `${LOOK} A quiet “Open asks · 3” section above Everyone else's tail: Finance first with an Overloaded pill, its first two asks in the line and “4 more”, “6 open · 1d” at the right; Recruiter with a “1 stuck” pill; Research with its one ask.`,
+    command: 'agents.team',
+    requires: '.agents-team__section[aria-label^="Open asks"]',
+    viewport: { width: 1440, height: 1000 },
+    commands: asksBoard(),
+  },
   {
     id: 'agents-inflight-none',
     title: 'Agents — What’s in flight, twenty agents, nothing needs you',

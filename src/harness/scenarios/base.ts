@@ -221,6 +221,8 @@ export const baseCommands: CommandMap = {
   agents_busy: 0,
   // A project window's sidebar lists only the agents bound to folders.
   agents_with_projects: [],
+  // Open asks per agent (`agents/tasks.rs`): none until a scenario lays some over.
+  agents_task_board: [],
   agents_overview: {
     engineReady: true,
     agents: [
