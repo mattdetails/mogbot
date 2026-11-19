@@ -46,10 +46,9 @@ agent or a terminal in the sidebar switches between them.
 
 ## Agents and a project side by side
 
-The split button beside **Agents | Projects** (or ⌘K → "Show Agents and Projects side by side")
-puts your agents and their chats on the left and the open project on the right, in one window.
+⌘K → "Show Agents and Projects side by side" puts your agents and their chats on the left and the open project on the right, in one window.
 The project half shows its terminals only: no preview or code, which come back when you click the
-button again. Drag the line between the halves to resize them (double-click puts it back to half
+split button that appears beside **Agents | Projects** while it's on (or run the command again). Drag the line between the halves to resize them (double-click puts it back to half
 and half). The window remembers both.
 
 ## Visual editing
