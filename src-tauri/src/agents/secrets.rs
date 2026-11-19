@@ -775,6 +775,7 @@ mod tests {
             set_aside: None,
             expiry: None,
             answered_from: None,
+            always_note: None,
             from_outside: None,
             front: None,
             settings: None,

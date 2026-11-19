@@ -410,6 +410,13 @@ pub struct Approval {
     /// answers from before it was recorded or from a path that doesn't say.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub answered_from: Option<super::answer_gate::Source>,
+    /// One plain sentence on what "Always allow" on this card would cover
+    /// ("Every future `git push origin main` from this agent."), or why it
+    /// can't be ("Can't be always allowed: it spends money."). Made on the
+    /// Mac when the card is raised (`remember::always_note`); absent on
+    /// cards that never offer it, and from before it was recorded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub always_note: Option<String>,
     /// "Change this agent's settings?" (`propose_settings_change`,
     /// `agents/policy_card.rs`): who, what, before and after in plain words.
     /// Nothing changes until the user allows it; the card's own text

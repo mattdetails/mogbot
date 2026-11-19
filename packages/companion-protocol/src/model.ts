@@ -789,6 +789,8 @@ export interface Approval {
   alwaysAllowed?: boolean;
   /** Where the answer came from; absent while pending and on answers that didn't say. */
   answeredFrom?: AnsweredFrom;
+  /** One sentence on what "Always allow" would cover, or why it can't be; made on the Mac. Absent when the card never offers it. */
+  alwaysNote?: string;
   note?: string;
   /** A secure input card: what the agent asked for. */
   secret?: SecretRequest;

@@ -3382,6 +3382,11 @@ pub(crate) fn new_card(
     detail: String,
     call: Option<(&str, &Value)>,
 ) -> Approval {
+    // Spending money is never kept as a standing yes (`go_hard::spends`):
+    // the card still says what its rule would be, and answering Always on it
+    // is refused (`commands::agents::answer_card_from`).
+    let spends = call.is_some_and(|(tool, input)| super::go_hard::spends(tool, input));
+    let always = call.and_then(|(tool, input)| permissions::suggest(tool, input));
     Approval {
         request_id,
         title,
@@ -3389,7 +3394,12 @@ pub(crate) fn new_card(
         status: ApprovalStatus::Pending,
         tool: call.map(|(tool, _)| tool.to_string()),
         input: call.map(|(_, input)| input.clone()),
-        always: call.and_then(|(tool, input)| permissions::suggest(tool, input)),
+        always_note: super::remember::always_note(
+            always.as_ref().filter(|_| !spends),
+            spends,
+            call.is_some(),
+        ),
+        always,
         always_allowed: false,
         // What it does and why, in words; the raw call goes behind Details.
         summary: call.and_then(|(tool, input)| super::admin::summary_for(tool, input, None)),

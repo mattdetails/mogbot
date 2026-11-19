@@ -665,6 +665,8 @@ export interface Approval {
   /** Allowed by an "Always allow" rule rather than once. */
   alwaysAllowed?: boolean;
   /** Where the answer came from (desk, phone, phoneLockScreen, plan, auto, admin, rule); absent while pending. */
+  /** What "Always allow" would cover, or why it can't be (one sentence, made on the Mac). */
+  alwaysNote?: string;
   answeredFrom?: 'desk' | 'phone' | 'phoneLockScreen' | 'plan' | 'auto' | 'admin' | 'rule';
   /** What you told the agent when you declined. */
   note?: string;

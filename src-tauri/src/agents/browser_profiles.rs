@@ -598,6 +598,7 @@ pub async fn bring_to_front(
         set_aside: None,
         expiry: None,
         answered_from: None,
+        always_note: None,
         from_outside: None,
         front: Some(front),
         settings: None,
