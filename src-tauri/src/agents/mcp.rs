@@ -3141,6 +3141,12 @@ async fn ask_inner(
     if summary.is_some() {
         approval.summary = summary;
     }
+    // A call on Bold's floor can't be always allowed, whoever's rule it would be.
+    if let Some((tool, input)) = call {
+        if let Some(why) = super::remember::never_always(caller, tool, input) {
+            approval.always_note = Some(format!("Can't be always allowed: {why}."));
+        }
+    }
     approval.risk = risk_of(caller, call, plan.is_some() || raw);
     approval.send_from = plan.as_ref().and_then(super::plan_grant::send_from);
     approval.plan = plan;

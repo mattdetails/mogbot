@@ -2087,14 +2087,17 @@ pub(crate) fn answer_card_from(
         }
         return decline_secret(app, agent_id, request_id, request, note.as_deref());
     }
-    // Spending money is never kept as a standing yes (`go_hard::spends`).
-    if allow
-        && always == Some(true)
-        && matches!((&approval.tool, &approval.input), (Some(t), Some(i)) if agents::go_hard::spends(t, i))
-    {
-        return Err(CommandError::expected(
-            "This one can't be always allowed: it spends money. Allow it once instead.",
-        ));
+    // What Bold's floor keeps asking (money, deleting for good, pushing,
+    // credentials, `sudo`…) is never kept as a standing yes.
+    if allow && always == Some(true) {
+        if let (Some(tool), Some(input)) = (&approval.tool, &approval.input) {
+            let agent = store::get(agent_id)?;
+            if let Some(why) = agents::remember::never_always(&agent, tool, input) {
+                return Err(CommandError::expected(format!(
+                    "This one can't be always allowed: {why}. Allow it once instead."
+                )));
+            }
+        }
     }
     let scope = if allow && always == Some(true) {
         Some(approval.always.clone().ok_or_else(|| {
