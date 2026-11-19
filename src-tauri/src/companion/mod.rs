@@ -612,7 +612,18 @@ struct Conn {
     since: u64,
     /// The agent whose chat this socket has open (`agents.focus`).
     showing: Option<String>,
+    /// The last frame the phone sent on it (ms). A phone in front pings every
+    /// heartbeat, so one that says nothing for [`FOREGROUND_STALE_MS`] is no
+    /// longer in front, whatever its last presence frame said (see `presence`).
+    heard: u64,
 }
+
+/// Three heartbeats (`server::HEARTBEAT`, 15 s) of silence: a socket that was
+/// in front has gone quiet because the app was suspended or the phone left.
+/// Over a Tailscale socket the OS usually closes it; over the relay nothing
+/// tells the Mac (a write into a channel never fails), so without this a
+/// suspended relay phone stayed "in front" and was never pushed.
+pub const FOREGROUND_STALE_MS: u64 = 45_000;
 
 pub struct Companion {
     pub registry: Registry,
@@ -761,12 +772,20 @@ impl Companion {
                 foreground,
                 since: now_ms(),
                 showing: None,
+                heard: now_ms(),
             },
         );
         if foreground {
             self.foreground_changed.notify_one();
         }
         Some(id)
+    }
+
+    /// A frame came from the phone on `conn`: it is there.
+    pub fn heard_from(&self, conn: u64) {
+        if let Some(c) = self.conns().get_mut(&conn) {
+            c.heard = now_ms();
+        }
     }
 
     pub fn close_conn(&self, conn: u64) {
@@ -787,14 +806,26 @@ impl Companion {
 
     /// Whether a phone can see changes itself, for deciding on a push.
     pub fn presence(&self, device_id: &str) -> push::Presence {
+        self.presence_at(device_id, now_ms())
+    }
+
+    /// [`Companion::presence`] at `now`: a socket that was in front but has
+    /// been silent for [`FOREGROUND_STALE_MS`] counts as in the background
+    /// since it last spoke.
+    pub fn presence_at(&self, device_id: &str, now: u64) -> push::Presence {
         let conns = self.conns();
         let mine: Vec<&Conn> = conns
             .values()
             .filter(|c| c.device_id == device_id)
             .collect();
-        if mine.iter().any(|c| c.foreground) {
+        let in_front = |c: &&Conn| c.foreground && now.saturating_sub(c.heard) < FOREGROUND_STALE_MS;
+        if mine.iter().any(in_front) {
             push::Presence::Foreground
-        } else if let Some(since) = mine.iter().map(|c| c.since).max() {
+        } else if let Some(since) = mine
+            .iter()
+            .map(|c| if c.foreground { c.heard } else { c.since })
+            .max()
+        {
             push::Presence::Background { since }
         } else {
             push::Presence::Away
@@ -822,7 +853,10 @@ impl Companion {
         let Some(conn) = conn_of_label(label) else {
             return false;
         };
-        self.conns().get(&conn).is_some_and(|c| c.foreground)
+        let now = now_ms();
+        self.conns()
+            .get(&conn)
+            .is_some_and(|c| c.foreground && now.saturating_sub(c.heard) < FOREGROUND_STALE_MS)
     }
 
     /// `agents.focus` on the socket behind `label`: the chat it has open.
