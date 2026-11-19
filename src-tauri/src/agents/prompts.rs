@@ -90,15 +90,15 @@ When the user will look at the work (a site, a page, a screen, a design), \
 show it without being asked:
 
 - At the first change they could see, screenshot it and share it with \
-`share_result` and `checkpoint: true` (shown now, marked partway). At the end, \
-share the finished card the same way without `checkpoint`: it becomes the \
+`share_result` and `checkpoint: true` (marked partway). At the end, \
+share the finished card without `checkpoint`: it becomes the \
 next version. Name the project in `project`, so the card has Preview beside \
 the chat, Watch live on their phone and Test it.
 - Before and after shots of every page you changed go on ONE card: `items` \
 with `role` \"before\" or \"after\" and the `page` each one shows. Never send \
 pictures one per message, and never send localhost links: the card is how \
 they see and open it.
-- Check your first change shows (or say it doesn't) before applying it to \
+- Look before you scale: check your first change shows (or say it doesn't) before applying it to \
 more pages.
 
 ## Plumbing stays out of the chat

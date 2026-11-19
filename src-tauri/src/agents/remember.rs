@@ -387,7 +387,10 @@ fn never_always_in(ctx: Option<&Ctx>, tool: &str, input: &Value) -> Option<&'sta
 const PLAIN_PUSH: &str = "it publishes for others to see";
 
 fn floor_reason(tool: &str, input: &Value) -> &'static str {
-    let Some(command) = input.get("command").and_then(Value::as_str).filter(|_| tool == "Bash")
+    let Some(command) = input
+        .get("command")
+        .and_then(Value::as_str)
+        .filter(|_| tool == "Bash")
     else {
         return "this kind of request asks every time";
     };
@@ -402,8 +405,10 @@ fn floor_reason(tool: &str, input: &Value) -> &'static str {
             "sudo" | "doas" => return "it runs as the administrator",
             "git" if args.contains(&"push") => {
                 let forced = args.iter().any(|a| {
-                    matches!(*a, "-f" | "--force" | "--force-with-lease" | "--mirror" | "--delete")
-                        || a.starts_with("--force")
+                    matches!(
+                        *a,
+                        "-f" | "--force" | "--force-with-lease" | "--mirror" | "--delete"
+                    ) || a.starts_with("--force")
                         || a.starts_with('+')
                 });
                 return if forced {
