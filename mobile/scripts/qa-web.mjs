@@ -4471,6 +4471,26 @@ async function main() {
     await each(FIRST_RUN);
   }
 
+  if (phase('cards-tonight')) {
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock();
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(5000);
+      for (const [name, text, check] of [
+        ['card-cp-path', 'Exported 24 icons. I need to copy them into the site repo.', 'The copy card under it: the title names where it goes, the whole path wrapped in the command'],
+        ['card-risk-note', 'Deletes this folder and everything in it. It can’t be undone.', 'A risky call: the warning icon, the command, the Mac’s one-line why under it, the always-allow sentence as the card note'],
+        ['card-folded-phone', 'Allowed on your phone', 'A folded card: “Allowed on your phone”'],
+        ['card-folded-lock', 'Allowed from the Lock Screen', 'A folded card: “Allowed from the Lock Screen”'],
+        ['card-folded-rule', 'Declined by your rule', 'A folded card: “Declined by your rule”'],
+      ]) {
+        await scrollToIncludes(text)(page);
+        await sleep(600);
+        await screen(page, theme, { name, check });
+      }
+    }
+  }
+
   if (phase('dictation-words')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);

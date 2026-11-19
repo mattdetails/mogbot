@@ -5623,6 +5623,46 @@ function seedMessages(a: Agent, now: number): AgentMessage[] {
         },
       },
     });
+    // A risky call, with the Mac's one-line why and what Always would cover.
+    add({
+      ts: now - 25.5 * 60_000,
+      kind: 'approval',
+      text: '',
+      approval: {
+        requestId: 'req_risk',
+        title: 'Delete files',
+        detail: 'rm -r ~/Exports/2024',
+        risk: 'low',
+        status: 'pending',
+        tool: 'Bash',
+        riskNote: 'Deletes this folder and everything in it. It can’t be undone.',
+        always: { kind: 'command_prefix', value: 'rm -r ~/Exports', label: 'rm -r ~/Exports' },
+        alwaysNote: 'Always allow would cover rm -r on anything under ~/Exports.',
+      },
+    });
+    // Folded cards: where each answer came from.
+    for (const [i, [from, status]] of (
+      [
+        ['phone', 'allowed'],
+        ['phoneLockScreen', 'allowed'],
+        ['rule', 'denied'],
+      ] as const
+    ).entries()) {
+      add({
+        ts: now - (29 - i) * 60_000,
+        kind: 'approval',
+        text: '',
+        approval: {
+          requestId: `req_folded_${from}`,
+          title: "Run the tests",
+          detail: 'pnpm test',
+          risk: 'low',
+          status,
+          answeredFrom: from,
+          tool: 'Bash',
+        },
+      });
+    }
     // A connector of our own (signed in on the phone's sheet), and GitHub's
     // device code shown here while `gh` on the Mac waits for it.
     add({

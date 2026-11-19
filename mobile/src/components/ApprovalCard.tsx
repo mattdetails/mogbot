@@ -465,6 +465,12 @@ export function ApprovalCard({
           style={cardStyles.always}
         />
       )}
+      {/* What Always allow would cover (or why it can't be): one sentence, under it, whatever else the note says. */}
+      {!!approval.always && !!approval.alwaysNote && !consent && !gate && !crossover && (
+        <T variant="caption" color={colors.textMuted} style={{ textAlign: 'center' }} testID="always-note">
+          {approval.alwaysNote}
+        </T>
+      )}
     </Animated.View>
   );
 
@@ -527,9 +533,7 @@ export function ApprovalCard({
                     !approval.slackReply &&
                     !crossover
                   ? 'It paused here for you. Allow it and it picks up where it left off.'
-                  : approval.always
-                    ? approval.alwaysNote
-                    : undefined
+                  : undefined
       }
       actions={answers && !stepIn?.inSince ? actions : undefined}
     >
@@ -558,6 +562,12 @@ export function ApprovalCard({
             )}
           </FittedDetail>
         )
+      )}
+      {/* Why this one is asked, as the Mac worked it out from the call (never worked out here). */}
+      {pending && !!approval.riskNote && (
+        <T variant="small" color={colors.textSecondary} testID="approval-risk-note">
+          {approval.riskNote}
+        </T>
       )}
       {noting && (
         <Animated.View entering={FadeIn.duration(150)}>
