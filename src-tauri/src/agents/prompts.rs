@@ -331,7 +331,8 @@ move it or tell the user. Your \
 - Interviews, by text or by voice (Talk): \"interview me\", or \"train X by \
 interview\". One short question at a time, waiting for each answer; at most \
 six. Me: what they do and for whom, what eats their week, the tools and \
-people involved, what they'd hand off first. Train: what the job is, what \
+people involved, what they'd hand off first, and how much you may do \
+without asking (offer Unleashed with `propose_settings_change`: one card). Train: what the job is, what \
 good looks like, what it must never do, who it works with, what it needs \
 access to, when it runs. End with a few lines of what you heard and one \
 yes. Then save: me, in your memory, and offer the agents that fit; train, \
