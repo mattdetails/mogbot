@@ -26,6 +26,18 @@ export const MAX_PHONES_PER_ADDRESS = 12;
  * few unanswered sockets open.
  */
 export const MAX_PENDING_MACS = 4;
+/**
+ * A Mac that signed in with `resume` keeps its phones' sockets this long after
+ * its own socket goes (a blip on the path, docs/relay.md "Resuming"), then
+ * they are closed 4404 as before.
+ */
+export const RESUME_GRACE_MS = 30_000;
+/** A resumable channel is acked every this many frames, each way. */
+export const ACK_EVERY = 8;
+/** Phone→Mac frames held for one channel until the Mac acks them. */
+export const MAX_BUFFER_FRAMES = 256;
+export const MAX_BUFFER_BYTES = 4 * 1024 * 1024;
+const HEADER_RESUME = 8;
 
 /** The account this Mac is signed in to (docs/relay.md, "Accounts"). */
 export type Binding = {
@@ -47,6 +59,7 @@ export type PendingLink = { codeHash: string; expiresAt: number };
 
 export const ACCOUNT_KEY = 'account';
 export const PENDING_KEY = 'linkPending';
+export const GRACE_KEY = 'graceUntil';
 
 type MacState = {
   role: 'mac';
@@ -58,6 +71,13 @@ type MacState = {
   authed: boolean;
   /** Closed because a newer Mac socket logged in: its phones aren't this socket's to close. */
   replaced?: boolean;
+  /**
+   * The Mac asked for the resumable framing at login: every payload either way
+   * carries a 4-byte sequence after the channel id, and acks flow back.
+   */
+  resume?: boolean;
+  /** Resumable Macs only: false from login until their `resume` frame is in. */
+  flowing?: boolean;
 };
 
 type PhoneState = {
@@ -72,7 +92,12 @@ type PhoneState = {
   authed?: boolean;
   /** The Mac already knows this channel is gone (it asked, or was told). */
   notified?: boolean;
+  /** Resumable Macs only: the last sequence given to a phone→Mac frame, and the last taken from the Mac. */
+  tx?: number;
+  rx?: number;
 };
+
+type Held = { seq: number; data: Uint8Array };
 
 type State = MacState | PhoneState;
 
@@ -87,6 +112,15 @@ const CHANNEL_KEY = 'lastChannel';
  * hibernate between messages.
  */
 export class MacRelay extends DurableObject<Env> {
+  /**
+   * Phone→Mac frames the Mac hasn't acked, by channel. Only in memory: if the
+   * object is evicted with frames outstanding, that channel can't be resumed
+   * and is closed (the old behaviour), never replayed with a hole.
+   */
+  private held = new Map<number, { frames: Held[]; bytes: number }>();
+  /** A resumable Mac's socket went; its phones are kept until it is back or the grace is up. */
+  private holding = false;
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
@@ -134,7 +168,7 @@ export class MacRelay extends DurableObject<Env> {
   }
 
   private async acceptPhone(accounts: boolean, from: string): Promise<Response> {
-    if (!this.currentMac()) return refuse(4404, 'mac_offline');
+    if (!this.flowingMac()) return refuse(4404, 'mac_offline');
     // Offline wins: a phone is told its Mac needs to sign in only when the Mac is there.
     if (accounts && !(await this.binding())) return refuse(4402, 'sign_in_needed');
     const phones = this.openPhones();
@@ -157,11 +191,17 @@ export class MacRelay extends DurableObject<Env> {
     }
     const ch = await this.nextChannel();
     // The Mac may have gone while the counter was read.
-    const mac = this.currentMac();
+    const mac = this.flowingMac();
     if (!mac) return refuse(4404, 'mac_offline');
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server, ['phone', channelTag(ch), ...(fromTag ? [fromTag] : [])]);
-    server.serializeAttachment({ role: 'phone', ch, at: Date.now() } satisfies PhoneState);
+    const macState = stateOf(mac);
+    const resumable = macState?.role === 'mac' && macState.resume;
+    server.serializeAttachment(
+      (resumable
+        ? { role: 'phone', ch, at: Date.now(), tx: 0, rx: 0 }
+        : { role: 'phone', ch, at: Date.now() }) satisfies PhoneState
+    );
     mac.send(JSON.stringify({ t: 'open', ch }));
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -175,12 +215,12 @@ export class MacRelay extends DurableObject<Env> {
   }
 
   async webSocketClose(ws: WebSocket, code: number): Promise<void> {
-    this.gone(ws);
+    await this.gone(ws);
     closeQuietly(ws, code === 1000 || (code >= 3000 && code <= 4999) ? code : 1000);
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
-    this.gone(ws);
+    await this.gone(ws);
     closeQuietly(ws, 1011);
   }
 
@@ -188,6 +228,16 @@ export class MacRelay extends DurableObject<Env> {
   async alarm(): Promise<void> {
     const now = Date.now();
     let next: number | null = null;
+    const graceUntil = await this.ctx.storage.get<number>(GRACE_KEY);
+    if (graceUntil !== undefined) {
+      if (graceUntil <= now) {
+        await this.ctx.storage.delete(GRACE_KEY);
+        this.holding = false;
+        if (!this.currentMac()) this.closeAllPhones();
+      } else {
+        next = graceUntil;
+      }
+    }
     for (const ws of this.ctx.getWebSockets('mac')) {
       const state = stateOf(ws);
       if (state?.role !== 'mac' || state.authed) continue;
@@ -211,16 +261,25 @@ export class MacRelay extends DurableObject<Env> {
     const account = publicAccount(await this.checkStillThere(await this.binding()));
     if (ws.readyState !== OPEN) return;
     // No await from here on, so two Macs logging in at once still leave exactly one.
+    const resume = frame.resume === 1;
+    let keepPhones = resume;
     for (const other of this.ctx.getWebSockets('mac')) {
       const o = stateOf(other);
       if (other === ws || o?.role !== 'mac' || !o.authed || o.replaced) continue;
+      // A different kind of Mac, or one that never said resume, can't take the channels over.
+      if (!o.resume) keepPhones = false;
       other.serializeAttachment({ ...o, replaced: true } satisfies MacState);
       closeQuietly(other, 4409, 'replaced');
     }
-    // The old Mac's channels mean nothing to the new one: those phones reconnect.
-    this.closeAllPhones();
-    ws.serializeAttachment({ ...state, authed: true } satisfies MacState);
-    ws.send(JSON.stringify({ t: 'ready', account }));
+    // The old Mac's channels mean nothing to a new one that can't resume them: those phones reconnect.
+    // One that can sends `resume` next and decides channel by channel (see `resumeFrom`).
+    if (!keepPhones) this.closeAllPhones();
+    ws.serializeAttachment(
+      (resume
+        ? { ...state, authed: true, resume: true, flowing: false }
+        : { ...state, authed: true }) satisfies MacState
+    );
+    ws.send(JSON.stringify(resume ? { t: 'ready', account, resume: true } : { t: 'ready', account }));
   }
 
   private async fromMac(state: MacState, message: string | ArrayBuffer) {
@@ -233,6 +292,10 @@ export class MacRelay extends DurableObject<Env> {
         const phone = this.phone(frame.ch);
         const s = phone && stateOf(phone);
         if (phone && s?.role === 'phone') phone.serializeAttachment({ ...s, authed: true });
+      } else if (frame?.t === 'resume' && state.resume) {
+        await this.resumeFrom(frame.chs);
+      } else if (frame?.t === 'ack' && state.resume && isChannel(frame.ch)) {
+        this.trim(frame.ch, frame.seq);
       } else if (frame?.t === 'linkStart') {
         await this.startLink(state, frame.code);
       } else if (frame?.t === 'unlink') {
@@ -242,35 +305,178 @@ export class MacRelay extends DurableObject<Env> {
       }
       return;
     }
-    if (message.byteLength < 4) return;
-    const ch = new DataView(message).getUint32(0);
+    const header = state.resume ? HEADER_RESUME : 4;
+    if (message.byteLength < header) return;
+    const view = new DataView(message);
+    const ch = view.getUint32(0);
     const phone = this.phone(ch);
     if (!phone) {
       this.currentMac()?.send(JSON.stringify({ t: 'close', ch }));
       return;
     }
-    if (message.byteLength - 4 > MAX_PAYLOAD) {
+    if (message.byteLength - header > MAX_PAYLOAD) {
       this.closePhone(phone, 1009, 'too_big');
       this.currentMac()?.send(JSON.stringify({ t: 'close', ch }));
       return;
     }
-    phone.send(message.slice(4));
+    if (state.resume) {
+      const seq = view.getUint32(4);
+      const s = stateOf(phone);
+      if (s?.role !== 'phone') return;
+      const rx = s.rx ?? 0;
+      if (seq <= rx) return; // A replay of what the phone already has.
+      if (seq !== rx + 1) {
+        // A hole: the channel's keys would be out of step, so it can't go on.
+        this.closePhone(phone, 4404, 'mac_offline');
+        this.currentMac()?.send(JSON.stringify({ t: 'close', ch }));
+        return;
+      }
+      phone.serializeAttachment({ ...s, rx: seq } satisfies PhoneState);
+      phone.send(message.slice(header));
+      if (seq % ACK_EVERY === 0) this.currentMac()?.send(JSON.stringify({ t: 'ack', ch, seq }));
+      return;
+    }
+    phone.send(message.slice(header));
   }
 
   private fromPhone(ws: WebSocket, state: PhoneState, message: string | ArrayBuffer) {
     // Text other than `ping` (answered without waking) carries nothing for the Mac.
     if (typeof message === 'string') return;
     const mac = this.currentMac();
-    if (!mac) return this.closePhone(ws, 4404, 'mac_offline');
+    if (!mac) return this.fromPhoneWhileAway(ws, state, message);
     if (message.byteLength > MAX_PAYLOAD) {
       this.closePhone(ws, 1009, 'too_big');
       mac.send(JSON.stringify({ t: 'close', ch: state.ch }));
+      return;
+    }
+    const macState = stateOf(mac);
+    if (macState?.role === 'mac' && macState.resume) {
+      this.sendResumable(ws, state, mac, macState, message);
       return;
     }
     const framed = new Uint8Array(4 + message.byteLength);
     new DataView(framed.buffer).setUint32(0, state.ch);
     framed.set(new Uint8Array(message), 4);
     mac.send(framed);
+  }
+
+  /**
+   * No Mac socket right now. Inside the grace period of a resumable Mac the
+   * frame is numbered and kept for it; otherwise the phone is let go.
+   */
+  private fromPhoneWhileAway(ws: WebSocket, state: PhoneState, message: ArrayBuffer) {
+    if (!this.holding || state.tx === undefined) return this.closePhone(ws, 4404, 'mac_offline');
+    if (message.byteLength > MAX_PAYLOAD) return this.closePhone(ws, 1009, 'too_big');
+    const seq = (state.tx ?? 0) + 1;
+    ws.serializeAttachment({ ...state, tx: seq } satisfies PhoneState);
+    const data = new Uint8Array(HEADER_RESUME + message.byteLength);
+    const view = new DataView(data.buffer);
+    view.setUint32(0, state.ch);
+    view.setUint32(4, seq);
+    data.set(new Uint8Array(message), HEADER_RESUME);
+    const held = this.held.get(state.ch) ?? { frames: [], bytes: 0 };
+    held.frames.push({ seq, data });
+    held.bytes += data.byteLength;
+    this.held.set(state.ch, held);
+    if (held.frames.length > MAX_BUFFER_FRAMES || held.bytes > MAX_BUFFER_BYTES) {
+      this.closePhone(ws, 1013, 'overloaded');
+      this.held.delete(state.ch);
+    }
+  }
+
+  /** Numbers a phone's frame, keeps it until the Mac acks it, and sends it if the Mac is taking frames. */
+  private sendResumable(
+    ws: WebSocket,
+    state: PhoneState,
+    mac: WebSocket,
+    macState: MacState,
+    message: ArrayBuffer
+  ) {
+    const seq = (state.tx ?? 0) + 1;
+    ws.serializeAttachment({ ...state, tx: seq } satisfies PhoneState);
+    const data = new Uint8Array(HEADER_RESUME + message.byteLength);
+    const view = new DataView(data.buffer);
+    view.setUint32(0, state.ch);
+    view.setUint32(4, seq);
+    data.set(new Uint8Array(message), HEADER_RESUME);
+    const held = this.held.get(state.ch) ?? { frames: [], bytes: 0 };
+    held.frames.push({ seq, data });
+    held.bytes += data.byteLength;
+    this.held.set(state.ch, held);
+    if (held.frames.length > MAX_BUFFER_FRAMES || held.bytes > MAX_BUFFER_BYTES) {
+      // The Mac isn't acking: nothing more can be promised for this channel.
+      this.closePhone(ws, 1013, 'overloaded');
+      mac.send(JSON.stringify({ t: 'close', ch: state.ch }));
+      return;
+    }
+    if (macState.flowing) mac.send(data);
+  }
+
+  /** The Mac has everything up to `seq` on `ch`. */
+  private trim(ch: number, seq: unknown) {
+    const held = this.held.get(ch);
+    if (!held || typeof seq !== 'number') return;
+    while (held.frames.length && held.frames[0].seq <= seq) {
+      held.bytes -= held.frames[0].data.byteLength;
+      held.frames.shift();
+    }
+  }
+
+  /**
+   * A resumable Mac, signed in again, says which channels it still holds and
+   * how far it got on each. Channels both sides hold go on (the frames the
+   * Mac missed are sent again, then the live ones); a phone the Mac forgot is
+   * closed 4404, a channel only the Mac has is closed on the Mac.
+   */
+  private async resumeFrom(chs: unknown) {
+    const mac = this.currentMac();
+    const macState = mac && stateOf(mac);
+    if (!mac || macState?.role !== 'mac' || !macState.resume) return;
+    const theirs = new Map<number, number>();
+    if (Array.isArray(chs)) {
+      for (const c of chs) {
+        if (c && isChannel(c.ch) && typeof c.rx === 'number') theirs.set(c.ch, c.rx);
+      }
+    }
+    const answer: { ch: number; rx: number }[] = [];
+    const replay: Uint8Array[] = [];
+    for (const ws of this.openPhones()) {
+      const s = stateOf(ws);
+      if (s?.role !== 'phone') continue;
+      const macRx = theirs.get(s.ch);
+      if (macRx === undefined) {
+        this.closePhone(ws, 4404, 'mac_offline');
+        this.held.delete(s.ch);
+        continue;
+      }
+      theirs.delete(s.ch);
+      const tx = s.tx ?? 0;
+      this.trim(s.ch, macRx);
+      const frames = this.held.get(s.ch)?.frames ?? [];
+      // Anything between what the Mac has and what was sent must still be here.
+      const covered = tx <= macRx || (frames.length > 0 && frames[0].seq <= macRx + 1);
+      if (!covered || macRx > tx) {
+        this.closePhone(ws, 4404, 'mac_offline');
+        this.held.delete(s.ch);
+        mac.send(JSON.stringify({ t: 'close', ch: s.ch }));
+        continue;
+      }
+      answer.push({ ch: s.ch, rx: s.rx ?? 0 });
+      for (const f of frames) replay.push(f.data);
+    }
+    for (const ch of theirs.keys()) mac.send(JSON.stringify({ t: 'close', ch }));
+    mac.send(JSON.stringify({ t: 'resumed', chs: answer }));
+    for (const data of replay) mac.send(data);
+    mac.serializeAttachment({ ...macState, flowing: true } satisfies MacState);
+    this.holding = false;
+    await this.ctx.storage.delete(GRACE_KEY);
+  }
+
+  /** The Mac socket that is signed in and taking frames. */
+  private flowingMac(): WebSocket | undefined {
+    const mac = this.currentMac();
+    const s = mac && stateOf(mac);
+    return s?.role === 'mac' && s.flowing === false ? undefined : mac;
   }
 
   private async binding(): Promise<Binding | undefined> {
@@ -398,16 +604,25 @@ export class MacRelay extends DurableObject<Env> {
   }
 
   /** A socket closed or failed from its own side. */
-  private gone(ws: WebSocket) {
+  private async gone(ws: WebSocket) {
     const state = stateOf(ws);
     if (!state) return;
     if (state.role === 'phone') {
+      this.held.delete(state.ch);
       if (state.notified) return;
       ws.serializeAttachment({ ...state, notified: true } satisfies PhoneState);
       this.currentMac()?.send(JSON.stringify({ t: 'close', ch: state.ch }));
       return;
     }
-    if (state.authed && !state.replaced && !this.currentMac(ws)) this.closeAllPhones();
+    if (state.authed && !state.replaced && !this.currentMac(ws)) {
+      if (!state.resume) return this.closeAllPhones();
+      // A resumable Mac: its phones wait for it, up to the grace period.
+      this.holding = true;
+      const until = Date.now() + RESUME_GRACE_MS;
+      await this.ctx.storage.put(GRACE_KEY, until);
+      const alarm = await this.ctx.storage.getAlarm();
+      if (alarm === null || alarm > until) await this.ctx.storage.setAlarm(until);
+    }
   }
 
   /** The logged-in Mac socket, if any (ignoring `except`, which is going). */
@@ -433,7 +648,10 @@ export class MacRelay extends DurableObject<Env> {
   /** Closes a phone the relay or the Mac chose to close; the Mac isn't told again. */
   private closePhone(ws: WebSocket, code: number, reason: string) {
     const state = stateOf(ws);
-    if (state?.role === 'phone') ws.serializeAttachment({ ...state, notified: true });
+    if (state?.role === 'phone') {
+      ws.serializeAttachment({ ...state, notified: true });
+      this.held.delete(state.ch);
+    }
     closeQuietly(ws, code, reason);
   }
 

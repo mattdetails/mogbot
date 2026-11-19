@@ -95,6 +95,27 @@ clear 404 unlinks it (`checkStillThere`; any other answer keeps it).
 5. Keep-alive: text `ping` → `pong`, answered by the relay without waking (auto-response). The Mac
    sends one every 30 s and treats 75 s without anything as dead.
 
+6. **Resuming** (2026-11-18: the path to the relay silently killed the Mac's socket every few
+   minutes, and each time every phone was cut off and made a fresh hello). A Mac that adds
+   `"resume":1` to its `auth` frame, and gets `"resume":true` in `ready`, gets lossless channels
+   across a new socket; either side missing it is the old behaviour (the relay closes the phones
+   4404 when the Mac's socket goes; a new login closes the old one's phones).
+   - Payload frames carry a sequence after the channel: 4-byte channel, 4-byte sequence (per
+     channel and direction, from 1), then the payload. The phone's frames are unchanged.
+   - Each side keeps what the other hasn't acked, and acks `{"t":"ack","ch":n,"seq":m}` every 8
+     frames. A repeat (sequence at or below the last taken) is dropped; a hole closes the channel.
+   - Until the Mac's `{"t":"resume","chs":[{"ch":n,"rx":m}]}` (each channel it holds, and the last
+     phone→Mac sequence it took) is in, phones are refused 4404 and nothing is sent. The relay
+     answers `{"t":"resumed","chs":[{"ch":n,"rx":m}]}` (the last Mac→phone sequence it took), sends
+     the phone frames the Mac missed, and the Mac sends what the relay missed, then both go on.
+     A phone the Mac forgot is closed 4404; a channel only the Mac holds gets a `close`; a channel
+     the relay can no longer replay (its memory was evicted with frames outstanding) is closed 4404.
+   - When a resumable Mac's socket goes, its phones' sockets are kept for 30 s (an alarm). Phone
+     frames in that time are numbered and held (at most 256 frames or 4 MiB per channel). After 30 s
+     with no Mac they are closed 4404 as before. The Mac keeps its channel tasks for 40 s.
+   - The Mac pings every 10 s and treats 25 s of silence as dead, so a socket the path killed is
+     replaced within seconds.
+
 ### Phone ↔ relay: `GET /v1/phone/<fingerprint>` (WebSocket)
 
 - Binary frames only, each one payload. Text `ping` → `pong` as above.
