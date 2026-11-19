@@ -292,6 +292,23 @@ export function addProbeAccount(
     ]
   );
 
+  // Working, with a message of the user's waiting its turn (the queued line).
+  put(
+    base('queuer', 'Checkout', 'Builds checkout', 'blue', {
+      status: { state: 'working', activity: 'Writing the totals', since: now - 4 * MIN },
+      lastActivityAt: now - 4 * MIN,
+    }),
+    [
+      { ts: now - 5 * MIN, kind: 'user', text: 'Add gift cards to checkout.' },
+      {
+        ts: now - 4 * MIN,
+        kind: 'agent',
+        text: 'On it. Gift-card field first, then the balance check.',
+      },
+      { ts: now - MIN, kind: 'user', text: 'Also check the checkout totals.' },
+    ]
+  );
+
   // An agent the desk will delete while its card is open on the phone.
   put(
     base('doomed', 'Temp Helper', 'One-off clean-up', 'gray', {

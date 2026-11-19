@@ -518,10 +518,10 @@
      their own frame), so Copy and the time beside it stay inside the column
      in a narrow window instead of being pushed off its edge. */
   min-width: 0;
-  /* Outlined on the panel colour, where yours is a filled bubble: told apart
-     by more than the side it sits on. */
-  background: var(--surface-panel);
-  border: var(--border-width-default) solid var(--border-strong);
+  /* Filled, no border, as GrokBot's and as the design's hi-fi (Designer's
+     draft-email shots): the same neutral fill as yours, the small corner on
+     the other side, so who spoke is the side and the corner. */
+  background: var(--surface-selected);
   border-bottom-left-radius: var(--radius-sm);
 }
 

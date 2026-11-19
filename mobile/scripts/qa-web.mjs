@@ -1083,6 +1083,14 @@ const PROBE = [
       'An email draft in the chat: the agent’s reply is an outlined bubble (yours is filled), then the card “Send this email?” with To, CC, Subject, the exact words, Discard · Edit · Send (Send neutral), and Draft in Gmail',
   },
   {
+    name: 'probe-queued',
+    route: '/chat/queuer',
+    ready: 'checkout totals',
+    act: () => sleep(1200),
+    check:
+      'A message sent while the agent works: under your bubble one quiet “Next · after this one” with a Send now action, the one working line, and nothing else (no “Keeps running…” line)',
+  },
+  {
     name: 'probe-stale-card',
     route: '/chat/stale',
     ready: 'Ship the price fix',
@@ -1229,7 +1237,8 @@ const LIVE = [
     route: '/one-at-a-time',
     ready: 'Catch up',
     act: () => sleep(1200),
-    check: 'Catch up: "1 of N", the bar, one card; Allow · Deny (neutral) over Chat · Next',
+    check:
+      'Catch up: "N left", the bar, one card; Deny · Allow (neutral, never red) over Open chat · Later',
   },
   {
     name: 'catchup-approval',
@@ -1240,12 +1249,13 @@ const LIVE = [
       // On to the first request answered right here: Allow · Deny under the thumb.
       for (let i = 0; i < 30; i++) {
         if (await page.eval(CATCHUP_HAS('Allow'))) break;
-        await page.clickLabel('Next');
+        await page.clickLabel('Later');
         await sleep(700);
       }
       await sleep(900);
     },
-    check: 'A request: what it said, the capped card, Allow (neutral) · Deny over Chat · Next',
+    check:
+      'A request: what it said, the capped card, Allow (neutral) · Deny over Open chat · Later',
   },
   {
     name: 'usage-ring',
@@ -1279,14 +1289,20 @@ const LIVE = [
     ready: 'Catch up',
     act: async (page) => {
       await sleep(1000);
-      for (let i = 0; i < 40; i++) {
-        if ((await page.text()).includes('All caught up')) break;
-        await page.clickLabel('Next');
-        await sleep(600);
+      for (let i = 0; i < 90; i++) {
+        if ((await page.text()).includes('You’re caught up')) break;
+        // An offer at the end is answered (Not now): Later on it is the same
+        // as on any card, but the answer is what a person would do there.
+        const offer = (await page.text()).includes('An offer, no rush');
+        await page.clickText(offer ? 'Not now' : 'Later').catch(() => page.clickText('Next'));
+        await sleep(500);
+        if (process.env.QA_DEBUG)
+          console.log('catchup-done', i, (await page.text()).slice(0, 90).replace(/\n/g, ' | '));
       }
       await sleep(600);
     },
-    check: 'All caught up: a calm check and Done',
+    check:
+      'You’re caught up: a calm check, “While you were away” with what only happened (tap opens that chat), and Done',
   },
   {
     name: 'chat-chief',
@@ -1350,14 +1366,16 @@ const LIVE = [
     route: '/chat/groceries',
     ready: 'Place order',
     pages: 1,
-    check: 'Groceries: the order request, two progress lines, and the card “Click “Place order” on walmart.com” with its spend line, Deny and Allow',
+    check:
+      'Groceries: the order request, two progress lines, and the card “Click “Place order” on walmart.com” with its spend line, Deny and Allow',
   },
   {
     name: 'chat-site-limit',
     route: '/chat/website',
     ready: 'pricing page',
     pages: 1,
-    check: 'Website: the pricing-page ask, “On it…”, then the usage-limit line with when it refills',
+    check:
+      'Website: the pricing-page ask, “On it…”, then the usage-limit line with when it refills',
   },
   // Blocks (`show`): every kind, in one chat (dev/mock-blocks.ts).
   {
@@ -2833,11 +2851,14 @@ async function quietDropShots(page) {
       name: 'quiet-drop-90s-chat-chief',
       check: '90 s into a drop: still nothing shown',
     });
-    await page.eval(`(() => { window.__realNow = Date.now.bind(Date); Date.now = () => window.__realNow() + 4 * 60000; })()`);
+    await page.eval(
+      `(() => { window.__realNow = Date.now.bind(Date); Date.now = () => window.__realNow() + 4 * 60000; })()`
+    );
     await sleep(13000);
     await screen(page, theme, {
       name: 'quiet-drop-4min-chat-chief',
-      check: 'Past 3 minutes of continuous failure: the bar, Try again, What to check; the chat readable under it',
+      check:
+        'Past 3 minutes of continuous failure: the bar, Try again, What to check; the chat readable under it',
     });
     await page.eval(`(() => { Date.now = window.__realNow; })()`);
   }

@@ -3,7 +3,7 @@ title: The chat
 order: 9
 ---
 
-Every message, yours and your agent's, is a bubble: yours on the right, your agent's on the left with a quieter fill. Cards (results, approvals, tables and charts) keep their own frames and are not bubbles.
+Every message, yours and your agent's, is a bubble: yours on the right, your agent's on the left, both filled in the same neutral colour and told apart by side and by the small square corner at the bottom (right for yours, left for your agent's). Cards (results, approvals, tables and charts) keep their own frames and are not bubbles.
 
 ## When your agent is busy
 
