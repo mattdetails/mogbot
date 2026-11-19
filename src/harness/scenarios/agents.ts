@@ -2464,6 +2464,20 @@ export const agentsScenarios: Scenario[] = [
     },
   },
   {
+    id: 'agents-mascot-fullscreen',
+    title: 'Agents — full screen: the mascot in the traffic lights’ place',
+    looksRightWhen:
+      'The window is in full screen, so there are no traffic lights. The top row of the sidebar shows the app’s mark as a small grey mascot, centred in the room the lights would take, its two eye slots looking right toward the bell (an agent needs you), with the sidebar toggle and the bell where they always are. Nothing overlaps; the row is otherwise unchanged.',
+    command: 'agents.open',
+    requires: '.sidebar-mascot',
+    commands: {
+      agents_overview: liveOverview,
+      agents_messages: messagesFor,
+      agents_quota: claudeQuota(85),
+      'plugin:window|is_fullscreen': true,
+    },
+  },
+  {
     id: 'agents-quota-warning',
     title: 'Agents — plan usage at 93%, in What’s in flight',
     looksRightWhen:

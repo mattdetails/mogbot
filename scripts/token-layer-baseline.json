@@ -1599,6 +1599,12 @@
       "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
     },
     {
+      "path": "src/styles/features/workspace/sidebar-mascot.css",
+      "token": "--duration-loader-isolated",
+      "count": 1,
+      "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
+    },
+    {
       "path": "src/styles/features/workspace/sidebar-rows.css",
       "token": "--font-size-12",
       "count": 1,

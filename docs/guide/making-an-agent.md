@@ -13,6 +13,13 @@ everything else.
 Each agent runs on Claude Code, Codex or OpenCode on your computer, on your own accounts. You choose which
 one per agent once you have more than one set up.
 
+In full screen, the app's little mascot sits at the top of the sidebar, where the window buttons
+usually are. Its eyes follow your pointer. It blinks and looks around while things are quiet,
+watches side to side while your agents work, and looks toward the bell and hops when one needs
+you. Leave it alone with nothing going on and it falls asleep; move the pointer to wake it. Point
+at it and it smiles, press it and it squishes, click it and it jumps, and click it a few times
+fast and it gets dizzy.
+
 ## Describe the agent you want
 
 Click **New agent** (or press ⌘N) and write what you want in a sentence or two. **Draft it**

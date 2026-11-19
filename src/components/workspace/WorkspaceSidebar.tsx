@@ -76,6 +76,7 @@ import type { ProjectDevServerSnapshot } from '../../hooks/useDevServer';
 import type { PinnedProjectRow } from '../../hooks/usePinnedProjects';
 import { ModeToggle } from './ModeToggle';
 import { SideBySideToggle } from './SideBySideToggle';
+import { SidebarMascot } from './SidebarMascot';
 import { useActiveAccount } from '../../hooks/useActiveAccount';
 import { useCommands } from '../../commands/useCommands';
 import { kbd } from '../../lib/shortcuts';
@@ -1825,6 +1826,7 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
       >
         {showNavigationControls && (
           <div className="workspace-sidebar-top-row" data-window-drag>
+            {!isSidebarHidden && <SidebarMascot />}
             {onToggleSidebar && (
               <IconButton
                 variant="ghost"
