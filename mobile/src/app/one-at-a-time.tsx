@@ -441,10 +441,19 @@ function Shown({
               variant="ghost"
               size="compact"
               onPress={() => onChat(card?.id)}
+              style={styles.quietAction}
             />
           )}
           {/* Later moves it to the back: it comes back the next time you catch up. */}
-          {!nextIsMain && <Button title="Later" variant="ghost" size="compact" onPress={goNext} />}
+          {!nextIsMain && (
+            <Button
+              title="Later"
+              variant="ghost"
+              size="compact"
+              onPress={goNext}
+              style={styles.quietAction}
+            />
+          )}
         </View>
         {pending && action.kind === 'answer' ? (
           <Animated.View
@@ -601,7 +610,9 @@ const useStyles = makeStyles((colors) => ({
   who: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   name: { flex: 1 },
   read: { fontSize: type.read, lineHeight: lineHeight(type.read, READ_LINE) },
-  quiet: { flexDirection: 'row', justifyContent: 'center', gap: space.xl },
+  // Two 44 pt ghost buttons side by side, not two small links floating above the answer.
+  quiet: { flexDirection: 'row', justifyContent: 'center', gap: space.sm },
+  quietAction: { flex: 1, minHeight: 44 },
   big: { flex: 1, minHeight: BIG },
   bigSingle: { minHeight: BIG },
   actions: {

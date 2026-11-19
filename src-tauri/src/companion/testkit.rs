@@ -628,6 +628,8 @@ pub struct Stub {
     pub stall_ms: AtomicU64,
     /// `dictation.transcribe` calls: (how many samples, agent, room).
     pub transcribed: Mutex<Vec<(usize, Option<String>, Option<String>)>>,
+    /// The dictation words list `dictation.words` shows.
+    pub words: Mutex<crate::voice::words::Store>,
     /// The speech model isn't here yet: `transcribe` answers `preparing`.
     pub model_missing: AtomicBool,
 }
@@ -802,6 +804,7 @@ impl Stub {
             team_setup: Mutex::new(Vec::new()),
             stall_ms: AtomicU64::new(0),
             transcribed: Mutex::new(Vec::new()),
+            words: Mutex::new(Default::default()),
             model_missing: AtomicBool::new(false),
         });
         let c = Arc::new(Companion::with_epoch(registry, stub.clone(), epoch.into()));
@@ -2752,6 +2755,19 @@ impl Backend for Stub {
             .lock()
             .unwrap()
             .push((actor.into(), tool.into(), detail, ok));
+    }
+
+    async fn dictation_words(&self) -> super::dictation::WordsView {
+        super::dictation::words_view(&self.words.lock().unwrap())
+    }
+
+    async fn dictation_remove_word(
+        &self,
+        word: &str,
+    ) -> Result<super::dictation::WordsView, CommandError> {
+        let mut store = self.words.lock().unwrap();
+        store.remove(word);
+        Ok(super::dictation::words_view(&store))
     }
 
     async fn transcribe(

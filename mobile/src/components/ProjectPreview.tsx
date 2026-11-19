@@ -27,6 +27,9 @@ import { iconSize, radius, space } from '../lib/theme';
 import { Spinner } from './agent';
 import { Button, IconButton, Segmented, T } from './ui';
 
+/** The tallest the picture gets on a card. */
+export const PREVIEW_MAX_HEIGHT = 360;
+
 export function ProjectPreview({ path, name }: { path: string; name: string }) {
   const colors = useColors();
   const styles = useStyles();
@@ -36,12 +39,16 @@ export function ProjectPreview({ path, name }: { path: string; name: string }) {
   const [device, setDevice] = useState<PreviewDevice>('phone');
   const [shot, setShot] = useState<PreviewShot | undefined>(() => keptPreview(path, 'phone'));
   const [busy, setBusy] = useState(false);
+  // The picture's own shape, once it has loaded, and the room the card gives it.
+  const [ratio, setRatio] = useState<number | null>(null);
+  const [room, setRoom] = useState(0);
   const [problem, setProblem] = useState<string | null>(null);
   const now = useNow(30_000);
 
   useEffect(() => {
     setShot(keptPreview(path, device));
     setProblem(null);
+    setRatio(null);
   }, [path, device]);
 
   const take = async () => {
@@ -62,10 +69,17 @@ export function ProjectPreview({ path, name }: { path: string; name: string }) {
     }
   };
 
-  const wide = device === 'desktop';
+  // Its real aspect ratio, held to a height: a tall phone picture is a narrow, centred strip, not a slab.
+  const shape = ratio ?? (device === 'desktop' ? 16 / 10 : 9 / 19.5);
+  const high = room > 0 ? Math.min(PREVIEW_MAX_HEIGHT, room / shape) : PREVIEW_MAX_HEIGHT;
+  const across = Math.min(room > 0 ? room : Infinity, high * shape);
   const any = !!shot || !!keptPreview(path, 'phone') || !!keptPreview(path, 'desktop');
   return (
-    <View style={styles.wrap} testID="project-preview">
+    <View
+      style={styles.wrap}
+      testID="project-preview"
+      onLayout={(e) => setRoom(e.nativeEvent.layout.width - 2 * space.lg)}
+    >
       <View style={styles.head}>
         <T variant="subhead" color={colors.textStrong} style={styles.title}>
           Preview
@@ -79,12 +93,14 @@ export function ProjectPreview({ path, name }: { path: string; name: string }) {
                 { value: 'desktop', label: 'Desktop' },
               ]}
               onChange={setDevice}
+              compact
             />
             {shot && (
               <IconButton
                 name="arrow.clockwise"
                 label="Take a new picture"
-                size={iconSize.inline}
+                size={iconSize.body}
+                compact
                 onPress={() => void take()}
                 disabled={busy || !live}
               />
@@ -114,9 +130,17 @@ export function ProjectPreview({ path, name }: { path: string; name: string }) {
                 params: { uri: shot.uri, name: `${name} · ${device}`, mime: shot.mime },
               });
             }}
-            style={[styles.frame, wide ? styles.frameWide : styles.framePhone]}
+            style={[styles.frame, { height: high, width: across }]}
           >
-            <Image source={{ uri: shot.uri }} resizeMode="contain" style={styles.image} />
+            <Image
+              source={{ uri: shot.uri }}
+              resizeMode="contain"
+              style={styles.image}
+              onLoad={(e) => {
+                const { width, height } = e.nativeEvent.source;
+                if (width > 0 && height > 0) setRatio(width / height);
+              }}
+            />
             {busy && (
               <View style={styles.over}>
                 <Spinner />
@@ -167,11 +191,7 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.surfaceControl,
     overflow: 'hidden',
     alignSelf: 'center',
-    width: '100%',
   },
-  // A phone's picture is tall: held to a height, centred, not stretched to the card.
-  framePhone: { height: 320 },
-  frameWide: { aspectRatio: 16 / 10 },
   image: { width: '100%', height: '100%' },
   over: {
     ...StyleSheet.absoluteFill,

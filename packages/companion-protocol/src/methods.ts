@@ -896,6 +896,33 @@ export interface Methods {
     params: { blob: string; agentId?: string; roomId?: string };
     result: { text: string | null; raw?: string; tidied?: boolean; preparing?: boolean };
   };
+  /**
+   * The words dictation should always get right, as the computer keeps them
+   * (Settings → Agents → Dictation → Your words): typed ones first, then ones
+   * learned from fixes. Read-only here; adding stays on the computer.
+   */
+  'dictation.words': {
+    params: Record<string, never>;
+    result: DictationWords;
+  };
+  /** Take one word off the list; it is never learned again. Answers the list. */
+  'dictation.removeWord': {
+    params: { word: string };
+    result: DictationWords;
+  };
+}
+
+/** The computer's dictation words (`dictation.words`). */
+export interface DictationWords {
+  words: DictationWord[];
+}
+
+export interface DictationWord {
+  word: string;
+  /** Learned from your fixes rather than typed in on the computer. */
+  learned: boolean;
+  /** What dictation wrote before you fixed it to this (learned words). */
+  heardAs: string[];
 }
 
 export type MethodName = keyof Methods;
@@ -904,6 +931,7 @@ export type Result<M extends MethodName> = Methods[M]['result'];
 
 /** Methods that only read. Not written to the audit log, as in Remote Access. */
 export const READ_ONLY_METHODS = [
+  'dictation.words',
   'system.status',
   'devices.self',
   'agents.overview',

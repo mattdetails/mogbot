@@ -2640,6 +2640,12 @@ export function createMockServer(opts: MockOptions = {}) {
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
     return { agentId, current: c.current, items, routines: { ...routinePlaces.get(agentId) } };
   }
+  let dictationWords: { word: string; learned: boolean; heardAs: string[] }[] = [
+    { word: 'Mogbot', learned: false, heardAs: [] },
+    { word: 'Memberstack', learned: false, heardAs: [] },
+    { word: 'Tailscale', learned: true, heardAs: ['tail scale', 'tailscales'] },
+    { word: 'Bradford', learned: true, heardAs: ['Bradfurd'] },
+  ];
   const methods: Partial<Record<MethodName, Handler>> = {
     'agents.conversations': (p) => convList(String(p.agentId)),
     'agents.conversationSelect': (p) => {
@@ -3841,6 +3847,14 @@ export function createMockServer(opts: MockOptions = {}) {
       emit({ type: 'agents.registry', overview: overview() });
       return defaults();
     },
+    // The computer's dictation words: two typed, two learned from fixes.
+    'dictation.words': () => ({ words: dictationWords }),
+    'dictation.removeWord': (p) => {
+      dictationWords = dictationWords.filter(
+        (w) => w.word.toLowerCase() !== String(p.word).toLowerCase()
+      );
+      return { words: dictationWords };
+    },
     'agents.quietHours': () => ({ window: quietWindow }),
     'agents.morningBrief': () => morningBrief,
     // As the router does: `on` and `at` (0 to 1439) required.
@@ -4469,6 +4483,13 @@ export function createMockServer(opts: MockOptions = {}) {
     'preview.screenshot': (p, c) => {
       const project = projects.find((x) => x.path === p.project);
       if (!project) return fail({ type: 'Other', message: 'No such project.' });
+      // One project's site is not running, as a real Mac says it.
+      if (project.name === 'pricing-test') {
+        return fail({
+          type: 'Other',
+          message: "Open Preview on the Mac first — the site isn't running there.",
+        });
+      }
       const bytes = siteScreenshot();
       const blobId = `blob_${randomUUID().replace(/-/g, '')}`;
       const ref: BlobRef = {

@@ -12,6 +12,41 @@
 
 use serde::Serialize;
 
+/// One of your dictation words, as `dictation.words` lists it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WordRow {
+    pub word: String,
+    /// Learned from your fixes rather than typed in on the computer.
+    pub learned: bool,
+    /// What dictation wrote before you fixed it to this (learned words).
+    pub heard_as: Vec<String>,
+}
+
+/// The words list the computer keeps (`voice::words`): typed ones first, then learned.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct WordsView {
+    pub words: Vec<WordRow>,
+}
+
+pub fn words_view(store: &crate::voice::words::Store) -> WordsView {
+    let row = |w: &crate::voice::words::Word| WordRow {
+        word: w.word.clone(),
+        learned: w.learned,
+        heard_as: store
+            .fixes
+            .iter()
+            .filter(|f| f.fixed == w.word)
+            .map(|f| f.heard.clone())
+            .collect(),
+    };
+    let typed = store.words.iter().filter(|w| !w.learned).map(row);
+    let learned = store.words.iter().filter(|w| w.learned).map(row);
+    WordsView {
+        words: typed.chain(learned).collect(),
+    }
+}
+
 /// At most this many lines of the conversation go to the names pass.
 pub const CONTEXT_LINES: usize = 8;
 /// And at most this many characters of them.

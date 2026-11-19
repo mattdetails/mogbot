@@ -596,7 +596,8 @@ request, the diff and the photo viewer push over them. At
     and has **Review**, and so does a card the Mac didn't classify (an older
     Mac, a card from before) and one that doesn't fit whole (`fitsWhole`:
     over 160 characters or 3 lines, a plan over 3 steps). Review opens it in
-    full, where a risky Allow is in the danger style. The phone never works
+    full, where Allow is the same neutral answer as every Allow (a risky one is told apart by
+    its warning icon and words, never by a red button). The phone never works
     risk out from a command's words. A key, a login or a question has its one
     action ("Enter key", "Sign in", "Answer") beside the words, opening it
     where it's answered; changes in a copy have Discard (confirmed) · Keep
@@ -1188,6 +1189,13 @@ The phone can start work as well as answer it. Each piece is gated by
   the draft is what the live words left, and Undo puts them back. Send while
   listening waits for them (capped) and then sends. No model yet
   (`preparing`), a failure or an older computer: today's words stand.
+  **Your words** (`dictation.words`, `dictation.removeWord`; `components/DictationWordsSetting.tsx`,
+  Settings → Dictation words): the list the computer keeps for Whisper and the names pass
+  (Settings → Agents → Dictation there, `dictation-words.json`), typed ones first, then ones
+  learned from fixes with what each was heard as. Read-only on the phone, plus **Remove**
+  (audited on the computer; a removed word is never learned again). Adding stays on the
+  computer. Shown only when the computer serves it and the list isn't empty.
+  `pnpm qa:web --phases dictation-words` captures it.
   **On iOS 26 and later "on the phone" is SpeechAnalyzer** with
   SpeechTranscriber (`modules/speech-analyzer`, a local Expo module;
   `lib/speechAnalyzer.ts` puts it in front of expo-speech-recognition with

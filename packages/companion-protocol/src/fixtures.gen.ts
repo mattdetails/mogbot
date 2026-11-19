@@ -5644,7 +5644,9 @@ export const frames = [
       "agents.teamSetup.dismiss",
       "agents.teamSetup.later",
       "agents.teamSetup.check",
-      "dictation.transcribe"
+      "dictation.transcribe",
+      "dictation.words",
+      "dictation.removeWord"
     ],
     "timeZone": "America/New_York",
     "features": [
