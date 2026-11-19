@@ -65,7 +65,10 @@ fn a_refill_carries_what_was_spent_and_counts_the_new_reading() {
     let s = observe(&s, refilled);
     assert_eq!(s.used_pct, 5.0 + 8.0);
     // A reading that only fell (no new reset time) is treated the same way.
-    let s2 = observe(&observe(&Share::usage(Engine::Codex, 30.0), read(50.0, 1)), read(3.0, 2));
+    let s2 = observe(
+        &observe(&Share::usage(Engine::Codex, 30.0), read(50.0, 1)),
+        read(3.0, 2),
+    );
     assert_eq!(s2.used_pct, 3.0);
 }
 
@@ -86,11 +89,25 @@ fn a_running_mission_pauses_at_its_share_and_says_which_engine() {
         Share::usage(Engine::Claude, 30.0),
         Share::usage(Engine::Codex, 50.0),
     ]);
-    let (m, c) = tick(&m, &[(Engine::Claude, read(10.0, 1)), (Engine::Codex, read(20.0, 1))], H);
+    let (m, c) = tick(
+        &m,
+        &[
+            (Engine::Claude, read(10.0, 1)),
+            (Engine::Codex, read(20.0, 1)),
+        ],
+        H,
+    );
     assert_eq!(c, Change::None);
     assert_eq!(m.state, State::Running);
     // Claude rises 31 points: a little over the 30, since the step finished first.
-    let (m, c) = tick(&m, &[(Engine::Claude, read(41.0, 2)), (Engine::Codex, read(25.0, 2))], 2 * H);
+    let (m, c) = tick(
+        &m,
+        &[
+            (Engine::Claude, read(41.0, 2)),
+            (Engine::Codex, read(25.0, 2)),
+        ],
+        2 * H,
+    );
     assert_eq!(c, Change::PausedAtCap(Some(Engine::Claude)));
     assert_eq!(m.state, State::PausedCap);
     assert_eq!(m.paused_by, Some(Engine::Claude));
@@ -167,8 +184,16 @@ fn the_judge_sets_status_and_the_mission_waits_for_the_user() {
         &m,
         Engine::Codex,
         vec![
-            Verdict { criterion: "leads".into(), result: Met::Met, evidence: Some("Native OS shows 20".into()) },
-            Verdict { criterion: "owner".into(), result: Met::CouldntCheck, evidence: None },
+            Verdict {
+                criterion: "leads".into(),
+                result: Met::Met,
+                evidence: Some("Native OS shows 20".into()),
+            },
+            Verdict {
+                criterion: "owner".into(),
+                result: Met::CouldntCheck,
+                evidence: None,
+            },
         ],
         9,
     );
@@ -181,7 +206,11 @@ fn the_judge_sets_status_and_the_mission_waits_for_the_user() {
 
 #[test]
 fn a_mission_needs_a_goal_two_to_five_criteria_and_a_sane_share() {
-    let c = |n| (0..n).map(|i| crit(&format!("c{i}"), CriterionKind::Check, None, None)).collect::<Vec<_>>();
+    let c = |n| {
+        (0..n)
+            .map(|i| crit(&format!("c{i}"), CriterionKind::Check, None, None))
+            .collect::<Vec<_>>()
+    };
     let share = vec![Share::usage(Engine::Claude, 30.0)];
     assert!(check("Goal", &c(3), &share).is_ok());
     assert!(check("  ", &c(3), &share).is_err());

@@ -29,7 +29,10 @@ fn a_mission_starts_from_the_tools_arguments() {
     assert_eq!(m.shares[1].cap_ms, Some(24 * 3_600_000));
     assert!(m.end_at.is_some());
     assert_eq!(m.updates.daily_at, Some(18 * 60));
-    assert!(m.updates.when_blocked, "blocked updates are on unless said otherwise");
+    assert!(
+        m.updates.when_blocked,
+        "blocked updates are on unless said otherwise"
+    );
     assert_eq!(m.state, State::Starting);
 }
 
@@ -49,10 +52,21 @@ fn a_thin_agreement_is_refused_with_what_is_missing() {
 #[test]
 fn progress_sets_the_number_and_the_status_follows_it() {
     let m = from_args(&args(), 0).unwrap();
-    let m = progress(&m, &json!({ "criterion": "c1", "value": 11, "source": "Native OS · read 11:02 pm" })).unwrap();
+    let m = progress(
+        &m,
+        &json!({ "criterion": "c1", "value": 11, "source": "Native OS · read 11:02 pm" }),
+    )
+    .unwrap();
     assert_eq!(m.criteria[0].status, Status::InProgress);
-    assert_eq!(m.state, State::Running, "the first progress takes it out of starting");
-    assert_eq!(m.criteria[0].source.as_deref(), Some("Native OS · read 11:02 pm"));
+    assert_eq!(
+        m.state,
+        State::Running,
+        "the first progress takes it out of starting"
+    );
+    assert_eq!(
+        m.criteria[0].source.as_deref(),
+        Some("Native OS · read 11:02 pm")
+    );
     let m = progress(&m, &json!({ "criterion": "c1", "value": 20 })).unwrap();
     assert_eq!(m.criteria[0].status, Status::Met);
     assert!(progress(&m, &json!({ "criterion": "nope" })).is_err());
