@@ -53,6 +53,15 @@ projects folder (where agents make and render work), goes onto a page (a post's 
 without a card: you already OK'd the post's words. Uploading any of your other files, or a PDF from
 a project, still asks.
 
+## Trust per repository
+
+You can trust one GitHub repository differently from the rest: "in the Mogbot repo you can open issues
+and merge without asking, in WorkSpan never." Tell the Chief or the agent in chat. **Trusted**: issues
+and pull requests in that repo (create, comment, review, merge) stop asking, at every level. **Never**:
+changes and pushes in that repo always ask, even at Unleashed. A repo's settings, releases, deleting
+and pushes aren't covered by trusting it. Work answering outside text never gets a trusted repo's
+shortcut.
+
 ## Text from outside
 
 When an agent is working on something that came from outside (a web page, an email, a message from

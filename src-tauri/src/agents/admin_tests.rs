@@ -236,6 +236,21 @@ fn with_its_context_local_work_is_exactly_what_go_hard_answers() {
     ] {
         assert_eq!(local(&c), Kind::Yours, "{:?}", c.input);
     }
+    // Not a send: a web or connector read the agent's level wouldn't have
+    // answered. The Chief answers these too; sends, money and the browser
+    // stay the user's.
+    for c in [
+        card("WebFetch", json!({ "url": "https://example.test/docs" })),
+        card("mcp__gmail__search_threads", json!({ "query": "invoice" })),
+    ] {
+        assert_eq!(local(&c), Kind::Local, "{:?}", c.tool);
+    }
+    for c in [
+        card("mcp__claude-in-chrome__computer", json!({ "action": "left_click" })),
+        card("mcp__stripe__create_charge", json!({ "amount": 10 })),
+    ] {
+        assert_eq!(local(&c), Kind::Yours, "{:?}", c.tool);
+    }
     // A card raised while its agent answered outside text stays the user's.
     let mut tainted = bash("ls ~/Kite");
     tainted.from_outside = Some(true);

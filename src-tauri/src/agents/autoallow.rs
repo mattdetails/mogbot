@@ -67,6 +67,16 @@ pub fn allows(level: Level, class: Class) -> bool {
 /// The class a call is answered as, when the user's `chosen` level answers
 /// it: `None` means a card. `outside`: the turn answers outside text.
 pub fn auto(chosen: Level, outside: bool, tool: &str, input: &Value, ctx: &Ctx) -> Option<Class> {
+    // Trust per repository (`repo_trust`): "never" asks at every level,
+    // "allow" runs issue and pull request changes there without a card.
+    if tool == "Bash" {
+        let cmd = input.get("command").and_then(Value::as_str).unwrap_or("");
+        match super::repo_trust::for_command(cmd, &ctx.cwd, outside) {
+            Some(super::repo_trust::Decision::Ask) => return None,
+            Some(super::repo_trust::Decision::Allow) => return Some(Class::Change),
+            None => {}
+        }
+    }
     // "Go hard" is allow-by-default with a short list that asks
     // (`go_hard`), outside text or not: reading a page is the job. "Full
     // send" asks only the floor of that list, and never for outside text:

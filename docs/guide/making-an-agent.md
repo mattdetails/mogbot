@@ -54,7 +54,7 @@ On **Agent**, the rows are grouped:
   click it to switch the model or effort from its next message. A one-line message keeps the
   box on one row; once it wraps, the words get the box's full width and the paperclip, the model,
   the microphone and Send move to a row underneath.
-- **On its own**: its independence, what it may always do beyond its level, and the Admin switch.
+- **On its own**: its independence, what it may always do beyond its level, and the Admin switch. An admin (the Chief by default) answers its team's requests that aren't sends: local work, and web or app reads. Sending, posting, spending, pushing, deleting, logins and the browser stay yours.
 - **What it can use**: its apps and access, and its skills.
 
 A row with a › opens its own page in place; **‹ Edit agent** comes back. Independence, Admin,

@@ -501,6 +501,12 @@ const TOOLS: &[Tool] = &[
         schema: super::plan_grant::schema,
     },
     Tool {
+        name: super::repo_trust::TOOL,
+        description: super::repo_trust::DESCRIPTION,
+        main_only: false,
+        schema: super::repo_trust::schema,
+    },
+    Tool {
         name: super::remember::TOOL,
         description: super::remember::DESCRIPTION,
         main_only: false,
@@ -951,6 +957,7 @@ async fn call(
         }
         super::policy_card::TOOL => super::policy_card::propose(app, caller, turn, args).await,
         super::remember::TOOL => super::remember::call(app, caller, turn, args).await,
+        super::repo_trust::TOOL => super::repo_trust::call(caller, turn, args).await,
         super::skills_learn::TOOL => super::skills_learn::call(app, caller, turn, args).await,
         super::plan_grant::TOOL => super::plan_grant::call(app, caller, args).await,
         _ => error("Unknown tool"),
