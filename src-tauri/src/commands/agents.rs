@@ -1943,7 +1943,11 @@ pub(crate) fn answer_card(
 ) -> Result<(), CommandError> {
     let note = note
         .map(|n| n.trim().chars().take(MAX_DENY_NOTE).collect::<String>())
-        .filter(|n| !allow && !n.is_empty());
+        .filter(|n| !n.is_empty());
+    // On an Allow a note is only ever a draft the user edited (a Slack reply's
+    // words, below); anywhere else it is dropped as before.
+    let edited = if allow { note.clone() } else { None };
+    let note = note.filter(|_| !allow);
     let status = if allow {
         store::ApprovalStatus::Allowed
     } else {
@@ -2002,7 +2006,7 @@ pub(crate) fn answer_card(
     }
     // "Reply in Slack?": Allow posts the exact words shown, as the user.
     if approval.slack_reply.is_some() {
-        return agents::slack::answer_card(app, agent_id, &approval, allow);
+        return agents::slack::answer_card(app, agent_id, &approval, allow, edited);
     }
     // "Save “…” as a skill?": Save writes it, Not now saves nothing.
     if approval.skill.is_some() {
@@ -2198,7 +2202,8 @@ pub async fn agents_add_secret(
 }
 
 /// A "Deny with note…" is a steer, not an essay.
-const MAX_DENY_NOTE: usize = 500;
+/// A deny's note, or the words a user edited a draft to (an email's body).
+const MAX_DENY_NOTE: usize = 4000;
 
 /// Take back an "Always allow" rule: matching calls ask again. Also the
 /// Undo on a "Remembered: …" line, whose rule may be the team's

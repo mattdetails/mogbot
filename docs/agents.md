@@ -7201,7 +7201,7 @@ point-in-time messages and result cards.
   forks from (`page::as_of`: the kept versions made before then, the newest
   current, in a file of its own), or with no page if there wasn't one then
   or those versions are no longer kept; its line names the version.
-- **Pinned, or not.** A new page is pinned. The user can unpin it (desk or
+- **Pinned, or not.** A new page is kept but *not* pinned: nothing sits above the chat that the user didn't ask for (a Cade's-pipeline card appeared that way when new pages were pinned by default). The agent passes `pin: true` only when the user asked for a page or tracker there, a routine's turn never pins one, and otherwise the user pins it from the chat header's Page button. The user can unpin it (desk or
   phone, `agents_page_pin` / `agents.pagePin`); updates carry on and it stays
   unpinned until they pin it back, and the agent is told so in its receipt.
 - **Desk** (`components/agents/ConversationPage.tsx`, `lib/agentPage.ts`):
@@ -7911,3 +7911,7 @@ and resuming a killed turn (it ends honestly instead).
   the copy asks only when what it would run differs from what was approved.
 - Not done: removing the "Connect on claude.ai" choice from login cards and the Settings words for
   Claude in Chrome's own team switch (`browser::team_enabled`) outside the route.
+
+## Draft cards (sends as the user)
+
+A card holding exactly one message with its exact words draws as a draft (`AgentDraftCard`, `lib/draftCard.ts`): a Slack reply card (`slackReply`), or an `ask_plan` card of one `send` or `post` action with `text`. An email is a plan action whose target is an address; its `text` starts with `Subject: …` and optionally `CC: …` lines, a blank line, then the body. Edit changes subject, CC and body; Discard denies; Send allows; "Draft in Gmail" opens Gmail's compose window (`mail.google.com/mail/?view=cm`) filled in and sends nothing. A Slack reply's edit travels in the answer's `note` (up to 4000 characters, only honoured on a Slack card's Allow: `slack::with_edit`) and the posted words are quoted in the line that follows. A plan draft's edit is a deny whose note holds the final words, telling the agent to put exactly them on a new card, so the exact-text rule still holds. Send is neutral, never accent.

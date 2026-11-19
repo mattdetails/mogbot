@@ -5,6 +5,8 @@
  * @module components/agents/AgentChatItems
  */
 
+import { AgentDraftCard } from './AgentDraftCard';
+import { draftOf } from '../../lib/draftCard';
 import {
   memo,
   useEffect,
@@ -457,7 +459,7 @@ export const UserBubble = memo(function UserBubble({
       )}
       {queued && !failed && driven && (
         <div className="agent-chat__queued" role="status">
-          Waiting, sends when you hand {agent.name} back
+          Waiting for you to hand {agent.name} back
         </div>
       )}
       {heard && !failed && (
@@ -467,19 +469,19 @@ export const UserBubble = memo(function UserBubble({
       )}
       {queued && handed && !failed && !driven && (
         <div className="agent-chat__queued" role="status">
-          Sent, {agent.name} reads it at its next step
+          Next
         </div>
       )}
       {queued && !handed && !failed && !driven && (
         <div className="agent-chat__queued" role="status">
-          Queued, sends when {agent.name} finishes
+          Next
           <span aria-hidden>·</span>
           <TextButton
             tabIndex={0}
             onClick={onInterrupt}
             title="Stop what it’s doing and send this now (⌘↵ when sending)"
           >
-            Interrupt and send now
+            Send now
           </TextButton>
         </div>
       )}
@@ -1247,6 +1249,17 @@ const ApprovalCardBody = memo(function ApprovalCard({
   }
   if (approval.login) {
     return <LoginCard message={message} agentName={agentName} arrived={arrived} />;
+  }
+  // One message to send as you, with its exact words: a draft to edit, discard or send.
+  if (draftOf(approval)) {
+    return (
+      <AgentDraftCard
+        message={message}
+        agentName={agentName}
+        onAnswer={onAnswer}
+        arrived={arrived}
+      />
+    );
   }
   if (approval.secret) {
     return (

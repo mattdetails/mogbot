@@ -22,7 +22,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { flushSync } from 'react-dom';
 import { HomeSidebar } from '../workspace/HomeSidebar';
-import { AgentsSidebar, AgentsSidebarActions, InFlightBell, RoutinesRow } from './AgentsSidebar';
+import {
+  AgentsSidebar,
+  AgentsSidebarActions,
+  CatchUpRow,
+  InFlightBell,
+  RoutinesRow,
+} from './AgentsSidebar';
+import { AgentsCatchUp } from './AgentsCatchUp';
 import { AgentsSearchPopover, AgentsTopSearch } from './AgentsSearchBox';
 import { EngineSignInModal, type EngineSetup } from './EngineSignInModal';
 import { AgentChat } from './AgentChat';
@@ -63,6 +70,7 @@ import {
   sortAgents,
   stopAgent,
   TEAM_ID,
+  CATCHUP_ID,
   updateAgent,
   type Agent,
   type AgentEngine,
@@ -146,7 +154,7 @@ function readSelected(): string | null {
   try {
     // "What's in flight" (the sidebar’s bell, or ⌘K) is a detour, never where Agents reopens.
     const id = localStorage.getItem(SELECTED_KEY);
-    return id === TEAM_ID || id === USAGE_ID || id === ROUTINES_ID ? null : id;
+    return id === TEAM_ID || id === CATCHUP_ID || id === USAGE_ID || id === ROUTINES_ID ? null : id;
   } catch {
     return null;
   }
@@ -239,13 +247,15 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
   const [deletingRoom, setDeletingRoom] = useState<Room | null>(null);
   // "What's in flight" (the sidebar’s bell or ⌘K), else the last agent you had open, else the Chief of Staff.
   const teamOpen = selectedId === TEAM_ID;
+  // Catch up (the sidebar's top row, the bell, ⌘K): what waits on you, one at a time.
+  const catchUpOpen = selectedId === CATCHUP_ID;
   // Usage (the sidebar's usage row, ⌘K, a chat's account chip): a detour too.
   const usageOpen = selectedId === USAGE_ID;
   // Routines (the sidebar's Routines row, ⌘K): every agent's routines in one list.
   const routinesOpen = selectedId === ROUTINES_ID;
   const roomOpen = room !== null;
   const selected =
-    teamOpen || usageOpen || routinesOpen || roomOpen
+    teamOpen || catchUpOpen || usageOpen || routinesOpen || roomOpen
       ? null
       : (selectedId && agentsById.get(selectedId)) ||
         agents.find((a) => a.isMain) ||
@@ -291,13 +301,13 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
   useEffect(() => {
     if (!selected) {
       // On "What's in flight" no conversation is on screen, so replies still count as unread.
-      if (teamOpen || usageOpen) void focusAgent(null);
+      if (teamOpen || catchUpOpen || usageOpen) void focusAgent(null);
       return;
     }
     writeSelected(selected.id);
     void focusAgent(selected.id);
     readChat(selected.id);
-  }, [selected?.id, teamOpen, usageOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected?.id, teamOpen, catchUpOpen, usageOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   // On launch the chat Agents reopens on is known before the list of agents
   // is: its reads start now, beside the list's, rather than after it.
   useEffect(() => {
@@ -345,6 +355,8 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
   }, []);
   const openAppsForAll = useCallback(() => openApps(), [openApps]);
   const openInFlight = useCallback(() => setSelectedId(TEAM_ID), []);
+  const openCatchUp = useCallback(() => setSelectedId(CATCHUP_ID), []);
+  const closeCatchUp = useCallback(() => setSelectedId(null), []);
   const openUsage = useCallback(() => setSelectedId(USAGE_ID), []);
   // ⌘K "Pause all routines…" opens Routines on that question.
   const [routinesAsk, setRoutinesAsk] = useState<BulkAsk | null>(null);
@@ -1095,7 +1107,11 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
               // Home belongs to the Projects side; here the one control is
               // What's in flight, with how many need you.
               navContent={
-                <InFlightBell count={needsYouCount} current={teamOpen} onOpen={openInFlight} />
+                <InFlightBell
+                  count={needsYouCount}
+                  current={teamOpen || catchUpOpen}
+                  onOpen={needsYouCount > 0 ? openCatchUp : openInFlight}
+                />
               }
               searchContent={
                 <AgentsTopSearch
@@ -1137,6 +1153,12 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
               }
               listContent={
                 <SidebarBoundary>
+                  <CatchUpRow
+                    count={needsYouCount}
+                    open={catchUpOpen}
+                    collapsed={sidebarProps.isSidebarHidden ?? false}
+                    onOpen={openCatchUp}
+                  />
                   <AgentsSidebar
                     agents={listed}
                     selectedId={room ? roomKey(room.id) : (selected?.id ?? null)}
@@ -1173,11 +1195,13 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
                   ? roomKey(room.id)
                   : teamOpen
                     ? TEAM_ID
-                    : usageOpen
-                      ? USAGE_ID
-                      : routinesOpen
-                        ? ROUTINES_ID
-                        : (shown?.id ?? null)
+                    : catchUpOpen
+                      ? CATCHUP_ID
+                      : usageOpen
+                        ? USAGE_ID
+                        : routinesOpen
+                          ? ROUTINES_ID
+                          : (shown?.id ?? null)
               }
             >
               {error && !loaded ? (
@@ -1204,6 +1228,13 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
                   onOpenAgent={openAgent}
                   ask={routinesAsk}
                   onAsked={clearRoutinesAsk}
+                />
+              ) : catchUpOpen ? (
+                <AgentsCatchUp
+                  onOpenAgent={openAgent}
+                  onOpenMessage={openMessage}
+                  onClose={closeCatchUp}
+                  onOpenInFlight={openInFlight}
                 />
               ) : teamOpen ? (
                 <AgentsTeamView

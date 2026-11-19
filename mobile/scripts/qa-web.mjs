@@ -1074,6 +1074,14 @@ const PROBE = [
       'The step-in card as the desk draws it: a globe, the title with the reason, the site · page title under it, “Its tab shows here and you do it by touch…”, Not now (outlined) and Step in (neutral answer, never the accent); no Allow',
   },
   {
+    name: 'probe-draft-card',
+    route: '/chat/mailer',
+    ready: 'Send this email?',
+    act: () => sleep(1200),
+    check:
+      'An email draft in the chat: the agent’s reply is an outlined bubble (yours is filled), then the card “Send this email?” with To, CC, Subject, the exact words, Discard · Edit · Send (Send neutral), and Draft in Gmail',
+  },
+  {
     name: 'probe-stale-card',
     route: '/chat/stale',
     ready: 'Ship the price fix',

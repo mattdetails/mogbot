@@ -2281,6 +2281,18 @@ export const agentsScenarios: Scenario[] = [
     },
   },
   {
+    id: 'agents-catch-up',
+    title: 'Agents — Catch up, one decision at a time',
+    looksRightWhen:
+      'The Agents sidebar starts with a “Catch up” row and its count. The main pane is Catch up: a header with “N left” and a thin bar; one card in the middle (the agent, how long ago, a tag, the request as a line, why in two lines, and for a send the exact words) with a Deny and a neutral black-and-white Allow, then Open chat and Later quieter; “Up next” on the right lists what comes after. Allow is never an accent colour.',
+    command: 'agents.catchUp',
+    requires: '.agents-catchup__card',
+    commands: {
+      agents_overview: liveOverview,
+      agents_messages: messagesFor,
+    },
+  },
+  {
     id: 'agents-approval',
     title: 'Agents — an approval waiting in the chat',
     looksRightWhen:
@@ -2339,7 +2351,7 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-slack-reply',
     title: 'Agents — an ask from Slack, and its reply waiting for your OK',
     looksRightWhen:
-      'The Chief’s chat: your bubble “draft the launch note…” with a small muted “From Slack · #launch” under it; the Chief’s reply; then a card “Reply in Slack?” whose lead says “In #launch, in the thread it was asked in. Goes out under your name, exactly:” and quotes the reply word for word, with neutral Allow / Deny (never accent) and no Always allow; last, a quiet centred line “Sam asked in Slack (your DM with Sam): …”, not a bubble of yours.',
+      'The Chief’s chat: your bubble “draft the launch note…” with a small muted “From Slack · #launch” under it; the Chief’s reply; then a draft card “Reply in Slack?” showing “In #launch” and the reply word for word in a quiet panel, with Discard, Edit and a neutral Send (never accent); last, a quiet centred line “Sam asked in Slack (your DM with Sam): …”, not a bubble of yours.',
     requires: '.agent-chat__row--user',
     openSelector: AGENTS_TAB,
     steps: [{ click: '[data-agent-id="chief"]' }],
@@ -2347,6 +2359,42 @@ export const agentsScenarios: Scenario[] = [
       agents_overview: overview(),
       agents_messages: (args: Record<string, unknown>) =>
         args.agentId === 'chief' ? SLACK_CHAT : messagesFor(args),
+    },
+  },
+  {
+    id: 'agents-email-draft',
+    title: 'Agents — an email draft: edit, CC, discard, send, or draft it in Gmail',
+    looksRightWhen:
+      'The Chief’s chat ends in a draft card “Send this email?”: To, CC and Subject rows, the body in a quiet panel, “These exact words go out under your name.”, and Discard, Draft in Gmail, Edit and a neutral Send.',
+    requires: '.agent-draft',
+    openSelector: AGENTS_TAB,
+    steps: [{ click: '[data-agent-id="chief"]' }],
+    commands: {
+      agents_overview: overview(),
+      agents_messages: (args: Record<string, unknown>) =>
+        args.agentId === 'chief'
+          ? [
+              msg('user', 'Reply to Aurelie about the beta, cc Sam.', 6),
+              msg('approval', '', 3, {
+                approval: {
+                  requestId: 'mail1',
+                  title: 'Do these under your name?',
+                  detail: '',
+                  status: 'pending',
+                  plan: {
+                    actions: [
+                      {
+                        kind: 'send',
+                        target: 'aurelie@example.com',
+                        summary: 'Email Aurelie about the beta',
+                        text: 'Subject: Beta squad\nCC: sam@example.com\n\nHi Aurelie,\n\nAgents are the team, projects are where the work lives. An agent can be tied to a project and works in its own copy, so your folder stays yours.\n\nJulian',
+                      },
+                    ],
+                  },
+                },
+              }),
+            ]
+          : messagesFor(args),
     },
   },
   {
@@ -3959,7 +4007,7 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-queued',
     title: 'Agents — a message queued while the agent works',
     looksRightWhen:
-      'Acme Site is Working. Earlier: a reply cut off with “Stopped”, a quiet centred “Interrupted to read your new message”, then the message that interrupted it and the reply. Then the working dots with “Editing PricingTable.tsx”, and only under them your newest message, slightly dimmed, with “Queued, sends when Acme Site finishes · Interrupt and send now” under it. The composer holds a second message on its one row, and just under the box, starting where its text starts, a faint “↵ queue · ⌘↵ send now”; nothing above the text inside the box.',
+      'Acme Site is Working. Earlier: a reply cut off with “Stopped”, a quiet centred “Interrupted to read your new message”, then the message that interrupted it and the reply. Then the working dots with “Editing PricingTable.tsx”, and only under them your newest message, slightly dimmed, with “Next · Send now” under it. The composer holds a second message on its one row, and just under the box, starting where its text starts, a faint “↵ queue · ⌘↵ send now”; nothing above the text inside the box.',
     openSelector: AGENTS_TAB,
     requires: '.agent-chat__queued',
     steps: [
@@ -3977,7 +4025,7 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-message-handed',
     title: 'Agents — messages you send while it works go into its turn',
     looksRightWhen:
-      'Acme Site is Working. Your “Do the tablet layout first…” sits in the conversation with a quiet “Read” under it, and its reply follows. Then the working dots with “Editing PricingTable.tsx”, and under them your newest message with “Sent, Acme Site reads it at its next step” (no Interrupt link: it will be read without stopping).',
+      'Acme Site is Working. Your “Do the tablet layout first…” sits in the conversation with a quiet “Read” under it, and its reply follows. Then the working dots with “Editing PricingTable.tsx”, and under them your newest message with “Next” (no Send now link: it will be read without stopping).',
     openSelector: AGENTS_TAB,
     requires: '.agent-chat__queued',
     steps: [{ click: '[data-agent-id="acme"]' }],

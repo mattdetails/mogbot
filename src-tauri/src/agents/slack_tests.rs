@@ -1330,3 +1330,26 @@ fn with_nothing_to_check_it_waits_for_a_change_of_settings() {
     let s = Settings::default();
     assert_eq!(next_wait(&s, NOW, 30_000), IDLE_WAIT);
 }
+
+#[test]
+fn an_edited_reply_posts_the_edit_and_a_blank_or_unchanged_one_posts_the_original() {
+    let r = ReplyCard {
+        channel: "C1".into(),
+        thread_ts: "1.2".into(),
+        place: "#beta".into(),
+        text: "Agents are the team.".into(),
+        account: None,
+    };
+    let (e, was) = with_edit(
+        r.clone(),
+        Some("  Agents are the team, projects are where it lives. "),
+    );
+    assert!(was);
+    assert_eq!(e.text, "Agents are the team, projects are where it lives.");
+    assert_eq!(e.channel, "C1");
+    for same in [None, Some("   "), Some("Agents are the team.")] {
+        let (e, was) = with_edit(r.clone(), same);
+        assert!(!was);
+        assert_eq!(e.text, r.text);
+    }
+}

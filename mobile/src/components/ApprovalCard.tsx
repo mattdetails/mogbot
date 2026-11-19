@@ -311,7 +311,8 @@ export function ApprovalCard({
   // "Carry on with Codex until then?": Wait, Just this time, Always; nothing behind ⋯.
   const crossover = approval.crossover;
   // The Mac marked Allow risky (deleting for good, pushing, sending, money,
-  // credentials…): the danger icon, and Allow in the danger style.
+  // credentials…): the danger icon. Allow stays black and white: a red Allow
+  // read as the way out of the danger (Catch up redesign, 18 Nov).
   const risky = highRisk(approval);
   const [denyWord, allowWord] = approval.front
     ? ['Not now', 'Check again']
@@ -431,7 +432,7 @@ export function ApprovalCard({
         <Button
           title={allowWord}
           // An offer's yes is a choice, not a release: outlined, not solid.
-          variant={risky && !skill ? 'danger' : skill ? 'outline' : 'answer'}
+          variant={skill ? 'outline' : 'answer'}
           busy={busy === 'allow'}
           disabled={off}
           focusable={armed}

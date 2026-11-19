@@ -64,7 +64,7 @@ const NOT_ON_A_PAGE: &[(&str, &str)] = &[
     ("image", "images go in `show` or `share_result`"),
 ];
 
-pub const DESCRIPTION: &str = "This conversation's living page: one page pinned above the chat that you keep up to date, for work that goes on (a job-search tracker, a project status board, a reading list, a running budget). Make one when the user asks to track something over time, or when what they're tracking is better kept current than re-posted; then update it whenever something on it changes, in this conversation and in its routines, instead of re-posting the whole thing. The content is blocks, exactly as `show` takes them (chart, table, metrics, facts, checklist, steps, links, callout, code; no choices, comparison, form or image), each with an `id` you choose (\"applications\", \"next-steps\"). An update sets the blocks you give by id (an existing id is replaced, a new one is added at the end) and removes the ids in `remove`; `replace: true` makes the blocks you give the whole page. A new page needs a `title`. `note` is one line on what changed (\"Moved Acme to interviewing\"): the user sees it in the page's history. Every version is kept, so update freely. Call it with nothing else to read the page as it is (its blocks and ids) before changing it. Plain text only: no HTML, no markdown in blocks, no passwords, keys or tokens. After an update, say in one line what changed, or nothing if the user didn't ask: the page shows it.";
+pub const DESCRIPTION: &str = "This conversation's living page: one page for this conversation that you keep up to date, for work that goes on (a job-search tracker, a project status board, a reading list, a running budget). Make one when the user asks to track something over time, or when what they're tracking is better kept current than re-posted. It is NOT pinned above the chat unless you pass `pin: true`, which you do only when the user asked for a page or tracker there; never pin one they didn't ask for. Then update it whenever something on it changes, in this conversation and in its routines, instead of re-posting the whole thing. The content is blocks, exactly as `show` takes them (chart, table, metrics, facts, checklist, steps, links, callout, code; no choices, comparison, form or image), each with an `id` you choose (\"applications\", \"next-steps\"). An update sets the blocks you give by id (an existing id is replaced, a new one is added at the end) and removes the ids in `remove`; `replace: true` makes the blocks you give the whole page. A new page needs a `title`. `note` is one line on what changed (\"Moved Acme to interviewing\"): the user sees it in the page's history. Every version is kept, so update freely. Call it with nothing else to read the page as it is (its blocks and ids) before changing it. Plain text only: no HTML, no markdown in blocks, no passwords, keys or tokens. After an update, say in one line what changed, or nothing if the user didn't ask: the page shows it.";
 
 pub fn schema() -> Value {
     json!({
@@ -87,7 +87,8 @@ pub fn schema() -> Value {
             },
             "remove": { "type": "array", "items": { "type": "string" }, "description": "Ids of blocks to take off the page." },
             "replace": { "type": "boolean", "description": "true: the blocks given become the whole page, in that order." },
-            "note": { "type": "string", "description": "One line on what changed, for the page's history." }
+            "note": { "type": "string", "description": "One line on what changed, for the page's history." },
+            "pin": { "type": "boolean", "description": "New page only. true pins it above the chat: only when the user asked for a page or tracker there. Left out, the page is kept and the user can pin it from the chat header." }
         }
     })
 }
@@ -251,6 +252,10 @@ pub struct Update {
     pub remove: Vec<String>,
     pub replace: bool,
     pub note: Option<String>,
+    /// `pin: true`: the user asked for the page to sit above the chat. A new
+    /// page is otherwise kept but not pinned (it never takes the top of the
+    /// chat uninvited), and a routine's turn never pins one.
+    pub pin: Option<bool>,
     /// The routine whose turn makes this change, named so the page's history
     /// says which (`runner::routine_running`). Set by the app, never by the
     /// agent's call.
@@ -417,6 +422,7 @@ pub fn parse(args: &Value) -> Result<Update, String> {
         remove,
         replace,
         note,
+        pin: args.get("pin").and_then(Value::as_bool),
         routine: None,
     })
 }
@@ -451,7 +457,7 @@ pub fn apply(
         return Ok(Some(PageFile {
             v: FORMAT,
             conversation: conversation.to_string(),
-            pinned: true,
+            pinned: update.pin == Some(true) && !by_routine,
             versions: vec![Version {
                 version: 1,
                 at: now,
@@ -610,7 +616,7 @@ pub fn for_agent(file: Option<&PageFile>) -> String {
     format!(
         "The page as it is (v{}{}): {body}",
         current.version,
-        if pinned { "" } else { ", unpinned by the user" }
+        if pinned { "" } else { ", not pinned above the chat" }
     )
 }
 
@@ -626,7 +632,7 @@ pub fn receipt(file: &PageFile, changed: bool) -> String {
         )
     } else if current.version == 1 {
         format!(
-            "Made the page \"{}\" (v1), pinned above this conversation. Keep it current with `page` when something on it changes.",
+            "Made the page \"{}\" (v1). Keep it current with `page` when something on it changes.",
             current.title
         )
     } else {
@@ -636,8 +642,14 @@ pub fn receipt(file: &PageFile, changed: bool) -> String {
             change_words(&current.changes)
         )
     };
-    if !file.pinned {
-        s.push_str(" The user unpinned it, so it isn't above the chat; it's kept current all the same, and they can pin it back.");
+    if file.pinned {
+        if current.version == 1 {
+            s.push_str(" It is pinned above this conversation.");
+        }
+    } else if current.version == 1 {
+        s.push_str(" It isn't pinned above the chat (the user didn't ask for that): it's kept, and they can pin it from the chat header.");
+    } else {
+        s.push_str(" It isn't above the chat; it's kept current all the same, and the user can pin it.");
     }
     s
 }

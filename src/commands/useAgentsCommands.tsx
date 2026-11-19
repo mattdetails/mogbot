@@ -28,7 +28,7 @@ import { useOptionalToast } from '../contexts/ToastContext';
 import { setStayOn, type StayOnChange } from '../lib/remoteAccess';
 import { useAgentsSelector, type AgentsState } from '../lib/agentsStore';
 import type { AppView } from '../lib/types';
-import { AGENT_EVENTS, OTHER_APP_NAME, otherAppExists, TEAM_ID } from '../lib/agents';
+import { AGENT_EVENTS, CATCHUP_ID, OTHER_APP_NAME, otherAppExists, TEAM_ID } from '../lib/agents';
 import { DESCRIBE_START, ROLE_TEMPLATES } from '../lib/agentTemplates';
 import { SHARE_RECIPE_EVENT } from '../lib/agentRecipe';
 import { openLogs } from '../lib/agentDesk';
@@ -362,6 +362,17 @@ export function useAgentsNavCommands({ setView }: { setView: (view: AppView) => 
             },
           ]
         : []),
+      {
+        id: 'agents.catchUp',
+        title: 'Catch up',
+        icon: <CollaboratorsIcon size={14} />,
+        category: 'navigation',
+        keywords: ['needs you', 'approvals', 'waiting', 'decisions', 'requests', 'one at a time'],
+        run: () => {
+          requestAgentsIntent({ kind: 'open', agentId: CATCHUP_ID });
+          setView('agents');
+        },
+      },
       {
         id: 'agents.team',
         title: 'What’s in flight',

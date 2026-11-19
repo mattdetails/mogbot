@@ -253,6 +253,45 @@ export function addProbeAccount(
     ]
   );
 
+  // An email the agent wants to send as the user: a draft card (edit, discard, send, Gmail).
+  put(
+    base('mailer', 'Comms Watch', 'Replies for you', 'orange', {
+      pendingApprovals: 1,
+      status: { state: 'waiting', activity: null, since: now - 3 * MIN },
+      lastActivityAt: now - 3 * MIN,
+      preview: 'Needs your OK',
+    }),
+    [
+      { ts: now - 6 * MIN, kind: 'user', text: 'Reply to Aurelie about the beta, cc Sam.' },
+      {
+        ts: now - 5 * MIN,
+        kind: 'agent',
+        text: 'Drafted. I kept it short and copied Sam; it waits on your OK below.',
+      },
+      {
+        ts: now - 3 * MIN,
+        kind: 'approval',
+        text: '',
+        approval: {
+          requestId: 'req_mail',
+          title: 'Do these under your name?',
+          detail: '',
+          status: 'pending',
+          plan: {
+            actions: [
+              {
+                kind: 'send',
+                target: 'aurelie@example.com',
+                summary: 'Email Aurelie about the beta',
+                text: 'Subject: Beta squad\nCC: sam@example.com\n\nHi Aurelie,\n\nAgents are the team, projects are where the work lives. An agent can be tied to a project and works in its own copy, so your folder stays yours.\n\nJulian',
+              },
+            ],
+          },
+        },
+      },
+    ]
+  );
+
   // An agent the desk will delete while its card is open on the phone.
   put(
     base('doomed', 'Temp Helper', 'One-off clean-up', 'gray', {
