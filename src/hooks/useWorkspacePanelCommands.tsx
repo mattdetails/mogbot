@@ -1,7 +1,10 @@
-import { VariablesIcon } from '@/components/icons';
+import { TerminalIcon, VariablesIcon } from '@/components/icons';
 import { useCommands } from '../commands/useCommands';
 
 interface Params {
+  /** This project shows its terminals only (lib/terminalOnly). */
+  terminalOnly: boolean;
+  toggleTerminalOnly: () => void;
   isAgentPanelHidden: boolean;
   toggleAgentPanel: () => void;
   isWebProject: boolean;
@@ -20,6 +23,8 @@ interface Params {
  * twice, word for word, running the same `setDocked`.
  */
 export function useWorkspacePanelCommands({
+  terminalOnly,
+  toggleTerminalOnly,
   isAgentPanelHidden,
   toggleAgentPanel,
   isWebProject,
@@ -30,6 +35,15 @@ export function useWorkspacePanelCommands({
 }: Params): void {
   useCommands(
     () => [
+      {
+        id: 'workspace.terminalOnly',
+        title: terminalOnly ? 'Show the preview again' : 'Terminal only',
+        icon: <TerminalIcon size={14} />,
+        category: 'action',
+        when: 'project',
+        keywords: ['terminal', 'focus', 'hide preview', 'close preview', 'memory', 'ram', 'only'],
+        run: toggleTerminalOnly,
+      },
       {
         id: 'workspace.toggleAgentPanel',
         title: isAgentPanelHidden ? 'Show Session panel' : 'Hide Session panel',
@@ -57,6 +71,8 @@ export function useWorkspacePanelCommands({
       },
     ],
     [
+      terminalOnly,
+      toggleTerminalOnly,
       isAgentPanelHidden,
       toggleAgentPanel,
       isWebProject,

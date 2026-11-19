@@ -69,6 +69,8 @@ export interface WorkspaceTerminalPaneProps {
   healthOutputVersion: number;
   sendToClaude: (text: string) => unknown;
   isPreviewHidden: boolean;
+  /** Terminal only (lib/terminalOnly): no preview, so no screenshot buttons. */
+  terminalOnly?: boolean;
   isAgentPanelHidden: boolean;
   agentPanelPinned: boolean;
   toggleAgentPanelPinned: () => void;
@@ -143,6 +145,7 @@ export function WorkspaceTerminalPane(props: WorkspaceTerminalPaneProps) {
     healthOutputVersion,
     sendToClaude,
     isPreviewHidden,
+    terminalOnly = false,
     isAgentPanelHidden,
     agentPanelPinned,
     toggleAgentPanelPinned,
@@ -425,7 +428,7 @@ export function WorkspaceTerminalPane(props: WorkspaceTerminalPaneProps) {
         isn't enough — with Code/Branches/PRs showing (or the preview pane
         collapsed) there is no iframe to grab, so capture would no-op
         silently and crop mode would latch on with nothing to crop. */}
-              {isWebProject && (
+              {isWebProject && !terminalOnly && (
                 <>
                   <Button
                     variant="ghost"

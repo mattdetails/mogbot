@@ -44,6 +44,23 @@ agent or a terminal in the sidebar switches between them.
   project.
 - **Mobile apps:** Expo, React Native and Flutter apps build and show in the iOS Simulator.
 
+## Terminal only
+
+The terminal button at the right end of a project's title bar (or ⌘K → "Terminal only") shows the
+project's terminals and nothing else: no preview, no Code or Branches view, no panel buttons and
+no screenshot buttons. Branches and Push stay. The preview is closed, not just hidden, so the app
+uses less memory. That helps most when you have several projects open, or when Agents and Projects
+are side by side.
+
+- Each project remembers it: turn it on for a backend or an agent-only project and leave your
+  site's preview on.
+- Your dev server keeps running, as it does when you hide the preview. If **Keep dev servers
+  running** is off in Settings, it stops.
+- Agents can't screenshot or click through the preview while it's closed. They're told the
+  preview isn't open and can ask you to turn it back on.
+- Click the button again (or open Branches from the Branches menu) and the preview comes back as
+  you left it.
+
 ## Agents and a project side by side
 
 ⌘K → "Show Agents and Projects side by side" puts your agents and their chats on the left and the open project on the right, in one window.
