@@ -7413,7 +7413,7 @@ can't trample each other. The UI says "a copy of acme-site", "Keep changes",
   317 MB / 31k-entry pnpm tree, 4.7s and no measurable change in free space.
   Where cloning fails nothing is copied and the prompt says dependencies
   aren't installed.
-- **Limits**: 4 open copies per project, and none made with under 2 GB free.
+- **Limits**: no cap on open copies per project (it was 4, which stopped a team of six on one app); none is made with under 2 GB free.
   Both fail the turn with a sentence saying what to do; nothing falls back to
   the user's folder.
 - **Its own branch, always**: committing, Keep and cleanup first check the
