@@ -22,7 +22,7 @@
 .app.workspace .workspace-sidebar::before {
   position: fixed;
   inset-block-start: calc(
-    var(--control-height-standard) + (var(--space-08) * 2) - var(--border-width-default)
+    var(--control-height-standard) + (var(--spacing-sm) * 2) - var(--border-width-default)
   );
   inset-inline-start: 0;
   width: var(--workspace-sidebar-width);
@@ -54,7 +54,7 @@
  * that chrome instead of drawing through its navigation controls. */
 .app.workspace-home.has-workspace-titlebar .workspace-sidebar::after {
   inset-block-start: calc(
-    var(--control-height-standard) + (var(--space-08) * 2) - var(--border-width-default)
+    var(--control-height-standard) + (var(--spacing-sm) * 2) - var(--border-width-default)
   );
 }
 
@@ -80,14 +80,14 @@
 }
 
 .app.workspace-home .workspace-sidebar-top-row {
-  height: calc(var(--control-height-standard) + (var(--space-08) * 2));
-  min-height: calc(var(--control-height-standard) + (var(--space-08) * 2));
+  height: calc(var(--control-height-standard) + (var(--spacing-sm) * 2));
+  min-height: calc(var(--control-height-standard) + (var(--spacing-sm) * 2));
   gap: 0;
   /* The left inset clears the traffic lights. The extra --space-08 gives the
      nav row a little air off them now that it carries four buttons. */
-  padding: 0 var(--space-08) 0
+  padding: 0 var(--spacing-sm) 0
     calc(
-      var(--space-32) + var(--space-32) + var(--spacing-md) + var(--button-gap) + var(--space-08)
+      var(--space-32) + var(--space-32) + var(--spacing-md) + var(--button-gap) + var(--spacing-sm)
     );
 }
 
@@ -144,8 +144,8 @@
   position: absolute;
   inset-block-start: var(--space-10);
   inset-inline-start: 0;
-  width: calc(var(--control-height-standard) + (var(--space-08) * 2));
-  height: calc(var(--control-height-standard) + (var(--space-08) * 2));
+  width: calc(var(--control-height-standard) + (var(--spacing-sm) * 2));
+  height: calc(var(--control-height-standard) + (var(--spacing-sm) * 2));
   background: linear-gradient(
     to bottom,
     var(--surface-app) 0%,
@@ -162,10 +162,10 @@
   position: absolute;
   inset-block-start: var(--space-10);
   inset-inline-start: calc(
-    var(--control-height-standard) + (var(--space-08) * 2) - var(--border-width-default)
+    var(--control-height-standard) + (var(--spacing-sm) * 2) - var(--border-width-default)
   );
   width: var(--border-width-default);
-  height: calc(var(--control-height-standard) + (var(--space-08) * 2));
+  height: calc(var(--control-height-standard) + (var(--spacing-sm) * 2));
   background: linear-gradient(
     to bottom,
     transparent 0%,
@@ -193,7 +193,7 @@
   display: flex;
   align-items: center;
   gap: var(--button-gap);
-  padding: var(--space-08);
+  padding: var(--spacing-sm);
   border-bottom: var(--stroke-1) solid var(--border-subtle);
   flex-shrink: 0;
 }
@@ -205,7 +205,7 @@
 /* Collapsed rail: only as wide as the icon controls plus their padding.
    !important beats the inline resize width on the aside. */
 .workspace-sidebar.is-hidden {
-  width: calc(var(--control-height-standard) + (var(--space-08) * 2)) !important;
+  width: calc(var(--control-height-standard) + (var(--spacing-sm) * 2)) !important;
   border-right: var(--stroke-1) solid var(--border-default);
 }
 
@@ -262,7 +262,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-  padding: var(--space-08);
+  padding: var(--spacing-sm);
   border-bottom: var(--stroke-1) solid var(--border-subtle);
   flex-shrink: 0;
 }
@@ -270,7 +270,7 @@
 .workspace-sidebar-filter {
   display: flex;
   align-items: center;
-  gap: var(--space-08);
+  gap: var(--spacing-sm);
   width: 100%;
   height: var(--control-height-standard);
   margin: 0;
@@ -395,8 +395,8 @@
 
 .workspace-sidebar.is-hidden .sidebar-project-row {
   justify-content: center;
-  height: calc(var(--control-height-standard) + (var(--space-08) * 2));
-  padding: var(--space-08);
+  height: calc(var(--control-height-standard) + (var(--spacing-sm) * 2));
+  padding: var(--spacing-sm);
 }
 
 /* Collapsed-rail group markers (Pinned / Active). Same row band as the
@@ -546,7 +546,7 @@
 .drag-sort__item:has(.sidebar-project-drag-handle:focus-visible) .sidebar-project-drag-handle {
   /* Keep the handle's hit target clear of the chevron while using the
    * smallest existing icon slot. */
-  margin-inline-end: calc(-1 * var(--space-04));
+  margin-inline-end: calc(-1 * var(--spacing-xs));
 }
 
 .drag-sort__item:not([data-drag-sort-hover-reveal-blocked='true'])
@@ -733,7 +733,7 @@
 }
 
 .sidebar-project-body {
-  padding: var(--space-08) var(--space-08) var(--space-16) var(--space-32);
+  padding: var(--spacing-sm) var(--spacing-sm) var(--space-16) var(--space-32);
   background: var(--surface-app);
 }
 
@@ -782,7 +782,7 @@
 /* Sections within a project */
 .sidebar-section {
   padding: 0;
-  margin-bottom: var(--space-08);
+  margin-bottom: var(--spacing-sm);
 }
 
 .sidebar-section:last-child {
@@ -792,7 +792,7 @@
 .sidebar-section-header {
   display: flex;
   align-items: center;
-  gap: var(--space-04);
+  gap: var(--spacing-xs);
   padding: 0;
   height: var(--size-sidebar-section-row);
   color: var(--text-muted);
@@ -982,7 +982,7 @@
   /* Room for the button's ring and drop shadow: the list clips its overflow
      (it scrolls), so a button flush with its edges lost its outline and
      shadow on the left, right and bottom. */
-  padding: var(--space-08) var(--space-02) var(--space-04);
+  padding: var(--spacing-sm) var(--spacing-2xs) var(--spacing-xs);
 }
 
 /* Wrapper that turns the footer "+" button + chevron caret into a single
