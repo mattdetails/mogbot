@@ -274,6 +274,7 @@ pub(super) fn return_results(app: &AppHandle, agent_id: &str, since: i64, error:
         return;
     }
     let hop = current_hop(agent_id);
+    let error_for_tasks = error.clone();
     // A turn answering outside text passes the taint to whoever it answers.
     let outside = from_outside(agent_id);
     let Ok(me) = store::get(agent_id) else { return };
@@ -297,6 +298,10 @@ pub(super) fn return_results(app: &AppHandle, agent_id: &str, since: i64, error:
         name: me.name.clone(),
     };
     for to in owed {
+        match &error_for_tasks {
+            Some(_) => crate::agents::tasks::failed(agent_id, &to.id, &text),
+            None => crate::agents::tasks::answered(agent_id, &to.id),
+        }
         give_answer(app, &to, &sender, text.clone(), hop, outside);
     }
 }

@@ -163,6 +163,7 @@ export const baseCommands: CommandMap = {
   agents_set_quiet_hours: null,
   // The morning brief as it starts: on, 08:00, nothing on a quiet day.
   agents_morning_brief: { on: true, at: 8 * 60, always: false },
+  agents_end_of_day: { on: true, at: 17 * 60 + 30 },
   agents_set_morning_brief: (args: Record<string, unknown>) => ({
     on: args.on,
     at: args.at,
@@ -221,6 +222,8 @@ export const baseCommands: CommandMap = {
   agents_busy: 0,
   // A project window's sidebar lists only the agents bound to folders.
   agents_with_projects: [],
+  // Open asks per agent (`agents/tasks.rs`): none until a scenario lays some over.
+  agents_task_board: [],
   agents_overview: {
     engineReady: true,
     agents: [

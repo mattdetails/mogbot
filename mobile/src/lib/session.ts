@@ -893,7 +893,9 @@ export const answerApproval = (
   always?: boolean,
   note?: string,
   /** On a session's question: the option picked, by index. */
-  choice?: number
+  choice?: number,
+  /** `lockScreen` when tapped on a notification's button. */
+  from?: 'lockScreen'
 ) =>
   call('agents.answerApproval', {
     agentId,
@@ -902,6 +904,7 @@ export const answerApproval = (
     ...(always ? { always } : {}),
     ...(note ? { note } : {}),
     ...(choice !== undefined ? { choice } : {}),
+    ...(from ? { from } : {}),
   }).catch((e: unknown) => {
     // Closed on the Mac while this copy sat in the cache: drop it here too.
     if (ALREADY_ANSWERED.test(describeError(e))) {
@@ -1574,7 +1577,8 @@ export function answerFromNotification(
 ): Promise<AnswerOutcome> {
   return answerFromAlert(target, allow, {
     waitLive: () => waitLive(),
-    answer: (agentId, requestId, yes) => answerApproval(agentId, requestId, yes, false),
+    answer: (agentId, requestId, yes) =>
+      answerApproval(agentId, requestId, yes, false, undefined, undefined, 'lockScreen'),
     describe: describeError,
     tell: (back: Target, body: string) => postNote(back, 'Not answered', body),
     dismiss: dismissApproval,

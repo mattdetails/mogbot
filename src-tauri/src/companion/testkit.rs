@@ -628,6 +628,8 @@ pub struct Stub {
     pub stall_ms: AtomicU64,
     /// `dictation.transcribe` calls: (how many samples, agent, room).
     pub transcribed: Mutex<Vec<(usize, Option<String>, Option<String>)>>,
+    /// The dictation words list `dictation.words` shows.
+    pub words: Mutex<crate::voice::words::Store>,
     /// The speech model isn't here yet: `transcribe` answers `preparing`.
     pub model_missing: AtomicBool,
 }
@@ -802,6 +804,7 @@ impl Stub {
             team_setup: Mutex::new(Vec::new()),
             stall_ms: AtomicU64::new(0),
             transcribed: Mutex::new(Vec::new()),
+            words: Mutex::new(Default::default()),
             model_missing: AtomicBool::new(false),
         });
         let c = Arc::new(Companion::with_epoch(registry, stub.clone(), epoch.into()));
@@ -2754,6 +2757,19 @@ impl Backend for Stub {
             .push((actor.into(), tool.into(), detail, ok));
     }
 
+    async fn dictation_words(&self) -> super::dictation::WordsView {
+        super::dictation::words_view(&self.words.lock().unwrap())
+    }
+
+    async fn dictation_remove_word(
+        &self,
+        word: &str,
+    ) -> Result<super::dictation::WordsView, CommandError> {
+        let mut store = self.words.lock().unwrap();
+        store.remove(word);
+        Ok(super::dictation::words_view(&store))
+    }
+
     async fn transcribe(
         &self,
         samples_16k: Vec<f32>,
@@ -3079,6 +3095,8 @@ pub fn settings_card() -> crate::agents::store::AgentMessage {
         login: None,
         set_aside: None,
         expiry: None,
+        answered_from: None,
+        always_note: None,
         from_outside: None,
         front: None,
         settings: Some(proposal),
@@ -3186,6 +3204,8 @@ pub fn login_card() -> crate::agents::store::AgentMessage {
     m.approval = Some(Approval {
         request_id: "q12".into(),
         expiry: None,
+        answered_from: None,
+        always_note: None,
         front: None,
         title: "Finance needs your Gmail (work)".into(),
         detail: "Read invoices that arrive by email".into(),

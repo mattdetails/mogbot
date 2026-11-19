@@ -460,3 +460,44 @@ fn always_on_the_card_later_makes_the_rule_the_cards() {
         assert_eq!(rules[0].scope.said, None);
     });
 }
+
+#[test]
+fn a_card_says_what_always_allow_would_cover() {
+    let note = |tool: &str, input: Value| card("n", tool, input).always_note;
+    assert_eq!(
+        note("Bash", json!({"command": "git push origin main"})).as_deref(),
+        Some("Every future command starting with `git push` from this agent.")
+    );
+    assert_eq!(
+        note("WebFetch", json!({"url": "https://example.com/a"})).as_deref(),
+        Some("Every future page it opens on example.com from this agent.")
+    );
+    assert_eq!(
+        note("WebSearch", json!({"query": "x"})).as_deref(),
+        Some("Every future web search from this agent.")
+    );
+    // What it says is the scope the card would really save.
+    let c = card("n", "Bash", json!({"command": "npm test"}));
+    let scope = c.always.as_ref().unwrap();
+    assert!(c.always_note.as_deref().unwrap().contains(&scope.value));
+}
+
+#[test]
+fn a_card_that_spends_money_says_it_cant_be_always_allowed() {
+    let c = card(
+        "m",
+        "Bash",
+        json!({"command": "curl -d amount=500 https://api.stripe.com/v1/charges"}),
+    );
+    assert_eq!(
+        c.always_note.as_deref(),
+        Some("Can't be always allowed: it spends money.")
+    );
+}
+
+#[test]
+fn the_apps_own_confirmations_carry_no_note() {
+    let c = super::super::mcp::new_card("x".into(), "Delete an agent".into(), String::new(), None);
+    assert!(c.always.is_none() && c.always_note.is_none());
+    assert!(serde_json::to_value(&c).unwrap().get("alwaysNote").is_none());
+}

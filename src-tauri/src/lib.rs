@@ -631,6 +631,9 @@ pub fn run() {
             commands::projects::list_projects,
             // Workflows & Inbox
             commands::agents::agents_overview,
+            commands::agents::agents_task_board,
+            commands::agents::agents_end_of_day,
+            commands::agents::agents_set_end_of_day,
             commands::agents::agents_with_projects,
             commands::agents::agents_messages,
             commands::agents::agents_turn_work,

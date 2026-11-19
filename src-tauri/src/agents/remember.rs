@@ -326,6 +326,33 @@ pub fn plan(
     Ok(Plan { scope, team })
 }
 
+/// The sentence under "Always allow" on a card: what the rule would cover,
+/// from the scope the app would actually save, or why there is none. `None`
+/// for a card that never offers it (the app's own confirmations).
+pub fn always_note(scope: Option<&Scope>, spends: bool, is_tool_call: bool) -> Option<String> {
+    let Some(scope) = scope else {
+        return if spends {
+            Some("Can't be always allowed: it spends money.".into())
+        } else if is_tool_call {
+            Some("Can't be always allowed: this kind of request asks every time.".into())
+        } else {
+            None
+        };
+    };
+    let what = match scope.kind {
+        RuleKind::Command => format!("`{}`", scope.value),
+        RuleKind::CommandPrefix => format!("command starting with `{}`", scope.value),
+        RuleKind::Domain => format!("page it opens on {}", scope.value),
+        RuleKind::AppReads => format!(
+            "read of your {}",
+            scope.label.strip_prefix("reading your ").unwrap_or(&scope.label)
+        ),
+        RuleKind::Tool if scope.value == "WebSearch" => "web search".to_string(),
+        RuleKind::Tool => format!("“{}”", scope.label),
+    };
+    Some(format!("Every future {what} from this agent."))
+}
+
 /// "post to social media · Acme CRM", "run `npm test`", "open pages on example.com".
 pub fn phrase(scope: &Scope) -> String {
     match scope.kind {
@@ -482,8 +509,12 @@ pub async fn call(app: &AppHandle, caller: &Agent, turn: Option<u64>, args: &Val
                 continue;
             };
             // The user answering it right now keeps their answer.
-            let Some(_claim) = super::answer_gate::try_claim(&caller.id, &id, "Always allowed")
-            else {
+            let Some(_claim) = super::answer_gate::try_claim_from(
+                &caller.id,
+                &id,
+                "Always allowed",
+                super::answer_gate::Source::Rule,
+            ) else {
                 continue;
             };
             match store::allow_always(&caller.id, &id, &plan.scope) {

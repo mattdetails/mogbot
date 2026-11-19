@@ -434,14 +434,24 @@ export function TextAction({
       ]}
     >
       {/* Small, not caption: beside 16pt values and answers a 12pt link read as a footnote. */}
-      <T
-        variant="small"
-        color={muted ? colors.textSecondary : colors.textStrong}
-        style={{ fontFamily: fonts.medium }}
-        maxFontSizeMultiplier={chromeScale}
-      >
-        {label}
-      </T>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+        <T
+          variant="small"
+          color={muted ? colors.textSecondary : colors.textStrong}
+          style={{ fontFamily: fonts.medium }}
+          maxFontSizeMultiplier={chromeScale}
+        >
+          {label}
+        </T>
+        {/* A toggle that opens more says so: a chevron, so it reads as tappable. */}
+        {expanded !== undefined && (
+          <Icon
+            name={expanded ? 'chevron.up' : 'chevron.down'}
+            size={iconSize.inline}
+            color={muted ? colors.textSecondary : colors.textStrong}
+          />
+        )}
+      </View>
     </Pressable>
   );
 }

@@ -14,6 +14,8 @@
 import { useLinkLive } from '../lib/linkLive';
 import type { Agent, AgentMessage, Approval, ImportProposal } from '@shipstudio/companion-protocol';
 import {
+  cardTitle,
+  softBreaks,
   CROSSOVER_ALWAYS,
   CROSSOVER_ONCE,
   CROSSOVER_WAIT,
@@ -73,7 +75,6 @@ import { PlanList } from './planList';
 import { GateBody } from './gateBody';
 import { SkillCardBody } from './skills';
 import { ShowAll } from './ShowAll';
-import { SideScroll } from './SideScroll';
 import { Card, Line, offlineNote, TextAction, useActionShare } from './surfaces';
 import { Button, Icon, T } from './ui';
 import { useComputer } from '../lib/computer';
@@ -256,6 +257,9 @@ export function ApprovalCard({
   const large = fontScale >= LARGE_TEXT;
   const connected = useLinkLive();
   const pending = approval.status === 'pending';
+  // The title names where a copy, move or delete goes: a yes says what it says yes to.
+  // Shortened in the middle if long, and breakable only at / and - (never inside a number).
+  const heading = softBreaks(cardTitle(approval));
   const paused = pending && agent.status.state === 'idle';
   const fit = useFitDetail(pending && !full, message.id, paused);
   const compact = useShortPane();
@@ -334,7 +338,7 @@ export function ApprovalCard({
 
   if (!pending) {
     return (
-      <Receipt status={approval.status} title={approval.title} outcome={outcome}>
+      <Receipt status={approval.status} title={heading} outcome={outcome}>
         {!!approval.detail &&
           (approval.connector?.kind === 'consent' ? (
             <T variant="small" color={colors.textSecondary}>
@@ -378,7 +382,7 @@ export function ApprovalCard({
       {!consent && !gate && !crossover && (
         <MoreAnswers
           disabled={off || !armed}
-          onPress={() => choose(approval.title, more, scope ?? undefined)}
+          onPress={() => choose(heading, more, scope ?? undefined)}
         />
       )}
       <Button
@@ -453,7 +457,7 @@ export function ApprovalCard({
           variant="ghost"
           disabled={off}
           focusable={armed}
-          onPress={() => choose(approval.title, alwaysOption, scope ?? undefined)}
+          onPress={() => choose(heading, alwaysOption, scope ?? undefined)}
           accessibilityHint={scope ?? undefined}
           testID="always-allow"
           style={cardStyles.always}
@@ -483,7 +487,7 @@ export function ApprovalCard({
                       ? 'arrow.trianglehead.2.clockwise'
                       : 'checkmark.shield'
       }
-      title={approval.title}
+      title={heading}
       // Whose and where, as its sibling import card says it.
       source={
         consent && approval.connector
@@ -1165,7 +1169,7 @@ export function Fields({ fields, lines }: { fields: [string, string][]; lines: n
               {label}
             </T>
             <T color={colors.textPrimary} selectable numberOfLines={max}>
-              {value}
+              {softBreaks(value)}
             </T>
           </View>
         ))}
@@ -1176,40 +1180,62 @@ export function Fields({ fields, lines }: { fields: [string, string][]; lines: n
 }
 
 /**
- * The exact command, never re-wrapped: a line break inside `acme-site`
- * reads as a different path. Long lines scroll sideways instead, and what
- * is selected and copied is the command itself, character for character.
+ * The exact command, in full: monospace, breaking anywhere (a long path wraps
+ * mid-name rather than hiding its end, which is the part a yes depends on),
+ * at most `COMMAND_LINES` lines, then "Show all" opens the rest. Nothing is
+ * hidden behind a sideways scroll or a fade: what is selected and copied is
+ * the command itself, character for character.
  */
+export const COMMAND_LINES = 6;
+/** About how many monospace characters fit a card's line: a long one is capped, with Show all. */
+const COMMAND_LINE_CHARS = 34;
+
 export function Command({ text, lines }: { text: string; lines: number }) {
   const cardStyles = useCardStyles();
   const colors = useColors();
   const [all, setAll] = useState(false);
-  // Long commands are never cut silently: past `lines` they say how many
-  // more there are, and a tap shows the rest.
+  const [measured, setMeasured] = useState(0);
+  const cap = Math.min(lines, COMMAND_LINES);
+  // A command with more lines than the cap, or one line long enough to wrap
+  // past it, says so and opens on a tap (measured where the platform reports
+  // it, else by length: an unneeded Show all is harmless, a hidden end is not).
   const rows = text.split('\n');
-  const long = rows.length > lines;
+  const wrapped = rows.reduce(
+    (n, r) => n + Math.max(1, Math.ceil(r.length / COMMAND_LINE_CHARS)),
+    0
+  );
+  const long = rows.length > cap || Math.max(measured, wrapped) > cap;
   const over = long && !all;
   return (
-    <View style={cardStyles.cardDetail}>
-      <SideScroll
-        testID="command-scroll"
-        fade={colors.surfaceApp}
-        contentContainerStyle={cardStyles.cardDetailInner}
-      >
-        <T variant="mono" color={colors.textPrimary} selectable maxFontSizeMultiplier={1.5}>
-          {over ? rows.slice(0, lines).join('\n') : text}
+    <View style={cardStyles.cardDetail} testID="command-detail">
+      <View style={cardStyles.cardDetailInner}>
+        <T
+          variant="mono"
+          color={colors.textPrimary}
+          selectable
+          maxFontSizeMultiplier={1.5}
+          numberOfLines={over ? cap : undefined}
+          onTextLayout={(e) => setMeasured(e.nativeEvent.lines.length)}
+          // Break anywhere on the web too (native already breaks a word too long for the line).
+          style={BREAK_ANYWHERE}
+        >
+          {softBreaks(text)}
         </T>
-      </SideScroll>
+      </View>
       {long && (
         <ShowAll
           open={all}
           onPress={() => setAll((v) => !v)}
-          label={`Show all ${rows.length} lines`}
+          label={rows.length > cap ? `Show all ${rows.length} lines` : 'Show all'}
         />
       )}
     </View>
   );
 }
+
+// Lines break at the / and - the text gives them (`softBreaks`); only a token with none
+// wraps where it must, never by choice inside a number.
+const BREAK_ANYWHERE = { overflowWrap: 'anywhere' } as never;
 
 /** The parts of a request card the shared card doesn't draw: wells, fields, receipts, ⋯. */
 export const useCardStyles = makeStyles((colors) => ({

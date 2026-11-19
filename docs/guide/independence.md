@@ -92,6 +92,10 @@ far back it is. **Review** on the "needs your OK" bar does the same.
   exactly one card open.
 - A card can be answered once. If you answer on the phone and the computer at the same moment, only the
   first answer counts and the other says "Already answered".
+- The app records where each answer came from (this Mac, your phone, your phone's lock screen, another agent
+  you made an admin, the app at your independence level, or a rule you made) beside the answer.
+- A card that offers **Always allow** says in one line what it would cover ("Every future command starting
+  with `git push` from this agent."). A card that spends money says it can't be always allowed.
 - A card waits for you, even after the agent's turn ends or the app restarts. Allow it later and
   the agent picks that exact step back up on its own, with a line saying so. Pressing Stop withdraws
   an agent's open cards; one left unanswered for three days closes by itself.

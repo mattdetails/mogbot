@@ -237,6 +237,24 @@
   content-visibility: visible;
 }
 
+/* 10px under the last bubble or card, never a paragraph apart (more specific than
+   the rule that gives a reply following a reply its 16px). */
+.agent-chat__messages > .agent-chat__row.agent-chat__row--agent.agent-chat__row--working {
+  margin-top: var(--agents-working-gap);
+}
+
+/* Waiting on you: the Review button sits right of the words, never wrapped under them
+   except in a narrow column, where the row wraps it beneath. */
+.agent-working__review {
+  flex-shrink: 0;
+}
+
+/* Narrow, the Review button wraps under the words rather than clipping. */
+.agent-working__line[data-needs-ok] {
+  flex-wrap: wrap;
+  row-gap: var(--spacing-xs);
+}
+
 .agent-chat__row--working[data-work] {
   flex-direction: column;
   align-items: flex-start;
@@ -251,7 +269,7 @@
   max-width: min(var(--agents-prose-measure), 100%);
   /* One line tall whatever it says: a reply's first streamed line holds
      the same height, so the line hands off in place (agents-motion.css). */
-  min-height: var(--agents-motion-working-height);
+  min-height: var(--agents-working-height);
   font-size: var(--font-size-body-sm);
   line-height: var(--line-height-compact);
   color: var(--text-muted);
@@ -696,4 +714,15 @@
 
 .agent-briefing__section[open] > summary > svg {
   transform: rotate(90deg);
+}
+
+/* The reply is streaming in: the agent's key and three dots in a pill, the
+   agent bubble's own tint and corners (agents-chat.css), nothing else. */
+.agent-working__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-bubble);
+  border-bottom-left-radius: var(--radius-bubble-tail);
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
 }

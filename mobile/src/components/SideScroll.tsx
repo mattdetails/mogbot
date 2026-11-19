@@ -73,8 +73,9 @@ export function SideScroll({
 /** The well's colour in `chatFade.bands` steps, clear inward. Never takes a tap or focus. */
 function SideFade({ color, testID }: { color: string; testID?: string }) {
   const bands = Array.from({ length: chatFade.bands }, (_, i) => {
+    // Nearly solid at the edge, so a cut line reads as running on, not as ending there.
     const t = (i + 1) / chatFade.bands;
-    return t * t;
+    return Math.min(0.96, t ** 1.3);
   });
   return (
     <View
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
     top: 0,
     right: 0,
     bottom: 0,
-    width: chatFade.height * 1.5,
+    width: chatFade.height * 2.5,
     flexDirection: 'row',
   },
 });

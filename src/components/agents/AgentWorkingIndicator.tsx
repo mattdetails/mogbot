@@ -27,7 +27,8 @@ import { TextButton } from '../primitives/TextButton';
 import { TypingDots } from '../primitives/TypingDots';
 import { useSteadyLine } from '../../hooks/useSteadyLine';
 import type { Agent, TurnWork } from '../../lib/agents';
-import { formatElapsed } from '../../../packages/companion-protocol/src/work';
+import { indicatorWords } from '../../../packages/companion-protocol/src/workIndicator';
+import { Button } from '../primitives/Button';
 import { AgentKey } from './AgentKey';
 import { useLiveStep } from './AgentLiveStep';
 import { WorkMenu } from './AgentTakeover';
@@ -51,6 +52,13 @@ interface WorkingIndicatorProps {
    * "Thinking", as its sidebar row does.
    */
   bare?: boolean;
+  /**
+   * What waits on the user ("12 emails"): the row says "Needs your OK on …"
+   * with a real Review, instead of a status.
+   */
+  needsOk?: { line: string; onReview: () => void };
+  /** Its reply is streaming in: dots in a pill, no phrase. */
+  typing?: boolean;
 }
 
 /**
@@ -62,8 +70,6 @@ interface WorkingIndicatorProps {
  */
 export const NO_STEP_YET = 'Thinking';
 
-const plural = (n: number) => `${n} ${n === 1 ? 'step' : 'steps'}`;
-
 export function WorkingIndicator({
   activity,
   work,
@@ -73,6 +79,8 @@ export function WorkingIndicator({
   onExited,
   place,
   bare,
+  needsOk,
+  typing,
 }: WorkingIndicatorProps) {
   // Each step holds a moment and a blink of "Thinking" between two never
   // shows (the sidebar's rule), so the line doesn't flicker step to step.
@@ -90,15 +98,21 @@ export function WorkingIndicator({
   const [opened, setOpened] = useState(false);
   if (!entering && opened) setOpened(false);
 
-  const words = step.text ?? shown ?? (bare || leaving ? null : NO_STEP_YET);
-  const steps = work && work.stepCount > 0 ? plural(work.stepCount) : null;
-  const ticking = work && step.now - work.startedAt >= 1_000;
-  const elapsed = ticking ? formatElapsed(step.now - work.startedAt) : null;
-  const meta = [steps, elapsed].filter(Boolean).join(' · ');
+  // One phrase from what was observed (`indicatorWords`): the step's own words,
+  // "Working on it" before any, "Still working" when quiet, "3 of 8" only when
+  // the step reports it, the timer from 8s. The Mac's own "No progress" line
+  // (`step.text`) still wins when it says so.
+  const said = indicatorWords(shown, work, step.now);
+  const words = needsOk
+    ? needsOk.line
+    : (step.text ??
+      (bare || leaving ? null : shown && !work ? shown : (said.phrase ?? NO_STEP_YET)));
+  const meta =
+    needsOk || step.quiet ? '' : [said.progress, said.elapsed].filter(Boolean).join(' · ');
   // While it collapses the time holds where it was.
   if (!leaving && frozen !== meta) setFrozen(meta);
   const tail = leaving ? frozen : meta;
-  const shimmering = !step.quiet && !leaving;
+  const shimmering = !step.quiet && !said.quiet && !needsOk && !leaving;
 
   const text = (
     <span className="agent-working__text">
@@ -144,7 +158,11 @@ export function WorkingIndicator({
       }}
       aria-live="polite"
     >
-      <div className="agent-working__line" data-quiet={step.quiet || undefined}>
+      <div
+        className="agent-working__line"
+        data-quiet={step.quiet || said.quiet || undefined}
+        data-needs-ok={needsOk ? true : undefined}
+      >
         <span className="agent-working__lead" aria-hidden>
           {agent ? (
             <AgentKey
@@ -159,12 +177,27 @@ export function WorkingIndicator({
           )}
         </span>
         {place && <span className="agent-working__place">{place}</span>}
-        {live.toggle ? (
+        {typing ? (
+          // The reply is being written: the three dots in a pill, and nothing else.
+          <span className="agent-working__pill" role="status">
+            <TypingDots label={`${agent?.name ?? 'It'} is writing`} />
+          </span>
+        ) : live.toggle ? (
           <TextButton
             tabIndex={0}
             className="agent-working__toggle"
             aria-expanded={live.open}
             aria-controls={live.controls}
+            // The row shows the timer only; the steps so far are said to assistive tech.
+            aria-label={[
+              words,
+              tail,
+              work && work.stepCount > 0
+                ? `${work.stepCount} ${work.stepCount === 1 ? 'step' : 'steps'}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
             title={live.open ? 'Hide the steps' : 'Show the steps'}
             onClick={live.toggle}
           >
@@ -172,6 +205,17 @@ export function WorkingIndicator({
           </TextButton>
         ) : (
           text
+        )}
+        {needsOk && !typing && (
+          <Button
+            tabIndex={0}
+            variant="secondary"
+            size="compact"
+            className="agent-working__review"
+            onClick={needsOk.onReview}
+          >
+            Review
+          </Button>
         )}
         {(step.actions || (!leaving && agent)) && (
           <span className="agent-working__actions">

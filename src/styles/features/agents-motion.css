@@ -209,7 +209,7 @@
 
 /* "Editing PricingTable.tsx" → "Running tests": the new text eases in. */
 .agent-working__activity[data-changed] {
-  animation: agents-motion-swap-in var(--agents-motion-enter) backwards;
+  animation: agents-motion-swap-in var(--agents-working-swap) backwards;
 }
 
 /* ------------------------------------------------------- approvals */

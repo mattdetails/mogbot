@@ -7708,6 +7708,50 @@ aren't pruned (only the floor's card stops them); a room turn doesn't get the
 low-disk note. The card wiring in `mcp::decide_inner` is covered by
 `disk::floor_asks` unit tests, not by an end-to-end approval test.
 
+## Task lists and the Chief as manager (`agents/tasks.rs`)
+
+Observed on the 18 Nov calls: an ask given to an agent was gone once it got busy, two agents with
+near-identical jobs (Apollo PM, Apollo Finances) both got the same update, and nobody could see who
+was overloaded.
+
+- **One list per agent**, `<home>/tasks.json`, kept by the app. A request from another agent
+  (`message_agent`) lands on the helper's list as it is delivered, deduped (the same ask from the
+  same sender is bumped, never doubled); the helper's turn answering it marks it done, ending in an
+  error marks it stuck. The agent adds the user's asks it can't finish in one reply with the `tasks`
+  tool (`add`, `done`, `drop`, `wait` naming on whom, `list`, `board`). Every turn's briefing ends
+  with the agent's own open list, so a restart never loses one.
+- **Overloaded** is a plain rule, shown as the rule: 6 or more open, or 3 or more with the oldest
+  over a day. Never a model's judgement.
+- **The board.** The Chief's briefing carries every agent's job (its role in a few words), open
+  count, oldest age, overloaded or stuck flag, what it is doing now and its first ask, capped at
+  1,400 characters, plus who has nothing open. `message_agent` tells the sender when another agent
+  already has a like ask open (word overlap of 70% of the shorter), so it tells that agent instead
+  of doing it twice.
+- **Chasing.** The scheduler tick (every 5 minutes at most) nudges an ask still open after 3 hours
+  (8 for the user's own asks on a list), as a request from whoever asked, twice at most. Never while
+  the agent is busy, has a message queued, is being driven (Take over), in quiet hours or in "Save my
+  limits". After the second nudge goes unanswered for another wait, it is marked stuck and the Chief's
+  chat says so in one line (nothing goes silent).
+- **Desk.** What's in flight has an "Open asks" section: each agent with something open, an
+  Overloaded or "N stuck" pill, its first asks and how old (`agents_task_board`). Harness:
+  `agents-inflight-asks`.
+- **Honest asking** (every agent's prompt, "Do you have what you need?"): check memory, the team
+  record, files and tools first; ask one specific question for what only the user or a teammate has,
+  and put the task on `wait`; never fill a gap with invented numbers, names, links or filler.
+- **End-of-day check-in** (`agents/eod.rs`): on by default at 17:30; the scheduler tick posts one
+  message in the Chief's chat composed from the task lists (closed today, still open, stuck,
+  overloaded) ending in one question. No model turn. Waits 10 minutes after the user's last message
+  to the Chief, skipped when more than 3 hours late. `set_end_of_day` (Chief only, never in a turn
+  answering outside text) and Settings → Notifications change it; `agents_end_of_day` /
+  `agents_set_end_of_day`. Harness: `settings-agents-brief`, `settings-agents-end-of-day-off`.
+- **Interviews** (Chief prompt, "Interviews"; ⌘K `agents.interviewMe`, `agents.train.<id>`): no new
+  engine. A palette command sends the Chief a plain message; its prompt runs one question at a time
+  (six at most), summarises, asks for one yes, then saves: "me" into its memory (and offers agents),
+  "train" via `read_agent` then `update_agent` with a merged "## Job description" and routines. Works
+  by voice through Talk. The Chief offers the "me" interview once after the user's first ask when it
+  knows nothing of their work.
+- Not yet: the phone's view of the lists; the user adding a task by hand.
+
 ## Known limits / next
 
 - Three engines: Claude Code, Codex and OpenCode (see "Engines"). Another
@@ -7917,3 +7961,7 @@ and resuming a killed turn (it ends honestly instead).
 A card holding exactly one message with its exact words draws as a draft (`AgentDraftCard`, `lib/draftCard.ts`): a Slack reply card (`slackReply`), or an `ask_plan` card of one `send` or `post` action with `text`. An email is a plan action whose target is an address; its `text` starts with `Subject: …` and optionally `CC: …` lines, a blank line, then the body. Edit changes subject, CC and body; Discard denies; Send allows; "Draft in Gmail" opens Gmail's compose window (`mail.google.com/mail/?view=cm`) filled in and sends nothing. A Slack reply's edit travels in the answer's `note` (up to 4000 characters, only honoured on a Slack card's Allow: `slack::with_edit`) and the posted words are quoted in the line that follows. A plan draft's edit is a deny whose note holds the final words, telling the agent to put exactly them on a new card, so the exact-text rule still holds. Send is neutral, never accent.
 
 The draft card's title and account line are read, never guessed (`draftTitle`, `draftFrom` in `packages/companion-protocol/src/draftCard.ts`): a plan action's `target` may be `Name <address>` (the name is the agent's); "· Gmail" and "From <account>" appear only when the Mac knows the Gmail account an agent last used (`approval.sendFrom`, `plan_grant::send_from` over `browser_profiles::remembered("mail.google.com")`), or, for a Slack reply, the connected account (`slackReply.accountName`). Layout: one recessed block (72px label column, 11px row padding, hairlines, the words scrolling past 320px: `--draft-*` in `tokens-components.css`; `draft` in the phone's `theme.ts`), real buttons (Discard ghost, Edit and Draft in Gmail secondary, Send strong); harness scenarios `agents-draft-*` (`src/harness/scenarios/agentsDrafts.ts`).
+
+## The working indicator
+
+One row at the end of the chat (`AgentWorkingIndicator`; the phone's `LiveStep`): the agent's key and one phrase from the step the Mac observed, never a new model call (`indicatorWords` in `packages/companion-protocol/src/workIndicator.ts`, shared). "Working on it" only before any step; the step's own words otherwise; "3 of 8" only when the step reports `progress` (a newer Mac field, not computed here); the timer from 8s (`formatDuration`); no new step or sign of life for a minute reads "Still working" without the shimmer; a chat with a waiting card says "Needs your OK on N" with a real Review (`needsOkLine`, `okWhat`) and the bar above the composer stands down. 40px tall (`--agents-working-height`), 10px under the last bubble or card (`--agents-working-gap`), phrases swap in over 150ms (`--agents-working-swap`). Harness scenarios `agents-working-*` (and `-390`). Bubbles: yours `--surface-inverse`/`--text-on-inverse`, the agent's `color-mix(text-primary 7%)`, `--radius-bubble` 18 with a 6px tail (`--radius-bubble-tail`); the phone's `surfaceBubbleUser`, `textOnBubbleUser`, `surfaceBubbleAgent`, `composer.tail`.

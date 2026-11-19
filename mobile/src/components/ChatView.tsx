@@ -713,6 +713,17 @@ export function ChatView({
   );
 
   const controlsNow = useControlsNow(agent);
+
+  // The working row's Review: the first waiting card, its answers in reach.
+  const reviewNeeds = useCallback(() => {
+    const card = messages.find((m) => m.approval?.status === 'pending');
+    if (!card) return;
+    const index = items.findIndex((i) => i.key === card.id);
+    if (index < 0) return;
+    wantedPosition.current = 0;
+    list.current?.scrollToIndex({ index, viewPosition: 0, animated: true });
+  }, [messages, items]);
+
   if (!agent) {
     // Only a live overview can say an agent is gone; a saved one may predate it.
     if (hasOverview && connected) {
@@ -844,6 +855,7 @@ export function ChatView({
                       onError={showError}
                       onLongPress={onMessageAction}
                       onToggleFold={toggleFold}
+                      onReview={reviewNeeds}
                       lit={!!target && isRowFor(item, target)}
                       arrived={arrived.has(item.key)}
                     />
@@ -1072,6 +1084,7 @@ const ItemView = memo(function ItemView({
   onError,
   onLongPress,
   onToggleFold,
+  onReview,
   lit,
   afterLine,
   arrived,
@@ -1104,7 +1117,12 @@ const ItemView = memo(function ItemView({
     ) : item.kind === 'setup' ? (
       <TeamSetupCard chief={agent.name} onError={onError} />
     ) : (
-      <WorkingRow label={item.label} agent={agent} onError={onError} />
+      <WorkingRow
+        label={item.label}
+        agent={agent}
+        onError={onError}
+        needsOk={item.needsOk && onReview ? { onReview } : undefined}
+      />
     );
   // One row that can't be drawn says so in a Line; the chat goes on.
   const body = <RowBoundary resetKey={rowResetKey(item)}>{drawn}</RowBoundary>;
@@ -1139,6 +1157,8 @@ const ItemView = memo(function ItemView({
         grouped && styles.itemGrouped,
         attached && styles.itemAttached,
         tight && styles.itemAfterLine,
+        // The working line sits 10 under the last bubble, as on the desk, not a paragraph away.
+        item.kind === 'working' && styles.itemWorking,
         // An opened fold reads as past: one rule down the left, from the
         // "Rewound" row to "End of what was rewound", its lines muted.
         (item.past || item.kind === 'rewound-end' || (item.kind === 'rewound' && item.open)) &&
@@ -1164,6 +1184,8 @@ interface ItemProps {
   onLongPress: (m: AgentMessage) => void;
   /** A "Rewound" row tapped: its lines shown or folded again. */
   onToggleFold: (rewindId: string) => void;
+  /** The working row's Review ("Needs your OK on N"): brings the first waiting card up. */
+  onReview?: () => void;
   lit?: boolean;
 }
 
@@ -1513,9 +1535,10 @@ function EdgeFade({
   /** Rides the keyboard with the composer. */
   lifted?: ComponentProps<typeof Animated.View>['style'];
 }) {
-  const bands = Array.from({ length: chatFade.bands }, (_, i) => {
+  const count = edge === 'top' ? chatFade.topBands : chatFade.bands;
+  const bands = Array.from({ length: count }, (_, i) => {
     // i = 0 at the edge. Eased, so the last steps into the words are gentlest.
-    const t = 1 - i / chatFade.bands;
+    const t = 1 - i / count;
     return t * t;
   });
   return (
@@ -1525,7 +1548,9 @@ function EdgeFade({
       importantForAccessibility="no-hide-descendants"
       style={[
         fadeStyles.wrap,
-        edge === 'top' ? fadeStyles.top : [fadeStyles.bottom, { bottom }],
+        edge === 'top'
+          ? [fadeStyles.top, { height: chatFade.top }]
+          : [fadeStyles.bottom, { bottom }],
         lifted,
       ]}
     >
@@ -1568,7 +1593,7 @@ const useStyles = makeStyles((colors) => ({
   content: {
     paddingHorizontal: space.lg,
     paddingTop: space.md + chatFade.height,
-    paddingBottom: space.md + chatFade.height,
+    paddingBottom: space.md + chatFade.top,
   },
   // Each cell is drawn upright, so paddingTop is the space between a row and
   // the older one above it: a grouped row (same side, same run) trims it.
@@ -1580,6 +1605,8 @@ const useStyles = makeStyles((colors) => ({
   itemAttached: { paddingTop: space.tight },
   // A Line under a Line: their own padding is the gap.
   itemAfterLine: { paddingTop: space.xs },
+  // 8 here and 2 inside `WorkingRow`: 10 from the bubble above.
+  itemWorking: { paddingTop: space.sm },
   glow: {
     position: 'absolute',
     top: 0,

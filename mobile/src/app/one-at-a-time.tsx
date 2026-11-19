@@ -441,10 +441,19 @@ function Shown({
               variant="ghost"
               size="compact"
               onPress={() => onChat(card?.id)}
+              style={styles.quietAction}
             />
           )}
           {/* Later moves it to the back: it comes back the next time you catch up. */}
-          {!nextIsMain && <Button title="Later" variant="ghost" size="compact" onPress={goNext} />}
+          {!nextIsMain && (
+            <Button
+              title="Later"
+              variant="ghost"
+              size="compact"
+              onPress={goNext}
+              style={styles.quietAction}
+            />
+          )}
         </View>
         {pending && action.kind === 'answer' ? (
           <Animated.View
@@ -597,11 +606,22 @@ const useStyles = makeStyles((colors) => ({
   },
   fill: { height: '100%', borderRadius: radius.pill, backgroundColor: colors.textSecondary },
   body: { flex: 1 },
-  scroll: { padding: space.lg, gap: space.lg },
+  // Room under the last line, so it clears the bar of answers below.
+  scroll: { padding: space.lg, paddingBottom: space['2xl'] + space.xl, gap: space.lg },
   who: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   name: { flex: 1 },
   read: { fontSize: type.read, lineHeight: lineHeight(type.read, READ_LINE) },
-  quiet: { flexDirection: 'row', justifyContent: 'center', gap: space.xl },
+  // Two 44 pt ghost buttons side by side, not two small links floating above the answer.
+  // Two ghost buttons, then a hairline: apart from the answers below.
+  quiet: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: space.sm,
+    paddingBottom: space.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle,
+  },
+  quietAction: { flex: 1, minHeight: 44 },
   big: { flex: 1, minHeight: BIG },
   bigSingle: { minHeight: BIG },
   actions: {

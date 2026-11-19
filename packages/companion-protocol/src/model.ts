@@ -134,6 +134,8 @@ export interface LiveCall {
   output?: string[];
   /** The engine streams this call's output; when false it appears only once it finishes. */
   streams: boolean;
+  /** "3 of 8": only when the step itself reports it (a test run, a batch); never worked out. */
+  progress?: { done: number; total: number };
   /** Its process was using the CPU at the last look; absent when not found. */
   busy?: boolean;
   /** "Stop this step" can find its process. */
@@ -760,6 +762,20 @@ export interface StepInCard {
   onPhone?: string;
 }
 
+/**
+ * Where a card's answer came from, recorded by the Mac with the answer:
+ * the desk, the phone, a phone's lock screen, a plan the user allowed, the
+ * app at the user's independence level, an admin agent, or an "Always" rule.
+ */
+export type AnsweredFrom =
+  | 'desk'
+  | 'phone'
+  | 'phoneLockScreen'
+  | 'plan'
+  | 'auto'
+  | 'admin'
+  | 'rule';
+
 export interface Approval {
   requestId: string;
   title: string;
@@ -771,6 +787,10 @@ export interface Approval {
   input?: unknown;
   always?: PermissionScope;
   alwaysAllowed?: boolean;
+  /** Where the answer came from; absent while pending and on answers that didn't say. */
+  answeredFrom?: AnsweredFrom;
+  /** One sentence on what "Always allow" would cover, or why it can't be; made on the Mac. Absent when the card never offers it. */
+  alwaysNote?: string;
   note?: string;
   /** A secure input card: what the agent asked for. */
   secret?: SecretRequest;
@@ -819,6 +839,8 @@ export interface Approval {
   };
   /** The Gmail account a one-email plan goes out from, only when the Mac knows it (never guessed). */
   sendFrom?: string;
+  /** Why this one is asked, in a line, as the Mac worked it out; absent when it has none. */
+  riskNote?: string;
   /** "Save “…” as a skill?": the skill as it would be saved; Allow is Save, Deny is Not now. Nothing waits on it. */
   skill?: SkillCard;
   /**

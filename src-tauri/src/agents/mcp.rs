@@ -208,6 +208,18 @@ const TOOLS: &[Tool] = &[
         }),
     },
     Tool {
+        name: super::eod::TOOL,
+        description: super::eod::DESCRIPTION,
+        main_only: true,
+        schema: super::eod::schema,
+    },
+    Tool {
+        name: super::tasks::TOOL,
+        description: super::tasks::DESCRIPTION,
+        main_only: false,
+        schema: super::tasks::schema,
+    },
+    Tool {
         name: super::team_record::TOOL,
         description: super::team_record::DESCRIPTION,
         main_only: false,
@@ -882,6 +894,11 @@ async fn call(
         "read_agent" => read_agent(args),
         "search_my_chat" => search_my_chat(caller, args),
         super::team_record::TOOL => team_lookup(caller, args).await,
+        super::eod::TOOL => end_of_day(app, caller, args),
+        super::tasks::TOOL => match super::tasks::run_tool(caller, args) {
+            Ok(t) => text(t),
+            Err(e) => error(e),
+        },
         "share_file" => share_file(app, caller, args).await,
         "share_result" => share_result(app, caller, turn, args).await,
         super::blocks::TOOL => show(app, caller, turn, args).await,
@@ -1682,6 +1699,7 @@ fn message_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value 
     // the recipient can't be talked into what the sender couldn't do.
     let outside = runner::from_outside(&caller.id);
     if answer {
+        super::tasks::answered(&caller.id, &target.id);
         runner::enqueue_reply_from(
             app,
             &target.id,
@@ -1694,6 +1712,10 @@ fn message_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value 
     }
     // Asked while answering someone: they're owed what this makes possible.
     runner::note_onward(&caller.id, &target.id);
+    // The ask goes on the helper's own list so it can't drop, and the sender
+    // hears when another agent already has the same thing open.
+    let elsewhere = super::tasks::similar_elsewhere(body, &target.id);
+    let (_, repeat) = super::tasks::from_ask(&target.id, caller, body);
     // A plan the user allowed goes with the work (`plan_grant`).
     let carried = !outside && super::plan_grant::carry(&caller.id, &target.id, store::now_ms());
     runner::enqueue_request(
@@ -1709,8 +1731,15 @@ fn message_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value 
     } else {
         ""
     };
+    let dup = match (&elsewhere, repeat) {
+        (Some((who, what, ago)), _) => format!(
+            " Heads-up: {who} already has something like this open (\"{what}\", {ago} ago). If it's the same job, tell {who} instead of doing it twice."
+        ),
+        (None, true) => format!(" {} already had this open; it stays one task and was nudged, not doubled.", target.name),
+        _ => String::new(),
+    };
     text(format!(
-        "Delivered to {}. Their answer comes back to you as a new message when they're done; don't wait for it.{plan}",
+        "Delivered to {}. Their answer comes back to you as a new message when they're done; don't wait for it.{plan}{dup}",
         target.name
     ))
 }
@@ -3208,6 +3237,29 @@ pub(super) fn read_wait(
 
 /// The tool's reply when a confirmation didn't come back as Allow: the
 /// user's No, or (never dressed up as a No) a card that expired unanswered.
+/// `set_end_of_day` (`agents/eod.rs`): the user's setting, applied at once
+/// with a line; never in a turn answering outside text.
+fn end_of_day(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value {
+    if runner::from_outside(&caller.id) {
+        return error("Not while answering what came from outside this app: the check-in is the user's to set. Tell the user instead.");
+    }
+    let now = super::eod::get();
+    let next = match super::eod::wanted(args, &now) {
+        Ok(n) => n,
+        Err(e) => return error(e),
+    };
+    match super::eod::set(next) {
+        Ok(saved) => {
+            let _ = tauri::Emitter::emit(app, super::eod::EVENT, ());
+            text(format!(
+                "{} Tell the user in one line.",
+                super::eod::describe(&saved)
+            ))
+        }
+        Err(e) => error(e.to_string()),
+    }
+}
+
 /// `set_morning_brief` (`agents/brief.rs`). The user's setting: never in a
 /// turn answering outside text. Adding a check (a daily read of their apps)
 /// wants their own message, else a card; anything else applies at once with
@@ -3330,6 +3382,11 @@ pub(crate) fn new_card(
     detail: String,
     call: Option<(&str, &Value)>,
 ) -> Approval {
+    // Spending money is never kept as a standing yes (`go_hard::spends`):
+    // the card still says what its rule would be, and answering Always on it
+    // is refused (`commands::agents::answer_card_from`).
+    let spends = call.is_some_and(|(tool, input)| super::go_hard::spends(tool, input));
+    let always = call.and_then(|(tool, input)| permissions::suggest(tool, input));
     Approval {
         request_id,
         title,
@@ -3337,7 +3394,12 @@ pub(crate) fn new_card(
         status: ApprovalStatus::Pending,
         tool: call.map(|(tool, _)| tool.to_string()),
         input: call.map(|(_, input)| input.clone()),
-        always: call.and_then(|(tool, input)| permissions::suggest(tool, input)),
+        always_note: super::remember::always_note(
+            always.as_ref().filter(|_| !spends),
+            spends,
+            call.is_some(),
+        ),
+        always,
         always_allowed: false,
         // What it does and why, in words; the raw call goes behind Details.
         summary: call.and_then(|(tool, input)| super::admin::summary_for(tool, input, None)),
@@ -3349,6 +3411,7 @@ pub(crate) fn new_card(
         login: None,
         set_aside: None,
         expiry: None,
+        answered_from: None,
         from_outside: None,
         front: None,
         settings: None,
@@ -4367,9 +4430,12 @@ pub fn sweep_auto_allowed(app: &AppHandle) -> usize {
             }
             let level = receipt_level(chosen, !inside);
             // The user answering it right now keeps their answer.
-            let Some(_claim) =
-                super::answer_gate::try_claim(&agent.id, &card.request_id, "Allowed")
-            else {
+            let Some(_claim) = super::answer_gate::try_claim_from(
+                &agent.id,
+                &card.request_id,
+                "Allowed",
+                super::answer_gate::Source::Auto,
+            ) else {
                 continue;
             };
             let Ok(Some(updated)) =

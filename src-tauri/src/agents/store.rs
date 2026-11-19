@@ -404,6 +404,19 @@ pub struct Approval {
     /// Status is `expired`; the card reads as a one-line receipt.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expiry: Option<super::expiry::Expiry>,
+    /// Where the answer came from (`answer_gate::Source`): the desk, the
+    /// phone, a phone's lock screen, an admin agent, the app at the
+    /// independence level or under a rule. Absent while pending, and on
+    /// answers from before it was recorded or from a path that doesn't say.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub answered_from: Option<super::answer_gate::Source>,
+    /// One plain sentence on what "Always allow" on this card would cover
+    /// ("Every future `git push origin main` from this agent."), or why it
+    /// can't be ("Can't be always allowed: it spends money."). Made on the
+    /// Mac when the card is raised (`remember::always_note`); absent on
+    /// cards that never offer it, and from before it was recorded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub always_note: Option<String>,
     /// "Change this agent's settings?" (`propose_settings_change`,
     /// `agents/policy_card.rs`): who, what, before and after in plain words.
     /// Nothing changes until the user allows it; the card's own text
@@ -1836,7 +1849,7 @@ fn log_path(agent_id: &str) -> Result<PathBuf, CommandError> {
 /// (`approvals.jsonl`). The log itself is only ever appended to: answering a
 /// card used to rewrite every message the agent had, under a lock every
 /// other agent's appends waited on.
-fn answers_path(agent_id: &str) -> Result<PathBuf, CommandError> {
+pub(crate) fn answers_path(agent_id: &str) -> Result<PathBuf, CommandError> {
     Ok(agent_home(agent_id)?.join("approvals.jsonl"))
 }
 
@@ -1871,6 +1884,8 @@ struct Answer {
     set_aside: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     expiry: Option<super::expiry::Expiry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    answered_from: Option<super::answer_gate::Source>,
 }
 
 impl Answer {
@@ -1889,6 +1904,9 @@ impl Answer {
         }
         if self.expiry.is_some() {
             approval.expiry = self.expiry;
+        }
+        if self.answered_from.is_some() {
+            approval.answered_from = self.answered_from;
         }
     }
 }
@@ -2691,6 +2709,13 @@ fn resolve_approval_as(
             choice: choice.map(str::to_string),
             set_aside: set_aside.map(str::to_string),
             expiry,
+            // Whoever holds the card's claim says where the answer is from;
+            // closing by expiry or being set aside is nobody's answer.
+            answered_from: if status == ApprovalStatus::Expired {
+                None
+            } else {
+                super::answer_gate::source_of(request_id)
+            },
         };
         append_line(&answers_path(agent_id)?, &answer)?;
         if let Some(approval) = message.approval.as_mut() {

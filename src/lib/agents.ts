@@ -125,6 +125,8 @@ export type WorkSlow = 'tests' | 'build' | 'install' | 'deploy' | 'other';
  * when it started, and what it printed so far where the engine streams it.
  */
 export interface LiveCall {
+  /** "3 of 8": only when the step itself reports it; never worked out. */
+  progress?: { done: number; total: number };
   kind: WorkStepKind;
   /** Its working-line words ("Running the Cypress tests"). */
   label: string;
@@ -662,6 +664,10 @@ export interface Approval {
   always?: PermissionScope;
   /** Allowed by an "Always allow" rule rather than once. */
   alwaysAllowed?: boolean;
+  /** Where the answer came from (desk, phone, phoneLockScreen, plan, auto, admin, rule); absent while pending. */
+  /** What "Always allow" would cover, or why it can't be (one sentence, made on the Mac). */
+  alwaysNote?: string;
+  answeredFrom?: 'desk' | 'phone' | 'phoneLockScreen' | 'plan' | 'auto' | 'admin' | 'rule';
   /** What you told the agent when you declined. */
   note?: string;
   /** A secure input card: what the agent asked for. */
@@ -705,6 +711,8 @@ export interface Approval {
   };
   /** The Gmail account a one-email plan goes out from, only when the Mac knows it (never guessed). */
   sendFrom?: string;
+  /** Why this one is asked, in a line, as the Mac worked it out (`risk`'s reason); absent when it has none. */
+  riskNote?: string;
   /** "Save “…” as a skill?": Allow is Save, Deny is Not now (`lib/agentSkills`). Nothing waits on it. */
   skill?: SkillCard;
   /**

@@ -24,16 +24,40 @@
 //! Keyed by request id alone: a session's question shown in several chats is
 //! one card with one answer (`decisions`).
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
 use super::store::{self, Approval, ApprovalStatus};
 use crate::errors::CommandError;
 
-/// Request id → the answer being given, while it is.
-static IN_FLIGHT: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(Default::default);
+/// Where an answer came from, written with it (`approvals.jsonl`) and carried
+/// on the card as `answeredFrom`, so a folded card can say "Answered on your
+/// phone". Data only: nothing here changes what an answer does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Source {
+    /// A tap or typed yes at this Mac.
+    Desk,
+    /// A tap in the phone app.
+    Phone,
+    /// Allow or Deny on a phone's notification, from the lock screen.
+    PhoneLockScreen,
+    /// A plan the user allowed on an `ask_plan` card covered it.
+    Plan,
+    /// The app, at the user's independence level.
+    Auto,
+    /// An admin agent (the Chief) answered another agent's card.
+    Admin,
+    /// A rule the user made ("Always allow") covered it.
+    Rule,
+}
 
-fn in_flight_map() -> std::sync::MutexGuard<'static, HashMap<String, String>> {
+/// Request id → the answer being given and where from, while it is.
+static IN_FLIGHT: LazyLock<Mutex<HashMap<String, (String, Option<Source>)>>> =
+    LazyLock::new(Default::default);
+
+fn in_flight_map() -> std::sync::MutexGuard<'static, HashMap<String, (String, Option<Source>)>> {
     IN_FLIGHT.lock().unwrap_or_else(|e| e.into_inner())
 }
 
@@ -93,12 +117,24 @@ pub fn said(allow: bool, always: bool, choice: Option<&str>) -> String {
 /// others get [`already`] with the winning answer. A card that isn't there
 /// is left to the caller to say so (each path words it its own way).
 pub fn claim(agent_id: &str, request_id: &str, said: &str) -> Result<Claim, CommandError> {
+    claim_from(agent_id, request_id, said, None)
+}
+
+/// [`claim`] for an answer that says where it came from; the store writes
+/// the source with the answer (`source_of`). A path that doesn't say leaves
+/// it unknown rather than guessing.
+pub fn claim_from(
+    agent_id: &str,
+    request_id: &str,
+    said: &str,
+    source: Option<Source>,
+) -> Result<Claim, CommandError> {
     {
         let mut map = in_flight_map();
-        if let Some(word) = map.get(request_id) {
+        if let Some((word, _)) = map.get(request_id) {
             return Err(already(word));
         }
-        map.insert(request_id.to_string(), said.to_string());
+        map.insert(request_id.to_string(), (said.to_string(), source));
     }
     // Ours now: nobody else can write an answer through here until it drops.
     let claim = Claim {
@@ -116,6 +152,22 @@ pub fn claim(agent_id: &str, request_id: &str, said: &str) -> Result<Claim, Comm
 /// the user (or anything else) is answering it or already has.
 pub fn try_claim(agent_id: &str, request_id: &str, said: &str) -> Option<Claim> {
     claim(agent_id, request_id, said).ok()
+}
+
+/// [`try_claim`] with where the answer is from.
+pub fn try_claim_from(
+    agent_id: &str,
+    request_id: &str,
+    said: &str,
+    source: Source,
+) -> Option<Claim> {
+    claim_from(agent_id, request_id, said, Some(source)).ok()
+}
+
+/// Where the answer being given on this card is from, while someone holds
+/// its claim.
+pub fn source_of(request_id: &str) -> Option<Source> {
+    in_flight_map().get(request_id).and_then(|(_, s)| *s)
 }
 
 /// Whether someone is answering this card right now.

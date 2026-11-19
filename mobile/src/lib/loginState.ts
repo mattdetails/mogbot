@@ -65,8 +65,8 @@ export function onMacLine(login: LoginRequest): string {
   const comp = pairedComputer();
   const live = login.flow?.message;
   if (login.flow?.onPhone) return live ?? `Signing in to ${login.title} here.`;
-  const lead = `Finish signing in on ${comp.your} — it’s open there.`;
-  return live ? `${lead} ${live}` : lead;
+  // One line: the Mac's own progress words repeat where it is (Designer, 19 Nov).
+  return `Finish signing in on ${comp.your}. This card updates when ${login.title} is connected.`;
 }
 
 /** The Mac lets this phone do the sign-in itself (`logins.phone`). */

@@ -9,12 +9,13 @@ use super::*;
 /// (3,827 tokens as Claude Code counted it); 12,697 with the agents' browser
 /// in "Getting access", after trimming elsewhere; 13,477 after the Chief
 /// review (Codex 14,062, the Chief 17,175); 13,589 with the opening "On it"
-/// line (#36) and the security batch's lines.
-const PLAIN_BUDGET: usize = 13_700;
+/// line (#36) and the security batch's lines; 14,137 with the task list and
+/// "Do you have what you need?" sections (Nov 18 calls).
+const PLAIN_BUDGET: usize = 14_200;
 /// The same agent on Codex (its sandbox section): 13,262.
-const CODEX_BUDGET: usize = 14_300;
+const CODEX_BUDGET: usize = 14_800;
 /// The Chief of Staff, with no team yet: 16,646.
-const CHIEF_BUDGET: usize = 17_500;
+const CHIEF_BUDGET: usize = 19_500;
 
 fn agent(id: &str, name: &str, main: bool, engine: Engine) -> store::Agent {
     let mut a: store::Agent = serde_json::from_value(serde_json::json!({

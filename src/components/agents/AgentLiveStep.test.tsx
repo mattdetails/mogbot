@@ -58,18 +58,20 @@ afterEach(() => {
 });
 
 describe('the step it is on right now', () => {
-  it('is one line: what it is doing, its steps so far and the turn’s time', async () => {
+  it('is one line: what it is doing and the turn’s time', async () => {
     at(332_000);
     render(<WorkingIndicator activity="Running the Cypress tests" work={live()} agent={agent} />);
     expect(screen.getByText('Running the Cypress tests')).toBeInTheDocument();
     // The turn started a minute before the call: the line times the turn.
-    expect(screen.getByText('· 2 steps · 6:32')).toBeInTheDocument();
+    expect(screen.getByText('· 6m 32s')).toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_000);
     });
-    expect(screen.getByText('· 2 steps · 6:34')).toBeInTheDocument();
+    expect(screen.getByText('· 6m 34s')).toBeInTheDocument();
     // No pill, no dots, no second toggle: the line is the toggle.
-    const line = screen.getByRole('button', { name: /^Running the Cypress tests · 2 steps/ });
+    const line = screen.getByRole('button', {
+      name: /^Running the Cypress tests · 6m 34s · 2 steps/,
+    });
     expect(line).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('button', { name: 'Show output' })).toBeNull();
   });

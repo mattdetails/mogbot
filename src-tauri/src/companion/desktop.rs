@@ -469,7 +469,7 @@ impl Backend for DesktopBackend {
     }
 
     async fn answer_approval(&self, a: ApprovalAnswer) -> Result<(), CommandError> {
-        cmd::agents_answer_approval(
+        cmd::answer_approval_from(
             self.app.clone(),
             a.agent_id,
             a.request_id,
@@ -477,6 +477,11 @@ impl Backend for DesktopBackend {
             a.always,
             a.note,
             a.choice,
+            if a.lock_screen {
+                crate::agents::answer_gate::Source::PhoneLockScreen
+            } else {
+                crate::agents::answer_gate::Source::Phone
+            },
         )
         .await
     }
@@ -1477,6 +1482,25 @@ impl Backend for DesktopBackend {
 
     fn audit(&self, actor: &str, tool: &str, detail: String, ok: bool) {
         crate::remote_access::companion_audit(actor, tool, detail, ok);
+    }
+
+    async fn dictation_words(&self) -> super::dictation::WordsView {
+        let store = tokio::task::spawn_blocking(crate::voice::words::load)
+            .await
+            .unwrap_or_default();
+        super::dictation::words_view(&store)
+    }
+
+    async fn dictation_remove_word(
+        &self,
+        word: &str,
+    ) -> Result<super::dictation::WordsView, CommandError> {
+        let word = word.to_string();
+        let store = tokio::task::spawn_blocking(move || crate::voice::words::remove(&word))
+            .await
+            .map_err(|e| CommandError::from(e.to_string()))?
+            .map_err(|e| CommandError::from(format!("Couldn't save your words: {e}")))?;
+        Ok(super::dictation::words_view(&store))
     }
 
     async fn transcribe(

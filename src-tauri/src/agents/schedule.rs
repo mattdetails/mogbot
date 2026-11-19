@@ -1944,6 +1944,10 @@ fn tick(app: &AppHandle) -> Result<(), CommandError> {
     super::saver::tick(app);
     // The morning brief: prepared ahead, posted at the user's time (`brief`).
     super::brief::tick(app);
+    // Asks that sit open on an agent's list are nudged (`tasks`).
+    super::tasks::tick(app);
+    // The end-of-day check-in at the user's time (`eod`).
+    super::eod::tick(app);
     Ok(())
 }
 

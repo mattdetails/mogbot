@@ -51,9 +51,10 @@ export function SessionState({
 }) {
   const colors = useColors();
   const stopped = trouble && session.state !== 'working' && session.state !== 'needs_decision';
+  // The colour stays on the dot; the words are neutral.
   const tone =
     session.state === 'needs_decision' || stopped
-      ? colors.accentWarning
+      ? colors.textStrong
       : session.state === 'working'
         ? colors.textSecondary
         : colors.textMuted;

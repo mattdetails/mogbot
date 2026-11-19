@@ -6,6 +6,7 @@
  */
 
 import { AgentDraftCard } from './AgentDraftCard';
+import { planScope, plainApprovalTitle } from '../../lib/approvalTitle';
 import { draftOf } from '../../lib/draftCard';
 import {
   memo,
@@ -263,6 +264,7 @@ export const AgentBubble = memo(function AgentBubble({
       className="agent-chat__row agent-chat__row--agent"
       data-arrived={arrived || undefined}
       data-stopped={message.stopped || undefined}
+      data-actions={(!streaming && attachments.length === 0) || undefined}
       data-attachments={attachments.length > 0 || undefined}
       data-local-links={(message.localLinks?.length ?? 0) > 0 || undefined}
       data-blocks={blocks ? true : undefined}
@@ -559,6 +561,7 @@ export const ErrorLine = memo(function ErrorLine({
       className="agent-chat__row agent-chat__row--agent agent-chat__row--card"
       data-limit={limited || undefined}
       data-failed={!limited || undefined}
+      data-actions
       data-arrived={arrived || undefined}
       data-work={message.work && agent ? true : undefined}
       data-message-ids={message.id}
@@ -1297,6 +1300,16 @@ const ApprovalCardBody = memo(function ApprovalCard({
   const nothingToAllow = !!plan && plan.actions.length === 0;
   const pending = approval.status === 'pending';
   const fields = approvalFields(approval.tool, approval.input);
+  // A command the app can name says what happens in the title; its raw text is
+  // one click away behind Details.
+  const { title: shownTitle, plain: plainCommand } = plainApprovalTitle(approval);
+  const rawCommand =
+    typeof (approval.input as { command?: unknown } | undefined)?.command === 'string'
+      ? (approval.input as { command: string }).command
+      : approval.detail;
+  // One answer for a whole plan, said so: "Allow all 3".
+  const planCount = plan?.actions.length ?? 0;
+  const scope = plan && pending ? planScope(plan.actions.map((a) => a.kind)) : null;
   const answer = async (allow: boolean, always = false, why?: string) => {
     setBusy(true);
     try {
@@ -1356,7 +1369,7 @@ const ApprovalCardBody = memo(function ApprovalCard({
             <ShieldCheckIcon size={14} />
           )
         }
-        title={approval.title}
+        title={shownTitle}
         meta={
           gate
             ? `${gate.routine} · step ${gate.done} of ${gate.total} done`
@@ -1459,7 +1472,9 @@ const ApprovalCardBody = memo(function ApprovalCard({
                         ? GATE_ALLOW
                         : skill
                           ? SKILL_SAVE
-                          : 'Allow'}
+                          : planCount > 1
+                            ? `Allow all ${planCount}`
+                            : 'Allow'}
                   {keys && <KeyHint letter="A" />}
                 </Button>
               )}
@@ -1478,6 +1493,23 @@ const ApprovalCardBody = memo(function ApprovalCard({
           <AgentGateBody gate={gate} produced={approval.detail} />
         ) : plan ? (
           <AgentPlanList plan={plan} />
+        ) : plainCommand ? (
+          <>
+            {approval.summary && (
+              <p className="agent-approval__detail agent-approval__detail--prose">
+                {approval.summary}
+              </p>
+            )}
+            <TextButton
+              tabIndex={0}
+              className="agent-approval__show-all"
+              aria-expanded={details}
+              onClick={() => setDetails((v) => !v)}
+            >
+              {details ? 'Hide details' : 'Details'}
+            </TextButton>
+            {details && <pre className="agent-approval__detail">{rawCommand}</pre>}
+          </>
         ) : fields ? (
           <dl className="agent-approval__fields">
             {fields.map(([label, value]) => (
@@ -1514,6 +1546,12 @@ const ApprovalCardBody = memo(function ApprovalCard({
             <pre className="agent-approval__detail">{approval.detail}</pre>
           ))
         )}
+        {/* Why this one is asked, as the Mac worked it out (never worked out here). */}
+        {pending && approval.riskNote && (
+          <p className="agent-card__note agent-approval__risk">{approval.riskNote}</p>
+        )}
+        {/* What the one OK covers, on a card that goes outward. */}
+        {scope && <p className="agent-card__note agent-approval__scope">{scope}</p>}
         {long && (
           <TextButton
             tabIndex={0}

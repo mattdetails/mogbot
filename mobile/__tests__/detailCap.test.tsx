@@ -33,8 +33,6 @@ jest.mock('../src/lib/session', () => ({
   describeError: String,
 }));
 
-// The fade is drawn for the eye only: hidden from assistive tech.
-const HIDDEN = { includeHiddenElements: true };
 const lines = (n: number) => Array.from({ length: n }, (_, i) => `line ${i + 1}`).join('\n');
 
 describe('capFields', () => {
@@ -79,13 +77,13 @@ describe('capFields', () => {
 });
 
 describe('the expander', () => {
-  it('caps a command at the line budget, then shows it all, then less', async () => {
+  it('caps a command at six lines, then shows it all, then less', async () => {
     await render(<Command text={lines(20)} lines={DETAIL_LINES} />);
-    expect(screen.queryByText(/line 9\b/)).toBeNull();
+    expect(screen.getByText(lines(20)).props.numberOfLines).toBe(6);
     await fireEvent.press(screen.getByText('Show all 20 lines'));
-    expect(screen.getByText(/line 20/)).toBeTruthy();
+    expect(screen.getByText(lines(20)).props.numberOfLines).toBeUndefined();
     await fireEvent.press(screen.getByText('Show less'));
-    expect(screen.queryByText(/line 20/)).toBeNull();
+    expect(screen.getByText(lines(20)).props.numberOfLines).toBe(6);
   });
 
   it('offers nothing for a command that fits', async () => {
@@ -93,24 +91,20 @@ describe('the expander', () => {
     expect(screen.queryByText(/Show all/)).toBeNull();
   });
 
-  it('fades the far edge while a long line runs past it, until scrolled to the end', async () => {
-    await render(<Command text="cp -r export/icons ~/ShipStudio/acme-site/public" lines={4} />);
-    const scroll = screen.getByTestId('command-scroll');
-    expect(screen.queryByTestId('command-scroll-more', HIDDEN)).toBeNull();
-    await fireEvent(scroll, 'layout', { nativeEvent: { layout: { width: 300, height: 40 } } });
-    await fireEvent(scroll, 'contentSizeChange', 520, 40);
-    expect(screen.getByTestId('command-scroll-more', HIDDEN)).toBeTruthy();
-    expect(scroll.props.accessibilityHint).toMatch(/scroll sideways/);
-    await fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { x: 220, y: 0 } } });
-    expect(screen.queryByTestId('command-scroll-more', HIDDEN)).toBeNull();
+  it('wraps a long path in full, with nothing behind a scroll or a fade', async () => {
+    const path = 'cp -r export/icons ~/ShipStudio/acme-site/public/assets/brand/icons/2026-11/final';
+    await render(<Command text={path} lines={DETAIL_LINES} />);
+    // The whole path is in the tree, as one wrapped text, never a sideways scroll.
+    expect(screen.getByText(path)).toBeTruthy();
+    expect(screen.queryByTestId('command-scroll')).toBeNull();
   });
 
-  it('draws no fade on a line that fits', async () => {
-    await render(<Command text="ls" lines={4} />);
-    const scroll = screen.getByTestId('command-scroll');
-    await fireEvent(scroll, 'layout', { nativeEvent: { layout: { width: 300, height: 40 } } });
-    await fireEvent(scroll, 'contentSizeChange', 40, 40);
-    expect(screen.queryByTestId('command-scroll-more', HIDDEN)).toBeNull();
+  it('caps a very long single line at six lines and says there is more', async () => {
+    const long = `rm -r ${'/Users/julian/ShipStudio/acme-site/node_modules/.cache/'.repeat(6)}`;
+    await render(<Command text={long} lines={DETAIL_LINES} />);
+    expect(screen.getByText(long).props.numberOfLines).toBe(6);
+    await fireEvent.press(screen.getByText('Show all'));
+    expect(screen.getByText(long).props.numberOfLines).toBeUndefined();
   });
 
   it('caps fields and opens them whole', async () => {

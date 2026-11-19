@@ -89,12 +89,19 @@ describe('the timeline under a reply', () => {
 });
 
 describe('the working line, live', () => {
-  const live: TurnWork = { ...work, endedAt: undefined, files: [], doing: 'Running npm test' };
+  const live: TurnWork = {
+    ...work,
+    endedAt: undefined,
+    files: [],
+    doing: 'Running npm test',
+    // Moving just now: not quiet.
+    lastSignAt: Date.now(),
+  };
 
   it('is one line that says its steps so far and is itself the toggle', () => {
     render(<WorkingIndicator activity="Running npm test" work={live} agent={agent} />);
     expect(screen.getByText('Running npm test')).toBeInTheDocument();
-    const toggle = screen.getByRole('button', { name: /^Running npm test · 3 steps/ });
+    const toggle = screen.getByRole('button', { name: /^Running npm test · .* · 3 steps/ });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     // One control: no separate "3 steps" toggle beside it.
     expect(screen.queryByRole('button', { name: /^3 steps/ })).toBeNull();
@@ -146,10 +153,10 @@ describe('the working line, live', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('says Thinking the moment a turn starts, before the engine reports a step', () => {
+  it('says Working on it the moment a turn starts, before the engine reports a step', () => {
     // The first second after Send: working, no activity, no steps yet.
     const { container } = render(<WorkingIndicator activity={null} agent={agent} />);
-    expect(container.querySelector('.agent-working__activity')?.textContent).toBe('Thinking');
+    expect(container.querySelector('.agent-working__activity')?.textContent).toBe('Working on it');
   });
 
   it('stays wordless when told to (the import bar says what is happening)', () => {

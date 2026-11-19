@@ -14,6 +14,7 @@
  *   node scripts/perf-agents.mjs --build open,stream     # some phases only
  *   node scripts/perf-agents.mjs --build --profile       # also write .cpuprofile files
  *   node scripts/perf-agents.mjs --build --trace         # and a main-thread breakdown per phase
+ *   INVAL=1 node scripts/perf-agents.mjs --build stream --trace   # and what invalidated style, most often first
  *
  * Phases: open, background, openEvents, stream, reopened, idle (default: all);
  * not in all: cold, scroll, typing, arrive, switch (18 agents in turn), usage.
@@ -303,7 +304,9 @@ async function startProfile(interval = 200) {
   if (TRACE) {
     traceEvents = [];
     await send('Tracing.start', {
-      categories: 'devtools.timeline,disabled-by-default-devtools.timeline',
+      categories:
+        'devtools.timeline,disabled-by-default-devtools.timeline' +
+        (process.env.INVAL ? ',disabled-by-default-devtools.timeline.invalidationTracking' : ''),
       transferMode: 'ReportEvents',
     });
   }
@@ -323,6 +326,34 @@ async function stopTrace() {
   const by = {};
   const styled = [];
   let timerFires = 0;
+  const inval = {};
+  for (const e of traceEvents) {
+    if (/InvalidationTracking$/.test(e.name) && e.args?.data) {
+      const d = e.args.data;
+      const k = [
+        e.name.replace('InvalidationTracking', ''),
+        d.reason,
+        d.extraData,
+        d.invalidationSet,
+        (d.nodeName || '').slice(0, 40),
+        d.selectorPart,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+      inval[k] = (inval[k] ?? 0) + 1;
+    }
+  }
+  if (process.env.INVAL)
+    console.log(
+      'INVAL',
+      JSON.stringify(
+        Object.entries(inval)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 14),
+        null,
+        1
+      )
+    );
   for (const e of traceEvents) {
     if (!main || e.tid !== main.tid || e.ph !== 'X' || !e.dur) continue;
     by[e.name] = (by[e.name] ?? 0) + e.dur / 1000;

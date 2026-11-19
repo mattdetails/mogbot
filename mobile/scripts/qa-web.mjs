@@ -23,6 +23,7 @@
  *   pnpm qa:web --phases net             # requests the Mac sees and React renders: cold start, tabs, chats, reconnect, a streaming reply (not in the default run)
  *   pnpm qa:web --phases reconnecting    # the Mac going away under an open app (not in the default run)
  *   pnpm qa:web --phases project-preview # a project's picture on its card: empty, phone, desktop (not in the default run)
+ *   pnpm qa:web --phases dictation-words # Settings → Dictation words: the list, and Remove (not in the default run)
  *   pnpm qa:web --phases quiet-drops     # a short drop shows nothing; a 4-minute one shows the bar (not in the default run)
  *   pnpm qa:web --phases link-down       # the connection bar: away, back, the Mac's app stuck or closing (not in the default run)
  *   pnpm qa:web --out /tmp/shots
@@ -961,7 +962,7 @@ const PROBE = [
     ready: 'Request',
     act: () => sleep(1200),
     check:
-      'A request the Mac marked risky, in full: the warning icon on the card, “rm -r ~/Exports/2024”, Deny outlined and Allow in the danger style (never the neutral answer)',
+      'A request the Mac marked risky, in full: the warning icon on the card, “rm -r ~/Exports/2024”, Deny outlined and Allow the neutral answer, as on every request (the warning icon says it is risky, never a red Allow)',
   },
   {
     name: 'probe-request-long',
@@ -1090,6 +1091,21 @@ const PROBE = [
     act: () => sleep(1200),
     check:
       'A message sent while the agent works: under your bubble one quiet “Next · after this one” with a Send now action, the one working line, and nothing else (no “Keeps running…” line)',
+  },
+  {
+    name: 'probe-working',
+    route: '/chat/worker',
+    ready: 'In Chrome on linkedin.com',
+    act: () => sleep(1200),
+    check:
+      'The working row: the agent’s key and “In Chrome on linkedin.com” with its timer after 8s, no step count',
+  },
+  {
+    name: 'probe-working-quiet',
+    route: '/chat/quietw',
+    ready: 'Still working',
+    act: () => sleep(1200),
+    check: 'Quiet for over a minute: “Still working” and the time, no shimmer',
   },
   {
     name: 'probe-stale-card',
@@ -4455,6 +4471,27 @@ async function main() {
     await each(FIRST_RUN);
   }
 
+  if (phase('dictation-words')) {
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock();
+      await page.goto(`${WEB}/settings`);
+      await sleep(4000);
+      await scrollToText('Dictation words')(page);
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'dictation-words',
+        check: 'Settings → Dictation words: two typed words (“Added on your Mac”) and two learned (“Learned from your fixes · heard as …”), the footer',
+      });
+      await page.clickText('Tailscale');
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'dictation-words-remove',
+        check: 'Tapping a word offers Remove, and only that',
+      });
+    }
+  }
+
   if (phase('project-preview')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);
@@ -4478,6 +4515,12 @@ async function main() {
       await screen(page, theme, {
         name: 'project-preview-desktop',
         check: 'The desktop picture, wide, on the same card',
+      });
+      await page.clickText('Show the site');
+      await sleep(2500);
+      await screen(page, theme, {
+        name: 'project-preview-notrunning',
+        check: 'A site that isn’t running: one plain sentence and Try again, on its own card',
       });
     }
   }
