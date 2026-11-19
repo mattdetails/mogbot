@@ -13,6 +13,7 @@ export const MATERIAL: Partial<Record<SFName, string>> = {
   'arrow.up': 'arrow_upward',
   'arrow.up.right': 'open_in_new',
   'bubble.left': 'chat_bubble',
+  'text.bubble': 'sms',
   'checkmark.shield': 'verified_user',
   'slider.horizontal.3': 'tune',
   globe: 'public',
