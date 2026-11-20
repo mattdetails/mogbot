@@ -5875,7 +5875,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 627
+      "consumerCount": 628
     },
     {
       "name": "--text-muted",
@@ -7515,7 +7515,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 627
+      "consumerCount": 628
     },
     {
       "name": "--text-quiet",
