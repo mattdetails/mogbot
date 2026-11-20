@@ -98,6 +98,7 @@ import {
   SETUP_TITLE,
   useResumableTeamSetup,
 } from '../../lib/teamSetup';
+import { withRoomCards } from '../../lib/catchUpDesk';
 
 /** Lines read per chat: enough for its latest reply. A chat with a card open reads a page. */
 const RECENT_LINES = 20;
@@ -149,7 +150,11 @@ export function useRecentLines(agents: Agent[], loaded: Record<string, AgentMess
  * Cards waiting in rooms, read from each room's own thread while one of its
  * members is waiting on you there; refetched when that member's row changes.
  */
-function useRoomCards(agents: Agent[], rooms: Room[], loaded: Record<string, AgentMessage[]>) {
+export function useRoomCards(
+  agents: Agent[],
+  rooms: Room[],
+  loaded: Record<string, AgentMessage[]>
+) {
   const [fetched, setFetched] = useState<Record<string, { key: string; lines: AgentMessage[] }>>(
     {}
   );
@@ -591,14 +596,7 @@ export function AgentsTeamView({
         return [[g.agent.id, { ...g, approvals }] as [string, typeof g]];
       })
     );
-    for (const [agentId, cards] of roomCards) {
-      const group = byAgent.get(agentId);
-      if (!group) continue;
-      const known = new Set(group.approvals.map((m) => m.id));
-      group.approvals = [...group.approvals, ...cards.filter((m) => !known.has(m.id))].sort(
-        (a, b) => a.ts - b.ts
-      );
-    }
+    for (const g of withRoomCards([...byAgent.values()], roomCards)) byAgent.set(g.agent.id, g);
     for (const h of Object.values(held)) {
       const agent = agents.find((a) => a.id === h.agentId);
       if (!agent) continue;

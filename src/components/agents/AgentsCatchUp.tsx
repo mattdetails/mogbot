@@ -21,7 +21,7 @@ import { TextButton } from '../primitives/TextButton';
 import { AgentKey } from './AgentKey';
 import { useCardGuard } from './useCardGuard';
 import { approvalKey } from './approvalKeys';
-import { useRecentLines } from './AgentsTeamView';
+import { useRecentLines, useRoomCards } from './AgentsTeamView';
 import { useOptionalToast } from '../../contexts/ToastContext';
 import {
   agentKeyState,
@@ -39,6 +39,7 @@ import { draftOf } from '../../lib/draftCard';
 import {
   answersHere,
   catchItems,
+  withRoomCards,
   leftCount,
   withLater,
   type CatchItem,
@@ -111,7 +112,13 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
   const messages = useAgentsSelector((s) => s.messages);
   const lines = useRecentLines(agents, messages);
   const team = useMemo(() => summarizeTeam(agents, lines), [agents, lines]);
-  const all = useMemo(() => catchItems(team.needsYou), [team.needsYou]);
+  // Cards asked for in a room live in its thread, not the agent's own chat.
+  const rooms = useAgentsSelector((s) => s.rooms);
+  const roomCards = useRoomCards(agents, rooms, messages);
+  const all = useMemo(
+    () => catchItems(withRoomCards(team.needsYou, roomCards)),
+    [team.needsYou, roomCards]
+  );
   const [later, setLater] = useState<string[]>([]);
   const items = useMemo(() => withLater(all, later), [all, later]);
   const left = leftCount(all, later);

@@ -34,6 +34,27 @@ export function answersHere(m: AgentMessage | undefined): boolean {
   return !(a.login || a.secret || a.prompt || a.connector || a.stepIn || a.crossover || a.front);
 }
 
+/**
+ * The cards waiting in rooms (read from each room's thread, by the agent that
+ * asked) added to that agent's group, each once, oldest first. A request made
+ * in a room isn't in the agent's own chat, so without this the bell said
+ * "1 needs you" while Catch up said "Needs you · 0".
+ */
+export function withRoomCards(
+  groups: CatchGroup[],
+  roomCards: Map<string, AgentMessage[]>
+): CatchGroup[] {
+  return groups.map((g) => {
+    const cards = roomCards.get(g.agent.id);
+    if (!cards?.length) return g;
+    const known = new Set(g.approvals.map((m) => m.id));
+    const approvals = [...g.approvals, ...cards.filter((m) => !known.has(m.id))].sort(
+      (a, b) => a.ts - b.ts
+    );
+    return { ...g, approvals };
+  });
+}
+
 /** Every item, oldest request first, then turns that didn't finish. */
 export function catchItems(groups: CatchGroup[]): CatchItem[] {
   const asks: CatchItem[] = [];

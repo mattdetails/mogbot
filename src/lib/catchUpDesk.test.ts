@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Agent, AgentMessage } from './agents';
-import { answersHere, catchItems, leftCount, withLater } from './catchUpDesk';
+import { answersHere, catchItems, leftCount, withLater, withRoomCards } from './catchUpDesk';
 
 const agent = (id: string) => ({ id, name: id }) as Agent;
 const ask = (id: string, ts: number, over = {}) =>
@@ -43,5 +43,31 @@ describe('answersHere', () => {
     expect(answersHere(ask('x', 1, { secret: {} }))).toBe(false);
     expect(answersHere(ask('x', 1, { login: {} }))).toBe(false);
     expect(answersHere(undefined)).toBe(false);
+  });
+});
+
+describe('withRoomCards', () => {
+  it('counts a card asked for in a room, which the agent’s own chat doesn’t hold', () => {
+    const acme = agent('acme');
+    const roomCard = { ...ask('r1', 5), room: 'pricing' } as AgentMessage;
+    const groups = withRoomCards(
+      [{ agent: acme, approvals: [], failure: null }],
+      new Map([['acme', [roomCard]]])
+    );
+    expect(catchItems(groups).map((i) => i.key)).toEqual(['r1']);
+  });
+
+  it('adds each card once, oldest first, and leaves other agents alone', () => {
+    const acme = agent('acme');
+    const own = ask('a1', 3);
+    const groups = withRoomCards(
+      [
+        { agent: acme, approvals: [own], failure: null },
+        { agent: agent('mail'), approvals: [ask('m1', 1)], failure: null },
+      ],
+      new Map([['acme', [ask('r1', 2), own]]])
+    );
+    expect(groups[0].approvals.map((m) => m.id)).toEqual(['r1', 'a1']);
+    expect(groups[1].approvals.map((m) => m.id)).toEqual(['m1']);
   });
 });
