@@ -2075,7 +2075,9 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
               onOpenBugReports={bugReportModal.open}
               onOpenFeatureRequest={featureRequestModal.open}
               onOpenChangelog={changelogModal.open}
-              presentation="drawer"
+              // The Agents foot's gear opens a menu above it, like the agent
+              // menu; elsewhere the drawer stays.
+              presentation={settingsMenuItems && !isSidebarHidden ? 'dropdown' : 'drawer'}
               leadingItems={settingsMenuItems}
               onOpenChange={(open) => {
                 if (open) {
@@ -2103,7 +2105,7 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
                     </MenuButton>
                   );
                 }
-                if (!settingsMenuOpen) {
+                if (!settingsMenuOpen || (settingsMenuItems && !isSidebarHidden)) {
                   return (
                     <MenuButton
                       // Beside the phone and remote icons in the Agents foot: the same weight.
