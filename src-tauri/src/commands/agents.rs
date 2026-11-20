@@ -189,6 +189,23 @@ pub async fn agents_task_drop(
     Ok(true)
 }
 
+/// "Pause this agent" / "Resume" in its ⋯ menu (desk and phone): its
+/// routines are switched off (and back on, only the ones this switched),
+/// running work is stopped, and its `paused` flag says so. Messages still
+/// reach it. Answers how many routines changed and whether work was stopped.
+#[tauri::command]
+#[tracing::instrument(skip(app))]
+pub async fn agents_agent_pause(
+    app: AppHandle,
+    agent_id: String,
+    paused: bool,
+) -> Result<serde_json::Value, CommandError> {
+    let agent = store::get(&agent_id)?;
+    let (routines, stopped) =
+        blocking(move || Ok(agents::admin::set_paused(&app, &agent, paused))).await?;
+    Ok(serde_json::json!({ "paused": paused, "routines": routines, "stopped": stopped }))
+}
+
 /// The set-up screen's "Save for later" and "Start": the user's own call
 /// (`agents::missions_run::act` with `save`, `start`, `discard`).
 #[tauri::command]
