@@ -382,7 +382,7 @@
   gap: var(--spacing-xs);
   margin: 0;
   font-size: var(--font-size-body-sm);
-  color: var(--accent-error, var(--text-primary));
+  color: var(--text-error);
 }
 
 .agent-draft__text[data-scrolls] {
@@ -615,47 +615,28 @@
   }
 }
 
-/* The sidebar's first row: Catch up and how many wait. */
+/* Catch up, pinned under the search panel: an agents-list__row (its height,
+   padding, hairline, hover and selected), with a neutral tile in the key's
+   place. Only the tile is its own. */
 .agents-catchup-row {
-  display: flex;
+  flex: 0 0 auto;
+}
+
+.agents-catchup-row__tile {
+  display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
-  justify-content: space-between;
-  width: calc(100% - var(--spacing-md));
-  margin: var(--spacing-xs) var(--spacing-xs) var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 0;
-  border-radius: var(--radius-lg);
+  justify-content: center;
+  width: var(--agent-key-size-md);
+  height: var(--agent-key-size-md);
+  border-radius: var(--radius-card);
   background: var(--surface-control);
-  color: var(--text-primary);
-  font: inherit;
-  font-weight: var(--font-weight-heading);
-  cursor: pointer;
+  color: var(--text-secondary);
 }
 
-.agents-catchup-row.is-active {
+.agents-catchup-row.is-current .agents-catchup-row__tile {
   background: var(--surface-inverse);
   color: var(--surface-app);
-}
-
-.agents-catchup-row__count {
-  min-width: var(--spacing-xl);
-  padding: 0 var(--spacing-sm);
-  border-radius: var(--radius-pill);
-  background: var(--surface-inverse);
-  color: var(--surface-app);
-  text-align: center;
-  font-size: var(--font-size-body-sm);
-}
-
-.agents-catchup-row.is-active .agents-catchup-row__count {
-  background: var(--surface-app);
-  color: var(--text-primary);
-}
-
-.agents-catchup-row__clear {
-  font-size: var(--font-size-body-sm);
-  font-weight: var(--font-weight-body);
-  color: var(--text-muted);
 }
 
 /* Keyboard hints (A / D / O / L) mean nothing on a touch screen or in a narrow

@@ -76,6 +76,7 @@ import type { ProjectDevServerSnapshot } from '../../hooks/useDevServer';
 import type { PinnedProjectRow } from '../../hooks/usePinnedProjects';
 import { ModeToggle } from './ModeToggle';
 import { SideBySideToggle } from './SideBySideToggle';
+import { SidebarMascot } from './SidebarMascot';
 import { useActiveAccount } from '../../hooks/useActiveAccount';
 import { useCommands } from '../../commands/useCommands';
 import { kbd } from '../../lib/shortcuts';
@@ -205,6 +206,8 @@ interface Props {
   navContent?: ReactNode;
   /** Replaces the palette trigger at the top (Agents mode searches conversations there). */
   searchContent?: ReactNode;
+  /** Agents mode's Catch up: one row under the search panel's border that never scrolls. */
+  pinnedContent?: ReactNode;
 
   // Projects
   /** Pinned projects (in pin order). Have live registry data. */
@@ -437,6 +440,7 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
   onGoAgents,
   onGoProjects,
   searchContent,
+  pinnedContent,
   navContent,
   listContent,
   footerContent,
@@ -1825,6 +1829,7 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
       >
         {showNavigationControls && (
           <div className="workspace-sidebar-top-row" data-window-drag>
+            {!isSidebarHidden && <SidebarMascot />}
             {onToggleSidebar && (
               <IconButton
                 variant="ghost"
@@ -1882,6 +1887,8 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
             </button>
           )}
         </div>
+
+        {pinnedContent}
 
         <SpotifyWidget isSidebarHidden={isSidebarHidden} />
 

@@ -1,0 +1,568 @@
+/* The sidebar mascot (components/workspace/SidebarMascot.tsx): the app's mark,
+   its two slots as eyes, in the traffic lights' place while the window is in
+   full screen. A lit cream keycap: a radial shine that moves against the
+   pointer, a top specular, a darker rim below, a ground shadow, and a tilt
+   toward wherever the pointer is. Proportions are the mark's own (78 × 72
+   units: corners 30 and 9, eyes 12 wide from 21 to 63 units down), as
+   percentages of its box.
+
+   Layers: __shadow (ground) · __hop (jumps, hops) · __body (tilt, squash,
+   shine) · __eyes (where it looks) · __eye (blink, shape per state). */
+
+:root {
+  /* The mark's own cream, lit: highlight → face → shade → rim. */
+  --sidebar-mascot-highlight: #fffdf8;
+  --sidebar-mascot-cream: #f1ebdf;
+  --sidebar-mascot-shade: #cfc4b0;
+  --sidebar-mascot-rim: #a3977f;
+  --sidebar-mascot-ink: #26282e;
+  --sidebar-mascot-blush: #f4a0a0;
+  --sidebar-mascot-drop: color-mix(in srgb, var(--sidebar-mascot-ink) 55%, transparent);
+
+  --sidebar-mascot-size: var(--icon-size-full);
+  /* The top row's leading inset (sidebar.css), the room kept for the lights. */
+  --sidebar-mascot-inset: calc(
+    var(--space-32) + var(--space-32) + var(--spacing-md) + var(--button-gap) + var(--space-08)
+  );
+  --sidebar-mascot-blink: calc(var(--duration-loader-isolated) * 3);
+  --sidebar-mascot-glance: calc(var(--duration-loader-isolated) * 5);
+  --sidebar-mascot-watch: calc(var(--duration-loader-isolated) * 1.5);
+  --sidebar-mascot-jump: calc(var(--duration-loader-isolated) * 0.4);
+  --sidebar-mascot-breathe: calc(var(--duration-loader-isolated) * 2.2);
+}
+
+.app.workspace-home .workspace-sidebar-top-row:has(> .sidebar-mascot) {
+  position: relative;
+}
+
+/* Centred in the lights' room, so the toggle and bell don't move. */
+.sidebar-mascot {
+  --sidebar-mascot-look-x: 0;
+  --sidebar-mascot-look-y: 0;
+  --sidebar-mascot-squash-x: 1;
+  --sidebar-mascot-squash-y: 1;
+  /* One pixel at the real size (24px), so strokes and shadows scale with it. */
+  --sidebar-mascot-unit: calc(var(--sidebar-mascot-size) / 24);
+
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: calc((var(--sidebar-mascot-inset) - var(--sidebar-mascot-size)) / 2);
+  display: block;
+  width: var(--sidebar-mascot-size);
+  aspect-ratio: 78 / 72;
+  translate: 0 -50%;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+/* Only the sidebar at the window's left edge keeps that room. */
+.app:not(.workspace-home) .sidebar-mascot,
+.side-by-side__pane--projects .sidebar-mascot {
+  display: none;
+}
+
+/* ---------- Body: a lit keycap ---------- */
+
+.sidebar-mascot__shadow {
+  position: absolute;
+  inset-block-end: -18%;
+  inset-inline: 8%;
+  height: 22%;
+  background: radial-gradient(closest-side, var(--sidebar-mascot-drop), transparent);
+  transform-origin: 50% 50%;
+}
+
+.sidebar-mascot__hop {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+}
+
+.sidebar-mascot__body {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(
+    120% 110% at calc(32% - var(--sidebar-mascot-look-x) * 14%)
+      calc(22% - var(--sidebar-mascot-look-y) * 10%),
+    var(--sidebar-mascot-highlight) 0%,
+    var(--sidebar-mascot-cream) 28%,
+    var(--sidebar-mascot-shade) 72%,
+    var(--sidebar-mascot-rim) 100%
+  );
+  border-radius: 38.5% 38.5% 11.5% 11.5% / 41.7% 41.7% 12.5% 12.5%;
+  box-shadow:
+    inset 0 calc(var(--sidebar-mascot-unit) * -2) calc(var(--sidebar-mascot-unit) * 2)
+      var(--sidebar-mascot-rim),
+    inset 0 var(--sidebar-mascot-unit) var(--sidebar-mascot-unit) var(--sidebar-mascot-highlight),
+    0 var(--sidebar-mascot-unit) calc(var(--sidebar-mascot-unit) * 2) var(--sidebar-mascot-drop);
+  transform: perspective(calc(var(--sidebar-mascot-size) * 2.6))
+    rotateY(calc(var(--sidebar-mascot-look-x) * 22deg))
+    rotateX(calc(var(--sidebar-mascot-look-y) * -16deg))
+    scale(var(--sidebar-mascot-squash-x), var(--sidebar-mascot-squash-y));
+  transform-origin: 50% 100%;
+  transition: transform var(--transition-interaction);
+}
+
+/* The specular: a soft white spot up and to the left, sliding against the pointer. */
+.sidebar-mascot__body::before {
+  position: absolute;
+  inset-block-start: 9%;
+  inset-inline-start: calc(16% - var(--sidebar-mascot-look-x) * 8%);
+  width: 34%;
+  height: 20%;
+  background: radial-gradient(closest-side, var(--sidebar-mascot-highlight), transparent);
+  border-radius: 50%;
+  opacity: 0.9;
+  content: '';
+}
+
+/* ---------- Eyes ---------- */
+
+.sidebar-mascot__eyes {
+  position: absolute;
+  inset: 0;
+  translate: calc(var(--sidebar-mascot-look-x) * 9%) calc(var(--sidebar-mascot-look-y) * 6%);
+  transition: translate var(--transition-interaction);
+  animation: sidebar-mascot-glance var(--sidebar-mascot-glance) ease-in-out infinite;
+}
+
+.sidebar-mascot__eye {
+  position: absolute;
+  inset-block-start: 29.2%;
+  inset-inline-start: 23.1%;
+  width: 15.4%;
+  height: 58.3%;
+  background: linear-gradient(to bottom, var(--sidebar-mascot-ink), var(--sidebar-mascot-ink));
+  border-radius: var(--radius-pill) var(--radius-pill) 0 0;
+  box-shadow: inset 0 var(--sidebar-mascot-unit) var(--sidebar-mascot-unit)
+    var(--sidebar-mascot-drop);
+  transform-origin: 50% 70%;
+  transition:
+    height var(--transition-interaction),
+    inset-block-start var(--transition-interaction),
+    width var(--transition-interaction),
+    border-radius var(--transition-interaction);
+  animation: sidebar-mascot-blink var(--sidebar-mascot-blink) ease-in-out infinite;
+}
+
+.sidebar-mascot__eye--right {
+  inset-inline-start: 61.5%;
+  animation-delay: calc(var(--duration-loader-isolated) * 0.04);
+}
+
+/* The glint: a catchlight near the top of each eye. */
+.sidebar-mascot__eye::after {
+  position: absolute;
+  inset-block-start: 10%;
+  inset-inline-start: 22%;
+  width: 56%;
+  aspect-ratio: 1;
+  background: var(--sidebar-mascot-highlight);
+  border-radius: 50%;
+  opacity: 0.85;
+  content: '';
+  transition: opacity var(--transition-interaction);
+}
+
+.sidebar-mascot__cheek {
+  position: absolute;
+  inset-block-start: 62%;
+  inset-inline-start: 6%;
+  width: 16%;
+  height: 12%;
+  background: radial-gradient(closest-side, var(--sidebar-mascot-blush), transparent);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity var(--transition-interaction);
+}
+
+.sidebar-mascot__cheek--right {
+  inset-inline-start: 78%;
+}
+
+/* ---------- Zzz ---------- */
+
+.sidebar-mascot__zzz {
+  position: absolute;
+  inset-block-end: 70%;
+  inset-inline-start: 82%;
+  display: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-body-sm);
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.sidebar-mascot__zzz > span {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  opacity: 0;
+  animation: sidebar-mascot-z var(--sidebar-mascot-breathe) ease-out infinite;
+}
+
+.sidebar-mascot__zzz > span:nth-child(2) {
+  animation-delay: calc(var(--sidebar-mascot-breathe) / 3);
+}
+
+.sidebar-mascot__zzz > span:nth-child(3) {
+  animation-delay: calc(var(--sidebar-mascot-breathe) * 2 / 3);
+}
+
+/* ---------- Moods: what the team is up to ---------- */
+
+/* Following the pointer: eyes go where it is, no idle glancing. */
+.sidebar-mascot[data-tracking] .sidebar-mascot__eyes {
+  animation: none;
+}
+
+/* Agents working: it watches them, side to side. */
+.sidebar-mascot[data-mood='working']:not([data-tracking]) .sidebar-mascot__eyes {
+  animation: sidebar-mascot-watch var(--sidebar-mascot-watch) ease-in-out infinite;
+}
+
+/* One needs you: it looks toward the bell and hops now and then. */
+.sidebar-mascot[data-mood='needs-you']:not([data-tracking]) {
+  --sidebar-mascot-look-x: 0.9;
+  --sidebar-mascot-look-y: -0.2;
+}
+
+.sidebar-mascot[data-mood='needs-you']:not([data-tracking]) .sidebar-mascot__eyes {
+  animation: none;
+}
+
+.sidebar-mascot[data-mood='needs-you'][data-state='awake'] .sidebar-mascot__hop {
+  animation: sidebar-mascot-hop var(--sidebar-mascot-watch) ease-in-out infinite;
+}
+
+.sidebar-mascot[data-mood='needs-you'][data-state='awake'] .sidebar-mascot__shadow {
+  animation: sidebar-mascot-shadow-hop var(--sidebar-mascot-watch) ease-in-out infinite;
+}
+
+/* ---------- States: what it is doing ---------- */
+
+/* Asleep: eyes shut, slow breaths, z's drifting up. */
+.sidebar-mascot[data-state='sleep'] {
+  --sidebar-mascot-look-x: 0;
+  --sidebar-mascot-look-y: 0.3;
+}
+
+.sidebar-mascot[data-state='sleep'] .sidebar-mascot__eyes {
+  animation: none;
+}
+
+.sidebar-mascot[data-state='sleep'] .sidebar-mascot__eye {
+  inset-block-start: 66%;
+  height: 7%;
+  border-radius: var(--radius-pill);
+  animation: none;
+}
+
+.sidebar-mascot[data-state='sleep'] .sidebar-mascot__eye::after {
+  opacity: 0;
+}
+
+.sidebar-mascot[data-state='sleep'] .sidebar-mascot__hop {
+  animation: sidebar-mascot-breathe var(--sidebar-mascot-breathe) ease-in-out infinite;
+}
+
+.sidebar-mascot[data-state='sleep'] .sidebar-mascot__zzz {
+  display: block;
+}
+
+/* Woken: a startled little jump, eyes wide. */
+.sidebar-mascot[data-state='waking'] .sidebar-mascot__hop {
+  animation: sidebar-mascot-startle var(--sidebar-mascot-jump) ease-out 1;
+}
+
+.sidebar-mascot[data-state='waking'] .sidebar-mascot__eye {
+  scale: 1.15;
+  animation: none;
+}
+
+/* Pointed at: happy eyes (^ ^), blush, a lean in. */
+.sidebar-mascot[data-state='happy'] {
+  --sidebar-mascot-squash-x: 1.04;
+  --sidebar-mascot-squash-y: 1.04;
+}
+
+.sidebar-mascot[data-state='happy'] .sidebar-mascot__eye,
+.sidebar-mascot[data-state='poked'] .sidebar-mascot__eye {
+  inset-block-start: 42%;
+  height: 24%;
+  background: transparent;
+  border: calc(var(--sidebar-mascot-unit) * 1.7) solid var(--sidebar-mascot-ink);
+  border-block-end: none;
+  box-shadow: none;
+  animation: none;
+}
+
+.sidebar-mascot[data-state='happy'] .sidebar-mascot__eye::after,
+.sidebar-mascot[data-state='poked'] .sidebar-mascot__eye::after,
+.sidebar-mascot[data-state='held'] .sidebar-mascot__eye::after,
+.sidebar-mascot[data-state='dizzy'] .sidebar-mascot__eye::after {
+  opacity: 0;
+}
+
+.sidebar-mascot[data-state='happy'] .sidebar-mascot__cheek,
+.sidebar-mascot[data-state='poked'] .sidebar-mascot__cheek,
+.sidebar-mascot[data-state='held'] .sidebar-mascot__cheek {
+  opacity: 1;
+}
+
+/* Pressed: squashed flat, eyes squeezed shut (> <). */
+.sidebar-mascot[data-state='held'] {
+  --sidebar-mascot-squash-x: 1.14;
+  --sidebar-mascot-squash-y: 0.8;
+}
+
+.sidebar-mascot[data-state='held'] .sidebar-mascot__eye {
+  inset-block-start: 52%;
+  height: 10%;
+  border-radius: var(--radius-pill);
+  animation: none;
+}
+
+/* Clicked: it jumps and spins round once. */
+.sidebar-mascot[data-state='poked'] .sidebar-mascot__hop {
+  animation: sidebar-mascot-jump var(--sidebar-mascot-jump) ease-out 1;
+}
+
+.sidebar-mascot[data-state='poked'] .sidebar-mascot__shadow {
+  animation: sidebar-mascot-shadow-jump var(--sidebar-mascot-jump) ease-out 1;
+}
+
+/* Poked again and again: dizzy, eyes crossed out (x x), a wobble. */
+.sidebar-mascot[data-state='dizzy'] {
+  --sidebar-mascot-look-x: 0;
+  --sidebar-mascot-look-y: 0;
+}
+
+.sidebar-mascot[data-state='dizzy'] .sidebar-mascot__eyes {
+  animation: none;
+}
+
+.sidebar-mascot[data-state='dizzy'] .sidebar-mascot__eye {
+  inset-block-start: 40%;
+  width: 22%;
+  height: 26%;
+  margin-inline-start: -3%;
+  background:
+    linear-gradient(
+      45deg,
+      transparent 42%,
+      var(--sidebar-mascot-ink) 42%,
+      var(--sidebar-mascot-ink) 58%,
+      transparent 58%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 42%,
+      var(--sidebar-mascot-ink) 42%,
+      var(--sidebar-mascot-ink) 58%,
+      transparent 58%
+    );
+  border-radius: 0;
+  box-shadow: none;
+  animation: sidebar-mascot-spin var(--sidebar-mascot-watch) linear infinite;
+}
+
+.sidebar-mascot[data-state='dizzy'] .sidebar-mascot__hop {
+  animation: sidebar-mascot-wobble var(--sidebar-mascot-jump) ease-in-out infinite;
+}
+
+/* ---------- Keyframes ---------- */
+
+@keyframes sidebar-mascot-blink {
+  0%,
+  90%,
+  96%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  93% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes sidebar-mascot-glance {
+  0%,
+  30%,
+  78%,
+  100% {
+    translate: 0 0;
+  }
+
+  36%,
+  50% {
+    translate: -9% 0;
+  }
+
+  58%,
+  72% {
+    translate: 9% -3%;
+  }
+}
+
+@keyframes sidebar-mascot-watch {
+  0%,
+  100% {
+    translate: -9% 0;
+  }
+
+  50% {
+    translate: 9% 0;
+  }
+}
+
+@keyframes sidebar-mascot-hop {
+  0%,
+  40%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(0) scale(1.08, 0.88);
+  }
+
+  65% {
+    transform: translateY(-24%) scale(0.95, 1.07);
+  }
+
+  80% {
+    transform: translateY(0) scale(1.07, 0.92);
+  }
+
+  90% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sidebar-mascot-shadow-hop {
+  0%,
+  50%,
+  80%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  65% {
+    transform: scale(0.65);
+    opacity: 0.5;
+  }
+}
+
+@keyframes sidebar-mascot-jump {
+  0% {
+    transform: translateY(0) scale(1.1, 0.85) rotateY(0deg);
+  }
+
+  45% {
+    transform: translateY(-38%) scale(0.94, 1.08) rotateY(200deg);
+  }
+
+  80% {
+    transform: translateY(0) scale(1.08, 0.9) rotateY(360deg);
+  }
+
+  100% {
+    transform: translateY(0) scale(1) rotateY(360deg);
+  }
+}
+
+@keyframes sidebar-mascot-shadow-jump {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  45% {
+    transform: scale(0.5);
+    opacity: 0.35;
+  }
+}
+
+@keyframes sidebar-mascot-startle {
+  0% {
+    transform: translateY(0) scale(1.1, 0.9);
+  }
+
+  40% {
+    transform: translateY(-20%) scale(0.95, 1.08);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sidebar-mascot-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+
+  50% {
+    transform: scale(1.04, 0.95);
+  }
+}
+
+@keyframes sidebar-mascot-z {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: translate(70%, -140%) scale(1.1);
+    opacity: 0;
+  }
+}
+
+@keyframes sidebar-mascot-wobble {
+  0%,
+  100% {
+    transform: rotate(-7deg);
+  }
+
+  50% {
+    transform: rotate(7deg);
+  }
+}
+
+@keyframes sidebar-mascot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Reduced motion: it still sleeps, smiles and squints, only without moving. */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-mascot[data-mood] .sidebar-mascot__eyes,
+  .sidebar-mascot[data-mood] .sidebar-mascot__eye,
+  .sidebar-mascot[data-mood] .sidebar-mascot__hop,
+  .sidebar-mascot[data-mood] .sidebar-mascot__shadow,
+  .sidebar-mascot[data-mood] .sidebar-mascot__zzz > span {
+    animation: none;
+  }
+
+  .sidebar-mascot[data-mood] .sidebar-mascot__body,
+  .sidebar-mascot[data-mood] .sidebar-mascot__eyes {
+    transition: none;
+  }
+
+  .sidebar-mascot[data-mood] .sidebar-mascot__zzz > span:first-child {
+    opacity: 0.9;
+  }
+}

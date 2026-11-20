@@ -1,5 +1,7 @@
 import { chatAgentTarget, commentAgents } from '../../lib/commentAgents';
 import { useSideBySide } from '../../lib/sideBySide';
+import { toggleTerminalOnly, useTerminalOnly } from '../../lib/terminalOnly';
+import { TerminalOnlyToggle } from './TerminalOnlyToggle';
 import { agentIn, useAgentsList } from '../../lib/agentsStore';
 import type { WorkspaceViewProps } from './workspaceViewTypes';
 export type { WorkspaceViewProps } from './workspaceViewTypes';
@@ -509,6 +511,15 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
   useEffect(() => {
     if (chatAgentId) setIsAgentPanelHidden(false);
   }, [chatAgentId]);
+  // Picking an agent to work here starts the project's dev server when it
+  // isn't up (a no-op when it is; a project not approved yet still asks), so
+  // the preview beside the chat is live without "Start dev server" again
+  // (call with Cade, 18 Nov).
+  const startForAgent = useRef(handleStartDevServer);
+  startForAgent.current = handleStartDevServer;
+  useEffect(() => {
+    if (chatAgentId && chatAgentId !== PICK_AGENT) void startForAgent.current();
+  }, [chatAgentId]);
   const toggleAgentPanel = useCallback(() => {
     if (!isAgentPanelHidden) {
       setIsPreviewHidden(false);
@@ -529,7 +540,16 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
 
   useLayoutCommands();
 
+  // Terminal only (lib/terminalOnly): the preview pane isn't mounted at all.
+  const terminalOnly = useTerminalOnly(currentProject.path);
+  const toggleProjectTerminalOnly = useCallback(
+    () => toggleTerminalOnly(currentProject.path),
+    [currentProject.path]
+  );
+
   useWorkspacePanelCommands({
+    terminalOnly,
+    toggleTerminalOnly: toggleProjectTerminalOnly,
     isAgentPanelHidden,
     toggleAgentPanel,
     isWebProject,
@@ -778,9 +798,12 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
     variablesPanelAvailable: isWebProject,
     onToggleVariablesPanel: variables.toggle,
     layoutMenu: <WorkspaceLayoutMenu />,
+    terminalOnly,
+    terminalOnlyToggle: <TerminalOnlyToggle projectPath={currentProject.path} />,
     teamPresence: team.presence,
-    // Side by side the project half is its terminals only: no mode tabs.
-    modes: sideBySide ? null : modesNode,
+    // Side by side, or Terminal only, the project half is its terminals only:
+    // no mode tabs.
+    modes: sideBySide || terminalOnly ? null : modesNode,
     integrations,
     onGitHubStatusChange: handleGitHubStatusChange,
     onGitHubConnect: handleGitHubConnect,
@@ -956,81 +979,85 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
                     rail slot the layout gives it. This is just the tree. */}
                 <WorkspaceDock
                   focusMode={isPreviewHidden}
-                  terminalsOnly={sideBySide}
+                  terminalsOnly={sideBySide || terminalOnly}
+                  // Terminal only unmounts the preview (its frame, editor and
+                  // agent-bridge listener); side by side only hides it.
                   preview={
-                    <WorkspacePreviewPane
-                      activeCommentAgentId={activeTerminalTab}
-                      commentsOpen={team.commentsActive}
-                      commentAgents={agentsForComments}
-                      currentProject={currentProject}
-                      previewRef={previewRef}
-                      workspaceTab={workspaceTab}
-                      setWorkspaceTab={setWorkspaceTab}
-                      hasPreview={hasPreview}
-                      projectTypeResolved={projectTypeResolved}
-                      previewConnectionEnabled={knownDevServerPort !== null}
-                      serverAlreadyRunning={currentDevServerSnapshot.status === 'ready'}
-                      serverInstanceId={currentDevServerSnapshot.instanceId}
-                      projectType={projectType}
-                      isWebProject={isWebProject}
-                      mobilePreviewAvailable={mobilePreviewAvailable}
-                      setCurrentPreviewPage={setCurrentPreviewPage}
-                      devServerPort={devServerPort}
-                      handlePreviewReady={handlePreviewReady}
-                      isCropMode={isCropMode}
-                      handleCropStart={handleCropStart}
-                      handleCropComplete={handleCropComplete}
-                      handleCropCancel={handleCropCancel}
-                      isBranchSwitching={isBranchSwitching}
-                      isRestartingDevServer={isRestartingDevServer}
-                      sendToClaude={sendToClaude}
-                      showPreviewLogs={showPreviewLogs}
-                      togglePreviewLogs={togglePreviewLogs}
-                      devServerOutput={devServerOutput}
-                      devServerOutputVersion={devServerOutputVersion}
-                      onDevServerInput={onDevServerInput}
-                      onDevServerResize={onDevServerResize}
-                      inspectTab={inspectTab}
-                      setInspectTab={setInspectTabRaw}
-                      healthPanelRef={healthPanelRef}
-                      handleHealthOutput={handleHealthOutput}
-                      needsInstall={needsInstall}
-                      devServerUnexpectedExit={devServerUnexpectedExit}
-                      handleRestartDevServer={handleRestartDevServer}
-                      onRunInstall={onRunInstall}
-                      openInCode={openInCode}
-                      codeTarget={codeTarget}
-                      canUndo={canUndo}
-                      canRedo={canRedo}
-                      undoTitle={undoTitle}
-                      redoTitle={redoTitle}
-                      undoSnapshot={undoSnapshot}
-                      redoSnapshot={redoSnapshot}
-                      elementTreeVisible={elementTreeVisible}
-                      elementTreePinned={elementTreeDocked}
-                      toggleElementTreePinned={toggleElementTreeDocked}
-                      closeElementTree={closeElementTree}
-                      setElementTreePreviewAvailable={setElementTreePreviewAvailable}
-                      variablesPanelVisible={variables.open}
-                      variablesPanelPinned={variablesPanelDocked}
-                      toggleVariablesPanelPinned={toggleVariablesPanelDocked}
-                      closeVariablesPanel={() => variables.setVisible(false)}
-                      shopify={shopify}
-                      branchTabs={{
-                        integrations,
-                        branches,
-                        openPRs,
-                        currentBranch,
-                        handleBranchSwitch,
-                        handleRestartDevServer,
-                        setShowSubmitReview,
-                        fetchBranchInfo,
-                        handleResolveConflicts,
-                        handleGitHubConnect,
-                        createBranchRequest,
-                        ...worktree.tabProps,
-                      }}
-                    />
+                    terminalOnly ? null : (
+                      <WorkspacePreviewPane
+                        activeCommentAgentId={activeTerminalTab}
+                        commentsOpen={team.commentsActive}
+                        commentAgents={agentsForComments}
+                        currentProject={currentProject}
+                        previewRef={previewRef}
+                        workspaceTab={workspaceTab}
+                        setWorkspaceTab={setWorkspaceTab}
+                        hasPreview={hasPreview}
+                        projectTypeResolved={projectTypeResolved}
+                        previewConnectionEnabled={knownDevServerPort !== null}
+                        serverAlreadyRunning={currentDevServerSnapshot.status === 'ready'}
+                        serverInstanceId={currentDevServerSnapshot.instanceId}
+                        projectType={projectType}
+                        isWebProject={isWebProject}
+                        mobilePreviewAvailable={mobilePreviewAvailable}
+                        setCurrentPreviewPage={setCurrentPreviewPage}
+                        devServerPort={devServerPort}
+                        handlePreviewReady={handlePreviewReady}
+                        isCropMode={isCropMode}
+                        handleCropStart={handleCropStart}
+                        handleCropComplete={handleCropComplete}
+                        handleCropCancel={handleCropCancel}
+                        isBranchSwitching={isBranchSwitching}
+                        isRestartingDevServer={isRestartingDevServer}
+                        sendToClaude={sendToClaude}
+                        showPreviewLogs={showPreviewLogs}
+                        togglePreviewLogs={togglePreviewLogs}
+                        devServerOutput={devServerOutput}
+                        devServerOutputVersion={devServerOutputVersion}
+                        onDevServerInput={onDevServerInput}
+                        onDevServerResize={onDevServerResize}
+                        inspectTab={inspectTab}
+                        setInspectTab={setInspectTabRaw}
+                        healthPanelRef={healthPanelRef}
+                        handleHealthOutput={handleHealthOutput}
+                        needsInstall={needsInstall}
+                        devServerUnexpectedExit={devServerUnexpectedExit}
+                        handleRestartDevServer={handleRestartDevServer}
+                        onRunInstall={onRunInstall}
+                        openInCode={openInCode}
+                        codeTarget={codeTarget}
+                        canUndo={canUndo}
+                        canRedo={canRedo}
+                        undoTitle={undoTitle}
+                        redoTitle={redoTitle}
+                        undoSnapshot={undoSnapshot}
+                        redoSnapshot={redoSnapshot}
+                        elementTreeVisible={elementTreeVisible}
+                        elementTreePinned={elementTreeDocked}
+                        toggleElementTreePinned={toggleElementTreeDocked}
+                        closeElementTree={closeElementTree}
+                        setElementTreePreviewAvailable={setElementTreePreviewAvailable}
+                        variablesPanelVisible={variables.open}
+                        variablesPanelPinned={variablesPanelDocked}
+                        toggleVariablesPanelPinned={toggleVariablesPanelDocked}
+                        closeVariablesPanel={() => variables.setVisible(false)}
+                        shopify={shopify}
+                        branchTabs={{
+                          integrations,
+                          branches,
+                          openPRs,
+                          currentBranch,
+                          handleBranchSwitch,
+                          handleRestartDevServer,
+                          setShowSubmitReview,
+                          fetchBranchInfo,
+                          handleResolveConflicts,
+                          handleGitHubConnect,
+                          createBranchRequest,
+                          ...worktree.tabProps,
+                        }}
+                      />
+                    )
                   }
                 >
                   <WorkspaceTerminalPane
@@ -1053,6 +1080,7 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
                     healthOutputVersion={healthOutputVersion}
                     sendToClaude={sendToClaude}
                     isPreviewHidden={isPreviewHidden}
+                    terminalOnly={terminalOnly}
                     isAgentPanelHidden={isAgentPanelHidden}
                     agentPanelPinned={agentPanelDocked}
                     toggleAgentPanelPinned={toggleAgentPanelDocked}

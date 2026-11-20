@@ -26,8 +26,6 @@ import {
   useCallback,
   useMemo,
   useRef,
-  useState,
-  type DragEvent,
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
@@ -50,11 +48,10 @@ import {
   ContextMenuTrigger,
 } from '../primitives/ContextMenu';
 import {
-  AGENT_DRAG_TYPE,
   AgentGroupSection,
   MoveToGroupItems,
   NewGroupField,
-  startAgentDrag,
+  useAgentPointerDrag,
 } from './AgentGroupParts';
 import {
   inYourOrder,
@@ -314,36 +311,55 @@ export function InFlightBell({
 }
 
 /**
- * Catch up, the list's first row, always there with how many decisions wait:
- * the one count the sidebar shows. The count's pill is neutral (black on
- * white), never an agent's colour.
+ * Catch up: one row under the search panel's border that never scrolls, the
+ * height and hairline of a conversation row, so it lines up with the list.
+ * A neutral tile where an agent's key sits; under the name, who is waiting
+ * (an amber pill, never an agent's colour), or "All clear".
  */
 export function CatchUpRow({
   count,
+  waiting,
   open,
   collapsed,
   onOpen,
 }: {
   count: number;
+  /** The agents waiting on you, in list order: their names make the second line. */
+  waiting: readonly { name: string }[];
   open: boolean;
   collapsed: boolean;
   onOpen: () => void;
 }) {
   if (collapsed) return null;
+  const shown = waiting.slice(0, 2).map((a) => a.name);
+  const more = waiting.length - shown.length;
+  const who = more > 0 ? `${shown.join(', ')}, +${more}` : shown.join(', ');
   return (
     <button
       type="button"
       tabIndex={0}
-      className={`agents-catchup-row${open ? ' is-active' : ''}`}
+      className={`agents-list__row agents-catchup-row${open ? ' is-current' : ''}`}
       aria-current={open ? 'page' : undefined}
       onClick={onOpen}
     >
-      <span className="agents-catchup-row__label">Catch up</span>
-      {count > 0 ? (
-        <span className="agents-catchup-row__count">{count > 99 ? '99+' : count}</span>
-      ) : (
-        <span className="agents-catchup-row__clear">All clear</span>
-      )}
+      <span className="agents-catchup-row__tile" aria-hidden="true">
+        <CollaboratorsIcon size={14} />
+      </span>
+      <span className="agents-list__text">
+        <span className="agents-list__name">
+          <span className="agents-list__name-text">Catch up</span>
+        </span>
+        {count > 0 ? (
+          <span className="agents-list__preview agents-list__preview--pill">
+            <StatusPill tone="waiting">
+              {count > 99 ? '99+' : count} {count === 1 ? 'needs' : 'need'} you
+            </StatusPill>
+            {who && <span className="agents-list__rest">{who}</span>}
+          </span>
+        ) : (
+          <span className="agents-list__preview">All clear</span>
+        )}
+      </span>
     </button>
   );
 }
@@ -670,14 +686,9 @@ const AgentRow = memo(function AgentRow({
   /** Another row dropped on this one: put it just before (or after) this. */
   onReorder: (moved: string, target: string, after: boolean) => void;
 }) {
-  // Where a dragged row would land: a line above or below this one.
-  const [drop, setDrop] = useState<'before' | 'after' | null>(null);
   // The Chief stays first: it neither moves nor takes a row above it.
   const movable = !agent.isMain;
-  const dropSide = (e: DragEvent<HTMLElement>) => {
-    const box = e.currentTarget.getBoundingClientRect();
-    return e.clientY > box.top + box.height / 2 ? 'after' : 'before';
-  };
+  const drag = useAgentPointerDrag({ agentId: agent.id, enabled: movable, group, onReorder });
   // Its loaded lines, only while it's waiting: the row says what it's asking.
   const lines = useAgentsSelector((s) => (needsYou(agent) ? s.messages[agent.id] : undefined));
   const asking = needsYou(agent) ? askingLine(agent, lines) : null;
@@ -700,28 +711,8 @@ const AgentRow = memo(function AgentRow({
           aria-current={current ? 'true' : undefined}
           onPointerEnter={tooltipIfTruncated}
           onClick={() => onSelect(agent.id)}
-          data-drop={drop ?? undefined}
-          draggable={movable || undefined}
-          onDragStart={movable ? (e) => startAgentDrag(e, agent.id) : undefined}
-          onDragOver={(e) => {
-            if (!movable || !e.dataTransfer.types.includes(AGENT_DRAG_TYPE)) return;
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            const side = dropSide(e);
-            if (side !== drop) setDrop(side);
-          }}
-          onDragLeave={() => setDrop(null)}
-          onDrop={(e) => {
-            const side = drop ?? dropSide(e);
-            setDrop(null);
-            if (!movable) return;
-            const moved = e.dataTransfer.getData(AGENT_DRAG_TYPE);
-            if (!moved) return;
-            e.preventDefault();
-            // Not stopped: in folders, the folder under it takes the agent too.
-            onReorder(moved, agent.id, side === 'after');
-          }}
-          onDragEnd={() => setDrop(null)}
+          data-movable={movable || undefined}
+          {...drag}
         >
           <AgentKey
             id={agent.id}

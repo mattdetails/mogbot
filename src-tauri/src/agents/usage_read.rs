@@ -440,15 +440,69 @@ pub async fn claude_get(url: &str, token: &str) -> Result<(u16, String), String>
     Ok((status, body))
 }
 
+/// How long after trying to refresh an account's sign-in before trying again,
+/// so a sign-in that can't be renewed (revoked, offline) isn't hammered.
+const REFRESH_RETRY_MS: i64 = 15 * 60 * 1000;
+
+/// Whether a refresh of the account tried at `last` (ms) may be tried again.
+pub fn refresh_due(last: Option<i64>, now: i64) -> bool {
+    last.is_none_or(|t| now - t >= REFRESH_RETRY_MS || now < t)
+}
+
+static REFRESH_TRIED: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<String, i64>>,
+> = std::sync::LazyLock::new(Default::default);
+
+/// Have Claude Code renew `account`'s expired access token, at no cost: `claude
+/// mcp list` makes no model turn, and Claude Code renews its sign-in (from the
+/// refresh token it holds) when it checks its claude.ai connectors. Run in a
+/// temp folder so no project's own servers start. Nothing is read from its
+/// output; the caller reads the Keychain again. Tried at most every 15 minutes
+/// per account. (Verified 19 Nov on a token expired 5.5 hours: expiry moved
+/// from 04:57 to 8 hours ahead; `claude auth status` does not renew it.)
+async fn refresh_claude_login(account: &Account, now: i64) {
+    let key = format!("{}:{}", account.engine.word(), account.id);
+    {
+        let Ok(mut tried) = REFRESH_TRIED.lock() else {
+            return;
+        };
+        if !refresh_due(tried.get(&key).copied(), now) {
+            return;
+        }
+        tried.insert(key, now);
+    }
+    let Some(binary) = crate::commands::claude::find_claude_binary() else {
+        return;
+    };
+    let mut cmd = crate::utils::create_tokio_command(&binary);
+    cmd.args(["mcp", "list"])
+        .env("PATH", crate::utils::get_extended_path())
+        .envs(wallet::env_for(account))
+        .current_dir(std::env::temp_dir())
+        .stdin(std::process::Stdio::null());
+    let _ = crate::external_command::run_with_timeout(cmd, "claude (renew sign-in)", 45).await;
+}
+
 pub async fn read_claude(account: &Account, url: &str, now: i64) -> Answer {
     let login = match claude_login_for(account).await {
         Ok(l) => l,
         Err(why) => return Answer::CantRead(why),
     };
+    let mut login = login;
     if login.expires_at.is_some_and(|e| e - EXPIRY_SLACK_MS <= now) {
-        return Answer::CantRead(
-            "Its sign-in needs refreshing by Claude Code; it reads again after a turn".into(),
-        );
+        // An account that sits idle lets its access token lapse, and only
+        // Claude Code can renew it. Ask it to, with a call that makes no
+        // model turn, then read the sign-in again.
+        refresh_claude_login(account, now).await;
+        match claude_login_for(account).await {
+            Ok(l) if !l.expires_at.is_some_and(|e| e - EXPIRY_SLACK_MS <= now) => login = l,
+            _ => {
+                return Answer::CantRead(
+                    "Its sign-in needs refreshing by Claude Code; it reads again after a turn"
+                        .into(),
+                )
+            }
+        }
     }
     if login.setup_token {
         return match claude_probe(CLAUDE_MESSAGES_URL, &login.token).await {

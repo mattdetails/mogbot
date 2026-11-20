@@ -1028,3 +1028,53 @@ describe('accountDisplayName', () => {
     expect(accountDisplayName('Account 2', null)).toBe('Account 2');
   });
 });
+
+describe('a reading that has gone stale', () => {
+  const stale = (ago: number) => ({ ...week(0), observedAt: NOW - ago });
+  const key = (ago: number) =>
+    usageGlance([acct('default')], inv([line('default', { windows: [stale(ago)] })]), {
+      now: NOW,
+    }).keys[0];
+
+  it('says "N% used" alone while the reading is fresh', () => {
+    expect(key(5 * 60_000).figure).toBe('0% used');
+    expect(key(5 * 60_000).readAt).toBe(NOW - 5 * 60_000);
+  });
+
+  it('says when it is from once the reads have stopped', () => {
+    // NOW is 12:00 PM; 7 hours back is 5:00 AM, the account that went quiet.
+    expect(key(7 * H).figure).toBe('0% used · as of 5:00 AM');
+  });
+
+  it('says the weekday once it is from another day', () => {
+    expect(key(30 * H).figure).toBe('0% used · as of yesterday');
+  });
+
+  it('keeps a high figure and its tone, only adding when', () => {
+    const k = usageGlance(
+      [acct('default')],
+      inv([line('default', { windows: [{ ...week(90), observedAt: NOW - 3 * H }] })]),
+      { now: NOW }
+    ).keys[0];
+    expect(k.figure).toBe('90% used · as of 9:00 AM');
+    expect(k.tone).toBe('warning');
+  });
+
+  it('says it on the total too, so the hero never passes an old figure as now', () => {
+    const g = usageGlance(
+      [acct('default')],
+      inv([line('default', { windows: [stale(7 * H)] })]),
+      { now: NOW }
+    );
+    expect(g.total.across).toBe('this week · as of 5:00 AM');
+    expect(g.total.segments[0].words).toContain('0% used · as of 5:00 AM');
+    expect(totalWords(g).across).toBe('this week · as of 5:00 AM');
+  });
+
+  it('leaves a fresh total alone', () => {
+    const g = usageGlance([acct('default')], inv([line('default', { windows: [stale(60_000)] })]), {
+      now: NOW,
+    });
+    expect(g.total.across).toBe('this week');
+  });
+});

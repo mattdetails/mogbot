@@ -9,7 +9,6 @@
  * @module components/agents/MissionSetup
  */
 import { useEffect, useMemo, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { Button } from '../primitives/Button';
 import { Checkbox } from '../primitives/Checkbox';
 import { ModalFrame } from '../primitives/ModalFrame';
@@ -20,6 +19,7 @@ import { glanceUsageInventory } from '../../lib/agentsUsage';
 import {
   ENGINE_NAME,
   NEW_DRAFT,
+  missionSetup as setup,
   setupGate,
   startAnywayNote,
   type EngineId,
@@ -28,9 +28,6 @@ import {
 
 const ENGINES: EngineId[] = ['claude', 'codex', 'opencode'];
 const MAX_CRITERIA = 5;
-
-const setup = (action: 'save' | 'start', draft: MissionDraft) =>
-  invoke<string>('agents_mission_setup', { action, draft });
 
 export function MissionSetup({
   open,

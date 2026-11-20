@@ -1,7 +1,8 @@
 /**
- * The side-by-side switch beside Agents | Projects: pressed while Agents and
- * the project side share the window (lib/sideBySide). Also ⌘K, "Show Agents
- * and Projects side by side".
+ * The way out of side by side, beside Agents | Projects: shown only while
+ * Agents and the project side share the window (lib/sideBySide). Turning it
+ * on is ⌘K, "Show Agents and Projects side by side": rare enough that a
+ * permanent button only cluttered the row (Julian, 19 Nov).
  *
  * @module components/workspace/SideBySideToggle
  */
@@ -13,11 +14,12 @@ import { toggleSideBySide, useSideBySide } from '../../lib/sideBySide';
 
 export function SideBySideToggle() {
   const { on } = useSideBySide();
-  const words = on ? 'Show one side at a time' : 'Agents and Projects side by side';
+  if (!on) return null;
+  const words = 'Show one side at a time';
   return (
     <Tooltip content={words}>
       <ToggleButton
-        pressed={on}
+        pressed
         variant="ghost"
         size="compact"
         className="side-by-side-toggle button--icon-only"

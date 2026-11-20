@@ -78,7 +78,7 @@ const ask: AgentMessage = msg('s1', 10, {
 beforeEach(() => jest.useFakeTimers());
 afterEach(() => jest.useRealTimers());
 
-it('Later on the last card ends on “You’re caught up”, listing what only happened', async () => {
+it('Later on the last card goes to the summary, then Got it ends on “All clear”', async () => {
   const site = agent({ id: 'site', name: 'Acme Site', isMain: false, pendingApprovals: 1 });
   const ops = agent({
     id: 'ops',
@@ -102,9 +102,17 @@ it('Later on the last card ends on “You’re caught up”, listing what only h
     jest.advanceTimersByTime(600);
   });
   expect(screen.getByText('1 left')).toBeTruthy();
+  // With one decision and what happened after it, the queue says "Then".
+  expect(screen.getByText('THEN')).toBeTruthy();
   await act(async () => {
     fireEvent.press(screen.getByText('Later'));
   });
-  expect(screen.getByText('You’re caught up')).toBeTruthy();
+  expect(screen.getByText('Summary')).toBeTruthy();
   expect(screen.getByText('While you were away')).toBeTruthy();
+  expect(screen.getByText('Inbox sweep ran')).toBeTruthy();
+  await act(async () => {
+    fireEvent.press(screen.getByText('Got it'));
+  });
+  expect(screen.getAllByText('All clear').length).toBeGreaterThan(0);
+  expect(screen.getByText('Nothing needs you.')).toBeTruthy();
 });

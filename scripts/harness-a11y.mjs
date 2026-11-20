@@ -41,8 +41,20 @@ const args = process.argv.slice(2);
 const themeIdx = args.indexOf('--theme');
 const themes = themeIdx === -1 ? ['light', 'dark'] : [args[themeIdx + 1]];
 const updateBaseline = args.includes('--update-baseline');
+// --shard 2/4: every fourth scenario starting at the second, so CI can split a
+// theme across runners. Each shard checks only its own scenarios' baseline.
+const shardIdx = args.indexOf('--shard');
+const [shard, shards] =
+  shardIdx === -1 ? [1, 1] : args[shardIdx + 1].split('/').map((n) => Number(n));
+if (!(shards >= 1 && shard >= 1 && shard <= shards)) throw new Error('--shard wants i/n, e.g. 2/4');
+if (updateBaseline && shards > 1) throw new Error('--update-baseline needs a full run, not a shard');
 const filter =
-  args.filter((a, i) => !a.startsWith('--') && (themeIdx === -1 || i !== themeIdx + 1))[0] ?? '';
+  args.filter(
+    (a, i) =>
+      !a.startsWith('--') &&
+      (themeIdx === -1 || i !== themeIdx + 1) &&
+      (shardIdx === -1 || i !== shardIdx + 1)
+  )[0] ?? '';
 
 /**
  * WCAG 2.1 A and AA, which is the bar the design system holds (docs/design-system.md,
@@ -270,7 +282,9 @@ async function main() {
     await probe.page.eval(
       'JSON.stringify(window.__harness.scenarios.map(s=>({id:s.id,command:s.command,viewport:s.viewport})))'
     )
-  ).filter((s) => s.id.startsWith(filter));
+  )
+    .filter((s) => s.id.startsWith(filter))
+    .filter((_, i) => i % shards === shard - 1);
   probe.page.close();
   await close(probe.id);
 

@@ -156,6 +156,31 @@ export const featureScenarios: Scenario[] = [
     },
   },
   {
+    id: 'workspace-terminal-only',
+    requires: '.terminal-only-toggle[aria-pressed="true"]',
+    steps: [{ click: '.sidebar-row-hit[aria-label="Claude Code 1"]' }],
+    title: 'Terminal only — the project’s terminals and nothing else',
+    looksRightWhen:
+      'The open project acme-marketing shows its sidebar and the Claude Code terminal filling the rest of the window. No preview, no Preview / Focus / Code tabs, no Session / Elements / Variables / Assets buttons, no Layout menu, and no Full Screenshot / Crop Screenshot in the terminal footer. Branches and Push remain; the last titlebar button is a terminal icon, pressed. The DOM holds no preview iframe.',
+    project: WORKSPACE_PROJECT,
+    storage: { 'shipstudio.terminalOnly': JSON.stringify([WORKSPACE_PROJECT]) },
+    commands: { ...workspaceCommands },
+  },
+  {
+    id: 'workspace-terminal-only-side-by-side',
+    requires: '.terminal-only-toggle[aria-pressed="true"]',
+    steps: [{ click: '.sidebar-row-hit[aria-label="Claude Code 1"]' }],
+    title: 'Terminal only, side by side — the preview unmounted, not just hidden',
+    looksRightWhen:
+      'Agents on the left, the project on the right with its terminal only; the titlebar ends in the pressed terminal button with no Layout menu, and the toolbar row has no panel buttons. Unlike plain side by side, the DOM holds no preview iframe.',
+    project: WORKSPACE_PROJECT,
+    storage: {
+      'shipstudio.sideBySide': JSON.stringify({ on: true, share: 0.5 }),
+      'shipstudio.terminalOnly': JSON.stringify([WORKSPACE_PROJECT]),
+    },
+    commands: { ...workspaceCommands },
+  },
+  {
     id: 'dev-server-consent-new',
     requires: '.dev-consent',
     title: 'Preview — asks before running a project’s commands',

@@ -34,6 +34,7 @@ const PLUGIN_DEFAULTS: Record<string, unknown> = {
   'plugin:event|unlisten': null,
   'plugin:event|emit': null,
   'plugin:window|is_maximized': false,
+  'plugin:window|is_fullscreen': false,
   'plugin:window|theme': 'dark',
   'plugin:updater|check': null,
   'plugin:opener|open_url': null,

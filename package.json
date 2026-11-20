@@ -1,7 +1,7 @@
 {
   "name": "mogbot",
   "private": true,
-  "version": "1.0.23",
+  "version": "1.0.24",
   "packageManager": "pnpm@9.15.9",
   "description": "A desktop app for running your own team of AI agents.",
   "license": "MIT",
@@ -53,6 +53,8 @@
     "rust:clippy": "cd src-tauri && cargo clippy -- -A clippy::uninlined_format_args",
     "rust:clippy:strict": "cd src-tauri && cargo clippy -- -D warnings",
     "rust:test": "cd src-tauri && cargo test",
+    "ci:frontend": "bash scripts/ci-local.sh frontend",
+    "ci:release": "bash scripts/ci-local.sh release",
     "check:all": "pnpm check:brand && pnpm typecheck && pnpm lint && pnpm format:check && pnpm rust:fmt:check && pnpm rust:clippy && pnpm test:scripts && pnpm test:extension && pnpm docs:check && pnpm check:patterns && pnpm check:loc && pnpm check:ui-baseline",
     "check:a11y": "node scripts/harness-a11y.mjs",
     "check:patterns": "bash scripts/check-patterns.sh",

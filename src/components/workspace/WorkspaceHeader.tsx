@@ -70,6 +70,13 @@ export interface WorkspaceHeaderProps {
   teamPresence?: ReactNode;
   /** The Layout menu — where the panels are, and how to change it. */
   layoutMenu?: ReactNode;
+  /**
+   * Terminal only (lib/terminalOnly): the preview's tools and the Layout menu
+   * have nothing to act on, so they step aside; Branches and Push stay.
+   */
+  terminalOnly?: boolean;
+  /** The Terminal only switch, always last in the titlebar's actions. */
+  terminalOnlyToggle?: ReactNode;
 
   // Primary workspace modes (Preview/Focus/Code), rendered in the topbar
   // between the project location and repository/publishing actions.
@@ -185,6 +192,8 @@ export function WorkspaceHeader({
   onToggleVariablesPanel,
   teamPresence,
   layoutMenu,
+  terminalOnly = false,
+  terminalOnlyToggle,
   modes,
   integrations,
   onGitHubStatusChange,
@@ -332,7 +341,20 @@ export function WorkspaceHeader({
     </div>
   );
 
-  const workspaceToolButtons = (
+  const titlebarEnd = (
+    <>
+      {!terminalOnly && layoutMenu}
+      {terminalOnlyToggle}
+    </>
+  );
+
+  const workspaceToolButtons = terminalOnly ? (
+    teamPresence ? (
+      <div className="workspace-panel-group" aria-label="Workspace panels">
+        {teamPresence}
+      </div>
+    ) : null
+  ) : (
     <div className="workspace-panel-group" aria-label="Workspace panels">
       <ToggleButton
         variant={agentPanelVisible ? 'secondary' : 'default'}
@@ -427,7 +449,7 @@ export function WorkspaceHeader({
             onToggleSidebar={onToggleSidebar}
           />
           {projectTitle}
-          <div className="workspace-titlebar-actions">{layoutMenu}</div>
+          <div className="workspace-titlebar-actions">{titlebarEnd}</div>
         </WorkspaceTitlebar>
       ),
       toolbar: (
@@ -465,7 +487,7 @@ export function WorkspaceHeader({
         </div>
         <div className="workspace-titlebar-actions">
           {sourceControlActions}
-          {layoutMenu}
+          {titlebarEnd}
         </div>
       </WorkspaceTitlebar>
     ),

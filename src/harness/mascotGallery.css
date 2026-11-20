@@ -1,0 +1,70 @@
+/* Layout for harness-mascot.html only; never shipped in the app. */
+
+.mascot-gallery {
+  max-width: calc(var(--space-32) * 34);
+  margin: 0 auto;
+  padding: var(--space-32);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+.mascot-gallery h1,
+.mascot-gallery h2 {
+  margin-block: var(--space-24) var(--space-08);
+}
+
+.mascot-gallery p {
+  margin-block-end: var(--space-24);
+}
+
+.mascot-gallery p,
+.mascot-gallery figcaption {
+  color: var(--text-secondary);
+}
+
+.mascot-gallery__row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-16);
+  margin-block-end: var(--space-32);
+}
+
+.mascot-gallery__row--live {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mascot-gallery__cell {
+  margin: 0;
+  padding: var(--space-16);
+  background: var(--surface-panel);
+  border: var(--stroke-1) solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  text-align: center;
+}
+
+.mascot-gallery__stage {
+  position: relative;
+  height: calc(var(--space-32) * 5);
+}
+
+.mascot-gallery__stage .sidebar-mascot {
+  --sidebar-mascot-size: calc(var(--space-32) * 3);
+  --sidebar-mascot-inset: 100%;
+  inset-inline-start: calc(50% - var(--sidebar-mascot-size) / 2);
+}
+
+.mascot-gallery__stage .sidebar-mascot__zzz {
+  font-size: var(--font-size-3xl, var(--font-size-body-sm));
+}
+
+.mascot-gallery__row--real .mascot-gallery__stage {
+  height: calc(var(--space-32) * 1.5);
+}
+
+.mascot-gallery__row--real .sidebar-mascot {
+  --sidebar-mascot-size: var(--icon-size-full);
+}
+
+.mascot-gallery__row--real .sidebar-mascot__zzz {
+  font-size: var(--font-size-body-sm);
+}

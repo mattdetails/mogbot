@@ -105,8 +105,8 @@ far back it is. **Review** on the "needs your OK" bar does the same.
 
 **One yes for a whole plan.** When an agent has several outward steps ahead (say, a redeploy, an
 issue and two comments), it can list them on one card, "Do these under your name?". One Allow
-covers exactly those steps for an hour. It never covers money, credentials, deleting or force
-pushes.
+covers exactly those steps for an hour, and a listed deploy covers redeploying that project while
+the hour lasts. It never covers money, credentials, deleting or force pushes.
 
 Every action taken without a card leaves a line in **What it did**, under the agent's reply. At
 Unleashed, the turn also ends with one line listing what was sent or pushed without asking.

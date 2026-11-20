@@ -7,7 +7,6 @@
  * @module components/agents/AgentEndOfDaySetting
  */
 import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Row, Toggle } from './AgentSettingsRows';
 import { TextField } from '../primitives/TextField';
@@ -15,7 +14,7 @@ import { useInvoke } from '../../hooks/useInvoke';
 import { useOptionalToast } from '../../contexts/ToastContext';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { clockLabel, parseClock } from '../../lib/settingsFromChat';
-import { sendAgentMessage } from '../../lib/agents';
+import { sendAgentMessage, setEndOfDayOnMac } from '../../lib/agents';
 import { useAgentsSelector } from '../../lib/agentsStore';
 import { TextButton } from '../primitives/TextButton';
 
@@ -30,8 +29,7 @@ export const END_OF_DAY_TITLE = 'End-of-day check-in';
 export const END_OF_DAY_DETAIL =
   'Once a day your Chief of Staff shows what got done and asks what missed the mark and how it can help more.';
 
-export const setEndOfDay = (s: EndOfDay) =>
-  invoke<EndOfDay>('agents_set_end_of_day', { on: s.on, at: s.at });
+export const setEndOfDay = (s: EndOfDay) => setEndOfDayOnMac(s.on, s.at);
 
 export function AgentEndOfDaySetting() {
   const { showToast } = useOptionalToast();

@@ -14,7 +14,13 @@ Click it for the full view, also in **Settings → Accounts & usage**.
 
 - Figures are only what the engine reports. The app never estimates a reading. If an account
   hasn't been read yet, it says so and leaves it out of the total.
-- A reading that's more than a few hours old says when it was taken.
+- A reading that's more than an hour old says when it was taken, on the account's row, desk and
+  phone alike: "0% used · as of 5:00 AM". The total at the top says it too, naming the account
+  ("across 2 Max accounts · Work as of 5:00 AM"). The app reads each account about every ten minutes, so an
+  old figure means the reads stopped, never that nothing changed.
+- An account nobody has used for a while lets its sign-in lapse. The app asks Claude Code to renew
+  it (no agent turn runs and nothing is spent), at most every 15 minutes, so the account keeps
+  being read; if it can't be renewed, the row says so and keeps its "as of" time.
 - Each account has its own page with its limits (for example 5-hour and weekly), when each
   refills, which agents used it this week, and **Where it went**.
 - On a Claude plan, costs are shown in tokens. A dollar figure only appears for an API-key login,

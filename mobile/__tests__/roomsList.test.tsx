@@ -12,6 +12,7 @@ import { agent } from './helpers';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }),
+  useFocusEffect: () => {},
   Stack: { Screen: () => null },
   Link: ({ children }: { children: unknown }) => children,
 }));

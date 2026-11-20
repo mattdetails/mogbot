@@ -7,7 +7,11 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import type { EngineId, Mission } from '../../packages/companion-protocol/src/missions';
+import type {
+  EngineId,
+  Mission,
+  MissionDraft,
+} from '../../packages/companion-protocol/src/missions';
 
 export * from '../../packages/companion-protocol/src/missions';
 
@@ -37,3 +41,7 @@ export function takeMissionSetupRequest(): boolean {
   return was;
 }
 export const MISSION_SETUP_EVENT = SETUP_EVENT;
+
+/** The set-up screen's save or start (`agents_mission_setup`): the mission's id. */
+export const missionSetup = (action: 'save' | 'start', draft: MissionDraft) =>
+  invoke<string>('agents_mission_setup', { action, draft });

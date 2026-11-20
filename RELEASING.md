@@ -9,8 +9,15 @@ is published there.
 
 The two scripts:
 
-- `scripts/release.sh` bumps the version, checks the release notes exist,
-  commits and tags. Local only.
+- `scripts/release.sh` first runs every check CI runs, accessibility included
+  (`scripts/ci-local.sh release`, about 25 minutes), and stops before tagging if
+  any fails; then it bumps the version, checks the release notes exist, commits
+  and tags. Local only.
+- `scripts/ci-local.sh` is the one list of checks: CI's Frontend job runs
+  `ci-local.sh frontend`, pre-push runs `frontend` and `rust`, and every step
+  runs even after one fails, so one round fixes every failure.
+- `scripts/publish-when-green.sh` waits for CI on HEAD to finish
+  (`gh run watch --exit-status`) and publishes only if it's green.
 - `scripts/release-mac.sh` builds, signs, notarizes and staples, makes the
   updater bundle from the stapled app and signs it, writes `latest.json`, makes
   and notarizes the DMG, and verifies all of it. With `--publish` (opt-in) it
@@ -33,12 +40,16 @@ The two scripts:
 #    Waits on Apple twice (the app, then the DMG), usually a few minutes each.
 ./scripts/release-mac.sh
 
-# 3. When it ends with "Ready to publish", publish (needs the owner's go-ahead:
-#    it creates a public GitHub release and every installed copy updates to it).
-./scripts/release-mac.sh --skip-build --publish
-
-# 4. Push the release commit and tag (the owner's go-ahead again).
+# 3. Push the release commit and tag (the owner's go-ahead), once. If CI goes
+#    red, read every failed job, fix them all in one commit, and don't push
+#    again while a run is going: each push cancels the run before it.
 git push origin <branch> && git push origin v1.0.1
+
+# 4. Publish once CI on that exact commit is green (the owner's go-ahead: it
+#    creates a public GitHub release and every installed copy updates to it).
+#    The tag must point at the commit that went green: a fix after tagging
+#    means re-tagging before publishing.
+./scripts/publish-when-green.sh
 ```
 
 `--skip-build` in step 3 reuses step 2's app; an app that is already stapled

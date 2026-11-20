@@ -62,6 +62,12 @@ describe('useDevServerRetention', () => {
     expect(startCurrentDevServer).toHaveBeenCalledTimes(1);
   });
 
+  it('restarts the server when the same project comes back from Agents', () => {
+    const { rerender, startCurrentDevServer } = setup({ ...previewA, view: 'agents' });
+    rerender(previewA);
+    expect(startCurrentDevServer).toHaveBeenCalledTimes(1);
+  });
+
   it('leaves project switches and home-screen opens to their own start path', () => {
     const { rerender, startCurrentDevServer } = setup({ ...previewA, view: 'projects' });
     rerender(previewA);

@@ -22,3 +22,12 @@ if [ -n "$STAGED_RS" ]; then
   (cd src-tauri && cargo fmt) || exit 1
   echo "$STAGED_RS" | xargs git add
 fi
+
+# Generated files follow their sources, so a stale one can't reach CI
+# (1.0.24's CI failed twice on a stale token inventory and generated docs).
+STAGED_STYLE=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(src/styles/|docs/design-system-registry\.json)' || true)
+if [ -n "$STAGED_STYLE" ]; then
+  pnpm -s tokens:inventory || exit 1
+  pnpm -s docs:generate || exit 1
+  git add src/styles/global/token-inventory.json docs/design-system.generated.md docs/design-system-registry.json
+fi

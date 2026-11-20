@@ -44,12 +44,28 @@ agent or a terminal in the sidebar switches between them.
   project.
 - **Mobile apps:** Expo, React Native and Flutter apps build and show in the iOS Simulator.
 
+## Terminal only
+
+The terminal button at the right end of a project's title bar (or ⌘K → "Terminal only") shows the
+project's terminals and nothing else: no preview, no Code or Branches view, no panel buttons and
+no screenshot buttons. Branches and Push stay. The preview is closed, not just hidden, so the app
+uses less memory. That helps most when you have several projects open, or when Agents and Projects
+are side by side.
+
+- Each project remembers it: turn it on for a backend or an agent-only project and leave your
+  site's preview on.
+- Your dev server keeps running, as it does when you hide the preview. If **Keep dev servers
+  running** is off in Settings, it stops.
+- Agents can't screenshot or click through the preview while it's closed. They're told the
+  preview isn't open and can ask you to turn it back on.
+- Click the button again (or open Branches from the Branches menu) and the preview comes back as
+  you left it.
+
 ## Agents and a project side by side
 
-The split button beside **Agents | Projects** (or ⌘K → "Show Agents and Projects side by side")
-puts your agents and their chats on the left and the open project on the right, in one window.
+⌘K → "Show Agents and Projects side by side" puts your agents and their chats on the left and the open project on the right, in one window.
 The project half shows its terminals only: no preview or code, which come back when you click the
-button again. Drag the line between the halves to resize them (double-click puts it back to half
+split button that appears beside **Agents | Projects** while it's on (or run the command again). Drag the line between the halves to resize them (double-click puts it back to half
 and half). The window remembers both.
 
 ## Visual editing
@@ -95,6 +111,8 @@ Good to know:
 - The copy runs the same dev server you already allowed for the project, so picking an agent in a
   project never asks you to start it again. If the copy changes what its dev server would run, it
   asks, like any change.
+- Picking an agent in a project, or coming back to the project from Agents, starts its dev server
+  if it isn't running, so the preview beside the chat is live.
 - Any number of agents can each have their own copy of a project. A copy needs at least 2 GB free on your computer.
 - To have an agent work straight in your folder instead, turn on **Work directly in the project**
   in its editor.
