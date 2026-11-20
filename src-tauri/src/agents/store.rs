@@ -127,6 +127,12 @@ pub struct Agent {
     /// No OS notifications for this agent. Unread and the Dock badge still count it.
     #[serde(default)]
     pub muted: bool,
+    /// Paused: its routines are off (those this switched off are marked, so
+    /// Resume starts only them) and what it was doing was stopped. Messages
+    /// still reach it. Set by the user (its ⋯ menu) or an admin
+    /// (`agents::admin::set_paused`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub paused: bool,
     /// "Save new skills": Automatically / Ask me (the default) / Off
     /// (`agents/skills_learn.rs`). Absent in registries from before it.
     #[serde(
@@ -1409,6 +1415,7 @@ fn register_new(id: String, name: String, new: NewAgent) -> Result<Agent, Comman
         reach: Default::default(),
         conversations: Default::default(),
         muted: false,
+        paused: false,
         check_ins: Vec::new(),
         usage: Default::default(),
         permissions: Vec::new(),

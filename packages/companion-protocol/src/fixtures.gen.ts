@@ -5728,6 +5728,7 @@ export const frames = [
       "agents.morningBrief",
       "agents.setMorningBrief",
       "agents.tasks",
+      "agents.pause",
       "agents.taskAdd",
       "agents.taskMove",
       "agents.taskDrop",

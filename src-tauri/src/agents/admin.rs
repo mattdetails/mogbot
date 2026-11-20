@@ -1471,20 +1471,12 @@ fn admin_switches(check_ins: &[super::schedule::CheckIn], on: bool) -> Vec<Strin
         .collect()
 }
 
-fn pause(app: &AppHandle, caller: &store::Agent, args: &Value, on: bool) -> Value {
-    let Some(name) = arg(args, "agent") else {
-        return error("`agent` is required.");
-    };
-    let target = match store::find(name) {
-        Ok(Some(t)) => t,
-        _ => return error(format!("There's no agent called {name}.")),
-    };
-    if target.id == caller.id {
-        return error("That's you.");
-    }
-    if target.is_main {
-        return error("The Chief of Staff can't be paused by another agent.");
-    }
+/// Pause (`on`) or resume an agent, for the user (its ⋯ menu) or an admin:
+/// its routines (the ones this switches are marked, so Resume starts only
+/// them, never one the user paused or an import left for review), what it is
+/// doing now when pausing, and its `paused` flag. Returns how many routines
+/// changed and whether running work was stopped.
+pub fn set_paused(app: &AppHandle, target: &store::Agent, on: bool) -> (usize, bool) {
     let mut switched = Vec::new();
     for id in admin_switches(&target.check_ins, on) {
         if super::schedule::set_paused(&target.id, &id, on).is_ok() {
@@ -1493,6 +1485,7 @@ fn pause(app: &AppHandle, caller: &store::Agent, args: &Value, on: bool) -> Valu
     }
     let changed = switched.len();
     store::update(&target.id, |a| {
+        a.paused = on;
         for c in a.check_ins.iter_mut() {
             // Only the routines this pause switched off are the admin's to
             // switch back on: never one the user paused, or one an import
@@ -1507,6 +1500,24 @@ fn pause(app: &AppHandle, caller: &store::Agent, args: &Value, on: bool) -> Valu
     .or_log("which routines an admin paused");
     let stopped = on && runner::stop(app, &target.id);
     let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
+    (changed, stopped)
+}
+
+fn pause(app: &AppHandle, caller: &store::Agent, args: &Value, on: bool) -> Value {
+    let Some(name) = arg(args, "agent") else {
+        return error("`agent` is required.");
+    };
+    let target = match store::find(name) {
+        Ok(Some(t)) => t,
+        _ => return error(format!("There's no agent called {name}.")),
+    };
+    if target.id == caller.id {
+        return error("That's you.");
+    }
+    if target.is_main {
+        return error("The Chief of Staff can't be paused by another agent.");
+    }
+    let (changed, stopped) = set_paused(app, &target, on);
     let routines = format!("{changed} routine{}", if changed == 1 { "" } else { "s" });
     let (theirs, mine) = if on {
         (

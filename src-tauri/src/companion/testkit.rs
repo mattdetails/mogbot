@@ -2212,6 +2212,10 @@ impl Backend for Stub {
         Ok(json!({ "on": on, "at": at, "always": always }))
     }
 
+    async fn agent_pause(&self, _agent_id: &str, paused: bool) -> Result<Value, CommandError> {
+        Ok(json!({ "paused": paused, "routines": 2, "stopped": paused }))
+    }
+
     async fn task_add(&self, agent_id: &str, title: &str) -> Result<Value, CommandError> {
         Ok(
             json!({ "id": "new1", "title": title, "source": "user", "state": "next",

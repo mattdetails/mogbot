@@ -108,6 +108,7 @@ pub const METHODS: &[&str] = &[
     "agents.morningBrief",
     "agents.setMorningBrief",
     "agents.tasks",
+    "agents.pause",
     "agents.taskAdd",
     "agents.taskMove",
     "agents.taskDrop",
@@ -839,6 +840,9 @@ pub trait Backend: Send + Sync + 'static {
     /// (Doing, Next, Waiting, Stuck), the last few closed, what it is doing
     /// now and whether it is overloaded. Read-only.
     async fn tasks(&self, agent_id: &str) -> Result<Value, CommandError>;
+    /// `agents_agent_pause`: pause or resume one agent (its ⋯ menu). Answers
+    /// `{ paused, routines, stopped }`.
+    async fn agent_pause(&self, agent_id: &str, paused: bool) -> Result<Value, CommandError>;
     /// `agents_task_add`: the user's own new line in Next. Answers the task.
     async fn task_add(&self, agent_id: &str, title: &str) -> Result<Value, CommandError>;
     /// `agents_task_move`: a line a place up or down in its group. Answers
@@ -2203,6 +2207,15 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
             ),
             _ => "end-of-day check-in: off".to_string(),
         },
+        "agents.pause" => format!(
+            "{}: {}",
+            field("agentId"),
+            if params.get("paused").and_then(Value::as_bool) == Some(true) {
+                "pause"
+            } else {
+                "resume"
+            }
+        ),
         "agents.taskAdd" => format!(
             "{} tasks: add {}",
             field("agentId"),
@@ -2913,6 +2926,16 @@ async fn run(
                 return Err(bad_params("Tasks takes an agentId."));
             }
             Ok(b.tasks(agent_id).await?)
+        }
+        "agents.pause" => {
+            let agent_id = params.get("agentId").and_then(Value::as_str).unwrap_or("");
+            if agent_id.is_empty() || agent_id.len() > 64 {
+                return Err(bad_params("Pause takes an agentId."));
+            }
+            let Some(paused) = params.get("paused").and_then(Value::as_bool) else {
+                return Err(bad_params("Pause takes `paused`: true to pause, false to resume."));
+            };
+            Ok(b.agent_pause(agent_id, paused).await?)
         }
         "agents.taskAdd" | "agents.taskMove" | "agents.taskDrop" => {
             let agent_id = params.get("agentId").and_then(Value::as_str).unwrap_or("");

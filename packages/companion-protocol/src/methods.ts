@@ -643,6 +643,15 @@ export interface Methods {
    * line one place up or down in its group; `taskDrop` closes it (it stays in the
    * list for the day as Dropped). Newer Macs only.
    */
+  /**
+   * Pause (`paused: true`) or resume one agent, from its ⋯ menu: its routines
+   * switch off (resume starts only the ones this switched), running work stops,
+   * and `Agent.paused` says so. Messages still reach it. Newer Macs only.
+   */
+  'agents.pause': {
+    params: { agentId: string; paused: boolean };
+    result: { paused: boolean; routines: number; stopped: boolean };
+  };
   'agents.taskAdd': { params: { agentId: string; title: string }; result: AgentTask };
   'agents.taskMove': {
     params: { agentId: string; taskId: string; direction: 'up' | 'down' };

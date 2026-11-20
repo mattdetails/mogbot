@@ -97,6 +97,7 @@ pub(super) fn from_homes(root: &Path) -> Registry {
             },
             conversations: Default::default(),
             muted: false,
+            paused: false,
             check_ins: Vec::new(),
             usage: Default::default(),
             permissions: Vec::new(),

@@ -1360,3 +1360,16 @@ fn the_newest_page_reaches_back_to_a_card_still_waiting() {
         assert_eq!(oldest_open_card(&a.id, None), None);
     });
 }
+
+#[test]
+fn paused_is_kept_only_when_true() {
+    let mut a = crate::companion::testkit::stored_agent();
+    a.paused = false;
+    assert!(serde_json::to_value(&a).unwrap().get("paused").is_none());
+    a.paused = true;
+    assert_eq!(serde_json::to_value(&a).unwrap()["paused"], true);
+    // An agent from before it reads as not paused.
+    let mut v = serde_json::to_value(&a).unwrap();
+    v.as_object_mut().unwrap().remove("paused");
+    assert!(!serde_json::from_value::<Agent>(v).unwrap().paused);
+}

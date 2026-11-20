@@ -255,6 +255,8 @@ export interface Agent {
   tasks?: TaskCounts;
   /** No OS notifications; unread and the Dock badge still count it. */
   muted: boolean;
+  /** Paused from its ⋯ menu (`agents_agent_pause`): routines off, work stopped; messages still reach it. */
+  paused?: boolean;
   /** "Save new skills" (`agents/skills_learn.rs`); absent is `ask`. */
   learnSkills?: LearnSkills;
   /** Omitted by the backend when there are none. */
@@ -1455,6 +1457,12 @@ export const sendAgentMessage = (
     conversation,
     writtenAt,
     replyTo,
+  });
+/** "Pause this agent" / "Resume" in its ⋯ menu: its routines (only those this switches, on resume), and running work on pause. */
+export const setAgentPaused = (agentId: string, paused: boolean) =>
+  invoke<{ paused: boolean; routines: number; stopped: boolean }>('agents_agent_pause', {
+    agentId,
+    paused,
   });
 /** The task list's own actions, the user's: add a line in Next, move one a place in its group, drop one (with a reason, else "Dropped by you"). */
 export const addAgentTask = (agentId: string, title: string) =>

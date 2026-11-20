@@ -827,6 +827,10 @@ impl Backend for DesktopBackend {
         json(load)
     }
 
+    async fn agent_pause(&self, agent_id: &str, paused: bool) -> Result<Value, CommandError> {
+        json(cmd::agents_agent_pause(self.app.clone(), agent_id.to_string(), paused).await?)
+    }
+
     async fn task_add(&self, agent_id: &str, title: &str) -> Result<Value, CommandError> {
         json(cmd::agents_task_add(self.app.clone(), agent_id.to_string(), title.to_string()).await?)
     }

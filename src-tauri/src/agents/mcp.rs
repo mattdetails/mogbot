@@ -5402,6 +5402,7 @@ mod tests {
             reach: Default::default(),
             conversations: Default::default(),
             muted: false,
+            paused: false,
             check_ins: Vec::new(),
             usage: Default::default(),
             permissions: Vec::new(),

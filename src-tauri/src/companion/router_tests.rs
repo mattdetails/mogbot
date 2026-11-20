@@ -2326,3 +2326,22 @@ async fn a_phone_adds_moves_and_drops_a_task_and_each_is_audited() {
         "{said:?}"
     );
 }
+
+#[tokio::test]
+async fn a_phone_pauses_and_resumes_an_agent_and_it_is_audited() {
+    use crate::companion::testkit::Stub;
+    let (c, stub) = Stub::companion();
+    let me = caller("dev_a");
+    assert!(METHODS.contains(&"agents.pause"));
+    assert!(!READ_ONLY_METHODS.contains(&"agents.pause"));
+    for p in [json!({ "agentId": "a1" }), json!({ "paused": true }), json!({ "agentId": "a1", "paused": "yes" })] {
+        assert!(dispatch(&c, &me, "agents.pause", p).await.is_err());
+    }
+    let off = dispatch(&c, &me, "agents.pause", json!({ "agentId": "a1", "paused": true })).await.unwrap();
+    assert_eq!(off["paused"], true);
+    let on = dispatch(&c, &me, "agents.pause", json!({ "agentId": "a1", "paused": false })).await.unwrap();
+    assert_eq!(on["paused"], false);
+    let said: Vec<String> = stub.audited().into_iter().map(|(_, _, d, _)| d).collect();
+    assert!(said.iter().any(|d| d == "a1: pause"), "{said:?}");
+    assert!(said.iter().any(|d| d == "a1: resume"), "{said:?}");
+}

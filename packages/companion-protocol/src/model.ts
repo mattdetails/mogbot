@@ -277,6 +277,8 @@ export interface Agent {
    */
   tasks?: TaskCounts;
   muted: boolean;
+  /** Paused from its ⋯ menu: routines off, work stopped; messages still reach it (`agents.pause`). Newer Macs only. */
+  paused?: boolean;
   /** "Save new skills" (`agents/skills_learn.rs`); absent is `ask`. */
   learnSkills?: LearnSkills;
   checkIns?: CheckIn[];
