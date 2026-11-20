@@ -268,6 +268,8 @@ export function TotalCard({
   if (glance.keys.length === 0) return null;
   const { total } = glance;
   const words = totalWords(glance);
+  // "across 2 accounts · sam@x.com as of 5:00 AM": the "as of" is its own line, so a wrap never strands the dot.
+  const [acrossMain, acrossAsOf] = (words.across ?? '').split(' · ');
   return (
     <View style={[styles.card, styles.hero]}>
       <View style={styles.answer}>
@@ -287,18 +289,23 @@ export function TotalCard({
           }
         >
           {words.figure}
-          {words.across && !large && (
+          {acrossMain && !large && (
             <>
               {' '}
               <T variant="subhead" color={colors.textSecondary}>
-                {words.across}
+                {acrossMain}
               </T>
             </>
           )}
         </T>
-        {words.across && large && (
+        {acrossMain && large && (
           <T variant="subhead" color={colors.textSecondary}>
-            {words.across}
+            {acrossMain}
+          </T>
+        )}
+        {acrossAsOf && (
+          <T variant="caption" color={colors.textMuted}>
+            {acrossAsOf}
           </T>
         )}
         {words.refill && (
@@ -427,9 +434,17 @@ export function AccountRows({
                     {k.name}
                   </T>
                   {!!room && (
-                    <T variant="small" color={colors.textPrimary} style={styles.figure}>
-                      {room}
-                    </T>
+                    <View style={styles.figureCol}>
+                      <T variant="small" color={colors.textPrimary} style={styles.figure}>
+                        {room.split(' · ')[0]}
+                      </T>
+                      {/* A reading that has gone stale says when it is from, under the figure. */}
+                      {room.includes(' · ') && (
+                        <T variant="caption" color={colors.textMuted}>
+                          {room.split(' · ')[1]}
+                        </T>
+                      )}
+                    </View>
                   )}
                 </View>
                 {/* What tells it apart, as the desk's row: its plan first. */}
@@ -981,6 +996,7 @@ const useStyles = makeStyles((colors) => ({
   answer: { gap: space.xs },
   hero: { gap: space.lg, padding: space.xl },
   figure: { fontVariant: ['tabular-nums'] },
+  figureCol: { alignItems: 'flex-end', flexShrink: 0 },
   wrapRow: { flexWrap: 'wrap', rowGap: space['2xs'] },
   wholeLine: { flexBasis: '100%' },
   chip: {

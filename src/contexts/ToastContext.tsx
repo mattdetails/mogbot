@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import {
   useToasts,
   type UseToastsReturn,
@@ -23,6 +23,12 @@ export function ToastProvider({ children }: ProviderProps) {
     () => ({ toasts, showToast, dismissToast, holdToast }),
     [toasts, showToast, dismissToast, holdToast]
   );
+  // The UI harness only (window.__harness exists on its page alone): lets a
+  // capture raise toasts, so their motion can be recorded. Nothing in the app.
+  useEffect(() => {
+    const h = (window as { __harness?: Record<string, unknown> }).__harness;
+    if (h) h.toast = showToast;
+  }, [showToast]);
   return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
 }
 

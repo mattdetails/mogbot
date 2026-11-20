@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Text } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import { useReduceMotion } from '../lib/moving';
 import { useColors } from '../lib/appearance';
 import { alpha } from '../lib/theme';
 import {
@@ -86,7 +86,7 @@ export function LiveWords({
   morph?: WordMorph | null;
 }) {
   const colors = useColors();
-  const still = useReducedMotion();
+  const still = useReduceMotion();
   const said = tokens(settled);
   const words = [...said, ...tokens(deciding)];
   const { now, born } = useWordClock(words.length, !!tidying, morph, still);

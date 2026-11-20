@@ -136,12 +136,10 @@ function foot(
 }
 
 const BASE =
-  'The foot, top to bottom: one neutral split button, “New agent” with a people icon as its ' +
-  'second half (New room); then Usage (“N% used · refills in 6d” over a thin bar that fills ' +
-  'with use); then Routines and, at its end, icon buttons for the phone (and remote, when on) ' +
-  'and Settings. Every row the same height; every icon on the agent keys’ column and every ' +
-  'label on the names’ column; New room’s half sits over the Settings gear. Nothing wraps, ' +
-  'nothing accent-coloured.';
+  'The foot, two rows: one neutral split button, “New agent” with New folder and New room as ' +
+  'its icon halves; then one line: a short usage bar and “N% · refills in 6d”, the phone icon ' +
+  '(only once paired) and remote (when on), and the Settings gear at the right. Routines and ' +
+  '“Pair your phone” live in the gear’s menu. Nothing wraps, nothing accent-coloured.';
 
 export const agentsSidebarFootScenarios: Scenario[] = [
   foot(
@@ -184,6 +182,18 @@ export const agentsSidebarFootScenarios: Scenario[] = [
           { focus: '[aria-label="Resize Project Sidebar"]' },
           ...Array.from({ length: 12 }, () => ({ key: 'ArrowLeft' })),
         ],
+      },
+    }
+  ),
+  foot(
+    'agents-foot-gear-menu',
+    'Agents sidebar foot — the gear’s menu open',
+    `${BASE} The gear opens the app’s settings drawer upward over the foot line: Routines, Pair your phone, a divider, then All settings (and Report a bug / What’s new where the build has them).`,
+    {
+      phone: phoneStatus(),
+      extra: {
+        clipSelector: undefined,
+        steps: [{ click: '[data-settings-menu-trigger="workspace"]' }],
       },
     }
   ),

@@ -18,12 +18,13 @@ import {
   draftOf,
   attachmentsOutsideBlocks,
   readBlocks,
+  STEP_IN_RETIRED_LINE,
   type Agent,
   type AgentMessage,
   type ResultRef,
 } from '@shipstudio/companion-protocol';
 import { memo, useEffect, useState, type ReactNode } from 'react';
-import { type LayoutChangeEvent, Pressable, View } from 'react-native';
+import { type LayoutChangeEvent, Pressable, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { arriving } from './Arrive';
 import { useRouter } from 'expo-router';
@@ -128,6 +129,8 @@ const MessageRowBody = memo(function MessageRowBody({
   const styles = useStyles();
   const colors = useColors();
   const look = useUserBubble(agent);
+  // Only a screen wider than the cap (a tablet) needs one; a phone's bubble is bound by its column.
+  const wide = useWindowDimensions().width > composer.replyMax + 2 * space.lg;
   const hold = onLongPress && message.text.trim() ? () => onLongPress(message) : undefined;
   const canRevise = useCanRevise();
   const askForChanges = canRevise
@@ -268,7 +271,7 @@ const MessageRowBody = memo(function MessageRowBody({
           ) : (
             // A bubble, as yours is, on the other side: a quieter fill and the
             // small corner toward the agent.
-            <View style={styles.agentBubble}>
+            <View style={[styles.agentBubble, wide && { maxWidth: composer.replyMax }]}>
               <BubbleSize.Provider value>
                 <Prose id={message.id} text={message.text} />
               </BubbleSize.Provider>
@@ -348,6 +351,8 @@ const MessageRowBody = memo(function MessageRowBody({
       if (message.approval?.status === 'pending' && draftOf(message.approval)) {
         return <DraftCard message={message} agent={agent} onError={onError} />;
       }
+      // A card from the old agent browser's Step in: one muted line, nothing to answer.
+      if (message.approval?.stepIn) return <Line text={STEP_IN_RETIRED_LINE} />;
       return message.approval ? (
         <ApprovalCard
           message={message}
@@ -1042,7 +1047,9 @@ const useStyles = makeStyles((colors) => ({
   agentRow: { gap: space.sm },
   agentBubble: {
     alignSelf: 'flex-start',
-    maxWidth: composer.replyMax,
+    // A percentage, never a pixel width alone: a wide table or code line inside would grow a
+    // bubble capped only in points past the screen, and a table measuring its own bubble never stacks.
+    maxWidth: '100%',
     // 4% of the reading ink over the page in dark, 6% in light.
     backgroundColor: colors.surfaceBubbleAgent,
     borderRadius: composer.corner,

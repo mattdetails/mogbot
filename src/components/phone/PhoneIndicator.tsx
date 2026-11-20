@@ -18,6 +18,7 @@ import { MobileIcon } from '@/components/icons';
 import { Button } from '../primitives/Button';
 import { IconButton } from '../primitives/IconButton';
 import { Tooltip } from '../primitives/Tooltip';
+import { DropdownItem } from '../primitives/Dropdown';
 import { FooterRowIcon } from '../workspace/FooterRowIcon';
 import { useOpenModal } from '../../contexts/ModalContext';
 import { useAsyncState } from '../../hooks/useAsyncState';
@@ -80,6 +81,7 @@ export function phoneIndicatorState(
 export function PhoneIndicator({
   isSidebarHidden,
   compact = false,
+  pairInMenu = false,
 }: {
   isSidebarHidden: boolean;
   /**
@@ -88,6 +90,8 @@ export function PhoneIndicator({
    * are the same, in the tooltip and the VoiceOver label.
    */
   compact?: boolean;
+  /** "Pair your phone" lives in the gear's menu (`PhoneMenuItem`): no row for it here. */
+  pairInMenu?: boolean;
 }) {
   const openModal = useOpenModal();
   // No `immediate`: the poll below reads on mount, and both made it two reads at once.
@@ -122,6 +126,7 @@ export function PhoneIndicator({
 
   const state = status.data ? phoneIndicatorState(status.data, now) : null;
   if (!state) return null;
+  if (pairInMenu && state.pair) return null;
 
   const open = () => {
     if (state.pair) requestPairOnOpen();
@@ -162,5 +167,27 @@ export function PhoneIndicator({
     >
       {!isSidebarHidden && <span className="remote-indicator__line">{state.line}</span>}
     </Button>
+  );
+}
+
+/**
+ * The gear menu's phone item in the Agents foot: "Pair your phone" while none
+ * is paired, else "Phone". Read when the menu opens (the item mounts then).
+ */
+export function PhoneMenuItem() {
+  const openModal = useOpenModal();
+  const status = useAsyncState<PhoneStatus>(getPhoneStatus, { immediate: true });
+  const state = status.data ? phoneIndicatorState(status.data, Date.now()) : null;
+  const pair = state?.pair ?? true;
+  return (
+    <DropdownItem
+      icon={<MobileIcon size={14} />}
+      onSelect={() => {
+        if (pair) requestPairOnOpen();
+        openModal('phone');
+      }}
+    >
+      {pair ? PAIR_YOUR_PHONE : 'Phone'}
+    </DropdownItem>
   );
 }

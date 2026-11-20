@@ -6,7 +6,7 @@
  */
 
 import type { Scenario } from '../types';
-import { AGENTS_TAB, agent, msg, overview } from './agents';
+import { AGENTS_TAB, agent, msg, overview, status } from './agents';
 
 const ID = 'leadgen';
 const VIEW = { width: 1280, height: 860 };
@@ -61,7 +61,7 @@ const scenario = (
   looksRightWhen: string,
   tasks: { doing?: string; toDo: number; waits: number } | undefined,
   board: unknown,
-  more: Partial<Scenario> = {}
+  { commands: extraCommands, ...more }: Partial<Scenario> = {}
 ): Scenario => ({
   id: `agents-tasks-${id}`,
   title: `Agents — ${title}`,
@@ -80,10 +80,42 @@ const scenario = (
     ]),
     agents_messages: () => [msg('user', 'Draft the intros.', 9, { agentId: ID })],
     agents_task_board: board,
+    ...(extraCommands ?? {}),
   },
   ...more,
   steps: [{ click: `[data-agent-id="${ID}"]` }, ...(more.steps ?? [])],
 });
+
+
+/** The sidebar's three task sub lines (DRYRUN-MISSING.md): 5 to do, Idle, 14 to do · Busy. */
+function sidebarRow(id: string, title: string, looksRightWhen: string): Scenario {
+  return {
+    id,
+    title,
+    looksRightWhen,
+    openSelector: AGENTS_TAB,
+    requires: '.agents-list',
+    clipSelector: '.workspace-sidebar',
+    viewport: { width: 1100, height: 720 },
+    commands: {
+      agents_overview: overview([
+        agent('lead', 'Lead Gen', {
+          color: 'green',
+          minutesAgo: 3,
+          tasks: { toDo: 5, waits: 0 },
+        }),
+        agent('mail', 'Mail', { color: 'blue', minutesAgo: 20 }),
+        agent('scout', 'Scout', {
+          color: 'orange',
+          minutesAgo: 1,
+          status: status('working', 'Sweeping invoices'),
+          tasks: { doing: 'Sweeping invoices', toDo: 14, waits: 0 },
+        }),
+      ]),
+      agents_messages: () => [],
+    },
+  };
+}
 
 export const agentsTasksScenarios: Scenario[] = [
   scenario(
@@ -143,5 +175,112 @@ export const agentsTasksScenarios: Scenario[] = [
     { doing: 'Drafting intros', toDo: 2, waits: 1 },
     LOAD(OPEN, RECENT),
     { steps: [{ click: '.agent-chat__more' }, { wait: 400 }], requires: '.agent-menu' }
+  ),
+
+  // ---- Fidelity QA's gate: the task data states (DRYRUN-MISSING.md, Chief Brain) ----
+  scenario(
+    'dropped',
+    'the task panel, a dropped line',
+    'Done today shows the dropped line muted with its reason (“Dropped · lead list was stale”); it is kept for the day, not struck through like a finished one.',
+    { doing: 'Drafting intros', toDo: 2, waits: 0 },
+    LOAD(OPEN.slice(0, 3), [
+      task('d1', 'Re-send the October recap', 'dropped', 50, {
+        note: 'The lead list was stale',
+        version: 3,
+      }),
+      ...RECENT,
+    ]),
+    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__group' }
+  ),
+  scenario(
+    'assigned',
+    'the task panel, a line another agent assigned',
+    'Next shows “Chase the Globex invoice” with “from Mail · 09:10”; the chat behind has Mail’s centred team line “Mail added a task for Lead Gen · Chase the Globex invoice”.',
+    { doing: 'Drafting intros', toDo: 2, waits: 0 },
+    LOAD(
+      [
+        OPEN[0],
+        task('a1', 'Chase the Globex invoice', 'next', 40, {
+          source: 'assigned',
+          from: { id: 'mail', name: 'Mail' },
+          version: 1,
+        }),
+        OPEN[2],
+      ],
+      RECENT
+    ),
+    {
+      steps: [{ click: '.agent-task-line' }, { wait: 500 }],
+      requires: '.agent-tasks__group',
+      commands: {
+        agents_messages: () => [
+          msg('user', 'Draft the intros.', 60, { agentId: ID }),
+          msg('note', 'Mail added a task for Lead Gen · Chase the Globex invoice', 40, {
+            agentId: ID,
+          }),
+        ],
+      },
+    }
+  ),
+  scenario(
+    'unseen',
+    'the task panel, finished lines not looked at yet',
+    'Done · 2 shows “2 new” and a blue dot on the two unseen lines; the task line under the name says “· 2 finished”; the seen line has no dot.',
+    { doing: 'Drafting intros', toDo: 1, waits: 0 },
+    LOAD(OPEN.slice(0, 2), [
+      task('u1', 'Pull the lead list from Native OS', 'done', 20, {
+        seen: false,
+        askedMsg: 'm-ask-1',
+        deliveredMsg: 'm-del-1',
+        version: 4,
+      }),
+      task('u2', 'Check the three leads that bounced', 'done', 35, {
+        seen: false,
+        askedMsg: 'm-ask-2',
+        deliveredMsg: 'm-del-2',
+        version: 3,
+      }),
+      task('u3', 'Rename the Acme folder', 'done', 150, { seen: true, version: 3 }),
+    ]),
+    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__group' }
+  ),
+  scenario(
+    'archived',
+    'the task panel, Archived opened',
+    'Under Done a quiet “Archived · 3” row, opened: lines newest first, each with its day (“done Sun”, “you archived it · Thu”), ending “Tasks you archive, and tasks done more than 3 days ago, show up here.”',
+    { doing: 'Drafting intros', toDo: 1, waits: 0 },
+    LOAD(OPEN.slice(0, 2), [
+      task('r1', 'Rename the Acme folder', 'done', 60 * 24 * 4, { archived: true, seen: true }),
+      task('r2', 'Pull 30 agencies from the list', 'done', 60 * 24 * 5, {
+        archived: true,
+        seen: true,
+      }),
+      task('r3', 'Check the Globex contract', 'done', 60 * 24 * 6, { archived: true, seen: true }),
+    ]),
+    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__group' }
+  ),
+  scenario(
+    'rewound',
+    'the task panel, nothing archived and a rewound ask',
+    'No “Archived” row at all (never “Archived · 0”). A finished line whose ask was rewound away has its “Open the ask” greyed “Rewound”; one in a deleted chat says “No longer in this chat”.',
+    { doing: 'Drafting intros', toDo: 1, waits: 0 },
+    LOAD(OPEN.slice(0, 2), [
+      task('w1', 'Draft the Q3 recap', 'done', 45, {
+        seen: true,
+        askedMsg: 'folded-by-rewind',
+        deliveredMsg: 'folded-by-rewind-2',
+      }),
+      task('w2', 'Pull the lead list', 'done', 90, {
+        seen: true,
+        askedMsg: 'in-a-deleted-chat',
+        deliveredMsg: null,
+      }),
+    ]),
+    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__group' }
+  ),
+  sidebarRow(
+    'agents-sidebar-row-busy',
+    'Agents sidebar rows with task counts',
+    'Three rows’ sub lines: “5 to do”, “Idle” and “14 to do · Busy”, with Busy in amber and the others muted.'
   ),
 ];

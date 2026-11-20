@@ -14,6 +14,8 @@ import { CloseIcon } from '@/components/icons';
 import { IconButton } from './IconButton';
 import { AreaBoundary, AreaError } from './AreaBoundary';
 import { usePortalAccentScope } from '../../contexts/AccentScopeContext';
+import { useLeaving } from '../../hooks/useLeaving';
+import { MOTION_DURATION } from '../../../packages/companion-protocol/src/motion';
 
 interface ModalFrameBaseProps {
   isOpen: boolean;
@@ -355,6 +357,12 @@ export function ModalFrame({
   const escapeDeferredRef = useRef(false);
   const onCloseRef = useRef(onClose);
   const dismissableRef = useRef(dismissable);
+  // Closing leaves on screen for its exit (docs/MOTION.md): the last open
+  // content, inert, until the overlay's exit animation ends.
+  const { leaving, done } = useLeaving(isOpen, MOTION_DURATION.exitScreen + 100);
+  const lastOpen = useRef({ title, children, headerActions });
+  if (isOpen) lastOpen.current = { title, children, headerActions };
+  const view = isOpen ? { title, children, headerActions } : lastOpen.current;
 
   useLayoutEffect(() => {
     onCloseRef.current = onClose;
@@ -464,14 +472,20 @@ export function ModalFrame({
     };
   }, [initialFocusRef, isOpen, modalId, portalRoot]);
 
-  if (!isOpen || !portalRoot) return null;
+  if ((!isOpen && !leaving) || !portalRoot) return null;
 
-  const hasTitle = title !== undefined && title !== null;
+  const hasTitle = view.title !== undefined && view.title !== null;
   const dialog = (
     <div
       ref={overlayRef}
       className="modal-frame-overlay"
-      data-modal-id={modalId}
+      data-modal-id={isOpen ? modalId : undefined}
+      data-state={isOpen ? 'open' : 'closed'}
+      inert={!isOpen || undefined}
+      aria-hidden={!isOpen || undefined}
+      onAnimationEnd={(event) => {
+        if (!isOpen && event.target === event.currentTarget) done();
+      }}
       {...accentScope}
       onMouseDown={(event: MouseEvent) => {
         pressBeganOnOverlay.current = isTopmost(modalId) && event.target === event.currentTarget;
@@ -501,9 +515,11 @@ export function ModalFrame({
         {hasTitle && (
           <div className="modal-frame-header">
             <div id={titleId} className="modal-frame-title">
-              {title}
+              {view.title}
             </div>
-            {headerActions && <div className="modal-frame-header-actions">{headerActions}</div>}
+            {view.headerActions && (
+              <div className="modal-frame-header-actions">{view.headerActions}</div>
+            )}
             {showCloseButton && (
               <IconButton
                 variant="ghost"
@@ -529,7 +545,7 @@ export function ModalFrame({
             </div>
           )}
         >
-          {children}
+          {view.children}
         </AreaBoundary>
       </div>
     </div>

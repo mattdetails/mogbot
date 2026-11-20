@@ -184,19 +184,58 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  width: 100%;
+  /* A card inset on the sidebar's gutter (the toggle's and Search's edges),
+     rounded, with no hairlines between rows: the fill alone says hover and
+     selected. */
+  width: calc(100% - 2 * var(--spacing-sm));
+  margin: 0 var(--spacing-sm) var(--spacing-2xs);
   /* One height for every row in every state: a step's words changing, a
      waiting label or a failure never moves the rows below. */
   height: var(--size-agents-list-row);
-  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) var(--spacing-sm);
   text-align: left;
   font: inherit;
   color: var(--text-primary);
   background: none;
   border: none;
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   cursor: pointer;
+}
+
+/* The right column: when it last moved, and under it a blue dot while unread. */
+.agents-list__meta {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  align-self: stretch;
+  min-width: 0;
+}
+
+.agents-list__time {
+  font-size: var(--font-size-body-sm);
+  line-height: var(--line-height-compact);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* On a hover or menu-open fill, muted falls under 4.5:1 in dark: step up. */
+.agents-list__row:is(:hover, [data-context-menu-open]) .agents-list__time {
+  color: var(--text-secondary);
+}
+
+.agents-list__unread {
+  width: var(--spacing-sm);
+  height: var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  background: var(--status-info);
+}
+
+.workspace-sidebar.is-hidden .agents-list__meta {
+  display: none;
 }
 
 /* Hover is a whisper; the open conversation is the solid selected fill with
@@ -218,7 +257,11 @@
 
 .agents-list__row:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--accent-focus);
+  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--focus-ring);
+}
+
+.agents-list__row[data-muted] .agents-list__name-text {
+  color: var(--text-secondary);
 }
 
 .agents-list__row[data-hidden] .agents-list__name {
@@ -462,8 +505,11 @@
   align-items: center;
   gap: var(--spacing-sm);
   width: 100%;
+  width: calc(100% - 2 * var(--spacing-sm));
   height: var(--control-height-standard);
-  padding: 0 var(--spacing-md) 0 var(--spacing-sm);
+  margin: var(--spacing-xs) var(--spacing-sm) 0;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--radius-lg);
   font: inherit;
   font-size: var(--font-size-body-sm);
   font-weight: var(--font-weight-label);
@@ -472,7 +518,6 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
 }
 
 .agents-list__hidden-toggle:hover {
@@ -481,7 +526,7 @@
 
 .agents-list__hidden-toggle:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--accent-focus);
+  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--focus-ring);
 }
 
 /* The chevron sits in a key-wide box, so the label starts on the names'
@@ -634,9 +679,12 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  width: 100%;
+  /* On the rows' inset, with no hairline: the header is a label, not a row. */
+  width: calc(100% - 2 * var(--spacing-sm));
   height: var(--control-height-standard);
-  padding: 0 var(--spacing-md) 0 var(--spacing-sm);
+  margin: var(--spacing-xs) var(--spacing-sm) 0;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--radius-lg);
   font: inherit;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-label);
@@ -645,7 +693,6 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
 }
 
 .agents-list__group-toggle:hover {
@@ -654,7 +701,7 @@
 
 .agents-list__group-toggle:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--accent-focus);
+  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--focus-ring);
 }
 
 .agents-list__group-toggle[aria-expanded='true'] .agents-list__hidden-chevron {
@@ -673,9 +720,22 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A dragged agent over a group it can join. */
+/* A dragged agent over a folder it can join: the whole folder, header and
+   all, becomes one rounded card in the selected fill, on the rows' inset.
+   The fill is painted on the content box, so the inset moves from the
+   children to the folder and nothing shifts. */
 .agents-list__group[data-drop-over] {
+  padding-inline: var(--spacing-sm);
   background: var(--surface-selected);
+  background-clip: content-box;
+  border-radius: calc(var(--radius-lg) + var(--spacing-sm));
+}
+
+.agents-list__group[data-drop-over] > *,
+.agents-list__group[data-drop-over] .agents-list__row,
+.agents-list__group[data-drop-over] .agents-list__group-empty {
+  width: 100%;
+  margin-inline: 0;
 }
 
 /* An empty folder holds one place for an agent, exactly an agent row's
@@ -686,10 +746,10 @@
   align-items: center;
   gap: var(--spacing-sm);
   height: var(--size-agents-list-row);
-  margin: 0;
-  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
+  margin: 0 var(--spacing-sm) var(--spacing-2xs);
+  padding: var(--spacing-sm);
   color: var(--text-muted);
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
 }
 
 .agents-list__group-empty::before {
@@ -698,7 +758,7 @@
   width: var(--agent-key-size-md);
   height: var(--agent-key-size-md);
   border: var(--border-width-default) dashed var(--border-strong);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-card);
 }
 
 /* While an agent is dragged, the empty place reads as where it can land. */
@@ -772,4 +832,137 @@ body[data-agent-dragging],
 body[data-agent-dragging] * {
   cursor: grabbing !important; /* css-ok: the drag's cursor wins over every row's pointer */
   user-select: none;
+}
+
+/* A working row's 6px grey dot before its step; the clock is in the time column. */
+.agents-list__working-dot {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 6px; /* css-ok: the spec's 6px mark */
+  height: 6px; /* css-ok: the spec's 6px mark */
+  margin-right: var(--spacing-xs);
+  border-radius: var(--radius-pill);
+  background: var(--text-muted);
+}
+
+/* ------------------------------------------------- narrow (under 240px) */
+
+/* No excerpts: a name, its time and, where something needs you, an amber dot
+   in the tag's place. The tag's words stay for a screen reader and the title. */
+.workspace-sidebar.is-narrow .agents-list__preview:not(.agents-list__preview--pill) {
+  display: none;
+}
+
+.workspace-sidebar.is-narrow .agents-list__preview--pill .agents-list__rest {
+  display: none;
+}
+
+.workspace-sidebar.is-narrow .agents-list__preview--pill .status-pill {
+  width: var(--status-pill-dot);
+  height: var(--status-pill-dot);
+  padding: 0;
+  background: none;
+  font-size: 0;
+  overflow: hidden;
+}
+
+.workspace-sidebar.is-narrow .agents-list__preview--pill .status-pill__label {
+  position: absolute;
+  width: 1px; /* css-ok: visually hidden, still read aloud */
+  height: 1px; /* css-ok: visually hidden, still read aloud */
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.workspace-sidebar.is-narrow .agents-list__preview--pill .status-pill__dot {
+  width: var(--spacing-sm);
+  height: var(--spacing-sm);
+}
+
+/* A row with no second line centres its name against the key. */
+.workspace-sidebar.is-narrow .agents-list__text {
+  justify-content: center;
+}
+
+/* ------------------------------------------------------ collapsed rail */
+
+/* The rail's marks: amber = needs you (bottom-right of the key), blue = unread
+   (top-right), each ringed in the panel's colour so it reads apart from the key. */
+.agents-list__rail-needs {
+  display: none;
+}
+
+.workspace-sidebar.is-hidden .agents-list__rail-needs {
+  position: absolute;
+  right: var(--spacing-tight);
+  bottom: var(--spacing-tight);
+  display: block;
+  width: var(--spacing-sm);
+  height: var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  background: var(--status-pill-waiting);
+  box-shadow: 0 0 0 var(--border-width-emphasis) var(--surface-panel);
+}
+
+.workspace-sidebar.is-hidden .agents-list__status .agent-unread-dot {
+  background: var(--status-info);
+}
+
+.workspace-sidebar.is-hidden .agents-list__row {
+  position: relative;
+}
+
+/* The Catch up tile's count: amber, on the tile's corner (rail only). */
+.agents-catchup-row__tile {
+  position: relative;
+}
+
+.agents-catchup-row__count {
+  position: absolute;
+  top: calc(var(--spacing-xs) * -1);
+  right: calc(var(--spacing-xs) * -1);
+  min-width: var(--spacing-lg);
+  padding-inline: var(--spacing-xs);
+  border-radius: var(--radius-pill);
+  background: var(--status-pill-waiting);
+  box-shadow: 0 0 0 var(--border-width-emphasis) var(--surface-panel);
+  color: var(--surface-app);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-label);
+  line-height: var(--line-height-compact);
+  text-align: center;
+}
+
+/* The foot shrinks to the usage icon: the rest is in the gear's menu and ⌘K. */
+.workspace-sidebar.is-hidden .is-agents-foot .agents-foot__new,
+.workspace-sidebar.is-hidden .is-agents-foot .remote-indicator:not(.usage-glance),
+.workspace-sidebar.is-hidden .is-agents-foot .workspace-sidebar-footer-actions {
+  display: none;
+}
+
+/* First run: only the Chief. A centred hint and one strong New agent. */
+.agents-list__first-run {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+}
+
+.agents-list__first-run-title {
+  margin: 0;
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-heading);
+  color: var(--text-primary);
+}
+
+.agents-list__first-run-copy {
+  margin: 0 0 var(--spacing-xs);
+  font-size: var(--font-size-body-md);
+  color: var(--text-muted);
+}
+
+.workspace-sidebar.is-hidden .agents-list__first-run {
+  display: none;
 }

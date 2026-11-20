@@ -273,6 +273,44 @@ impl Notifier for ApnsPush<'_> {
     }
 }
 
+/// What a relay answer that isn't a success means to this Mac.
+fn classify(code: u16, body: &str) -> RelayError {
+    match code {
+        401 => RelayError::Unauthorized,
+        404 => RelayError::UnknownDevice,
+        410 => RelayError::Gone,
+        _ => RelayError::Unavailable(format!(
+            "push service answered {}",
+            refusal_words(code, body)
+        )),
+    }
+}
+
+/// "502 provider (Apple: ExpiredProviderToken)": the status, the relay's error word and the
+/// provider's own reason when it passed one. Only plain words are read out of the body, so
+/// nothing that could be content or a token is ever logged.
+fn refusal_words(code: u16, body: &str) -> String {
+    let word = |v: &serde_json::Value, k: &str| {
+        v.get(k)
+            .and_then(|x| x.as_str())
+            .filter(|s| {
+                (2..=48).contains(&s.len())
+                    && s.bytes().all(|b| b.is_ascii_alphabetic() || b == b'_')
+            })
+            .map(str::to_string)
+    };
+    let v: serde_json::Value = serde_json::from_str(body).unwrap_or_default();
+    let mut out = code.to_string();
+    if let Some(e) = word(&v, "error") {
+        out.push(' ');
+        out.push_str(&e);
+    }
+    if let Some(r) = word(&v, "reason") {
+        out.push_str(&format!(" (provider: {r})"));
+    }
+    out
+}
+
 /// The relay over HTTPS.
 pub struct HttpRelay {
     base: String,
@@ -309,15 +347,20 @@ impl HttpRelay {
             .send()
             .await
             .map_err(|e| RelayError::Unavailable(format!("push service unreachable: {e}")))?;
-        match res.status().as_u16() {
-            200..=299 => Ok(res),
-            401 => Err(RelayError::Unauthorized),
-            404 => Err(RelayError::UnknownDevice),
-            410 => Err(RelayError::Gone),
-            code => Err(RelayError::Unavailable(format!(
-                "push service answered {code}"
-            ))),
+        let code = res.status().as_u16();
+        if (200..=299).contains(&code) {
+            return Ok(res);
         }
+        // Why it said no, read off its plain-word body (`error`, and Apple's `reason`):
+        // logged so "no notifications" can be traced to the step that failed.
+        let body = res.text().await.unwrap_or_default();
+        let err = classify(code, &body);
+        tracing::info!(
+            status = code,
+            why = %refusal_words(code, &body),
+            "[Companion] push service refused {path}"
+        );
+        Err(err)
     }
 }
 
@@ -509,6 +552,11 @@ async fn register(c: &Companion, relay: &dyn Relay, device: &DeviceRecord) -> bo
     match result {
         Ok(()) => {
             set_registered(c, &device.id, true);
+            tracing::info!(
+                device = %device.id,
+                environment = ?token.environment,
+                "[Companion] push token registered with the push service"
+            );
             true
         }
         Err(RelayError::Unauthorized) => {
@@ -668,19 +716,31 @@ pub async fn deliver_all(c: &Companion, alert: &PushAlert, now: u64) -> Vec<Stri
         .filter(|d| d.push.is_some() && d.build == BuildKind::Official)
         .filter(|d| needs_push(c.presence_at(&d.id, now), now, LIVE_WINDOW_MS))
         .collect();
-    if targets.is_empty()
-        || !c
+    if targets.is_empty() {
+        return Vec::new();
+    }
+    // Five agents finishing at once is one glance, not five banners: the burst cap holds
+    // back finished and message alerts. An agent blocked on the user is never held (the
+    // live notifier lets an approval through the same way), and a held one says so.
+    if alert.kind != PushKind::NeedsYou
+        && !c
             .push
             .limiter
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .allow(Instant::now())
     {
+        tracing::info!(kind = ?alert.kind, "[Companion] no push: held back (three in 20 seconds)");
         return Vec::new();
     }
     let mut sent = Vec::new();
     for device in targets {
         if !register(c, relay.as_ref(), &device).await {
+            tracing::info!(
+                device = %device.id,
+                kind = ?alert.kind,
+                "[Companion] no push: the push service doesn't have this phone's token (see the line above)"
+            );
             continue;
         }
         let Some(i) = c.registry.read(|s| s.push.installation.clone()) else {
@@ -698,7 +758,7 @@ pub async fn deliver_all(c: &Companion, alert: &PushAlert, now: u64) -> Vec<Stri
             outcome = match delivery {
                 Delivery::Sent => "sent",
                 Delivery::NotReachable => "push service unreachable",
-                Delivery::TokenGone => "token gone",
+                Delivery::TokenGone => "token gone (Apple refused it; the phone must send a new one)",
                 Delivery::Forgotten => "installation forgotten",
             },
             "[Companion] push"
@@ -1054,5 +1114,73 @@ mod tests {
             .unwrap();
         assert_eq!(status, PushStatus::Unavailable);
         assert!(set_enabled(&c, true).await.is_err());
+    }
+
+    #[test]
+    fn a_refusal_is_read_into_plain_words_and_nothing_else() {
+        assert_eq!(
+            refusal_words(
+                502,
+                r#"{"error":"provider","status":403,"reason":"ExpiredProviderToken"}"#
+            ),
+            "502 provider (provider: ExpiredProviderToken)"
+        );
+        assert_eq!(
+            refusal_words(503, r#"{"error":"unconfigured","platform":"ios"}"#),
+            "503 unconfigured"
+        );
+        // Free text, a token-looking string or junk never reaches the log.
+        assert_eq!(
+            refusal_words(500, r#"{"error":"a token ab12","reason":"x"}"#),
+            "500"
+        );
+        assert_eq!(refusal_words(502, "not json"), "502");
+    }
+
+    #[test]
+    fn the_status_decides_what_this_mac_does_next() {
+        assert_eq!(classify(401, ""), RelayError::Unauthorized);
+        assert_eq!(classify(404, ""), RelayError::UnknownDevice);
+        assert_eq!(
+            classify(410, r#"{"error":"gone","reason":"BadDeviceToken"}"#),
+            RelayError::Gone
+        );
+        assert_eq!(
+            classify(
+                502,
+                r#"{"error":"provider","status":429,"reason":"TooManyRequests"}"#
+            ),
+            RelayError::Unavailable(
+                "push service answered 502 provider (provider: TooManyRequests)".into()
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn an_agent_waiting_on_you_is_never_held_by_the_burst_cap() {
+        let (c, _relay, id) = setup(BuildKind::Official);
+        set_enabled(&c, true).await.unwrap();
+        set_push(&c, &id, Some(TOKEN.into()), PushEnvironment::Production)
+            .await
+            .unwrap();
+        // Finished alerts: three in a burst, the fourth held.
+        for i in 0..3 {
+            assert_eq!(
+                deliver_all(&c, &alert(PushKind::Finished), 10).await,
+                vec![id.clone()],
+                "finished {i}"
+            );
+        }
+        assert!(deliver_all(&c, &alert(PushKind::Finished), 10)
+            .await
+            .is_empty());
+        // The approvals behind them still go, however many.
+        for i in 0..5 {
+            assert_eq!(
+                deliver_all(&c, &alert(PushKind::NeedsYou), 10).await,
+                vec![id.clone()],
+                "needs you {i}"
+            );
+        }
     }
 }

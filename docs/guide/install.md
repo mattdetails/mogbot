@@ -79,7 +79,7 @@ The Chief speaks first with a short greeting (nothing runs on your plan until yo
 - **A few starters**, like "Brief me every morning" or "Make me an agent", to get a first result
   in the first few minutes.
 - **Your phone.** Once your first request comes back, the Chief offers to set up your phone. You
-  can also do it any time from **Pair your phone** at the bottom of the sidebar. See
+  can also do it any time from **Pair your phone** in the gear menu at the foot of the sidebar. See
   [Your phone](phone.md).
 
 ## Projects need two more tools

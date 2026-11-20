@@ -12,7 +12,7 @@
  *   pnpm mock --heavy              # 17 agents, ~40 cards waiting, long chats
  *   pnpm mock --torture            # the chat torture set; /dev/torture?do=… drives events
  *   pnpm mock --live-work          # QA 2 running Cypress for 5 min (output, timer), Finance gone quiet
- *   pnpm mock --probe              # 50 agents, step-in, stale and orphaned cards, 3 accounts; /dev/probe?do=…
+ *   pnpm mock --probe              # 50 agents, an old step-in line, stale and orphaned cards, 3 accounts; /dev/probe?do=…
  *   pnpm mock --probe --restarted  # the same Mac after a restart cut Builder's turn off
  *   pnpm mock --impostor           # signs with a stranger's key: "This isn't your Mac"
  *   pnpm mock --http --cors        # for the web build (`pnpm qa:web` passes both)
@@ -88,6 +88,7 @@ function selfSigned(dir: string) {
     solo: args.includes('--solo'),
     catchUpOne: args.includes('--catchup-one'),
     replies: args.includes('--replies'),
+    mdTables: args.includes('--md-tables'),
     tasks: args.includes('--tasks-empty') ? 'empty' : args.includes('--tasks') ? 'rich' : undefined,
     catchUpSeveral: args.includes('--catchup-several'),
     designColorway: args.find((a) => a.startsWith('--design-colorway='))?.split('=')[1],
@@ -106,8 +107,9 @@ function selfSigned(dir: string) {
       : {}),
     ...(arg('--usage') === 'two-claude' ||
     arg('--usage') === 'one-read' ||
-    arg('--usage') === 'room'
-      ? { usage: arg('--usage') as 'two-claude' | 'one-read' | 'room' }
+    arg('--usage') === 'room' ||
+    arg('--usage') === 'stale'
+      ? { usage: arg('--usage') as 'two-claude' | 'one-read' | 'room' | 'stale' }
       : {}),
     identityFile: path.join(state, 'identity.pem'),
     // The same server id and paired phones, a different key: what a phone

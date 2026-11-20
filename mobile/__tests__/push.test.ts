@@ -43,6 +43,16 @@ describe('pushLine', () => {
   });
 });
 
+describe('why a phone has no token', () => {
+  it('says each reason in words, never just nothing', () => {
+    expect(pushLine('denied', true)?.value).toBe('Off in Settings');
+    expect(pushLine('denied', true)?.footer).toMatch(/iOS Settings/);
+    expect(pushLine('no_entitlement', true)?.footer).toMatch(/TestFlight/);
+    expect(pushLine('no_token', true)?.value).toMatch(/No token/);
+    expect(pushLine('denied', true, 'android')?.footer).toMatch(/Android Settings/);
+  });
+});
+
 describe('push on Android', () => {
   it('a self-build names Google Play there, not Apple', () => {
     const footer = pushLine(null, false, 'android')?.footer ?? '';

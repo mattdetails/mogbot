@@ -22,7 +22,7 @@ import {
 } from '../../lib/agents';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { AgentKey } from './AgentKey';
-import { useAgentsSelector } from '../../lib/agentsStore';
+import { useAgentsShape } from '../../lib/agentsStore';
 import type { Agent } from '../../lib/agents';
 
 /** Wait this long after the last keystroke before scanning. */
@@ -101,7 +101,7 @@ export function AgentsSearchResults({
 }: AgentsSearchResultsProps) {
   const trimmed = query.trim();
   const results = useSearch(trimmed);
-  const allAgents = useAgentsSelector((s) => s.agents);
+  const allAgents = useAgentsShape();
   const named = onOpenAgent ? nameMatches(allAgents, trimmed).filter((a) => !a.hidden) : [];
   const names =
     named.length > 0 ? (

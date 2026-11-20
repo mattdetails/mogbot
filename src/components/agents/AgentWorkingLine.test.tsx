@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
-import { AgentWorkingLine } from './AgentWorkingLine';
+import { AgentWorkingLine, WorkingElapsed } from './AgentWorkingLine';
 import { AgentKey } from './AgentKey';
 import type { Agent } from '../../lib/agents';
 
@@ -70,5 +70,26 @@ describe('a working agent in a list', () => {
   it('presses a working key (the state is CSS; it never animates)', () => {
     const { container } = render(<AgentKey name="Acme Site" color="green" state="working" />);
     expect(container.querySelector('.agent-key[data-state="working"]')).not.toBeNull();
+  });
+});
+
+describe('a working row in the sidebar', () => {
+  const working = agent({ state: 'working', activity: 'Fixing the pricing table', since: T0 - 120_000 });
+
+  it('keeps the step in its line with a grey dot, and the clock out of it', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
+    const { container } = render(<AgentWorkingLine agent={working} inRow />);
+    expect(container.querySelector('.agents-list__working-dot')).not.toBeNull();
+    expect(container.querySelector('.agents-list__working')?.textContent).toBe(
+      'Fixing the pricing table'
+    );
+  });
+
+  it('puts the clock in the time column', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
+    const { container } = render(<WorkingElapsed agent={working} />);
+    expect(container.querySelector('.agents-list__time')?.textContent).toBe('2m');
   });
 });

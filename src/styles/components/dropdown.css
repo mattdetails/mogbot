@@ -165,3 +165,23 @@
 .ss-dropdown__items {
   display: contents;
 }
+
+/* Motion: the same open and close as every menu (context-menu.css). */
+.ss-dropdown__menu {
+  transform-origin: top left;
+  animation: ss-context-menu-enter var(--motion-arrive) backwards;
+}
+
+.ss-dropdown__menu--right {
+  transform-origin: top right;
+}
+
+.ss-dropdown__menu[data-side='top'] {
+  --ss-menu-from: var(--motion-travel-popover);
+  transform-origin: bottom left;
+}
+
+.ss-dropdown__menu[data-state='closed'] {
+  pointer-events: none;
+  animation: ss-context-menu-exit var(--motion-exit) forwards;
+}

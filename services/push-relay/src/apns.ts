@@ -7,6 +7,7 @@ import {
   signJwt,
   TITLES,
   type Outcome,
+  plainReason,
 } from './alert';
 import type { Env } from './env';
 import type { SendBody } from './schema';
@@ -101,8 +102,8 @@ export async function sendApns(
     reason === 'DeviceTokenNotForTopic' ||
     reason === 'Unregistered'
   ) {
-    return { kind: 'gone' };
+    return { kind: 'gone', reason: plainReason(reason) };
   }
   if (reason === 'ExpiredProviderToken' || reason === 'InvalidProviderToken') resetApnsToken();
-  return { kind: 'failed', status: response.status };
+  return { kind: 'failed', status: response.status, reason: plainReason(reason) };
 }

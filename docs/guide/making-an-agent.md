@@ -56,10 +56,8 @@ On **Agent**, the rows are grouped:
 - **What it does**: its name and its one line.
 - **What it should know**: its briefing.
 - **How it runs**: Claude Code, Codex or OpenCode (a choice once two are set up), the model, and
-  the project it works in. The model is also named in the message box ("Claude Code · Opus"):
-  click it to switch the model or effort from its next message. A one-line message keeps the
-  box on one row; once it wraps, the words get the box's full width and the paperclip, the model,
-  the microphone and Send move to a row underneath.
+  the project it works in. Change the model or effort from **Model** in the agent's **⋯** menu; it applies from its next
+  message. The message box is one bar with a **+** to attach files, your words, the microphone and Send.
 - **On its own**: its independence, what it may always do beyond its level, and the Admin switch. An admin (the Chief by default) answers its team's requests that aren't sends: local work, and web or app reads. Sending, posting, spending, pushing, deleting, logins and the browser stay yours.
 - **What it can use**: its apps and access, and its skills.
 
@@ -83,7 +81,7 @@ all of that agent's conversations.
 ## Conversations
 
 Each agent can have several conversations, each its own thread, all sharing one memory. Switch or
-start one from the chat header.
+start one from the agent's **⋯** menu.
 
 On your own messages you can:
 

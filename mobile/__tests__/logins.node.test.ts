@@ -165,7 +165,7 @@ describe('a login card, in words', () => {
       ['oauth', 'sheet'],
       ['gh', 'device'],
       ['claude_ai', 'web'],
-      ['agent_browser', 'here'],
+      ['agent_browser', 'mac'],
       ['oauth', 'mac'],
     ] as const) {
       const line = phoneLine(o(m), way, 'Gmail');

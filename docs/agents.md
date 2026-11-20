@@ -1945,7 +1945,7 @@ fetch.py`), a library not listed, a compiled program, `xh` / `httpie`, or
 outside-text cap and the network-write asks are what hold when it misses.
 
 **Notes the app queues are not the user asking.** A late Allow, a card
-answered (login, settings, hand-off, secret), a step-in handed back, a
+answered (login, settings, hand-off, secret), a
 crossover's run again, a preview fix, spare capacity: each is queued as
 `runner::From::App`. The turn runs (it owes no agent and starts the hop chain
 over) but never counts as the user's own request: no `answering_user` (so no
@@ -2021,7 +2021,7 @@ answer a card (`useCardGuard`). Deny is never held back.
 from several places at the same moment: the desk and the phone, a typed
 "approve it" and a tap, an admin agent and the user, a sign-in finishing as
 the user declines. Every answer path (`answer_card` and each kind behind it,
-Not now / Step in / Hand back, Check again, Save on a secret, a login's
+Check again, Save on a secret, a login's
 Connect, Decline, Not needed and a sign-in completing, Import and the
 playback on an import, an admin's put-away) first takes the card's
 **claim**: one compare-and-set under one lock, keyed by request id, that
@@ -2967,7 +2967,7 @@ their own, and the person signs in to it from the phone.
   agent's browser is off ("What it can reach" or its settings) or the turn
   answers outside text. Tools: `tabs`, `open`, `navigate`, `read_page`
   (the accessibility tree with `ref_N`), `find`, `get_text`, `screenshot`,
-  `click`, `type`, `press`, `scroll`, `wait_for`, `close_tab`, and `ask_user_to_step_in` ("Step in", below). No script,
+  `click`, `type`, `press`, `scroll`, `wait_for`, `close_tab`. No script,
   upload or download tool; `type` refuses password and one-time-code
   fields; an agent sees its own tabs only.
 - **Seeing it work.** Every step in "What it did" reads "Used its own
@@ -3041,99 +3041,17 @@ their own, and the person signs in to it from the phone.
   Observed: an import's denied Gmail card told the Chief to "carry on
   without Gmail" while Gmail was open and signed in in the user's Chrome.
 
-#### Step in (`agents/step_in.rs`, `agent_browser/step_in.rs`)
+#### Step in (retired)
 
-Grok Bot lets the user take over its computer for SSO, passkeys and
-CAPTCHAs. Here: an agent in its own browser that hits a step only a person
-can pass calls **`ask_user_to_step_in`** (`reason`, optional `tab`) on the
-`browser` server, instead of failing or asking for a password. Its tool
-description and one sentence in the server's instructions say when: SSO or
-"verify it's you", a passkey, a 2FA or emailed code, a CAPTCHA; a plain
-sign-in on a site it's signed out of is still `request_login` with
-`signed_out: true`. Nothing was added to the system prompt (its budget).
+Step in (an agent asking the user to take over its own browser tab, at the
+desk or from the phone) was removed with the agents' own browser: nothing
+raises one, `ask_user_to_step_in` and `agents.stepInBegin` are gone, and the
+phone's sign-in screen with them. A card stored before that keeps its
+`step_in` field only so it still loads; the sweep closes it at once and both
+apps draw it as one muted line, "This sign-in used the old browser; ask
+again".
 
-- **One card**: "<Agent> needs you in its browser: <reason>", the site and
-  page title, and a line that the tab opens on this Mac and the agent never
-  sees what's typed. **Not now** and **Step in** (neutral, never the
-  accent). The tool returns at once; the agent stops and is woken later.
-  One per agent at a time; asked again while one waits, it's told so.
-- **Step in** at the desk (`agents_step_in`; the phone's is below) brings that tab's real Chrome
-  window on screen and in front (`Service::show`), so the keyboard, the
-  mouse and macOS's own passkey and Touch ID sheets work as in any Chrome:
-  nothing is relayed through the app. If Chrome closed meanwhile (15 idle
-  minutes), the card's page opens again in a new tab of the agent's.
-- **While you're in it** the tab is **held** (`agent_browser::step_in`):
-  every browser call of the agent's that resolves to that tab is refused,
-  reading included (`tools::tab_of`), `tabs` names it without reading it,
-  and the chat's live picture of it stops (`live::frame_on`). Its other tabs
-  and `open` still work. Chrome's idle close waits. The chat shows the bar
-  "You're in <Agent>'s browser" (pinned, with the site, when it hands back
-  by itself, **Show window** (`agents_step_in_show`) and **Hand back**); in
-  that chat the card only says so and points at the bar, so the two buttons
-  aren't shown twice with opposite weights. Drawn anywhere else (the team
-  view, another chat's requests) the card keeps both; ⌘K "Hand <Agent> its
-  browser back". The live state is laid over the card on read (`step_in::apply`),
-  never stored.
-- **Hand back** (`agents_step_in_hand_back`) parks the window, answers the
-  card ("Handed back"), leaves a line ("You handed Finance its browser back
-  after 4 min · billing.acme.example") and wakes the agent with
-  `step_in::resume_note`: the tab, the reason, how long, and where the page
-  was and is (the address without its query, fragment or credentials),
-  never anything typed nor the page's title: the note is queued as from the
-  user, the site writes its title, and a sign-in leaves codes in the query.
-  A `wait_for` already waiting when the user steps in stops at the hold.
-- **By itself**: the tab closing ("The tab closed while you were in …"), or
-  15 minutes with no hand-back (the card reads "Handed back by itself after
-  15 min", and the agent is told the user may not have finished and not to
-  ask again for the same wall). Checked every 2 s.
-- **Not now** (desk or phone, through `agents_answer_approval`) ends any
-  hold and wakes the agent with "don't ask again for this", and the same
-  site can't be asked about again by that agent for an hour
-  (`step_in::ask_again`), so neither it nor a page steering it puts up card
-  after card. A typed "approve it" never answers a step-in card
-  (`typed_answer::the_card`), and `answer_card` refuses one: a plain Allow
-  used to close it with no hold and the agent never woken. A Not now racing
-  Hand back wakes the agent once.
-- **Never for outside text**: the `browser` server isn't given to those
-  turns, the gate refuses the tool for them (`gate_agents_with`), and
-  `step_in::check_ask` refuses it again. Not in a take-over, and not with no
-  app to put a card in (`tools::dispatch`). An admin can't answer it
-  (`admin::classify`: "only you can step into its browser"); the sweep puts
-  an unanswered one away like a login card, never while the user is in it.
-- **From the phone** (Mac feature `stepIn.phone`): **Step in** on the
-  phone's card opens its sign-in screen on the agent's own tab
-  (`agents.stepInBegin` → `phone_signin::begin_step_in`). The tab is held
-  exactly as at the desk (`step_in::begin_from_phone`, the same answer
-  gate), but its window stays parked; the phone gets its screencast and
-  sends taps, typing, keys and scrolls through the same `agents.signin*`
-  calls, lent the tab by `SigninWindow::borrow` (ending it stops the
-  pictures and leaves the tab open). Same rules as a phone sign-in: only the
-  paired device that began it, one session per Mac, the card's site and the
-  sign-in providers only (`Scope`; elsewhere the phone sees nothing and may
-  go Back or Hand back), typed text never logged, audited or kept, frames
-  only over the verified Tailscale route. No "another way in": it's the
-  agent's tab. **Done is Hand back**; Stop, leaving the screen, the session's
-  five idle minutes (handed back by itself, with the minutes) and a
-  replaced session all hand back too (`finish_live`), so the agent is always
-  woken. Hand back, Not now, the tab closing or the 15-minute limit on the
-  Mac end the phone's session (`end_step_in`), never twice. While a phone is
-  in it, the desk's card and bar name the phone ("Sam's iPhone is in
-  Finance's browser", `onPhone`, laid over like `inSince`) without Show
-  window; Hand back there works. Stepping in from the phone while the user
-  is in it at the desk is refused ("Hand it back there first"). The chat's
-  live picture of a held tab stays off, and its lapsing lease no longer stops
-  the phone's screencast (`live::stop_session`). An older Mac: the phone
-  shows "Step in on your Mac: its tab opens there." and **Not now** only; a
-  plain Allow is refused with "Step in on your Mac".
-- **Not verified**: a real SSO, passkey, 2FA or CAPTCHA page; a live turn
-  calling the tool on either engine; the window coming forward in a built
-  app (tested against the fake Chrome only, `step_in_tests.rs`). From the
-  phone: the hold, the borrowed screencast and the end paths are tested
-  against the fake Chrome and the companion stub; no real phone has stepped
-  into a real tab, and a passkey or Touch ID prompt can't be answered from
-  the phone (it's the Mac's own sheet).
-
-**Signing in from the phone** (`agents/phone_signin.rs`, `Via::AgentsBrowser`):
+**Signing in from the phone** (`agents/phone_signin.rs`, `Via::AgentsBrowser`). *The phone app no longer has this screen (removed with Step in); the Mac side below stays until the agents' browser is removed too.*
 
 1. A card for a site offers **Sign in here** first (method
    `agent_browser`, either engine). On the phone that button is **Sign in
@@ -6722,7 +6640,7 @@ cards.
   toggle, which counts what waits on you) is ordered by attention
   (docs/design/in-flight-board-2026-11-10.md), each heading with its count
   ("Needs you · 5") and present even when empty: **Needs you** (pending
-  approval, login, question and step-in cards, answerable in place with the
+  approval, login and question cards, answerable in place with the
   card's own buttons, and turns that didn't finish, with Retry or Sign in;
   the first two agents open with their cards, the rest wait one line each in
   the order they asked and open as the ones above are answered; empty, one
@@ -8032,3 +7950,9 @@ One row at the end of the chat (`AgentWorkingIndicator`; the phone's `LiveStep`)
 ### Task tools between agents (`agents/tasks.rs`)
 
 `task_assign(agent, title, note?)` puts a line on a teammate's list: it lands in their Next as "from <you> · <time>", their chat gets one centred note ("Mail added a task for Lead Gen · title"), and **no turn starts** (it is in their next briefing; the nudge tick chases it). It carries none of the caller's grants, counts as one agent-to-agent hop, is capped at 5 open lines per assigner on one teammate, can't be aimed at yourself, and is refused in a turn answering outside text. The assignee hands a line back with `task_update` (`dropped` with the reason, or `waiting`): the reason goes to the assigner as a message. Each agent in the overview carries `tasks` `{ doing?, toDo, waits }` (the header's quiet line, counted once: `toDo` = Next + Stuck).
+
+### Keeping the list at the end of a turn (`agents/tasks_keep.rs`)
+
+After a finished turn that began with the user's own words (never one answering outside text, a routine or another agent) one sealed, no-tools call reads the turn and how it ended and answers JSON: asks the agent missed, each with a short title of its own (at most 8 words), and open lines that now wait on the user. The app only adds lines (linked to the message that asked, `askMsg`) and parks Next or Doing lines as Waiting; it never marks anything Done or Dropped, whatever is answered. Cost, as an estimate: about 1,500 tokens in and under 200 out per turn, on Claude Code's small model (`haiku`) or the agent's Codex model, at most 30 a day per agent and a minute apart. Every line carries a `version` (shown in `tasks list`); `task_update` may name the version it read and a changed line refuses the update. A line marked Done records the agent message that delivered it (`doneMsg`). The engine's own plan (TodoWrite, update_plan) stays in "What it did", not in Tasks.
+
+**Task lines, after review (19 Nov).** A `task_assign` line has its own source, `assigned`: answering the assigner never closes it, a failed turn never sticks it, `message_agent` asks never count toward its cap of 5, and an assignment never merges into an ask. The cap and the write are one step under the list's lock. The outside-text refusal reads `from_outside` alone. A hand-back goes only for an assigned line, only on a real change, and is refused (line unchanged) when the hop cap is spent. The end-of-turn keeper skips routine turns, never re-adds an ask the turn just closed, and parks a line only if its version is the one it read. A line carries `askedMsg`, `deliveredMsg` (`task_update` may name it), `seen` (only the user sets it) and `archived` (`task_update archived:true`, a finished line, never from outside text); `tasks list` shows versions and how many finished lines are unseen. The keeper's calls are counted as `listChecks` (the "Task list" usage line). A reply's quote names the line's real sender and escapes quotes; the original is found by reading the log back a page at a time.

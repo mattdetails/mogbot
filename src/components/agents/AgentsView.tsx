@@ -27,8 +27,9 @@ import {
   AgentsSidebarActions,
   CatchUpRow,
   InFlightBell,
-  RoutinesRow,
 } from './AgentsSidebar';
+import { DropdownDivider, DropdownItem } from '../primitives/Dropdown';
+import { PhoneMenuItem } from '../phone/PhoneIndicator';
 import { AgentsCatchUp } from './AgentsCatchUp';
 import { AgentsSearchPopover, AgentsTopSearch } from './AgentsSearchBox';
 import { EngineSignInModal, type EngineSetup } from './EngineSignInModal';
@@ -89,8 +90,8 @@ import {
   refreshAgents,
   refreshRooms,
   startConversation,
-  useAgentsList,
   useAgentsSelector,
+  useAgentsShape,
   useRoomsList,
 } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
@@ -118,6 +119,7 @@ import {
   LockedIcon,
   PinIcon,
   PlusIcon,
+  RoutineIcon,
   ShieldCheckIcon,
   TrashIcon,
   UploadIcon,
@@ -204,8 +206,9 @@ function focusComposer() {
 }
 
 function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewProps) {
-  // Slices, not the whole store: a reply streaming anywhere must not re-render the view.
-  const agents = useAgentsList();
+  // Slices, not the whole store: a reply streaming anywhere must not re-render the view,
+  // nor a step of any working agent (what shows a turn's progress reads it live).
+  const agents = useAgentsShape();
   const loaded = useAgentsSelector((s) => s.loaded);
   const error = useAgentsSelector((s) => s.error);
   const engines = useAgentsSelector((s) => s.engines);
@@ -1146,31 +1149,37 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
               // New room as its second half) under the list it adds to, then
               // Usage, then Routines sharing the last row with the phone,
               // remote and Settings.
+              // The foot, two rows: New agent (with New folder and New room
+              // beside it), then usage and the gear on one line. Routines and
+              // Pair your phone live behind the gear.
               footerContent={
-                <>
-                  {(query.trim().length === 0 || popoverSearch) && (
-                    <AgentsSidebarActions
-                      agentCount={listed.length}
-                      collapsed={sidebarProps.isSidebarHidden ?? false}
-                      onNew={() => openNew()}
-                      onNewRoom={openNewRoom}
-                    />
-                  )}
-                  <SidebarBoundary part="accounts" message="Accounts couldn’t be shown.">
-                    <AccountSwitcher
-                      collapsed={sidebarProps.isSidebarHidden ?? false}
-                      open={usageOpen}
-                      onOpen={openUsage}
-                    />
-                  </SidebarBoundary>
-                </>
+                (query.trim().length === 0 || popoverSearch) && (
+                  <AgentsSidebarActions
+                    agentCount={listed.length}
+                    collapsed={sidebarProps.isSidebarHidden ?? false}
+                    onNew={() => openNew()}
+                    onNewRoom={openNewRoom}
+                  />
+                )
               }
               footerLead={
-                <RoutinesRow
-                  open={routinesOpen}
-                  collapsed={sidebarProps.isSidebarHidden ?? false}
-                  onOpen={() => openRoutines()}
-                />
+                <SidebarBoundary part="accounts" message="Accounts couldn’t be shown.">
+                  <AccountSwitcher
+                    collapsed={sidebarProps.isSidebarHidden ?? false}
+                    open={usageOpen}
+                    onOpen={openUsage}
+                    line
+                  />
+                </SidebarBoundary>
+              }
+              settingsMenuItems={
+                <>
+                  <DropdownItem icon={<RoutineIcon size={14} />} onSelect={() => openRoutines()}>
+                    Routines
+                  </DropdownItem>
+                  <PhoneMenuItem />
+                  <DropdownDivider />
+                </>
               }
               pinnedContent={
                 <CatchUpRow
@@ -1191,6 +1200,7 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
                     onSelect={setSelectedId}
                     rooms={roomRows}
                     roomActions={roomActions}
+                    onNew={() => openNew()}
                     actions={actions}
                     query={popoverSearch ? '' : query}
                     searchRef={searchRef}

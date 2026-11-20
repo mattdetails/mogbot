@@ -71,9 +71,9 @@ pub struct SigninWindow {
     /// The card's request id (what owns the window).
     pub key: String,
     pub agent_id: String,
-    /// The agent's own tab, held for a step-in from the phone
-    /// (`agent_browser::step_in`), not a window of the sign-in's: ending it
-    /// stops the pictures and leaves the tab where it is.
+    /// The agent's own tab, borrowed rather than a window of the sign-in's
+    /// (nothing borrows one since Step in was removed): ending it stops the
+    /// pictures and leaves the tab where it is.
     borrowed: bool,
     state: Mutex<State>,
 }
@@ -153,8 +153,7 @@ impl SigninWindow {
         }))
     }
 
-    /// The phone steps into `agent_id`'s own tab `tab`, already held for
-    /// card `key` (`step_in::begin_for_phone`): pictures from its
+    /// The phone borrows `agent_id`'s own tab `tab` for card `key`: pictures from its
     /// screencast, input as CDP events, its window left parked. The agent
     /// isn't kept out of its other tabs (only the held one is refused).
     pub fn borrow(

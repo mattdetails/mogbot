@@ -14,7 +14,7 @@
   --usage-cap-size: var(--spacing-xl);
   --usage-cap-size-large: var(--spacing-2xl);
   --usage-row-bar-width: 4.5em;
-  --usage-row-left-width: 5.5em;
+  --usage-row-left-width: 7.5em; /* wide enough for "as of 12:29 PM" under a figure */
   --usage-row-state-width: 9.75em;
   --usage-row-refill-width: 5.5em;
   /* The action column ("Use for new work", "Sign in"), held open on every

@@ -21,10 +21,12 @@
  * @module components/agents/AgentsSidebar
  */
 
+import { formatAge } from '../../lib/formatAgo';
 import {
   memo,
   useCallback,
   useMemo,
+  useEffect,
   useRef,
   type KeyboardEvent,
   type PointerEvent,
@@ -73,7 +75,7 @@ import { IconButton } from '../primitives/IconButton';
 import { StatusPill } from '../primitives/StatusPill';
 import { Tooltip } from '../primitives/Tooltip';
 import { AgentKey } from './AgentKey';
-import { AgentWorkingLine } from './AgentWorkingLine';
+import { AgentWorkingLine, WorkingElapsed } from './AgentWorkingLine';
 import { AgentEngineBadge } from './AgentEngine';
 import { AgentLevelBadge } from './AgentLevelPicker';
 import { AgentActionItems, type AgentActions } from './AgentActions';
@@ -83,7 +85,7 @@ import { RoomRow, type RoomActions } from './AgentRoomParts';
 import { ROOM_WHAT, sortRooms, type Room } from '../../lib/agentRooms';
 import { useFlipReorder, useNewKeys } from './useAgentMotion';
 import { useSteadyList } from './useAttentionOrder';
-import { useAgentsSelector } from '../../lib/agentsStore';
+import { useLiveAgent } from '../../lib/agentsStore';
 import {
   agentKeyState,
   failedTurn,
@@ -95,12 +97,10 @@ import {
   roleWithoutPath,
   folderName,
   type Agent,
-  type AgentMessage,
   type SearchHit,
 } from '../../lib/agents';
-import { groupLine, groupRequests } from '../../lib/agentRequests';
-import { secretTitle } from '../../lib/agentSecrets';
 import { kbd } from '../../lib/shortcuts';
+import { markLaunchAfterPaint } from '../../lib/launchMarks';
 import { previewText } from '../../../packages/companion-protocol/src/preview';
 
 interface AgentsSidebarProps {
@@ -122,6 +122,8 @@ interface AgentsSidebarProps {
   /** Group conversations, each with its members as they are now. */
   rooms: { room: Room; members: Agent[] }[];
   roomActions: RoomActions;
+  /** First run: the hint under the Chief's row starts a first agent. */
+  onNew?: () => void;
 }
 
 function subtitle(agent: Agent): ReactNode {
@@ -144,46 +146,24 @@ function subtitle(agent: Agent): ReactNode {
       </>
     );
   // The step it's on and how long it's been at it, not "Working…".
-  if (agent.status.state === 'working') return <AgentWorkingLine agent={agent} />;
+  if (agent.status.state === 'working') return <AgentWorkingLine agent={agent} inRow />;
   const failure = failedTurn(agent);
   if (failure) return failureLine(failure, previewText(agent.preview), agent.engine);
-  return previewText(agent.preview) ?? '';
+  return previewText(agent.preview) ?? (agent.isMain ? FIRST_LINE : '');
 }
 
-/**
- * What a waiting agent is asking, from its loaded lines only: the one
- * request's own words ("Push to GitHub"), or its logins by name ("3 logins:
- * Slack bot token…"). Null when its chat isn't loaded or the count says more
- * than the words would (as the requests panel words it: `groupLine`).
- */
-function askingLine(agent: Agent, lines: readonly AgentMessage[] | undefined): string | null {
-  if (!lines) return null;
-  const group = groupRequests([agent], { [agent.id]: [...lines] }, NONE_SHOWN).groups[0];
-  if (!group || group.older > 0 || group.pending === 0) return null;
-  if (group.pending > 1 && group.logins !== group.pending) return null;
-  // One login says its name alone ("CRM API key"), not "1 login: CRM API key".
-  if (group.pending === 1 && group.logins === 1) {
-    const a = group.cards.find((m) => m.approval?.status === 'pending')?.approval;
-    if (a?.login) return a.login.title;
-    if (a?.secret) return secretTitle(a.secret.name);
-  }
-  return groupLine(group);
-}
-const NONE_SHOWN: ReadonlySet<string> = new Set();
+/** The Chief's row before it has said anything else (the stored greeting's first line). */
+const FIRST_LINE = 'Hi. Tell me what you want to get done.';
 
 /**
  * Waiting on you or a turn that didn't finish: the state as a pill and the
  * rest in words. Driving and working keep their own line (the step and its
  * clock say more than "Working" would, and the running dot is beside them).
  */
-function rowPill(
-  agent: Agent,
-  asking: string | null
-): { tone: StatusTone; label: string; rest: string } | null {
+function rowPill(agent: Agent): { tone: StatusTone; label: string; rest: string } | null {
   if (needsYou(agent)) {
     const n = agent.pendingApprovals ?? 0;
-    // What it's asking, when the loaded lines know; else how many.
-    if (asking) return { tone: 'waiting', label: 'Needs your OK', rest: asking };
+    // The tag alone: how many when more than one, never an excerpt beside it.
     return { tone: 'waiting', label: n > 1 ? `Needs your OK · ${n}` : 'Needs your OK', rest: '' };
   }
   if (agent.takeover || agent.status.state === 'working') return null;
@@ -330,7 +310,6 @@ export function CatchUpRow({
   collapsed: boolean;
   onOpen: () => void;
 }) {
-  if (collapsed) return null;
   const shown = waiting.slice(0, 2).map((a) => a.name);
   const more = waiting.length - shown.length;
   const who = more > 0 ? `${shown.join(', ')}, +${more}` : shown.join(', ');
@@ -344,6 +323,10 @@ export function CatchUpRow({
     >
       <span className="agents-catchup-row__tile" aria-hidden="true">
         <CollaboratorsIcon size={14} />
+        {/* The rail has no line to read: the count rides the tile's corner. */}
+        {collapsed && count > 0 && (
+          <span className="agents-catchup-row__count">{count > 99 ? '99+' : count}</span>
+        )}
       </span>
       <span className="agents-list__text">
         <span className="agents-list__name">
@@ -378,7 +361,12 @@ export function AgentsSidebar({
   actions,
   rooms,
   roomActions,
+  onNew,
 }: AgentsSidebarProps) {
+  const hasAgents = agents.length > 0;
+  useEffect(() => {
+    if (hasAgents) markLaunchAfterPaint('agents-list');
+  }, [hasAgents]);
   // Optional sections: by project, or the folders you make (none until the first).
   const grouping = useAgentGroups();
   const searching = query.trim().length > 0;
@@ -544,6 +532,18 @@ export function AgentsSidebar({
             </button>
           )}
           {showHidden && hidden.map(row)}
+          {/* First run: only the Chief. Say where the team starts. */}
+          {onNew && agents.length === 1 && agents[0].isMain && (
+            <div className="agents-list__first-run">
+              <p className="agents-list__first-run-title">Your team starts here</p>
+              <p className="agents-list__first-run-copy">
+                Ask the Chief for a first agent, or make one yourself.
+              </p>
+              <Button variant="strong" onClick={onNew}>
+                New agent
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -662,7 +662,7 @@ export function RoutinesRow({
 
 /** One agent's row, memoised: a status event re-renders the row it changed, not all of them. */
 const AgentRow = memo(function AgentRow({
-  agent,
+  agent: listed,
   current,
   tabStop,
   arrived,
@@ -686,15 +686,14 @@ const AgentRow = memo(function AgentRow({
   /** Another row dropped on this one: put it just before (or after) this. */
   onReorder: (moved: string, target: string, after: boolean) => void;
 }) {
+  // Its turn's progress, live: the list it came from changes only when the team's layout does.
+  const agent = useLiveAgent(listed);
   // The Chief stays first: it neither moves nor takes a row above it.
   const movable = !agent.isMain;
   const drag = useAgentPointerDrag({ agentId: agent.id, enabled: movable, group, onReorder });
-  // Its loaded lines, only while it's waiting: the row says what it's asking.
-  const lines = useAgentsSelector((s) => (needsYou(agent) ? s.messages[agent.id] : undefined));
-  const asking = needsYou(agent) ? askingLine(agent, lines) : null;
-  const pill = rowPill(agent, asking);
-  // Read already when it's the one open.
-  const unread = !current && agent.unread > 0;
+  const pill = rowPill(agent);
+  // Read already when it's the one open; a muted agent never shows unread.
+  const unread = !current && !agent.muted && agent.unread > 0;
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -708,6 +707,7 @@ const AgentRow = memo(function AgentRow({
           data-hidden={agent.hidden || undefined}
           data-arrived={arrived || undefined}
           data-unread={unread || undefined}
+          data-muted={agent.muted || undefined}
           aria-current={current ? 'true' : undefined}
           onPointerEnter={tooltipIfTruncated}
           onClick={() => onSelect(agent.id)}
@@ -752,11 +752,25 @@ const AgentRow = memo(function AgentRow({
               reader (the elapsed time is already in the line). Only the
               collapsed rail, with no line to read, keeps a mark on the badge. */}
           <span className="sr-only">{rowStateWords(agent, unread)}</span>
+          {/* When it last moved, and a blue dot under it while unread. A
+              working row keeps its clock in the line instead. */}
+          <span className="agents-list__meta" aria-hidden="true">
+            {agent.status.state === 'working' ? (
+              <WorkingElapsed agent={agent} />
+            ) : (
+              agent.lastActivityAt > 0 && (
+                <span className="agents-list__time">{formatAge(agent.lastActivityAt)}</span>
+              )
+            )}
+            {unread && <span className="agents-list__unread" />}
+          </span>
           <span className="agents-list__status">
             <span className="agents-list__rail-mark">
               <AgentMark agent={unread ? agent : { ...agent, unread: 0 }} />
             </span>
           </span>
+          {/* The rail's amber dot: this one needs you (the key alone said it with a glow). */}
+          {needsYou(agent) && <span className="agents-list__rail-needs" aria-hidden="true" />}
         </button>
       </ContextMenuTrigger>
       <ContextMenuContent aria-label={`Actions for ${agent.name}`}>

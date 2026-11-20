@@ -18,7 +18,7 @@ import { Button } from '../primitives/Button';
 import { TextButton } from '../primitives/TextButton';
 import { AgentKey } from './AgentKey';
 import { useOptionalToast } from '../../contexts/ToastContext';
-import { useAgentsSelector } from '../../lib/agentsStore';
+import { useAgentsShape } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import {
   AGENTS_SHOWN,
@@ -53,7 +53,7 @@ function clockTime(ms: number): string {
 
 /** A mission agent's key: the real agent's when the team has one by that name. */
 function MissionKey({ name }: { name: string }) {
-  const agents = useAgentsSelector((s) => s.agents);
+  const agents = useAgentsShape();
   const agent = agents.find((a) => a.name === name);
   return <AgentKey id={agent?.id} name={name} color={agent?.color} size="sm" />;
 }

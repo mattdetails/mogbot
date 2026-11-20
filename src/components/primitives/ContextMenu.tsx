@@ -1,3 +1,4 @@
+import { MOTION_DURATION } from '../../../packages/companion-protocol/src/motion';
 import {
   Children,
   cloneElement,
@@ -39,7 +40,9 @@ const ContextMenuContext = createContext<ContextMenuState | null>(null);
 let activeContextMenu: { id: string; close: (immediate?: boolean) => void } | null = null;
 
 const EDGE_GUTTER = 8;
-const CONTEXT_MENU_EXIT_DURATION_MS = 150;
+// The exit's length plus a frame (docs/MOTION.md, `exitQuick`), so the menu
+// is gone only after it has faded.
+const CONTEXT_MENU_EXIT_DURATION_MS = MOTION_DURATION.exitQuick + 20;
 
 function useContextMenuContext(component: string): ContextMenuState {
   const context = useContext(ContextMenuContext);

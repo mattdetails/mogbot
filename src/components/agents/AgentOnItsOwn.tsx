@@ -26,7 +26,7 @@ import { Spinner } from '../primitives/Spinner';
 import { useAsyncState } from '../../hooks/useAsyncState';
 import { usePolling } from '../../hooks/usePolling';
 import { asCommandError, formatCommandError } from '../../lib/errors';
-import { useAgentsSelector } from '../../lib/agentsStore';
+import { useAgentsSelector, useAgentsShape } from '../../lib/agentsStore';
 import { takeSettingsSectionRequest } from '../../lib/settings';
 import {
   ON_ITS_OWN_ALWAYS_ASKS,
@@ -221,7 +221,8 @@ export function AgentOnItsOwnModal({
 export function OnItsOwnTeamSettings() {
   const load = useCallback(() => teamOnItsOwn(), []);
   const { data, setData, error: loadError, execute } = useAsyncState<OnItsOwnTeam>(load);
-  const registry = useAgentsSelector((s) => s.agents);
+  // A rule, admin or browser change, not a working agent's every step (each was a fetch).
+  const registry = useAgentsShape();
   useEffect(() => {
     void execute();
   }, [execute, registry]);

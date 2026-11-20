@@ -85,6 +85,8 @@ declare global {
       commandMissing?: boolean;
       /** What the scenario's scripted steps did, in order. */
       steps?: string[];
+      /** Raise a toast (set by ToastProvider), for recording toast motion. */
+      toast?: (message: string, type?: 'success' | 'info' | 'error') => void;
     };
   }
 }
@@ -237,6 +239,40 @@ async function runSteps(list?: ScenarioStep[]): Promise<void> {
       );
       stepLog.push(`pressed ${step.key}`);
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 50)));
+      continue;
+    }
+    if (step.drag) {
+      const from = await waitFor(step.drag, undefined, step.text);
+      const onto = step.to ? await waitFor(step.to) : null;
+      if (!from || !onto) {
+        stepLog.push(`never appeared: drag ${step.drag} → ${step.to ?? ''}`);
+        console.error(`[harness] drag target never appeared: ${step.drag} → ${step.to ?? ''}`);
+        return;
+      }
+      const a = from.getBoundingClientRect();
+      const b = onto.getBoundingClientRect();
+      const at = (x: number, y: number) => ({
+        bubbles: true,
+        cancelable: true,
+        pointerType: 'mouse',
+        isPrimary: true,
+        button: 0,
+        buttons: 1,
+        clientX: x,
+        clientY: y,
+      });
+      const x0 = a.left + a.width / 2;
+      const y0 = a.top + a.height / 2;
+      const x1 = b.left + b.width / 2;
+      const y1 = b.top + b.height / 2;
+      from.dispatchEvent(new PointerEvent('pointerdown', at(x0, y0)));
+      for (const t of [0.25, 0.6, 1]) {
+        window.dispatchEvent(
+          new PointerEvent('pointermove', at(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t))
+        );
+        await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 16)));
+      }
+      stepLog.push(`dragged ${step.drag} over ${step.to}`);
       continue;
     }
     const selector =

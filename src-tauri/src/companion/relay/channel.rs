@@ -236,7 +236,11 @@ async fn serve(
             return;
         }
         if resumed {
-            tracing::info!(ch, replayed = replay.len(), "[Relay] a phone came back to its session");
+            tracing::info!(
+                ch,
+                replayed = replay.len(),
+                "[Relay] a phone came back to its session"
+            );
         }
     }
     let mut heard = Instant::now();

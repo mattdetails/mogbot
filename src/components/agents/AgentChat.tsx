@@ -46,7 +46,6 @@ import { AgentRequestsBar } from './AgentRequests';
 import { AgentKey } from './AgentKey';
 import { AgentActionItems, GO_BACK_MENU, type AgentActions } from './AgentActions';
 import { TakeoverBanner, TakeoverTerminal } from './AgentTakeover';
-import { StepInBar } from './AgentStepIn';
 import { AgentLine, ConversationBar, ConversationBars } from './AgentCard';
 import { PhoneSigninBar } from './PhoneSigninBar';
 import {
@@ -201,6 +200,7 @@ import {
   upsertMessage,
   useAgentsList,
   useAgentsSelector,
+  useLiveAgent,
 } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { ImportTalkBar } from './ImportTalkBar';
@@ -228,6 +228,7 @@ import { guardRow, useGuardedRows } from './AgentsErrorBoundary';
 import { AreaBoundary } from '../primitives/AreaBoundary';
 import { isRecipeFile, looksLikeRecipe } from '../../lib/agentRecipe';
 import { scrollMotion } from '../../lib/motion';
+import { markLaunchAfterPaint } from '../../lib/launchMarks';
 import { THIS_COMPUTER } from '../../lib/computer';
 
 /**
@@ -488,7 +489,7 @@ function LiveAgentSwitcher(props: Omit<ComponentProps<typeof AgentSwitcher>, 'ag
  * any other agent leaves the conversation on screen alone.
  */
 export const AgentChat = memo(function AgentChat({
-  agent,
+  agent: shownAgent,
   onOpenAgent,
   onSetUpEngine,
   onSignIn,
@@ -504,6 +505,8 @@ export const AgentChat = memo(function AgentChat({
   onMoreIdeas,
   ...actions
 }: AgentChatProps) {
+  // Its turn's progress, live: the Agents view hands over its layout copy.
+  const agent = useLiveAgent(shownAgent);
   // Everything in this conversation takes on the agent's colour.
   const accentScope = useAccentScope(agent.color);
   // Your bubble: the key's face colour with the ink both desk and phone pick the
@@ -1284,6 +1287,10 @@ export const AgentChat = memo(function AgentChat({
     .filter((m) => m.approval?.status === 'pending')
     .map((m) => m.id)
     .join(' ');
+  const hasRows = messages !== undefined && messages.length > 0;
+  useEffect(() => {
+    if (hasRows) markLaunchAfterPaint('first-chat');
+  }, [hasRows]);
   const seenCardsRef = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (messages === undefined) return;
@@ -1975,7 +1982,6 @@ export const AgentChat = memo(function AgentChat({
                 onAnswer={onAnswer}
                 arrived={arrived}
                 series={similar.get(m.id)}
-                ownChat
               />
             );
           case 'error':
@@ -2376,11 +2382,6 @@ export const AgentChat = memo(function AgentChat({
                         bars={[
                           // The phone is driving a tab in this Mac's Chrome: said in every conversation.
                           { id: 'phoneSignin', node: <PhoneSigninBar /> },
-                          // You're in its browser right now (Step in): Hand back from here.
-                          {
-                            id: 'stepIn',
-                            node: <StepInBar agent={agent} messages={allLines ?? []} />,
-                          },
                           {
                             id: 'waiting',
                             node: needsOk ? null : (

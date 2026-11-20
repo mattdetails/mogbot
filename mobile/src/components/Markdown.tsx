@@ -341,7 +341,6 @@ function List({ list, depth = 0 }: { list: Tokens.List; depth?: number }) {
               styles.bullet,
               // Numbers in one tight column, right-aligned; a dot only as wide as itself.
               list.ordered && { minWidth: markerWidth, textAlign: 'right' },
-              !list.ordered && !item.task && depth > 0 && styles.nestedDot,
             ]}
           >
             {item.task ? (item.checked ? '☑' : '☐') : list.ordered ? `${start + i}.` : '•'}
@@ -531,8 +530,6 @@ const useBaseStyles = makeStyles((colors) => ({
   item: { flexDirection: 'row', gap: space.sm },
   // Wide enough for "10." so a long list's numbers line up with its first.
   bullet: { color: colors.textMuted, minWidth: 10 },
-  // The nested level: the same filled dot, smaller.
-  nestedDot: { fontSize: type.small, lineHeight: lineHeight(type.read, READ_LINE) },
   // Not `flex: 1`: that is flex-basis 0, which React Native's layout (Yoga) counts as
   // zero width when a bubble shrinks to its content, so a reply that was only a list
   // collapsed to its numbers and bullets with no words (Julian's iPhone, 19 Nov;

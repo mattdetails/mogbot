@@ -1356,7 +1356,7 @@ const streamMessages = () => {
  * A plain scan like the backend's: every word, any case, newest first, with
  * the snippet cut around the first match.
  */
-const searchFor = (args: Record<string, unknown>) => {
+export const searchFor = (args: Record<string, unknown>) => {
   const words = String(args.query).toLowerCase().split(/\s+/).filter(Boolean);
   const names: Record<string, [string, string]> = {
     chief: ['Chief of Staff', 'white'],

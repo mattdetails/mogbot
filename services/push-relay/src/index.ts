@@ -140,9 +140,14 @@ async function route(request: Request, env: Env, now: number): Promise<Response>
     }
     if (outcome.kind === 'gone') {
       await forgetToken(env.DB, row.token);
-      return error(410, 'gone');
+      return error(410, 'gone', outcome.reason ? { reason: outcome.reason } : {});
     }
-    if (outcome.kind === 'failed') return error(502, 'provider', { status: outcome.status });
+    if (outcome.kind === 'failed') {
+      return error(502, 'provider', {
+        status: outcome.status,
+        ...(outcome.reason ? { reason: outcome.reason } : {}),
+      });
+    }
     return json(200, { sent: true });
   }
 

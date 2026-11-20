@@ -747,25 +747,17 @@ export interface AgentRef {
 }
 
 /**
- * A step-in card (desktop `agents/step_in.rs`): an agent in its own browser
- * needs a person for one step (SSO, a passkey, a 2FA code, a CAPTCHA). Never
- * anything typed: the reason and the page it was on.
+ * LEGACY. A step-in card from when agents had their own browser. Nothing
+ * raises one any more; an old one is stored closed and both apps draw it as
+ * one muted line (`STEP_IN_RETIRED_LINE`), never as a card with answers.
+ * Every field is optional: only its presence matters.
  */
 export interface StepInCard {
-  /** The agent's words: what the user needs to do there. */
-  reason: string;
-  /** The page's host, for the card. */
-  site: string;
-  url: string;
+  reason?: string;
+  site?: string;
+  url?: string;
   pageTitle?: string;
-  /** The agent's tab number. */
-  tab: number;
-  /** The user is in the tab now, since (ms). Laid over by the Mac, never stored. */
-  inSince?: number;
-  /** When it is handed back by itself (ms). */
-  until?: number;
-  /** The user is in it from a phone (its name), not at the Mac. Laid over, never stored. */
-  onPhone?: string;
+  tab?: number;
 }
 
 /**
@@ -824,11 +816,7 @@ export interface Approval {
   handoff?: HandoffCard;
   /** "OK to go on?" between a routine's steps: Allow is Go ahead, Deny is Stop here. */
   gate?: RoutineGate;
-  /**
-   * "<Agent> needs you in its browser: <reason>" (`ask_user_to_step_in`).
-   * Step in happens only at the Mac; the phone offers Not now (Deny), and a
-   * plain Allow is refused with "Step in on your Mac". Older Macs never send it.
-   */
+  /** LEGACY: an old "needs you in its browser" card (see `StepInCard`). Drawn as one muted line. */
   stepIn?: StepInCard;
   /** "Carry on with Codex until then?": Always (allow + always), Just this time (allow), Wait (deny). */
   crossover?: CrossoverAsk;
@@ -975,8 +963,6 @@ export interface SigninBegun {
   via?: SigninVia;
   /** How long to wait between pictures. */
   frameGapMs?: number;
-  /** `agents.stepInBegin`: the agent's own tab; Done is Hand back. */
-  stepIn?: boolean;
 }
 
 /**
@@ -1891,6 +1877,8 @@ export interface UsageTotals {
   checks?: number;
   /** Checks that reported a cost. */
   pricedChecks?: number;
+  /** The end-of-turn task-list keeper's calls: the "Task list" usage line. Newer Macs only. */
+  listChecks?: number;
 }
 
 export interface UsageSummary {

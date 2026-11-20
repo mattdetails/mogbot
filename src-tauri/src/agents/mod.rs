@@ -191,7 +191,6 @@ pub mod skills_learn;
 pub mod slack;
 pub mod slack_api;
 pub mod starters;
-pub mod step_in;
 pub mod store;
 pub mod stream;
 pub mod survive;
@@ -199,6 +198,7 @@ pub mod tab_accounts;
 pub mod takeover;
 pub mod task;
 pub mod tasks;
+pub mod tasks_keep;
 pub mod team_reach;
 pub mod team_record;
 pub mod team_setup;
@@ -319,7 +319,6 @@ pub fn as_shown(agent_id: &str, page: &mut [store::AgentMessage]) {
     // A login card's sign-in under way, as it is now.
     logins::apply(page);
     // A step-in the user is in right now.
-    step_in::apply(page);
     // Every card in plain words; an admin's batch as it is now.
     admin::apply(page);
     // A remembered rule's line: still in force, or undone.

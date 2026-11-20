@@ -967,13 +967,22 @@ async fn a_phone_that_lost_its_socket_picks_its_session_back_up() {
     let fingerprint = c.registry.identity().unwrap().fingerprint();
     let (_record, token, _) = c
         .registry
-        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .add(
+            &device(),
+            String::new(),
+            now_ms() as i64,
+            &[],
+            Some("j@x.com".into()),
+        )
         .unwrap();
     let port = loopback(c.clone()).await;
     let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
     let link = Arc::new(Link::default());
     let (_stop_tx, stop_rx) = oneshot::channel();
-    let cfg = Config { base: relay.base(), port: Some(port) };
+    let cfg = Config {
+        base: relay.base(),
+        port: Some(port),
+    };
     tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
     until("the link", || link.status().state == RelayState::Connected).await;
     let url = link.route().unwrap().url;
@@ -1023,11 +1032,13 @@ async fn a_phone_that_lost_its_socket_picks_its_session_back_up() {
     assert!(ok, "a request after resuming is answered");
 
     // A hello replayed by the relay (same counter) is no session: a new one starts.
-    let replay = SessionPhone::connect(&url, &fingerprint, Some((&sid, 0, 1, back.keys.resume))).await;
+    let replay =
+        SessionPhone::connect(&url, &fingerprint, Some((&sid, 0, 1, back.keys.resume))).await;
     assert!(!replay.resumed);
     assert_ne!(replay.sid, sid);
     // A proof from the wrong key is the same.
-    let forged = SessionPhone::connect(&url, &fingerprint, Some((&back.sid, 0, 9, [0u8; 32]))).await;
+    let forged =
+        SessionPhone::connect(&url, &fingerprint, Some((&back.sid, 0, 9, [0u8; 32]))).await;
     assert!(!forged.resumed);
     // Neither attempt moved the live session: it is still connected and answers.
     back.send(json!({ "t": "req", "id": 9, "method": "rooms.list", "params": {} }))
@@ -1051,7 +1062,10 @@ async fn a_phone_without_sessions_gets_the_old_channel() {
     let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
     let link = Arc::new(Link::default());
     let (_stop_tx, stop_rx) = oneshot::channel();
-    let cfg = Config { base: relay.base(), port: Some(port) };
+    let cfg = Config {
+        base: relay.base(),
+        port: Some(port),
+    };
     tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
     until("the link", || link.status().state == RelayState::Connected).await;
     let mut phone = Phone::connect(&link.route().unwrap().url, &fingerprint).await;

@@ -286,3 +286,56 @@
   width: 100%;
   height: 100%;
 }
+
+/* The foot's one line (`usage-glance--line`): a short bar, then
+   "28% · refills in 1d", with the gear at the right. Never wraps; under a
+   narrow sidebar the words go and the bar stays. */
+.workspace-sidebar:not(.is-hidden) .is-agents-foot .workspace-sidebar-footer-lead {
+  flex-wrap: nowrap;
+}
+
+.workspace-sidebar:not(.is-hidden) .is-agents-foot .usage-glance--line {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--control-height-standard);
+  min-height: var(--control-height-standard);
+  justify-content: flex-start;
+  padding-inline: var(--spacing-sm);
+}
+
+.usage-glance--line .usage-glance__body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.workspace-sidebar:not(.is-hidden) .is-agents-foot .usage-glance--line .usage-used {
+  flex: 0 0 var(--size-usage-line-bar);
+  width: var(--size-usage-line-bar);
+  margin: 0;
+}
+
+.usage-glance--line .usage-glance__headline {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+/* The gear's drawer opens across the foot's line: the usage line steps out
+   of the way rather than showing through it. */
+.is-agents-foot
+  .workspace-sidebar-footer-actions.is-compact-foot:has(> .workspace-sidebar-settings-menu.is-open)
+  > .workspace-sidebar-footer-lead {
+  visibility: hidden;
+}
+
+/* Narrow: New agent keeps its whole label; the folder and room halves are in
+   the palette and the list's menu, so they give the room back. */
+.workspace-sidebar.is-narrow .agents-foot__new > .agents-list__new-folder,
+.workspace-sidebar.is-narrow .agents-foot__new > .agents-list__new-room {
+  display: none;
+}

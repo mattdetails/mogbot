@@ -49,7 +49,7 @@ export function taskMenuLine(tasks: TaskCounts | null | undefined): string {
 /** A row's sub line: who asked and when, or since when it waits. */
 export function taskSubLine(t: AgentTask): string {
   const asked =
-    t.source === 'agent' && t.from
+    (t.source === 'agent' || t.source === 'assigned') && t.from
       ? `from ${t.from.name} · ${taskClock(t.createdAt)}`
       : t.source === 'own'
         ? `its own step · ${taskClock(t.createdAt)}`

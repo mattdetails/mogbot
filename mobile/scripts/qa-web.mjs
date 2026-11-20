@@ -15,7 +15,9 @@
  *
  *   pnpm qa:web                          # everything, into qa-shots/
  *   pnpm qa:web --only chat-,composer-   # shots whose name starts with chat- or composer-
- *   pnpm qa:web --phases heavy           # only these phases (demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture)
+ *   pnpm qa:web --phases heavy           # only these phases (demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture,catchup-dir2,chat-spec,reply,cards-tonight,tasks,nested-list)
+ *   pnpm qa:web --no-pair               # skip the pairing screens (minutes, an unreachable host times out)
+ *   The default run includes catchup-dir2, chat-spec, reply, cards-tonight, tasks and nested-list.
  *   pnpm qa:web --themes dark            # one theme
  *   pnpm qa:web --size 375x667           # another phone (default 402x874)
  *   pnpm qa:web --phases send            # a send, frame by frame (not in the default run)
@@ -23,8 +25,12 @@
  *   pnpm qa:web --phases net             # requests the Mac sees and React renders: cold start, tabs, chats, reconnect, a streaming reply (not in the default run)
  *   pnpm qa:web --phases reconnecting    # the Mac going away under an open app (not in the default run)
  *   pnpm qa:web --phases project-preview # a project's picture on its card: empty, phone, desktop (not in the default run)
- *   pnpm qa:web --phases catchup-dir2    # Catch up, direction 2: one left, several, summary, all clear (not in the default run)
- *   pnpm qa:web --phases nested-list     # a reply that is only a nested list (not in the default run)
+ *   pnpm qa:web --phases catchup-dir2    # Catch up, direction 2: one left, several, summary, all clear
+ *   pnpm qa:web --phases nested-list     # a reply that is only a nested list
+ *   pnpm qa:web --phases chat-spec       # the chat in six agent colours: your bubble, the reply tint, Send
+ *   pnpm qa:web --phases reply           # reply to a message: pills, swipe, the line in the box, the menu
+ *   pnpm qa:web --phases cards-tonight   # copy, risk, folded and answered cards
+ *   pnpm qa:web --phases tasks           # the task line, the ⋯ menu's Tasks row, the list sheet
  *   pnpm qa:web --phases dictation-words # Settings → Dictation words: the list, and Remove (not in the default run)
  *   pnpm qa:web --phases quiet-drops     # a short drop shows nothing; a 4-minute one shows the bar (not in the default run)
  *   pnpm qa:web --phases link-down       # the connection bar: away, back, the Mac's app stuck or closing (not in the default run)
@@ -66,7 +72,7 @@ const MAX_MS = Number(opt('--max-ms', 'QA_MAX_MS', 75 * 60 * 1000));
 const PHASES = opt(
   '--phases',
   'QA_PHASES',
-  'demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture'
+  'demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture,catchup-dir2,chat-spec,reply,cards-tonight,tasks,nested-list'
 ).split(',');
 const phase = (name) => PHASES.includes(name);
 // Ports other tools in this repo own: the desktop app, its harness, the phone's Metro.
@@ -1055,8 +1061,8 @@ const PROBE = [
     {
       name: 'probe-step-in-largest',
       to: '/chat/browse',
-      ready: 'needs you in its browser',
-      check: 'The step-in card at Largest: title and lines wrap, Not now · Step in whole',
+      ready: 'This sign-in used the old browser',
+      check: 'The retired step-in line at Largest: one muted line that wraps whole, no buttons',
     },
     {
       name: 'probe-agents-largest',
@@ -1123,9 +1129,9 @@ const PROBE = [
   {
     name: 'probe-step-in',
     route: '/chat/browse',
-    ready: 'needs you in its browser',
+    ready: 'This sign-in used the old browser',
     check:
-      'The step-in card as the desk draws it: a globe, the title with the reason, the site · page title under it, “Its tab shows here and you do it by touch…”, Not now (outlined) and Step in (neutral answer, never the accent); no Allow',
+      'An old step-in card, closed: one muted line, “This sign-in used the old browser; ask again”; no card, no Allow, no Deny',
   },
   {
     name: 'probe-draft-card',
@@ -1553,13 +1559,6 @@ const LIVE = [
     ready: 'Ops',
     pages: 2,
     check: '"Start of your conversation" is a Line with no stacked padding',
-  },
-  {
-    name: 'signin-linkedin',
-    route: '/signin?agentId=qa&requestId=req_login_linkedin',
-    ready: 'Close',
-    settle: 2500,
-    check: 'Sign in on the Mac from here, on a route that cannot carry it: refused in words, Close',
   },
   {
     name: 'chat-qa',
@@ -2525,7 +2524,7 @@ const LIVE = [
       await scrollToText('Not needed')(page);
     },
     check:
-      'Gmail card, Other ways open: why there is no connector, Connect on claude.ai and Sign in from here each with what it means, then Not needed; "Hide other ways" closes it',
+      'Gmail card, Other ways open: why there is no connector, Connect on claude.ai with what it means, then Not needed; "Hide other ways" closes it',
   },
   {
     name: 'login-on-mac',
@@ -4608,7 +4607,7 @@ async function main() {
           '"Runs on" with one line under it, then a card with one row per agent (its key, name, the account it runs on at the right); the first opened in place: "Any account" ticked, then each account with "Only this one, never another".',
       },
     ]);
-    for (const variant of ['two-claude', 'one-read']) {
+    for (const variant of ['two-claude', 'one-read', 'stale']) {
       await startMock('--usage', variant);
       await page.goto(`${WEB}/agents`);
       await sleep(4000);
@@ -4619,7 +4618,7 @@ async function main() {
           ready: 'Usage',
           act: scrollToText('Accounts'),
           check:
-            'Your accounts: a sheet with one headline, ONE bar of the total (an unread account left out of it and said so, never a segment per account) and the next refill; then each account as a card: a numbered keycap (the one in use filled), its name, plan and who, a state pill ("In use", "Out of usage until …", "Not signed in"), its 5-hour and Weekly bars with "Resets in …", and a pace line in secondary ink (never amber) when the Mac sent one; no account named "This Mac"',
+            'Your accounts: a sheet with one headline, ONE bar of the total (an unread account left out of it and said so, never a segment per account) and the next refill; then each account as a card: a numbered keycap (the one in use filled), its name, plan and who, a state pill ("In use", "Out of usage until …", "Not signed in"), its 5-hour and Weekly bars with "Resets in …", and a pace line in secondary ink (never amber) when the Mac sent one; no account named "This Mac". In the stale variant the Mac\'s figures say "as of <a time 7 hours ago>" (headline and its card), the other account\'s do not',
         },
       ]);
     }
@@ -4884,14 +4883,14 @@ async function main() {
       await page.goto(`${WEB}/chat/design`);
       await sleep(7000);
       await screen(page, theme, {
-        name: 'tasks-header',
+        name: 'chat-header2-task-line',
         check:
           'The header: key, name, and under it the task line (a dot, what it is doing, “· 4 to do · 1 waits” with the waits amber, a chevron); no pill',
       });
       await page.clickLabel('More');
       await sleep(900);
       await screen(page, theme, {
-        name: 'tasks-menu',
+        name: 'agent-menu-sheet',
         check:
           'The ⋯ menu: Tasks is the first row with “1 waits · 4 to do” under it, then Usage, Conversations, About',
       });
@@ -4907,7 +4906,7 @@ async function main() {
       await page.goto(`${WEB}/chat/design`);
       await sleep(7000);
       await screen(page, theme, {
-        name: 'tasks-header-idle',
+        name: 'chat-header2',
         check:
           'Nothing open and not working: the muted line under the name is the agent’s role again',
       });
@@ -4917,6 +4916,33 @@ async function main() {
         name: 'tasks-empty',
         check:
           'The empty list: “Nothing on the list” and “Nothing on the list. Ask for something and it lands here.”',
+      });
+    }
+  }
+
+  if (phase('md-tables')) {
+    // Julian's blank grey bubble (19 Nov): two long replies with bold, bullets and a 4-column table.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--md-tables');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(6000);
+      await page.eval(FIND_SCROLLER);
+      await page.eval(
+        'window.__qaScroller && (window.__qaScroller.scrollTop = window.__qaScroller.scrollHeight)'
+      );
+      await sleep(800);
+      await screen(page, theme, {
+        name: 'md-tables-newest',
+        check: 'The newest reply (bold, a table, bullets) draws its text, not an empty grey bubble',
+      });
+      await scrollToIncludes('Of 234 spec states')(page);
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'md-tables-first',
+        check:
+          'The earlier reply with the 4-column table: stacked rows, readable text, bubble as tall as its words',
       });
     }
   }

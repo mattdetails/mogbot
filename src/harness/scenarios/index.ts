@@ -55,6 +55,8 @@ import { agentsTeamSetupScenarios } from './agentsTeamSetup';
 import { agentsHeaderScenarios } from './agentsHeader';
 import { agentsAccountsScenarios } from './agentsAccounts';
 import { agentsSidebarFootScenarios } from './agentsSidebarFoot';
+import { agentsSidebarStatesScenarios } from './agentsSidebarStates';
+import { agentsSidebarGateScenarios } from './agentsSidebarGate';
 import { agentsKeysScenarios } from './agentsKeys';
 import { agentsInFlightScenarios } from './agentsInFlight';
 import { missionScenarios, missionSetupScenarios } from './missions';
@@ -136,6 +138,8 @@ export const scenarios: Scenario[] = [
   ...agentsHeaderScenarios,
   ...agentsAccountsScenarios,
   ...agentsSidebarFootScenarios,
+  ...agentsSidebarStatesScenarios,
+  ...agentsSidebarGateScenarios,
   ...appScenarios,
   ...projectsDashboardScenarios,
   ...onboardingFlowScenarios,
