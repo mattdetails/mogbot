@@ -967,13 +967,22 @@ async fn a_phone_that_lost_its_socket_picks_its_session_back_up() {
     let fingerprint = c.registry.identity().unwrap().fingerprint();
     let (_record, token, _) = c
         .registry
-        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .add(
+            &device(),
+            String::new(),
+            now_ms() as i64,
+            &[],
+            Some("j@x.com".into()),
+        )
         .unwrap();
     let port = loopback(c.clone()).await;
     let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
     let link = Arc::new(Link::default());
     let (_stop_tx, stop_rx) = oneshot::channel();
-    let cfg = Config { base: relay.base(), port: Some(port) };
+    let cfg = Config {
+        base: relay.base(),
+        port: Some(port),
+    };
     tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
     until("the link", || link.status().state == RelayState::Connected).await;
     let url = link.route().unwrap().url;
@@ -1023,11 +1032,13 @@ async fn a_phone_that_lost_its_socket_picks_its_session_back_up() {
     assert!(ok, "a request after resuming is answered");
 
     // A hello replayed by the relay (same counter) is no session: a new one starts.
-    let replay = SessionPhone::connect(&url, &fingerprint, Some((&sid, 0, 1, back.keys.resume))).await;
+    let replay =
+        SessionPhone::connect(&url, &fingerprint, Some((&sid, 0, 1, back.keys.resume))).await;
     assert!(!replay.resumed);
     assert_ne!(replay.sid, sid);
     // A proof from the wrong key is the same.
-    let forged = SessionPhone::connect(&url, &fingerprint, Some((&back.sid, 0, 9, [0u8; 32]))).await;
+    let forged =
+        SessionPhone::connect(&url, &fingerprint, Some((&back.sid, 0, 9, [0u8; 32]))).await;
     assert!(!forged.resumed);
     // Neither attempt moved the live session: it is still connected and answers.
     back.send(json!({ "t": "req", "id": 9, "method": "rooms.list", "params": {} }))
@@ -1051,7 +1062,10 @@ async fn a_phone_without_sessions_gets_the_old_channel() {
     let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
     let link = Arc::new(Link::default());
     let (_stop_tx, stop_rx) = oneshot::channel();
-    let cfg = Config { base: relay.base(), port: Some(port) };
+    let cfg = Config {
+        base: relay.base(),
+        port: Some(port),
+    };
     tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
     until("the link", || link.status().state == RelayState::Connected).await;
     let mut phone = Phone::connect(&link.route().unwrap().url, &fingerprint).await;
@@ -1059,4 +1073,245 @@ async fn a_phone_without_sessions_gets_the_old_channel() {
     phone.send(challenge()).await;
     // Unnumbered, as before.
     assert_eq!(phone.next().await["t"], "identity");
+}
+
+// ---- The real worker -----------------------------------------------------------
+//
+// The same Mac code and the same phone, against the actual relay Worker
+// (`services/relay`) running under `wrangler dev` (accounts off). The Mac
+// reaches it through a small TCP proxy that can kill the Mac's connection the
+// way a path does. Not part of the normal run:
+//
+//   (cd services/relay && npx wrangler dev --local --port 8799)
+//   RELAY_LIVE=ws://127.0.0.1:8799 cargo test --lib relay::client_tests::live_ \
+//       -- --ignored --test-threads=1 --nocapture
+
+#[derive(Clone, Copy, PartialEq)]
+enum Kill {
+    /// An orderly TCP close (FIN), no WebSocket close frame.
+    Fin,
+    /// A reset (RST): what a dead path or a killed process leaves.
+    Rst,
+}
+
+struct Proxy {
+    port: u16,
+    refuse: Arc<std::sync::atomic::AtomicBool>,
+    kill: tokio::sync::broadcast::Sender<Kill>,
+}
+
+impl Proxy {
+    async fn start(upstream: String) -> Proxy {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let refuse = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let (kill, _) = tokio::sync::broadcast::channel::<Kill>(4);
+        let (r, k) = (refuse.clone(), kill.clone());
+        #[allow(deprecated)]
+        tokio::spawn(async move {
+            while let Ok((mut down, _)) = listener.accept().await {
+                if r.load(Ordering::SeqCst) {
+                    drop(down);
+                    continue;
+                }
+                let Ok(mut up) = tokio::net::TcpStream::connect(&upstream).await else {
+                    continue;
+                };
+                let mut killed = k.subscribe();
+                tokio::spawn(async move {
+                    tokio::select! {
+                        _ = tokio::io::copy_bidirectional(&mut down, &mut up) => {}
+                        how = killed.recv() => {
+                            if how == Ok(Kill::Rst) {
+                                let _ = down.set_linger(Some(Duration::ZERO));
+                                let _ = up.set_linger(Some(Duration::ZERO));
+                            }
+                        }
+                    }
+                });
+            }
+        });
+        Proxy { port, refuse, kill }
+    }
+}
+
+impl Phone {
+    /// The next frame within `d`; `None` on silence, `{"t":"closed"}` if the socket went.
+    async fn next_for(&mut self, d: Duration) -> Option<Value> {
+        loop {
+            match tokio::time::timeout(d, self.ws.next()).await {
+                Err(_) => return None,
+                Ok(Some(Ok(Message::Binary(b)))) => {
+                    let plain = self.keys.incoming.open(&b).expect("a frame that opens");
+                    return Some(serde_json::from_slice(&plain).unwrap());
+                }
+                Ok(Some(Ok(Message::Close(f)))) => {
+                    println!("  phone socket closed by the relay: {f:?}");
+                    return Some(json!({ "t": "closed" }));
+                }
+                Ok(None) | Ok(Some(Err(_))) => return Some(json!({ "t": "closed" })),
+                Ok(Some(Ok(_))) => continue,
+            }
+        }
+    }
+
+    async fn res(&mut self, id: u64, d: Duration) -> Value {
+        loop {
+            let f = self
+                .next_for(d)
+                .await
+                .unwrap_or_else(|| panic!("no answer {id} within {d:?}"));
+            assert_ne!(
+                f["t"], "closed",
+                "the phone's socket closed waiting for {id}"
+            );
+            if f["t"] == "res" && f["id"] == id {
+                return f;
+            }
+        }
+    }
+}
+
+async fn live_until(what: &str, d: Duration, mut ok: impl FnMut() -> bool) {
+    let deadline = Instant::now() + d;
+    while !ok() {
+        assert!(Instant::now() < deadline, "timed out waiting for {what}");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// One drop of the Mac's connection to the Worker, `gap` long, killed `how`.
+/// `survives`: the phone's socket and keys carry on (the gap is inside the
+/// Worker's 30 s grace). Otherwise the phone is let go and a fresh hello works.
+async fn live_case(name: &str, how: Kill, gap: Duration, survives: bool) {
+    let worker = std::env::var("RELAY_LIVE").expect("RELAY_LIVE=ws://127.0.0.1:8799");
+    let t0 = Instant::now();
+    let say = |s: &str| println!("{:7.2}s  [{name}] {s}", t0.elapsed().as_secs_f32());
+    let (c, _stub) = Stub::companion();
+    let fingerprint = c.registry.identity().unwrap().fingerprint();
+    let (_record, token, _) = c
+        .registry
+        .add(
+            &device(),
+            String::new(),
+            now_ms() as i64,
+            &[],
+            Some("j@x.com".into()),
+        )
+        .unwrap();
+    let port = loopback(c.clone()).await;
+    let upstream = worker.trim_start_matches("ws://").to_string();
+    let proxy = Proxy::start(upstream).await;
+    let link = Arc::new(Link::default());
+    let (stop_tx, stop_rx) = oneshot::channel();
+    let cfg = Config {
+        base: format!("ws://127.0.0.1:{}", proxy.port),
+        port: Some(port),
+    };
+    tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
+    live_until("the link", Duration::from_secs(10), || {
+        link.status().state == RelayState::Connected
+    })
+    .await;
+    say("Mac linked to the real Worker (resumable framing negotiated by the client)");
+
+    let url = format!("{worker}/v1/phone/{fingerprint}");
+    let hello_in = |url: String, fp: String, token: String| async move {
+        let mut phone = Phone::connect(&url, &fp).await;
+        phone.send(challenge()).await;
+        assert_eq!(phone.next().await["t"], "identity");
+        phone.send(hello(&token)).await;
+        assert_eq!(phone.next().await["t"], "welcome");
+        phone
+    };
+    let mut phone = hello_in(url.clone(), fingerprint.clone(), token.clone()).await;
+    let ask = |id: u64| json!({ "t": "req", "id": id, "method": "rooms.list", "params": {} });
+    phone.send(ask(1)).await;
+    assert_eq!(phone.res(1, Duration::from_secs(5)).await["ok"], true);
+    say("phone welcomed, request 1 answered");
+
+    let was_up = link.status().state;
+    assert_eq!(was_up, RelayState::Connected);
+    say(&format!(
+        "KILL the Mac's connection ({}), refusing it for {:?}",
+        if how == Kill::Rst {
+            "RST, no close frame"
+        } else {
+            "FIN, no close frame"
+        },
+        gap
+    ));
+    let cutter = {
+        let p = (proxy.refuse.clone(), proxy.kill.clone());
+        tokio::spawn(async move {
+            p.0.store(true, Ordering::SeqCst);
+            let _ = p.1.send(how);
+            tokio::time::sleep(gap).await;
+            p.0.store(false, Ordering::SeqCst);
+        })
+    };
+    live_until("the Mac to notice", Duration::from_secs(5), || {
+        link.status().state != RelayState::Connected
+    })
+    .await;
+    say("Mac noticed: link down");
+    phone.send(ask(2)).await; // sent while the Mac is away
+    say("phone sent request 2 while the Mac is away");
+    cutter.await.unwrap();
+    say("connections allowed again");
+    live_until("the link again", Duration::from_secs(20), || {
+        link.status().state == RelayState::Connected
+    })
+    .await;
+    say("Mac linked again");
+
+    if survives {
+        let r = phone.res(2, Duration::from_secs(15)).await;
+        assert_eq!(r["ok"], true, "{r}");
+        say("request 2 (sent during the gap) answered on the SAME phone socket and keys");
+        phone.send(ask(3)).await;
+        assert_eq!(phone.res(3, Duration::from_secs(5)).await["ok"], true);
+        say("request 3 answered; no new hello was needed");
+        // Exactly once: nothing else arrives for 2 s.
+        while let Some(f) = phone.next_for(Duration::from_secs(2)).await {
+            assert_ne!(f["t"], "closed", "the phone's socket closed after the drop");
+            assert!(
+                !(f["t"] == "res" && (f["id"] == 1 || f["id"] == 2 || f["id"] == 3)),
+                "a duplicate answer: {f}"
+            );
+        }
+        say("no duplicate or extra answers");
+    } else {
+        let f = phone
+            .next_for(Duration::from_secs(10))
+            .await
+            .expect("the phone should be told the channel is gone");
+        assert_eq!(f["t"], "closed", "{f}");
+        say("the old phone socket was closed by the Worker (past the grace)");
+        let mut again = hello_in(url, fingerprint, token).await;
+        again.send(ask(4)).await;
+        assert_eq!(again.res(4, Duration::from_secs(5)).await["ok"], true);
+        say("a fresh hello worked and request 4 was answered: clean re-hello, no hang");
+    }
+    stop_tx.send(()).unwrap();
+    drop(proxy);
+    say("PASS");
+}
+
+#[tokio::test]
+#[ignore = "needs wrangler dev; see the comment above"]
+async fn live_a_short_drop_with_a_tcp_close_resumes() {
+    live_case("fin-5s", Kill::Fin, Duration::from_secs(5), true).await;
+}
+
+#[tokio::test]
+#[ignore = "needs wrangler dev; see the comment above"]
+async fn live_an_abrupt_reset_resumes() {
+    live_case("rst-5s", Kill::Rst, Duration::from_secs(5), true).await;
+}
+
+#[tokio::test]
+#[ignore = "needs wrangler dev; see the comment above"]
+async fn live_a_gap_past_the_grace_re_hellos_cleanly() {
+    live_case("rst-35s", Kill::Rst, Duration::from_secs(35), false).await;
 }
