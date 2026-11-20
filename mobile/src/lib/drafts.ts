@@ -7,7 +7,7 @@
  */
 
 import { isDemo } from './demo';
-import type { AgentRef, ResultRef } from '@shipstudio/companion-protocol';
+import type { AgentRef, ReplyRef, ResultRef } from '@shipstudio/companion-protocol';
 import { debounced, readJson, removeJson, writeJson } from './persist';
 import { getApp, setApp, useApp } from './store';
 import type { PendingAttachment, PendingSend } from './sync';
@@ -25,6 +25,8 @@ export interface ComposerDraft {
   files?: DraftFile[];
   /** "Ask for changes": the result this message will revise. */
   revising?: ResultRef;
+  /** Reply: the message this one answers, shown as the line at the top of the box. */
+  replying?: ReplyRef;
   /**
    * Edit and resend: the message this one replaces. Sending goes back to just
    * before it in its conversation (`sendEdited`), then sends.
@@ -46,6 +48,7 @@ const isEmpty = (d: ComposerDraft) =>
   !d.mentions.length &&
   !d.files?.length &&
   !d.revising &&
+  !d.replying &&
   !d.editing;
 
 /** Files that waited too long for the Mac to still have them. */
@@ -113,7 +116,14 @@ export function setComposer(agentId: string, change: Partial<ComposerDraft>) {
   saver.schedule();
 }
 
-export const clearComposer = (agentId: string) => setComposer(agentId, EMPTY_DRAFT);
+/** Everything the draft held is gone: its words and what it was answering, revising or editing. */
+export const clearComposer = (agentId: string) =>
+  setComposer(agentId, {
+    ...EMPTY_DRAFT,
+    revising: undefined,
+    replying: undefined,
+    editing: undefined,
+  });
 
 export function addFile(agentId: string, file: DraftFile) {
   const files = getApp().composer[agentId]?.files ?? [];

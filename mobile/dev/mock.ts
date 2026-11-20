@@ -87,6 +87,7 @@ function selfSigned(dir: string) {
     hung: args.includes('--hung'),
     solo: args.includes('--solo'),
     catchUpOne: args.includes('--catchup-one'),
+    replies: args.includes('--replies'),
     catchUpSeveral: args.includes('--catchup-several'),
     designColorway: args.find((a) => a.startsWith('--design-colorway='))?.split('=')[1],
     folders: args.includes('--folders'),

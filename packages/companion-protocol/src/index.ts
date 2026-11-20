@@ -66,3 +66,4 @@ export * from './whenComposer';
 export * from './draftCard';
 export * from './workIndicator';
 export * from './bubbleInk';
+export * from './replyWords';

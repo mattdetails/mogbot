@@ -6,6 +6,7 @@
 
 import {
   GO_BACK_LABELS,
+  REPLY,
   type Agent,
   type AgentMessage,
   type GoBackAction,
@@ -19,6 +20,7 @@ export type MessageAction =
   | 'copy'
   | 'copyMarkdown'
   | 'listen'
+  | 'reply'
   | 'quote'
   | 'select'
   | 'remember'
@@ -101,11 +103,16 @@ export function messageActions(
   /** This build can read aloud (lib/readAloud.ts): an agent's reply gets Listen. */
   listen = false,
   /** The Mac can go back (`agents.conversationRewind`): your messages get the three ways back. */
-  goBack = false
+  goBack = false,
+  /** The Mac takes replies (`messages.reply`): Reply comes first. */
+  reply = false
 ): Action<MessageAction>[] {
   if (!message.text.trim()) return [];
   if (message.kind !== 'agent' && message.kind !== 'user') return [];
-  const out: Action<MessageAction>[] = [{ id: 'copy', title: 'Copy', icon: 'doc.on.doc' }];
+  const out: Action<MessageAction>[] = reply
+    ? [{ id: 'reply', title: REPLY.action, icon: 'arrowshape.turn.up.left' }]
+    : [];
+  out.push({ id: 'copy', title: 'Copy', icon: 'doc.on.doc' });
   if (message.kind === 'agent' && /[*_`#>[\]|-]/.test(message.text)) {
     out.push({ id: 'copyMarkdown', title: 'Copy as Markdown', icon: 'text.badge.checkmark' });
   }

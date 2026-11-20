@@ -19,6 +19,7 @@ import type {
   MacStatus,
   ProjectSummary,
   Result,
+  ReplyRef,
   ResultRef,
   RoomView,
 } from '@shipstudio/companion-protocol';
@@ -76,6 +77,8 @@ export interface PendingSend {
   mentions?: string[];
   /** "Ask for changes": the result it revises (its id goes with the send). */
   revises?: ResultRef;
+  /** Reply: the message it answers (its id goes with the send; the pill shows from this). */
+  replyTo?: ReplyRef;
   /**
    * Send now: interrupt the turn in progress once the Mac has it. Kept while
    * it waits in the outbox, so a Send now tapped offline (or unheard) still

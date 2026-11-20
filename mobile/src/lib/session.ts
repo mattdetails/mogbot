@@ -12,6 +12,7 @@ import type {
   MethodName,
   Params,
   Result,
+  ReplyRef,
   ResultRef,
   TeamSetupStepId,
   TeamSetupStepState,
@@ -630,7 +631,8 @@ export async function send(
   clientId?: string,
   attachments: PendingAttachment[] = [],
   mentions: string[] = [],
-  revises?: ResultRef
+  revises?: ResultRef,
+  replyTo?: ReplyRef
 ) {
   const id = clientId ?? Crypto.randomUUID();
   const offline = getApp().link.kind !== 'connected';
@@ -647,6 +649,7 @@ export async function send(
         ...(attachments.length ? { attachments } : {}),
         ...(mentions.length ? { mentions } : {}),
         ...(revises ? { revises } : {}),
+        ...(replyTo ? { replyTo } : {}),
         ...(now ? { interrupt: true } : {}),
       })
     );
@@ -669,6 +672,7 @@ export async function send(
         : {}),
       ...(mentions.length ? { mentions } : {}),
       ...(revises ? { revises: revises.id } : {}),
+      ...(replyTo ? { replyTo: replyTo.id } : {}),
       // The conversation on screen; an older Mac has one and ignores it.
       ...(getApp().viewing[agentId] ? { conversation: getApp().viewing[agentId] } : {}),
     });
@@ -759,7 +763,7 @@ export async function sendToRoom(
 export const resend = (p: PendingSend) =>
   p.roomId
     ? sendToRoom(p.roomId, p.text, p.mentions ?? [], !!p.everyone, p.clientId)
-    : send(p.agentId, p.text, !!p.interrupt, p.clientId, p.attachments, p.mentions, p.revises);
+    : send(p.agentId, p.text, !!p.interrupt, p.clientId, p.attachments, p.mentions, p.revises, p.replyTo);
 
 let flushing = false;
 let waitingTimer: ReturnType<typeof setTimeout> | null = null;

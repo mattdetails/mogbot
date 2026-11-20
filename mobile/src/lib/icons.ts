@@ -30,6 +30,7 @@ export const MATERIAL: Partial<Record<SFName, string>> = {
   'arrow.counterclockwise': 'restart_alt',
   'arrow.trianglehead.2.clockwise': 'sync',
   'arrow.uturn.left': 'undo',
+  'arrowshape.turn.up.left': 'reply',
   'arrow.turn.up.right': 'subdirectory_arrow_right',
   'arrow.turn.down.left': 'subdirectory_arrow_left',
   bell: 'notifications',
