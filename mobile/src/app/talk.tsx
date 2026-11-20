@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { keyAccessibleName } from '@shipstudio/companion-protocol';
 import { AgentKey } from '../components/AgentKey';
 import { Waveform } from '../components/Waveform';
+import { CountdownBar } from '../components/CountdownBar';
 import { Button, IconButton, T } from '../components/ui';
 import { AgentAccent, useAccent } from '../lib/accent';
 import { announce } from '../lib/a11y';
@@ -30,7 +31,6 @@ import { describeError, loadLatest, send, setOpenChat } from '../lib/session';
 import { useApp } from '../lib/store';
 import {
   approvalSpoken,
-  countdownProgress,
   newReplies,
   pauseDetail,
   talkClock,
@@ -38,6 +38,7 @@ import {
   talkReducer,
   talkStart,
   talkStatus,
+  TALK_COUNTDOWN_MS,
   type TalkState,
 } from '../lib/talk';
 import { keySize, radius, space } from '../lib/theme';
@@ -303,7 +304,6 @@ function TalkScreen({ id }: { id: string }) {
       (hearing ? listeningNote(dictation.via) : null) ??
       (state.phase === 'waiting' ? `Replies are read aloud as they land.` : null));
   const lines = talkLines(messages, since, state.heard);
-  const progress = countdownProgress(state, now);
   const silentLine =
     Platform.OS === 'android'
       ? 'Replies play at media volume.'
@@ -395,15 +395,13 @@ function TalkScreen({ id }: { id: string }) {
         </View>
         {state.phase === 'countdown' && (
           <View style={styles.countdown}>
-            {!still && (
-              <View style={styles.track}>
-                <View
-                  style={[
-                    styles.fill,
-                    { width: `${Math.round(progress * 100)}%`, backgroundColor: accent.accent },
-                  ]}
-                />
-              </View>
+            {!still && state.sendAt != null && (
+              <CountdownBar
+                sendAt={state.sendAt}
+                totalMs={TALK_COUNTDOWN_MS}
+                color={accent.accent}
+                trackStyle={styles.track}
+              />
             )}
             <View style={styles.row}>
               <Button
@@ -490,7 +488,6 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.surfaceControl,
     overflow: 'hidden',
   },
-  fill: { height: '100%', borderRadius: radius.pill },
   row: { flexDirection: 'row', gap: space.sm },
   grow: { flex: 1 },
   lines: { flex: 1, marginTop: space.lg },
