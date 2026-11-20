@@ -15,8 +15,17 @@ export const TITLES: Record<Kind, string> = {
 export type Outcome =
   | { kind: 'sent' }
   /** The token is dead (uninstalled, or not for this app): forget it. */
-  | { kind: 'gone' }
-  | { kind: 'failed'; status: number };
+  | { kind: 'gone'; reason?: string }
+  | { kind: 'failed'; status: number; reason?: string };
+
+/**
+ * The provider's own one-word reason ("BadDeviceToken", "ExpiredProviderToken"), passed back so
+ * the Mac can log why a push failed. Only a plain word, never free text: nothing a provider
+ * says can carry content through the relay.
+ */
+export function plainReason(raw: unknown): string | undefined {
+  return typeof raw === 'string' && /^[A-Za-z_]{3,48}$/.test(raw) ? raw : undefined;
+}
 
 /** One collapse key per agent and kind: a newer alert replaces the older. */
 export function collapseKey(send: SendBody): string {

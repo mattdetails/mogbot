@@ -44,7 +44,15 @@ export const canReceivePush = (
  * Push as this phone knows it: the Mac's answer, or `mac_outdated` when the
  * Mac's app is too old to take a push token at all (issue #25).
  */
-export type PhonePush = PushStatus | 'mac_outdated';
+export type PhonePush =
+  | PushStatus
+  | 'mac_outdated'
+  /** iOS Settings has notifications off for this app: there is no token to give. */
+  | 'denied'
+  /** The build has no push entitlement with Apple (it can't say which Apple service its tokens are for). */
+  | 'no_entitlement'
+  /** Apple (or Google) wouldn't hand this phone a token. */
+  | 'no_token';
 
 export function pushLine(
   status: PhonePush | null,
@@ -77,6 +85,21 @@ export function pushLine(
         value: `Off on ${comp.your}`,
         footer: `Turn on phone notifications on ${comp.your}, in Settings → Phone.`,
       };
+    case 'denied':
+      return {
+        value: 'Off in Settings',
+        footer: `Notifications are off for this app in ${os === 'android' ? 'Android' : 'iOS'} Settings, so this phone has no way to be woken. Turn them on there, then come back.`,
+      };
+    case 'no_entitlement':
+      return {
+        value: 'This build can’t register',
+        footer: `This copy of the app has no push entitlement with ${os === 'android' ? 'Google' : 'Apple'}, so it can’t be woken with the app closed. Install the App Store or TestFlight build.`,
+      };
+    case 'no_token':
+      return {
+        value: 'No token from Apple',
+        footer: `${os === 'android' ? 'Google' : 'Apple'} didn’t give this phone a notification token. Check the network and that notifications are on, then reopen the app.`,
+      };
     case 'mac_outdated':
       return {
         value: `Update ${comp.your}`,
@@ -102,6 +125,11 @@ async function environment(): Promise<PushEnvironment | null> {
   return env === 'development' || env === 'production' ? env : null;
 }
 
+/** Say why this phone has no token, so Settings can: nothing was silently dropped. */
+const noteWhy = (why: PhonePush) => {
+  if (getApp().push !== why) setApp({ push: why });
+};
+
 /**
  * Tell the Mac this phone's token, if it may have one. Never asks for
  * permission. `call` is the session's request function.
@@ -115,11 +143,13 @@ export async function registerPush(
   // iOS simulators have no APNs token; Android emulators with Google Play do get FCM ones.
   if (Platform.OS === 'ios' && !Device.isDevice) return;
   const { granted } = await Notifications.getPermissionsAsync();
-  if (!granted) return;
+  if (!granted) return noteWhy('denied');
   const env = await environment();
-  if (!env) return;
-  const token: unknown = (await Notifications.getDevicePushTokenAsync()).data;
-  if (typeof token !== 'string') return;
+  if (!env) return noteWhy('no_entitlement');
+  const token: unknown = await Notifications.getDevicePushTokenAsync()
+    .then((t) => t.data)
+    .catch(() => null);
+  if (typeof token !== 'string') return noteWhy('no_token');
   const { status } = await call(token, env);
   if (getApp().push !== status) setApp({ push: status });
 }

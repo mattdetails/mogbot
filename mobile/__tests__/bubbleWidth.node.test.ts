@@ -8,7 +8,9 @@ import { join } from 'node:path';
  * screen, measured its own bubble as the room it had, and never stacked. The cap
  * must be a percentage of the column (a tablet's pixel cap is applied only when the
  * screen is wider). Yoga does this on the phone and not in a jest render, so the
- * style is what's held.
+ * style is what's held. The two layouts were compared in Yoga 3.1 (a 402pt screen, 16pt
+ * margins, a 620pt table inside): `maxWidth: 560` gave a 560pt bubble, 190pt past the 370pt
+ * column; `maxWidth: 100%` gave 370.
  */
 describe('an agent’s bubble is bound by its column', () => {
   const src = readFileSync(join(__dirname, '../src/components/chat.tsx'), 'utf8');
