@@ -99,6 +99,13 @@ export const agentsQaScenarios: Scenario[] = [
     find(agentsCatchUpScenarios, 'agents-catchup-one'),
     'A card for a turn that didn’t finish: the eyebrow “DIDN’T FINISH” over the ask itself as its title (the “Needs your input” eyebrow is the same card for a question or a sign-in).'
   ),
+  // Full pages (What's in flight here) keep a centred 960 column when wide.
+  as(
+    'agents-page-column-1600',
+    find(agentsScenarios, 'agents-team-overview'),
+    'At 1600 wide, What’s in flight sits on one centred 960px column: its title, sections and rows start and end on the same two edges, with even space either side; nothing runs the full width.',
+    { viewport: { width: 1600, height: 1000 } }
+  ),
   // Header and menu
   as(
     'agents-header2-idle',
@@ -221,6 +228,11 @@ export const agentsQaScenarios: Scenario[] = [
     'agents-new2-faces',
     newAgent('faces'),
     'Faces on the chosen colour, a name under each, the picked one ringed.'
+  ),
+  as(
+    'agents-new2-icon-keys',
+    newAgent('icon-keys'),
+    'The icon grid moved with the arrow keys: the pick two right and one down, ringed for the keyboard.'
   ),
   as(
     'agents-new2-icon-search',

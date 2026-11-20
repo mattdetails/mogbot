@@ -403,6 +403,47 @@ export const agentsFirstWinScenarios: Scenario[] = [
     },
   },
   {
+    id: 'agents-chrome-notice-installed',
+    title: 'Agents — Mogbot for Chrome installed but not connected: Finish setting it up',
+    looksRightWhen:
+      'Under the Chief’s first result, the same calm card: a Chrome icon, “Mogbot for Chrome isn’t connected”, its line now “…so agents can’t use the sites you’re signed in to. Open Chrome, or finish setting it up.”, then “Not now” and a neutral “Finish setting it up”. No warning colour, never the accent.',
+    command: 'agents.open',
+    phoneOffer: true,
+    requires: '[data-testid="chrome-notice"]',
+    commands: {
+      agents_overview: { ...BASE_OVERVIEW, importChoice: 'declined' },
+      agents_messages: (args: Record<string, unknown>) =>
+        args.agentId === 'chief' ? SITE_HANDED_BACK : [],
+      // Switched on and installed in Chrome, but no browser has connected.
+      agents_user_chrome_status: {
+        supported: true,
+        enabled: true,
+        listening: true,
+        error: null,
+        chromeInstalled: true,
+        host: 'current',
+        steps: {
+          chrome: true,
+          host: true,
+          files: true,
+          developerMode: true,
+          loadedIn: true,
+          turnedOff: false,
+          otherFolder: false,
+          connected: false,
+        },
+        extensionDir: '/Users/harness/Library/Application Support/Mogbot/chrome-extension',
+        extensionVersion: '0.1.0',
+        webStoreUrl: null,
+        extensionId: 'acpipahophpoekcmokoejnkooedofagk',
+        browsers: [],
+        updateNeeded: false,
+        management: { machine: [], profiles: [] },
+        route: { route: 'none', why: 'your_chrome_not_connected' },
+      },
+    },
+  },
+  {
     id: 'agents-first-run-sent',
     title: 'Agents — first message, a second after Send',
     looksRightWhen:

@@ -54,6 +54,21 @@ export const agentsNewAgentScenarios: Scenario[] = [
     [{ wait: 600 }, { click: '.agent-look__wears button:nth-of-type(2)' }, { wait: 800 }]
   ),
   scenario(
+    'icon-keys',
+    'the icon grid by keyboard',
+    'On Icons, the grid has focus and the arrows have moved the pick two to the right and one row down: that icon is the pressed, picked tile (its neutral check disc) with the focus ring round it, and the preview wears it.',
+    [
+      { wait: 600 },
+      { click: '.agent-look__wears button:nth-of-type(2)' },
+      { wait: 800 },
+      { focus: '.agent-icons__scroll [tabindex="0"]' },
+      { key: 'ArrowRight' },
+      { key: 'ArrowRight' },
+      { key: 'ArrowDown' },
+      { wait: 300 },
+    ]
+  ),
+  scenario(
     'icon-search',
     'searching the icons',
     'On Icons, a search for “bot” replaces Recently used and Featured with “Matches for “bot””; the count at the right of the field shows how many.',

@@ -100,6 +100,54 @@ export const agentsReplyScenarios: Scenario[] = [
     { requires: '.agent-reply-pill' }
   ),
   scenario(
+    'menu',
+    'the message’s ⋯ menu',
+    'The ⋯ beside the agent’s message is open: Reply first, then the message’s other actions; the same menu as a right-click on it. No row is ringed (opened with the pointer).',
+    chat(),
+    {
+      steps: [
+        { focus: '[data-message-ids="orig-drafted"]' },
+        { click: '[data-message-ids="orig-drafted"] .agent-message__more' },
+        { wait: 300 },
+      ],
+      requires: '[role="menu"]',
+    }
+  ),
+  scenario(
+    'sent-third-party',
+    'sent, quoting someone else',
+    'The pill above your bubble starts with the quoted one’s name: “Mail: Here are the 12 intros…”, because it quotes someone other than the two of you.',
+    chat(
+      msg('user', 'Use the ones Mail checked.', 6, {
+        agentId: ID,
+        replyTo: {
+          id: 'orig-drafted',
+          name: 'Mail',
+          excerpt: 'Here are the 12 intros, one per lead from Native OS.',
+          kind: 'message',
+        },
+      })
+    ),
+    { requires: '.agent-reply-pill' }
+  ),
+  scenario(
+    'sent-card',
+    'sent, replying to a card',
+    'The pill above your bubble holds the card’s title (“Northwind intros · 12 drafts”), not its body.',
+    chat(
+      msg('user', 'Send the first three today.', 6, {
+        agentId: ID,
+        replyTo: {
+          id: 'orig-drafted',
+          name: 'Lead Gen',
+          excerpt: 'Northwind intros · 12 drafts',
+          kind: 'card',
+        },
+      })
+    ),
+    { requires: '.agent-reply-pill' }
+  ),
+  scenario(
     'unavailable',
     'the original is not loaded',
     'The pill says “Message not available” with no pointer cursor and nothing to click.',
