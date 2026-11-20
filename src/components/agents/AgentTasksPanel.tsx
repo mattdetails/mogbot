@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AddIcon, CheckIcon, ChevronRightIcon, CloseIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
+import { TextField } from '../primitives/TextField';
 import { getTaskBoard, type AgentTask } from '../../lib/agentTasks';
 import { addAgentTask, type TaskCounts } from '../../lib/agents';
 
@@ -194,7 +195,7 @@ export function AgentTasksPanel({
       <div className="agent-tasks__add">
         {adding ? (
           <>
-            <input
+            <TextField
               className="agent-tasks__add-input"
               aria-label={TASK_COPY.add}
               placeholder={TASK_COPY.addPlaceholder}

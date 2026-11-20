@@ -317,21 +317,16 @@
   color: var(--text-primary);
 }
 
-.agent-tasks__add-row:focus-visible,
-.agent-tasks__add-input:focus-visible {
+.agent-tasks__add-row:focus-visible {
   outline: var(--border-width-default) solid var(--focus-ring);
   outline-offset: var(--spacing-2xs);
+  border-radius: var(--radius-6);
 }
 
+/* The field is the shared TextField (its surface, border and focus ring);
+   this only makes it fill the pane. */
 .agent-tasks__add-input {
   width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: var(--border-width-default) solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-control);
-  font: inherit;
-  font-size: var(--font-size-13);
-  color: var(--text-primary);
 }
 
 .agent-tasks__empty {
