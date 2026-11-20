@@ -225,6 +225,8 @@ export interface MockOptions {
   catchUpOne?: boolean;
   /** The Designer's chat ends on replies: to its words, to a picture, and to a message that's gone. */
   replies?: boolean;
+  /** The Designer's chat ends on two long replies with a table, bold and bullets (Julian's blank-bubble report, 19 Nov). */
+  mdTables?: boolean;
   /** The task list: `rich` has all four groups, `empty` nothing (default: one doing, one waiting). */
   tasks?: 'rich' | 'empty';
   /** Something happened while away, with no ask: the queue ends on "While you were away". */
@@ -1968,6 +1970,30 @@ export function createMockServer(opts: MockOptions = {}) {
   if (opts.tasks === 'rich') {
     const d = agents.find((a) => a.id === 'design');
     if (d) d.tasks = { doing: 'Drafting intros', toDo: 2, waits: 1 };
+  }
+  if (opts.mdTables) {
+    const list = messages.get('design') ?? [];
+    const t = Date.now();
+    const read = (f: string) => readFileSync(path.join(__dirname, 'fixtures', f), 'utf8');
+    list.push(
+      {
+        id: 'md_1',
+        agentId: 'design',
+        ts: t - 4 * 60_000,
+        kind: 'agent',
+        text: read('md-tables-1.md'),
+      },
+      {
+        id: 'md_2',
+        agentId: 'design',
+        ts: t - 2 * 60_000,
+        kind: 'agent',
+        text: read('md-tables-2.md'),
+      }
+    );
+    messages.set('design', list);
+    const d = agent('design');
+    if (d) d.lastActivityAt = t - 2 * 60_000;
   }
   if (opts.replies) {
     const list = messages.get('design') ?? [];

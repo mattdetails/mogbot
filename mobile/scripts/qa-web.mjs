@@ -4927,6 +4927,33 @@ async function main() {
     }
   }
 
+  if (phase('md-tables')) {
+    // Julian's blank grey bubble (19 Nov): two long replies with bold, bullets and a 4-column table.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--md-tables');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(6000);
+      await page.eval(FIND_SCROLLER);
+      await page.eval(
+        'window.__qaScroller && (window.__qaScroller.scrollTop = window.__qaScroller.scrollHeight)'
+      );
+      await sleep(800);
+      await screen(page, theme, {
+        name: 'md-tables-newest',
+        check: 'The newest reply (bold, a table, bullets) draws its text, not an empty grey bubble',
+      });
+      await scrollToIncludes('Of 234 spec states')(page);
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'md-tables-first',
+        check:
+          'The earlier reply with the 4-column table: stacked rows, readable text, bubble as tall as its words',
+      });
+    }
+  }
+
   if (phase('nested-list')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);
