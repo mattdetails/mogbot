@@ -90,6 +90,7 @@ function Screens() {
               <Stack.Screen name="chat/[id]" options={{ title: '' }} />
               <Stack.Screen name="room/[id]" options={{ title: '' }} />
               <Stack.Screen name="agent/[id]" options={sheet(colors, [0.62, 1])} />
+              <Stack.Screen name="agent-now" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen name="schedule" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen name="new-agent" options={sheet(colors, [0.75, 1])} />
               <Stack.Screen name="import" options={sheet(colors, [0.75, 1])} />

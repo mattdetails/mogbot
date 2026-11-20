@@ -7,6 +7,12 @@ Every message is a bubble. Yours takes your agent's colour (with writing in near
 
 A reply appears all at once, not word by word: while your agent writes it, the one working line stays at the end of the chat, and when the reply is ready it takes that line's place. The same goes in a room.
 
+## The header on your phone
+
+The top of a chat on your phone shows only who you're talking to: the agent's key, its name on one line, a small ⌄, and **⋯** at the right. A small dot after the ⌄ says if something needs a look: amber when something waits on you (a request or a task), red when its last turn didn't finish, blue while it works, and no dot when it's idle or paused for the refill.
+
+Tap the name to open a sheet with everything about the agent right now. It shows who it is and what it runs on, **Now** (what it's doing, waiting for your OK, why it didn't finish with **Try again**, or Idle), its top tasks with **All tasks**, **Needs your OK** with **Review** (which closes the sheet and takes you to the first card), its **Conversations** (the one you're in has a tick; tap another to switch, or **New conversation**), and **Edit agent** and **Instructions and memory** at the foot. A part with nothing to show is left out. Swipe down to close it. Conversations are now switched only here, not from ⋯.
+
 ## Reply to a message
 
 Hover a message and two bare icons appear beside it: **Reply** and **⋯** (the message's menu, with Reply first). With a message focused, press **R** (Esc drops it again); on your own messages the right-click menu has Reply first too. The message you're replying to shows as one outlined line at the top inside the message box, with a × to cancel. One reply at a time; replying to another replaces it. Your message then goes with a one-line pill above its bubble showing what it answers (a name first only when it quotes someone other than you and this agent), and your agent is told which message you meant. Click the pill to jump to the original and see it flash; if the original is no longer loaded the pill says "Message not available". The hover icons aren't drawn on touch screens or in a window narrower than 480 pixels.
