@@ -41,8 +41,6 @@
   /* Desk box 12 with its buttons 6, inset 7 (6 + the border): concentric, not a pill. */
   --agents-composer-radius: var(--radius-lg);
   --agents-composer-button-radius: var(--radius-6);
-  /* The model chip beside the +: cut short past this, so the words keep their room. */
-  --size-composer-model-max: 220px;
   /* The quiet header's hint dot (spec-header-dropdown.md). */
   --size-hint-dot: 6px;
   /* The quiet header's name button: 32 tall. */

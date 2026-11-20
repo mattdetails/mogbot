@@ -37,7 +37,6 @@ import { getAgentsSnapshot } from '../../lib/agentsStore';
 import { setComposerDraft, useComposerDraft } from '../../lib/composerDraft';
 import type { DictationMeter, DictationPhase } from './useDictation';
 import { DictationLive } from './DictationLive';
-import { AgentModelChip } from './AgentModelMenu';
 import { noteQueueHintUse, queueHintLearned } from '../../lib/queueHint';
 
 /** A second Esc within this long stops a working agent; the first only says so. */
@@ -94,8 +93,6 @@ interface AgentComposerProps {
   /** `now`: interrupt the turn in progress rather than queue (⌘↵). */
   onSend: (now?: boolean) => void;
   onPickFiles: () => void;
-  /** The agent whose model the chip beside the + shows and changes (`AgentModelChip`). */
-  modelOf?: Agent;
   /**
    * A starter's brief typed in with its blank still empty ("… My topics: "):
    * while the draft is exactly that, nothing sends (Send is off, Enter does
@@ -198,7 +195,6 @@ export const AgentComposer = memo(function AgentComposer({
   onStop,
   onSend,
   onPickFiles,
-  modelOf,
   unfilled,
   lastSent,
 }: AgentComposerProps) {
@@ -246,7 +242,7 @@ export const AgentComposer = memo(function AgentComposer({
   // stay up there until the box is empty, so the row never flips back and
   // forth as the wider field fits the same words on one line again.
   const [wrapped, setWrapped] = useState(false);
-  // Under about 480px the model chip takes the row: the placeholder shortens to
+  // Under about 480px the box is narrow: the placeholder shortens to
   // "Message" so it stays on one line.
   const [form, setForm] = useState<HTMLFormElement | null>(null);
   const [narrow, setNarrow] = useState(false);
@@ -403,7 +399,6 @@ export const AgentComposer = memo(function AgentComposer({
           aria-label="Attach files"
           title="Attach files, or paste or drop them here"
         />
-        {!dictating && modelOf && <AgentModelChip agent={modelOf} />}
         {(dictating || dictation.retry) && (
           <ListeningStatus
             phase={dictation.phase}

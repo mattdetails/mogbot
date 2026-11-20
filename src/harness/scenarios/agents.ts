@@ -4129,17 +4129,17 @@ export const agentsScenarios: Scenario[] = [
       [
         'empty',
         '',
-        'one 44px row: + and “Claude Code · Default ⌄” on the left, “Message Acme Site”, mic and a muted neutral Send on the right',
+        'one 44px row: + on the left, “Message Acme Site”, mic and a muted Send on the right; no model chip',
       ],
       [
         'short',
         'Looks good, ship it',
-        'one row: +, the model chip, “Looks good, ship it”, then Send lit in the inverse colour (black on light, light on dark), flat, no mic',
+        'one row: +, “Looks good, ship it”, then Send lit in your bubble’s colour, no mic; no model chip',
       ],
       [
         'wrapped',
         'Can you check the nav again on the phone width, it still does not stick to the top when you scroll down and the logo looks squished',
-        'the words on two lines across the box’s whole width; under them + and the model chip on the left, Send on the right',
+        'the words on two lines across the box’s whole width; under them + on the left, Send on the right',
       ],
     ] as const
   ).map(([state, text, look]) => ({

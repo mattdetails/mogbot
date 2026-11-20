@@ -598,14 +598,6 @@
       "consumerCount": 2
     },
     {
-      "name": "--size-composer-model-max",
-      "definitionFile": "src/styles/global/tokens-components.css",
-      "layer": "components",
-      "owner": "global/component",
-      "status": "canonical",
-      "consumerCount": 1
-    },
-    {
       "name": "--size-hint-dot",
       "definitionFile": "src/styles/global/tokens-components.css",
       "layer": "components",
@@ -2003,7 +1995,7 @@
       "layer": "components",
       "owner": "Button",
       "status": "canonical",
-      "consumerCount": 29
+      "consumerCount": 28
     },
     {
       "name": "--button-height-compact",
@@ -5931,7 +5923,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 631
+      "consumerCount": 630
     },
     {
       "name": "--text-muted",
@@ -6451,7 +6443,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 569
+      "consumerCount": 568
     },
     {
       "name": "--font-size-control",
@@ -7571,7 +7563,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 631
+      "consumerCount": 630
     },
     {
       "name": "--text-quiet",

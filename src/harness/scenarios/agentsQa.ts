@@ -132,6 +132,20 @@ export const agentsQaScenarios: Scenario[] = [
     }
   ),
   as(
+    'agents-header-panel-model',
+    tasks('line-idle'),
+    'The ⌄ panel’s “Next turn: Claude Code · Default ›” row chosen: the panel shows the model menu in place (a “← Lead Gen” row back, then the model choices with the current one checked, effort, and what routines run on). The message box has no model chip.',
+    {
+      steps: [
+        { click: '.agent-chat__name-button' },
+        { wait: 300 },
+        { click: '.agent-header-panel [role="menuitem"]', text: 'Next turn' },
+        { wait: 300 },
+      ],
+      requires: '.agent-header-panel__model',
+    }
+  ),
+  as(
     'agents-header-panel-working',
     tasks('line-doing'),
     'Working with tasks: Now “● Drafting intros” in blue with its time; Tasks “3 to do” over its top lines (Doing first, then what waits, then Next) and “All tasks ›”; Conversations; the foot.',

@@ -27,10 +27,10 @@
 }
 
 /* Same column as the messages. Julian's composer "C" (18 Nov): one slim row,
-   [+] [model ⌄] the words [mic] [send], ~44px tall at one line. Once the
+   [+] the words [mic] [send], ~44px tall at one line. Once the
    words wrap, or the box is narrow (a project's Session panel), the words
    take a row of their own, the box's whole width, and the tools sit under
-   them: + and the model on the left, mic and Send on the right. The words
+   them: + on the left, mic and Send on the right. The words
    grow to about eight lines, then scroll. Quotes, attachments and hints take
    full-width rows above. */
 .agent-composer {
@@ -178,30 +178,6 @@
   border-radius: var(--agents-composer-button-radius);
 }
 
-/* "Claude Code · Opus ⌄" beside the +: which model this chat runs on, in
-   view and one click to change. Quiet text; a long model name is cut short
-   rather than squeezing the words. */
-.agent-composer__model {
-  grid-column: 2;
-  order: 2;
-  align-self: end;
-  min-width: 0;
-  max-width: var(--size-composer-model-max);
-}
-
-.agent-composer__model-button {
-  max-width: 100%;
-  height: var(--button-height);
-  color: var(--text-secondary);
-  font-size: var(--font-size-body-sm);
-}
-
-.agent-composer__model-words {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* A square, as every media Stop is: at 8px with a 4px radius it was a dot. */
 .agent-composer__stop-square {
   display: block;
@@ -225,7 +201,7 @@
   gap: var(--spacing-xs);
   margin: 0;
   /* Starts at the box's inner edge (its padding and the field's): the +
-     and the model sit beside the words on one row and under them once
+     sits beside the words on one row and under them once
      wrapped, so the words' own start moves; the box's edge doesn't. */
   padding: 0 calc(var(--spacing-tight) + var(--spacing-xs));
   font-size: var(--font-size-body-sm);
@@ -451,7 +427,7 @@
 }
 
 /* Wrapped, or narrow: the words take the box's whole width on a row of
-   their own and the tools sit in a row underneath: + and the model on the
+   their own and the tools sit in a row underneath: + on the
    left, the mic and Send on the right. One line in a wide box stays one row. */
 .agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle'] .agent-composer__input {
   grid-column: 1 / -1;
@@ -459,7 +435,7 @@
 }
 
 .agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle']
-  :is(.agent-composer__attach, .agent-composer__model, .agent-composer__actions) {
+  :is(.agent-composer__attach, .agent-composer__actions) {
   align-self: center;
 }
 
@@ -467,11 +443,6 @@
   .agent-composer__bar
   > .agent-composer__attach {
   order: 2;
-}
-
-.agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle'] .agent-composer__model {
-  order: 3;
-  justify-self: start;
 }
 
 .agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle'] .agent-composer__actions {

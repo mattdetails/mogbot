@@ -14,7 +14,7 @@
  * @module components/agents/AgentModelMenu
  */
 
-import { CheckIcon, ChevronIcon, SettingsSlidersIcon } from '@/components/icons';
+import { CheckIcon, SettingsSlidersIcon } from '@/components/icons';
 import { Dropdown, DropdownDivider, DropdownItem } from '../primitives/Dropdown';
 import { MenuButton } from '../primitives/MenuButton';
 import {
@@ -228,41 +228,4 @@ export function modelChipWords(agent: Agent, engines: EngineInfo[]): string {
     ? EFFORT_CHOICES.find((e) => e.value === agent.effort)?.label
     : undefined;
   return [engineName, model, effort].filter(Boolean).join(' · ');
-}
-
-/**
- * The model in the message box, beside the + (Julian's composer "C", 18 Nov):
- * "Claude Code · Opus ⌄", a small quiet chip that opens the model menu
- * upward, so switching is one click from where you type.
- */
-export function AgentModelChip({ agent }: { agent: Agent }) {
-  const engines = useAgentsSelector((s) => s.engines);
-  const words = modelChipWords(agent, engines);
-  return (
-    <Dropdown
-      align="left"
-      side="top"
-      portal
-      menuClassName="agent-model-menu"
-      className="agent-composer__model"
-      quietOpen
-      trigger={(p) => (
-        <MenuButton
-          {...p}
-          tabIndex={0}
-          expanded={p['aria-expanded']}
-          variant="ghost"
-          size="compact"
-          className="agent-composer__model-button"
-          rightIcon={<ChevronIcon size={12} />}
-          title={`Model, ${MODEL_MEANS}: ${words}. Click to change.`}
-          aria-label={`Model for ${agent.name}: ${words}. Change model`}
-        >
-          <span className="agent-composer__model-words">{words}</span>
-        </MenuButton>
-      )}
-    >
-      <AgentModelItems agent={agent} />
-    </Dropdown>
-  );
 }
