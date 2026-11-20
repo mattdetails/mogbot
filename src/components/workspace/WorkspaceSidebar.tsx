@@ -34,6 +34,8 @@ import { Button } from '../primitives/Button';
 import { IconButton } from '../primitives/IconButton';
 import { MenuButton } from '../primitives/MenuButton';
 import { SettingsMenu } from '../SettingsMenu';
+import { ISSUE_REPORTS_ENABLED } from '../../lib/issueReports';
+import { HAS_CHANGELOG } from '../dashboard/Changelog';
 import { SLACK_INVITE_URL } from '../../lib/links';
 import { PanelResizeHandle } from '../primitives/PanelResizeHandle';
 import { Spinner } from '../primitives/Spinner';
@@ -192,6 +194,12 @@ interface Props {
    * workspace switcher keep the stack.
    */
   footerLead?: ReactNode;
+  /**
+   * Agents mode's pages behind the gear (Routines, Pair your phone). Given,
+   * the foot is two rows: New agent, then usage and the gear on one line;
+   * the phone shows only as a small icon once paired.
+   */
+  settingsMenuItems?: ReactNode;
   /**
    * Switch to Agents mode. Shows the Projects | Agents toggle above Search;
    * without it there is no toggle.
@@ -446,6 +454,7 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
   footerContent,
   listActions,
   footerLead,
+  settingsMenuItems,
   onGoHome,
   onOpenProjectPicker,
   isSidebarHidden,
@@ -1936,9 +1945,13 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
             {compactFoot && (
               <div className="workspace-sidebar-footer-lead">
                 {footerLead}
-                <PhoneIndicator isSidebarHidden={false} compact />
+                <PhoneIndicator
+                  isSidebarHidden={false}
+                  compact
+                  pairInMenu={Boolean(settingsMenuItems)}
+                />
                 <RemoteAccessIndicator isSidebarHidden={false} compact />
-                {SLACK_INVITE_URL && (
+                {SLACK_INVITE_URL && !settingsMenuItems && (
                   <IconButton
                     variant="ghost"
                     className="workspace-sidebar-support workspace-sidebar-footer-icon"
@@ -2065,6 +2078,7 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
               onOpenFeatureRequest={featureRequestModal.open}
               onOpenChangelog={changelogModal.open}
               presentation="drawer"
+              leadingItems={settingsMenuItems}
               onOpenChange={(open) => {
                 if (open) {
                   closeWorkspaceSwitcher();
@@ -2072,6 +2086,11 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
                 }
               }}
               renderTrigger={(props) => {
+                // The Agents foot's drawer holds pages and Settings, no Help.
+                const openLabel =
+                  settingsMenuItems && !ISSUE_REPORTS_ENABLED && !HAS_CHANGELOG
+                    ? 'Settings'
+                    : 'Settings & Help';
                 const settingsMenuOpen = props['aria-expanded'];
                 if (!settingsMenuOpen && labeledFooterActions) {
                   return (
@@ -2115,13 +2134,13 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
                     width="fill"
                     className="workspace-sidebar-settings-summary workspace-sidebar-ws-switch"
                     leftIcon={<SettingsIcon size={12} />}
-                    title="Settings & Help"
-                    aria-label="Settings & Help"
+                    title={openLabel}
+                    aria-label={openLabel}
                     data-settings-menu-trigger="workspace"
                     expanded={settingsMenuOpen}
                     {...props}
                   >
-                    <span className="workspace-switcher-name">Settings &amp; Help</span>
+                    <span className="workspace-switcher-name">{openLabel}</span>
                     <span className="workspace-switcher-chevron is-open" aria-hidden="true">
                       <ChevronIcon size={12} />
                     </span>

@@ -61,6 +61,8 @@
   --catchup-meta-size: 12.5px;
   --catchup-key-row: 32px;
   --catchup-key-card: 28px;
+  /* The usage bar on the Agents foot's one line, beside its words. */
+  --size-usage-line-bar: 48px;
   /* The band at the bottom of the sidebar list that fades into the footer. */
   --size-sidebar-footer-fade: calc(var(--space-32) + var(--space-16));
   --size-sidebar-section-row: 22px;

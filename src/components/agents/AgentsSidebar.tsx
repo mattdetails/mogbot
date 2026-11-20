@@ -21,6 +21,7 @@
  * @module components/agents/AgentsSidebar
  */
 
+import { formatAge } from '../../lib/formatAgo';
 import {
   memo,
   useCallback,
@@ -752,6 +753,14 @@ const AgentRow = memo(function AgentRow({
               reader (the elapsed time is already in the line). Only the
               collapsed rail, with no line to read, keeps a mark on the badge. */}
           <span className="sr-only">{rowStateWords(agent, unread)}</span>
+          {/* When it last moved, and a blue dot under it while unread. A
+              working row keeps its clock in the line instead. */}
+          <span className="agents-list__meta" aria-hidden="true">
+            {agent.status.state !== 'working' && agent.lastActivityAt > 0 && (
+              <span className="agents-list__time">{formatAge(agent.lastActivityAt)}</span>
+            )}
+            {unread && <span className="agents-list__unread" />}
+          </span>
           <span className="agents-list__status">
             <span className="agents-list__rail-mark">
               <AgentMark agent={unread ? agent : { ...agent, unread: 0 }} />
