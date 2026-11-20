@@ -5938,6 +5938,21 @@ function seedMessages(a: Agent, now: number): AgentMessage[] {
     });
   } else if (a.id === 'design') {
     add({ ts: now - 30 * 60_000, kind: 'user', text: 'Export the new icon set to the site.' });
+    // A reply that is only a nested list (Julian's iPhone, 19 Nov: empty circles, no words).
+    add({
+      ts: now - 31 * 60_000,
+      kind: 'agent',
+      text: [
+        '1. Fix the release path',
+        '   - Tag the commit that went green',
+        '   - Publish only after CI passes on it',
+        '   - Keep the generated files in step',
+        '2. Make the checks boring',
+        '   - One list of checks for CI and pre-push',
+        '   - Split the accessibility run in four',
+        '   - Pin Windows to a fixed image',
+      ].join('\n'),
+    });
     add({
       ts: now - 28 * 60_000,
       kind: 'agent',

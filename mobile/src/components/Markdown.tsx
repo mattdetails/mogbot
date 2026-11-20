@@ -525,7 +525,12 @@ const useStyles = makeStyles((colors) => ({
   item: { flexDirection: 'row', gap: space.sm },
   // Wide enough for "10." so a long list's numbers line up with its first.
   bullet: { color: colors.textMuted, minWidth: 18 },
-  itemBody: { flex: 1, gap: space.sm },
+  // Not `flex: 1`: that is flex-basis 0, which React Native's layout (Yoga) counts as
+  // zero width when a bubble shrinks to its content, so a reply that was only a list
+  // collapsed to its numbers and bullets with no words (Julian's iPhone, 19 Nov;
+  // proved against Yoga 3.1). Basis auto gives the text its natural width, and
+  // shrink still wraps it at the bubble's maximum.
+  itemBody: { flexGrow: 1, flexShrink: 1, gap: space.sm },
   hr: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.borderStrong,
@@ -567,7 +572,8 @@ const useStyles = makeStyles((colors) => ({
   },
   stackPair: { flexDirection: 'row', gap: space.sm },
   stackLabel: { width: '38%', flexShrink: 0, color: colors.textSecondary },
-  stackValue: { flex: 1, minWidth: 0 },
+  // Natural width, as `itemBody` (flex: 1 is basis 0: a table-only reply would shrink to its labels).
+  stackValue: { flexGrow: 1, flexShrink: 1, minWidth: 0 },
   tableFill: { minWidth: '100%' },
   table: {
     flexGrow: 1,

@@ -23,6 +23,7 @@
  *   pnpm qa:web --phases net             # requests the Mac sees and React renders: cold start, tabs, chats, reconnect, a streaming reply (not in the default run)
  *   pnpm qa:web --phases reconnecting    # the Mac going away under an open app (not in the default run)
  *   pnpm qa:web --phases project-preview # a project's picture on its card: empty, phone, desktop (not in the default run)
+ *   pnpm qa:web --phases nested-list     # a reply that is only a nested list (not in the default run)
  *   pnpm qa:web --phases dictation-words # Settings → Dictation words: the list, and Remove (not in the default run)
  *   pnpm qa:web --phases quiet-drops     # a short drop shows nothing; a 4-minute one shows the bar (not in the default run)
  *   pnpm qa:web --phases link-down       # the connection bar: away, back, the Mac's app stuck or closing (not in the default run)
@@ -4520,6 +4521,21 @@ async function main() {
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
     await sleep(4000);
     await each(FIRST_RUN);
+  }
+
+  if (phase('nested-list')) {
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock();
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(5000);
+      await scrollToIncludes('Fix the release path')(page);
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'nested-list',
+        check: 'A reply that is only a nested list: the numbers, the bullets and every line of text, on the bubble’s full width',
+      });
+    }
   }
 
   if (phase('cards-tonight')) {
