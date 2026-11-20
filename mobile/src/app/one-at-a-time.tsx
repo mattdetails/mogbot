@@ -842,7 +842,7 @@ function AllClear({
         <T color={colors.textSecondary} style={styles.doneText}>
           {catchUpAllClearBody(lastDecisionAt ? clockTime(lastDecisionAt) : undefined)}
         </T>
-        <Button title={CATCH_UP.whatsInFlight} variant="outline" onPress={onInFlight} />
+        <Button title={CATCH_UP.whatsInFlight} variant="outline" flat onPress={onInFlight} />
       </Animated.View>
     </View>
   );

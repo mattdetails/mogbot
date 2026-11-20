@@ -591,6 +591,10 @@ pub(crate) async fn send_in(
         && says_yes
         && message.attachments.is_empty()
         && message.revises.is_none()
+        // A reply answers the message it quotes, not whatever card is open
+        // now: a "yes" swiped onto an old question must never allow an
+        // unrelated push or send, nor grant the last reply's plan.
+        && message.reply_to.is_none()
         && agents::typed_answer::fresh(written, store::now_ms());
     let message = runner::record(&app, message)?;
     // "Approve it", typed by the user into a chat with one open card: that
