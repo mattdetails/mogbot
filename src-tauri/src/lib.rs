@@ -153,6 +153,10 @@ pub fn run() {
     // (`brand.json` `previous`). Logged below, once logging is up.
     let renamed = brand_migration::run_at_startup();
 
+    // An app opened from an agent's shell inherits that shell's account folder
+    // as "This Mac"; drop it before anything reads the environment.
+    let inherited = commands::accounts::drop_inherited_account_env();
+
     // Sentry must init before the tracing subscriber so its layer can attach.
     logging::init_sentry();
 
@@ -168,6 +172,9 @@ pub fn run() {
     tracing::info!("{} starting up", brand::NAME);
     for line in &renamed {
         tracing::info!("{line}");
+    }
+    for line in &inherited {
+        tracing::warn!("{line}");
     }
     // Whether agents get a browser of their own, and if not why: a build
     // without it once sent every agent to the user's Chrome unnoticed.

@@ -619,6 +619,55 @@ fn account_config_root(account_id: &str) -> PathBuf {
         .join(account_id)
 }
 
+/// True when `value` is a folder inside `accounts_dir` (the app's own
+/// `~/.<slug>/accounts`). Compared by path components after resolving `..`
+/// and symlinks where the folder exists, so `accounts/../x` is not inside.
+fn inside_accounts_dir(value: &std::path::Path, accounts_dir: &std::path::Path) -> bool {
+    fn norm(p: &std::path::Path) -> PathBuf {
+        if let Ok(c) = p.canonicalize() {
+            return c;
+        }
+        let mut out = PathBuf::new();
+        for part in p.components() {
+            match part {
+                std::path::Component::ParentDir => {
+                    out.pop();
+                }
+                std::path::Component::CurDir => {}
+                other => out.push(other),
+            }
+        }
+        out
+    }
+    !value.as_os_str().is_empty() && norm(value).starts_with(norm(accounts_dir))
+}
+
+/// An app launched with `open` from an agent's shell inherits that shell's
+/// `CLAUDE_CONFIG_DIR` / `CODEX_HOME`, which point at a wallet account's folder.
+/// "This Mac" then reads that account's sign-in and the stack shows one account
+/// twice. Drops (and removes from the process environment) any of the two that
+/// resolves inside the app's own accounts folder; returns a line per variable
+/// removed, for the log. "This Mac" is always the user's own `~/.claude` /
+/// `~/.codex` (or a folder they set themselves, outside ours).
+pub fn drop_inherited_account_env() -> Vec<String> {
+    let Some(accounts) = crate::brand::dot_dir().map(|d| d.join("accounts")) else {
+        return Vec::new();
+    };
+    let mut lines = Vec::new();
+    for var in ["CLAUDE_CONFIG_DIR", "CODEX_HOME"] {
+        if let Some(value) = std::env::var_os(var) {
+            if inside_accounts_dir(std::path::Path::new(&value), &accounts) {
+                std::env::remove_var(var);
+                lines.push(format!(
+                    "Ignoring {var}={} inherited from the launching shell: it is one of this app's own accounts, not This Mac",
+                    value.to_string_lossy()
+                ));
+            }
+        }
+    }
+    lines
+}
+
 /// Create `dir` (and ancestors) and lock it down to owner-only (`0700`) on Unix.
 ///
 /// Isolated workspace dirs hold real auth tokens (gh `hosts.yml`, Claude creds,
@@ -1778,6 +1827,29 @@ pub fn workspace_disconnect_service(id: String, service: String) -> Result<(), C
 
 #[cfg(test)]
 mod tests {
+    use super::inside_accounts_dir;
+
+    #[test]
+    fn an_inherited_account_folder_is_told_from_the_users_own() {
+        use std::path::Path;
+        let accounts = Path::new("/nonexistent-home/.mogbot/accounts");
+        assert!(inside_accounts_dir(
+            Path::new("/nonexistent-home/.mogbot/accounts/65b3/claude"),
+            accounts
+        ));
+        assert!(inside_accounts_dir(
+            Path::new("/nonexistent-home/.mogbot/accounts/65b3/codex"),
+            accounts
+        ));
+        assert!(!inside_accounts_dir(Path::new("/nonexistent-home/.claude"), accounts));
+        assert!(!inside_accounts_dir(Path::new("/nonexistent-home/.mogbot/accounts-x/a"), accounts));
+        assert!(!inside_accounts_dir(
+            Path::new("/nonexistent-home/.mogbot/accounts/../claude"),
+            accounts
+        ));
+        assert!(!inside_accounts_dir(Path::new(""), accounts));
+    }
+
     use super::*;
 
     #[test]
