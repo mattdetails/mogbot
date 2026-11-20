@@ -85,13 +85,21 @@ const clock = (ts: number): string =>
   new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
 
 /** The card's headline: what it is, in a line. */
-const headline = (i: CatchItem): string =>
-  i.message?.approval?.title ?? failurePill(failedTurn(i.agent)!, '', i.agent.engine).label;
+const headline = (i: CatchItem): string => {
+  if (i.message?.approval) return i.message.approval.title;
+  // A turn that didn't finish: the ask is what it said when it stopped, not the
+  // eyebrow's own words ("Didn't finish").
+  const said = i.failure?.text.trim().split('\n')[0];
+  return said || failurePill(failedTurn(i.agent)!, '', i.agent.engine).label;
+};
 
 /** Why, in two lines: the agent's own summary, else the first of the detail. */
 function why(i: CatchItem): string {
   const a = i.message?.approval;
-  if (!a) return previewText(i.agent.preview) ?? '';
+  if (!a) {
+    const said = previewText(i.agent.preview) ?? '';
+    return said === headline(i) ? '' : said;
+  }
   const raw = a.summary?.trim() || a.detail?.trim() || '';
   const first = raw.split('\n')[0];
   // A raw tool call isn't a reason: its own words are one click away.
@@ -473,7 +481,6 @@ function Decision({
           <div>{draft.body}</div>
         </div>
       )}
-      {all && approval && <pre className="agents-catchup__detail">{approval.detail}</pre>}
       <div className="agents-catchup__actions">
         {here ? (
           <>
@@ -521,6 +528,7 @@ function Decision({
           </>
         )}
       </div>
+      {all && approval && <pre className="agents-catchup__detail">{approval.detail}</pre>}
       {here && (
         <div className="agents-catchup__quiet">
           <Button

@@ -16,6 +16,8 @@ export interface CatchItem {
   agent: Agent;
   /** The request's card; absent for a turn that didn't finish. */
   message?: AgentMessage;
+  /** For a turn that didn't finish: what it said when it stopped. */
+  failure?: AgentMessage;
   ts: number;
 }
 
@@ -43,7 +45,12 @@ export function catchItems(groups: CatchGroup[]): CatchItem[] {
       }
     }
     if (g.failure && !g.approvals.some((m) => m.approval?.status === 'pending')) {
-      failed.push({ key: `failed:${g.agent.id}`, agent: g.agent, ts: g.failure.ts });
+      failed.push({
+        key: `failed:${g.agent.id}`,
+        agent: g.agent,
+        failure: g.failure,
+        ts: g.failure.ts,
+      });
     }
   }
   const byAge = (a: CatchItem, b: CatchItem) => a.ts - b.ts;

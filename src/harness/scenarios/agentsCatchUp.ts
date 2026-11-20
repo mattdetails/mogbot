@@ -184,7 +184,7 @@ export const agentsCatchUpScenarios: Scenario[] = [
   scenario(
     'one',
     'one decision left (a turn that didn’t finish)',
-    `Header “Catch up” then “1 left”; the queue has “NEEDS YOU · 1” with one 52px row (Dev Research’s key, the ask as its title, “Dev Research” under it, 20h at the right) selected, then “THEN” and a clock-tile row “While you were away / 6 things, no decisions”. The card is centred: key, name and “20h ago”; an amber dot with “DIDN’T FINISH”; the ask at 22px; a strong Open chat (O) filling the row and a ghost Later (L). No progress bar.`,
+    `Header “Catch up” then “1 left”; the queue has “NEEDS YOU · 1” with one 52px row (Dev Research’s key, the ask (“4 agents already have a copy of mogbot open.”) as its title, “Dev Research · Didn’t finish” under it, 20h at the right) selected, then “THEN” and a clock-tile row “While you were away / 6 things, no decisions”. The card is centred: key, name and “20h ago”; an amber dot with “DIDN’T FINISH”; the ask at 22px; a strong Open chat (O) filling the row and a ghost Later (L). No progress bar.`,
     build([STUCK, ...HAPPENED], { devresearch: STUCK_LINES })
   ),
   scenario(
@@ -198,7 +198,13 @@ export const agentsCatchUpScenarios: Scenario[] = [
     'a queue row hovered',
     'The second row shows the hover surface (a step lighter than selected, no border); the selected row keeps its own surface and border.',
     withAsks(ASKS, HAPPENED),
-    { steps: [{ hover: '.agents-catchup__queue .agents-catchup__row:nth-of-type(2)' }] }
+    {
+      steps: [
+        { wait: 600 },
+        { hover: '.agents-catchup__queue .agents-catchup__row:nth-of-type(2)' },
+        { wait: 400 },
+      ],
+    }
   ),
   scenario(
     'focus',
@@ -207,9 +213,10 @@ export const agentsCatchUpScenarios: Scenario[] = [
     withAsks(ASKS, HAPPENED),
     {
       steps: [
-        { focus: '.agents-catchup__queue .agents-catchup__row:nth-of-type(2)' },
+        // The card takes focus as it opens; wait that out, then walk to row 2 by keyboard.
+        { wait: 600 },
+        { focus: '.agents-catchup__queue .agents-catchup__row:nth-of-type(1)' },
         { key: 'Tab' },
-        { key: 'shift+Tab' },
       ],
     }
   ),
@@ -299,7 +306,7 @@ export const agentsCatchUpScenarios: Scenario[] = [
   scenario(
     'details',
     'Details open',
-    'Details expands the request’s own words under the line, in a quiet monospace block; the actions stay in place under it.',
+    'Details shows the request’s own words in a quiet panel hung below the card; the card and its actions do not move.',
     withAsks(ASKS, HAPPENED),
     { steps: [{ click: '.agents-catchup__actions [aria-expanded]' }] }
   ),
