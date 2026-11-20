@@ -1333,28 +1333,42 @@
 }
 
 /* The task panel: 320px, beside the chat, under the header. */
-.agent-tasks {
-  position: absolute;
-  top: calc(var(--agents-header-height) + var(--spacing-sm));
-  right: var(--spacing-lg);
-  bottom: var(--spacing-lg);
-  z-index: var(--z-sticky-band);
+.agent-chat-dock {
   display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.agent-chat-dock > .agent-chat {
+  min-width: 0;
+}
+
+/* A docked pane beside the chat: its header is the chat header's height, the
+   hairline is the pane's own left edge (side panes draw no bottom hairline). */
+.agent-tasks {
+  display: flex;
+  flex: 0 0 var(--size-agent-tasks);
   flex-direction: column;
-  gap: var(--spacing-md);
   width: var(--size-agent-tasks);
-  padding: var(--spacing-lg);
-  overflow: auto;
-  border: var(--border-width-default) solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-md);
+  min-height: 0;
+  overflow-y: auto;
+  border-left: var(--border-width-default) solid var(--border-default);
+  background: var(--surface-app);
+}
+
+.agent-tasks > :not(.agent-tasks__head) {
+  margin-inline: var(--spacing-lg);
 }
 
 .agent-tasks__head {
   display: flex;
-  align-items: baseline;
+  flex: 0 0 auto;
+  align-items: center;
   gap: var(--spacing-sm);
+  height: var(--agents-header-height);
+  padding: 0 var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .agent-tasks__head h3 {
@@ -1454,4 +1468,8 @@
 .agents-team .agent-chat__header,
 .agents-usage-view .agent-chat__header {
   padding-inline: var(--agents-page-inset);
+}
+
+.agent-tasks__head .agent-tasks__close {
+  margin-left: auto;
 }

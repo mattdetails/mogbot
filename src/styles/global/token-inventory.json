@@ -659,7 +659,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 2
     },
     {
       "name": "--size-task-mark",
@@ -3203,7 +3203,7 @@
       "layer": "components",
       "owner": "GlobalOverlay",
       "status": "canonical",
-      "consumerCount": 3
+      "consumerCount": 2
     },
     {
       "name": "--z-editor-spacing-band",
@@ -5763,7 +5763,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 92
+      "consumerCount": 93
     },
     {
       "name": "--surface-panel",
@@ -5771,7 +5771,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 275
+      "consumerCount": 274
     },
     {
       "name": "--surface-control",
@@ -6771,7 +6771,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1037
+      "consumerCount": 1036
     },
     {
       "name": "--spacing-md",
@@ -6787,7 +6787,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 332
+      "consumerCount": 331
     },
     {
       "name": "--spacing-xl",
@@ -6851,7 +6851,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 77
+      "consumerCount": 76
     },
     {
       "name": "--radius-pill",
@@ -7171,7 +7171,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 39
+      "consumerCount": 38
     },
     {
       "name": "--shadow-lg",
@@ -7275,7 +7275,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 92
+      "consumerCount": 93
     },
     {
       "name": "--surface-panel",
@@ -7283,7 +7283,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 275
+      "consumerCount": 274
     },
     {
       "name": "--surface-control",
@@ -7771,7 +7771,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 39
+      "consumerCount": 38
     },
     {
       "name": "--shadow-lg",
