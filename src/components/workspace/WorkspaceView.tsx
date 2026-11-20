@@ -679,8 +679,7 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
   // Only its id, name and whether it's the Chief: a working agent's every step
   // used to re-render the whole workspace.
   const chatAgent = useAgentsSelector(
-    (s) =>
-      chatAgentId && chatAgentId !== PICK_AGENT ? agentIn(s.agents, chatAgentId) : undefined,
+    (s) => (chatAgentId && chatAgentId !== PICK_AGENT ? agentIn(s.agents, chatAgentId) : undefined),
     sameChatAgent
   );
   // Opening a project lands on an agent's chat (`lib/projectOpens`): the one it

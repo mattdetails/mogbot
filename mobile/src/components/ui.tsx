@@ -238,7 +238,8 @@ export function Button({
   const ripple = useRipple();
   const accent = useAccent();
   const answer = useAnswerAccent();
-  const flat = flatOwn || useContext(FlatCardContext);
+  const flatFromCard = useContext(FlatCardContext);
+  const flat = flatOwn || flatFromCard;
   const filled = variant === 'primary' || variant === 'answer';
   const a = variant === 'answer' ? answer : accent;
   const off = !!disabled && !busy;

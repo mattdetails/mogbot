@@ -27,3 +27,16 @@ export function useLeaving(open: boolean, backstopMs: number) {
   const done = useCallback(() => setLeaving(false), []);
   return { leaving, done };
 }
+
+/**
+ * What an open thing showed, held while it leaves: `value` while `open`, else
+ * the last value it had while open (a closed menu or dialog keeps its content
+ * for its exit, docs/MOTION.md).
+ */
+export function useLastWhileOpen<T>(open: boolean, value: T): T {
+  const last = useRef(value);
+  // eslint-disable-next-line react-hooks/refs -- a render-time snapshot of the last open content; read only while closed, never drives an effect
+  if (open) last.current = value;
+  // eslint-disable-next-line react-hooks/refs -- see above
+  return open ? value : last.current;
+}

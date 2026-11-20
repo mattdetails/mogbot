@@ -30,6 +30,16 @@ jest.mock('react-native-reanimated', () => {
     Easing: { out: () => 0, inOut: () => 0, quad: 0 },
   };
 });
+// The reply swipe (components/Reply.tsx) is a Pan gesture; the row only needs it to render.
+jest.mock('react-native-gesture-handler', () => {
+  const chain: Record<string, unknown> = {};
+  for (const k of ['activeOffsetX', 'failOffsetY', 'onUpdate', 'onEnd', 'onFinalize'])
+    chain[k] = () => chain;
+  return {
+    Gesture: { Pan: () => chain },
+    GestureDetector: ({ children }: { children: unknown }) => children,
+  };
+});
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('expo-haptics', () => ({}));
 jest.mock('../src/lib/haptics', () => ({
@@ -67,6 +77,7 @@ const old: AgentMessage = {
   approval: {
     requestId: 'req_stepin',
     title: 'Browser Helper needs you in its browser: enter the code',
+    detail: 'Its tab opens on this Mac for you to do this yourself.',
     status: 'expired',
     stepIn: { reason: 'enter the code', site: 'portal.example', url: 'https://portal.example', tab: 2 },
   },

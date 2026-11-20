@@ -74,7 +74,11 @@ describe('a working agent in a list', () => {
 });
 
 describe('a working row in the sidebar', () => {
-  const working = agent({ state: 'working', activity: 'Fixing the pricing table', since: T0 - 120_000 });
+  const working = agent({
+    state: 'working',
+    activity: 'Fixing the pricing table',
+    since: T0 - 120_000,
+  });
 
   it('keeps the step in its line with a grey dot, and the clock out of it', () => {
     vi.useFakeTimers();

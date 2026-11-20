@@ -14,7 +14,7 @@ import { CloseIcon } from '@/components/icons';
 import { IconButton } from './IconButton';
 import { AreaBoundary, AreaError } from './AreaBoundary';
 import { usePortalAccentScope } from '../../contexts/AccentScopeContext';
-import { useLeaving } from '../../hooks/useLeaving';
+import { useLastWhileOpen, useLeaving } from '../../hooks/useLeaving';
 import { MOTION_DURATION } from '../../../packages/companion-protocol/src/motion';
 
 interface ModalFrameBaseProps {
@@ -368,9 +368,7 @@ export function ModalFrame({
   // Closing leaves on screen for its exit (docs/MOTION.md): the last open
   // content, inert, until the overlay's exit animation ends.
   const { leaving, done } = useLeaving(isOpen, MOTION_DURATION.exitScreen + 100);
-  const lastOpen = useRef({ title, children, headerActions });
-  if (isOpen) lastOpen.current = { title, children, headerActions };
-  const view = isOpen ? { title, children, headerActions } : lastOpen.current;
+  const view = useLastWhileOpen(isOpen, { title, children, headerActions });
 
   useLayoutEffect(() => {
     onCloseRef.current = onClose;

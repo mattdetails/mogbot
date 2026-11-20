@@ -90,6 +90,15 @@ export function AgentsTopSearch({
   collapsed: boolean;
   onOpen: () => void;
 }) {
+  // At a narrow sidebar the placeholder is one word, so it never runs short.
+  const [wrap, setWrap] = useState<HTMLDivElement | null>(null);
+  const [short, setShort] = useState(false);
+  useEffect(() => {
+    if (!wrap || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setShort(wrap.clientWidth < SHORT_PLACEHOLDER_BELOW));
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, [wrap]);
   if (collapsed) {
     return (
       <button
@@ -104,15 +113,6 @@ export function AgentsTopSearch({
       </button>
     );
   }
-  // At a narrow sidebar the placeholder is one word, so it never runs short.
-  const [wrap, setWrap] = useState<HTMLDivElement | null>(null);
-  const [short, setShort] = useState(false);
-  useEffect(() => {
-    if (!wrap || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => setShort(wrap.clientWidth < SHORT_PLACEHOLDER_BELOW));
-    ro.observe(wrap);
-    return () => ro.disconnect();
-  }, [wrap]);
   return (
     <div ref={setWrap} className="agents-top-search" role="search">
       <AgentsSearchBox

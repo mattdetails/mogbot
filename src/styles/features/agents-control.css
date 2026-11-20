@@ -56,9 +56,8 @@
   font-size: inherit;
 }
 
-.agent-chat__row--user:has(.agent-chat__queued) .agent-bubble--user {
-  opacity: 0.75;
-}
+/* A queued message stays at full strength: your bubble is the agent's colour, and any
+   fade put its ink under 4.5:1. The "Queued" line under it says it hasn't gone yet. */
 
 /* "Fill in the end, then send" and "Esc again to stop Acme Site". */
 .agent-composer__hint {

@@ -18,7 +18,7 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { usePortalAccentScope } from '../../contexts/AccentScopeContext';
 import { PORTAL_ANCHOR_ATTR, PORTAL_OWNER_ATTR } from './ModalFrame';
 import { fitMenu, fitMenuX, MENU_GAP } from '../../lib/menuFit';
-import { useLeaving } from '../../hooks/useLeaving';
+import { useLastWhileOpen, useLeaving } from '../../hooks/useLeaving';
 import { MOTION_DURATION } from '../../../packages/companion-protocol/src/motion';
 
 const MENU_ITEM_SELECTOR = '[role="menuitem"]';
@@ -468,79 +468,78 @@ export function Dropdown({
   // A closed menu stays for its exit (docs/MOTION.md), inert, showing what it
   // showed when it closed.
   const { leaving, done } = useLeaving(isOpen, MOTION_DURATION.exitQuick + 80);
-  const lastChildren = useRef(children);
-  if (isOpen) lastChildren.current = children;
-  const shownChildren = isOpen ? children : lastChildren.current;
+  const shownChildren = useLastWhileOpen(isOpen, children);
 
-  const menu = isOpen || leaving ? (
-    <div
-      ref={menuRef}
-      data-state={isOpen ? 'open' : 'closed'}
-      data-side={side}
-      inert={!isOpen || undefined}
-      onAnimationEnd={(event) => {
-        if (!isOpen && event.target === event.currentTarget) done();
-      }}
-      className={[
-        'ss-dropdown__menu',
-        align === 'right' && !portal ? 'ss-dropdown__menu--right' : null,
-        menuClassName,
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      data-accent-scope={portal ? accentScope['data-accent-scope'] : undefined}
-      {...(portal ? { [PORTAL_OWNER_ATTR]: portalId } : {})}
-      style={portal ? accentScope.style : undefined}
-      // A menu may hold only items, groups and separators: with a search field
-      // the menu role moves to the list under it (ss-dropdown__items).
-      role={presentation === 'menu' ? (search ? undefined : 'menu') : 'dialog'}
-      aria-label={presentation === 'popover' ? ariaLabel : undefined}
-      // Focusable itself: a long menu scrolls, and one whose choices are all
-      // unavailable must still be reachable by keyboard (axe
-      // scrollable-region-focusable, agents-runs-on).
-      tabIndex={0}
-      onKeyDown={presentation === 'menu' ? handleMenuKeyDown : undefined}
-      onMouseEnter={openOnHover ? cancelHoverClose : undefined}
-      onMouseLeave={openOnHover ? scheduleHoverClose : undefined}
-    >
-      {search && (
-        <div className="ss-dropdown__search">
-          <input
-            type="text"
-            className="ss-dropdown__search-input"
-            value={search.value}
-            placeholder={search.placeholder ?? 'Search…'}
-            spellCheck={false}
-            autoComplete="off"
-            aria-label={search.placeholder ?? 'Search'}
-            // The menu just opened for the express purpose of searching it,
-            // so focus belongs in the field.
-            autoFocus
-            onChange={(event) => search.onChange(event.target.value)}
-            onKeyDown={(event) => {
-              // Hand the list its keys back: typing filters, arrows navigate.
-              if (event.key === 'ArrowDown') {
-                event.preventDefault();
-                focusEnabledMenuItemAt(0);
-              } else if (event.key === 'Enter' && search.onEnter) {
-                event.preventDefault();
-                if (search.onEnter()) close();
-              }
-            }}
-          />
-        </div>
-      )}
-      <DropdownContext.Provider value={{ close }}>
-        {search && presentation === 'menu' ? (
-          <div className="ss-dropdown__items" role="menu" aria-label={search.placeholder}>
-            {shownChildren}
+  const menu =
+    isOpen || leaving ? (
+      <div
+        ref={menuRef}
+        data-state={isOpen ? 'open' : 'closed'}
+        data-side={side}
+        inert={!isOpen || undefined}
+        onAnimationEnd={(event) => {
+          if (!isOpen && event.target === event.currentTarget) done();
+        }}
+        className={[
+          'ss-dropdown__menu',
+          align === 'right' && !portal ? 'ss-dropdown__menu--right' : null,
+          menuClassName,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        data-accent-scope={portal ? accentScope['data-accent-scope'] : undefined}
+        {...(portal ? { [PORTAL_OWNER_ATTR]: portalId } : {})}
+        style={portal ? accentScope.style : undefined}
+        // A menu may hold only items, groups and separators: with a search field
+        // the menu role moves to the list under it (ss-dropdown__items).
+        role={presentation === 'menu' ? (search ? undefined : 'menu') : 'dialog'}
+        aria-label={presentation === 'popover' ? ariaLabel : undefined}
+        // Focusable itself: a long menu scrolls, and one whose choices are all
+        // unavailable must still be reachable by keyboard (axe
+        // scrollable-region-focusable, agents-runs-on).
+        tabIndex={0}
+        onKeyDown={presentation === 'menu' ? handleMenuKeyDown : undefined}
+        onMouseEnter={openOnHover ? cancelHoverClose : undefined}
+        onMouseLeave={openOnHover ? scheduleHoverClose : undefined}
+      >
+        {search && (
+          <div className="ss-dropdown__search">
+            <input
+              type="text"
+              className="ss-dropdown__search-input"
+              value={search.value}
+              placeholder={search.placeholder ?? 'Search…'}
+              spellCheck={false}
+              autoComplete="off"
+              aria-label={search.placeholder ?? 'Search'}
+              // The menu just opened for the express purpose of searching it,
+              // so focus belongs in the field.
+              autoFocus
+              onChange={(event) => search.onChange(event.target.value)}
+              onKeyDown={(event) => {
+                // Hand the list its keys back: typing filters, arrows navigate.
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  focusEnabledMenuItemAt(0);
+                } else if (event.key === 'Enter' && search.onEnter) {
+                  event.preventDefault();
+                  if (search.onEnter()) close();
+                }
+              }}
+            />
           </div>
-        ) : (
-          shownChildren
         )}
-      </DropdownContext.Provider>
-    </div>
-  ) : null;
+        <DropdownContext.Provider value={{ close }}>
+          {search && presentation === 'menu' ? (
+            <div className="ss-dropdown__items" role="menu" aria-label={search.placeholder}>
+              {shownChildren}
+            </div>
+          ) : (
+            shownChildren
+          )}
+        </DropdownContext.Provider>
+      </div>
+    ) : null;
 
   return (
     <div

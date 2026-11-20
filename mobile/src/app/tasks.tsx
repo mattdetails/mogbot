@@ -102,7 +102,7 @@ function TasksSheet() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const agent = useApp((s) => s.overview?.agents.find((a) => a.id === id));
   const { tasks, at, failed } = useAgentTasks(id, agent?.status.state);
-  const groups = tasks ? taskGroups(tasks, Date.now()) : null;
+  const groups = tasks ? taskGroups(tasks, at ?? 0) : null;
   const todo = tasks?.open.length ?? 0;
   const empty =
     !!groups &&

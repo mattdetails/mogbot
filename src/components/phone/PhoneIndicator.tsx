@@ -177,7 +177,9 @@ export function PhoneIndicator({
 export function PhoneMenuItem() {
   const openModal = useOpenModal();
   const status = useAsyncState<PhoneStatus>(getPhoneStatus, { immediate: true });
-  const state = status.data ? phoneIndicatorState(status.data, Date.now()) : null;
+  // Read once when the menu opens (the item mounts then).
+  const [openedAt] = useState(() => Date.now());
+  const state = status.data ? phoneIndicatorState(status.data, openedAt) : null;
   const pair = state?.pair ?? true;
   return (
     <DropdownItem

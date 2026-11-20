@@ -21,14 +21,12 @@ import {
   CROSSOVER_WAIT,
   GATE_ALLOW,
   GATE_DENY,
-  MAC_FEATURES,
   SKILL_NOT_NOW,
   SKILL_SAVE,
   skillCardNote,
   SKILL_OFFER_NOTE,
   cantAlwaysAllow,
 } from '@shipstudio/companion-protocol';
-import { router } from 'expo-router';
 import {
 } from '../lib/agents';
 import { highRisk } from '../lib/needsYou';
@@ -62,7 +60,7 @@ import {
 import { haptic } from '../lib/haptics';
 import { useInFlight } from '../lib/once';
 import { answerApproval, call, describeError } from '../lib/session';
-import { useApp, useServed } from '../lib/store';
+import { useApp } from '../lib/store';
 import { fonts, iconSize, radius, space, type } from '../lib/theme';
 import { makeStyles, useAppearance, useColors } from '../lib/appearance';
 import { choose } from './menu';

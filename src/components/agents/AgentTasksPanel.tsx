@@ -68,14 +68,19 @@ export function groupTasks(open: AgentTask[], recent: AgentTask[], now = Date.no
 
 /** A time of day, 24-hour: "22:05". */
 function clock(ms: number): string {
-  return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return new Date(ms).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 }
 
 /** A row's sub line: where it came from and when. */
 function sub(task: AgentTask): string {
   const at = clock(task.createdAt);
   if (task.state === 'dropped') return task.note ? `Dropped · ${task.note}` : 'Dropped';
-  if ((task.source === 'agent' || task.source === 'assigned') && task.from) return `from ${task.from.name} · ${at}`;
+  if ((task.source === 'agent' || task.source === 'assigned') && task.from)
+    return `from ${task.from.name} · ${at}`;
   if (task.state === 'waiting' && task.waitingOn) return `${task.waitingOn}`;
   return task.source === 'user' ? `you asked ${at}` : at;
 }

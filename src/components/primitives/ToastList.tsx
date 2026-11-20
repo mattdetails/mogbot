@@ -155,13 +155,18 @@ export function shownToasts(previous: Shown[], toasts: Toast[], animate: boolean
 
 export function ToastList({ toasts, onDismiss, onHold }: ToastListProps) {
   const [shown, setShown] = useState<Shown[]>(() => shownToasts([], toasts, false));
-  // Before paint, so a dismissed toast never misses a frame.
-  useLayoutEffect(() => {
+  // Set during render when the list changes, so a dismissed toast never misses a frame.
+  const [seen, setSeen] = useState(toasts);
+  if (seen !== toasts) {
+    setSeen(toasts);
     setShown((previous) => shownToasts(previous, toasts, canAnimateExit()));
-  }, [toasts]);
+  }
 
   // A toast that has faded out goes; the backstop covers a missed animationend.
-  const leavingIds = shown.filter((s) => s.leaving).map((s) => s.toast.id).join(' ');
+  const leavingIds = shown
+    .filter((s) => s.leaving)
+    .map((s) => s.toast.id)
+    .join(' ');
   useLayoutEffect(() => {
     if (!leavingIds) return;
     const t = window.setTimeout(

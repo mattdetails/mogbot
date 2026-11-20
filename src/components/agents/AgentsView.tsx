@@ -22,12 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { flushSync } from 'react-dom';
 import { HomeSidebar } from '../workspace/HomeSidebar';
-import {
-  AgentsSidebar,
-  AgentsSidebarActions,
-  CatchUpRow,
-  InFlightBell,
-} from './AgentsSidebar';
+import { AgentsSidebar, AgentsSidebarActions, CatchUpRow, InFlightBell } from './AgentsSidebar';
 import { DropdownDivider, DropdownItem } from '../primitives/Dropdown';
 import { PhoneMenuItem } from '../phone/PhoneIndicator';
 import { AgentsCatchUp } from './AgentsCatchUp';

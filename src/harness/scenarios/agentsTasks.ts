@@ -86,7 +86,6 @@ const scenario = (
   steps: [{ click: `[data-agent-id="${ID}"]` }, ...(more.steps ?? [])],
 });
 
-
 /** The sidebar's three task sub lines (DRYRUN-MISSING.md): 5 to do, Idle, 14 to do · Busy. */
 function sidebarRow(id: string, title: string, looksRightWhen: string): Scenario {
   return {

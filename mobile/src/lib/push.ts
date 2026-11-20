@@ -147,7 +147,7 @@ export async function registerPush(
   const env = await environment();
   if (!env) return noteWhy('no_entitlement');
   const token: unknown = await Notifications.getDevicePushTokenAsync()
-    .then((t) => t.data)
+    .then((t): unknown => t.data)
     .catch(() => null);
   if (typeof token !== 'string') return noteWhy('no_token');
   const { status } = await call(token, env);

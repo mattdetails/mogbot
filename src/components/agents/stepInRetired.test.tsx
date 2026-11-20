@@ -22,7 +22,12 @@ describe('a retired Step in card', () => {
 
   it.each(['expired', 'pending'] as const)('draws one muted line, no buttons (%s)', (status) => {
     const { container } = render(
-      <ApprovalCard message={message(status)} agentName="Finance" onAnswer={vi.fn()} paused={false} />
+      <ApprovalCard
+        message={message(status)}
+        agentName="Finance"
+        onAnswer={vi.fn()}
+        paused={false}
+      />
     );
     expect(screen.getByText('This sign-in used the old browser; ask again')).toBeTruthy();
     expect(container.querySelectorAll('button').length).toBe(0);

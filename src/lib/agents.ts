@@ -700,7 +700,7 @@ export interface Approval {
   /** "OK to go on?" between a routine's steps: Allow is Go ahead, Deny is Stop here. */
   gate?: RoutineGate;
   /** LEGACY: a retired "needs you in its browser" card; drawn as one quiet line. */
-  stepIn?: Record<string, unknown>;
+  stepIn?: StepInCard;
   /** "All your Claude Code accounts are out until 4:00 PM. Carry on with Codex until then?": Always (allow + always), Just this time (allow), Wait (deny). */
   crossover?: CrossoverAsk;
   /** "Run turns on “Personal” first?": a plain Allow / Deny; Allow makes the switch. Nothing waits on it. */
@@ -1329,6 +1329,8 @@ export interface UsageTotals {
   /** "When…" routines' model checks, counted apart from turns (cost included above). */
   checks?: number;
   pricedChecks?: number;
+  /** The end-of-turn task-list keeper's calls: the "Task list" usage line. Newer Macs only. */
+  listChecks?: number;
 }
 
 export interface UsageSummary {
@@ -2870,7 +2872,7 @@ export {
 import type { ResultCard, ResultRef } from '../../packages/companion-protocol/src/results';
 import type { ReplyKind, ReplyRef } from '../../packages/companion-protocol/src/model';
 export type { ReplyKind, ReplyRef };
-import type { TaskCounts } from '../../packages/companion-protocol/src/model';
+import type { StepInCard, TaskCounts } from '../../packages/companion-protocol/src/model';
 export type { TaskCounts };
 import type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type { BlockSet } from '../../packages/companion-protocol/src/blocks';

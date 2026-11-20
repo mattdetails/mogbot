@@ -31,7 +31,9 @@ describe('useLeaving', () => {
     rerender({ open: true });
     rerender({ open: false });
     expect(result.current.leaving).toBe(true);
-    act(() => vi.advanceTimersByTime(300));
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
     expect(result.current.leaving).toBe(false);
   });
 

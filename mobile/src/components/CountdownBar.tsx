@@ -34,7 +34,6 @@ export function CountdownBar({
     const left = Math.max(0, sendAt - Date.now());
     // eslint-disable-next-line react-hooks/immutability -- a Reanimated shared value is written through .value by design
     fill.value = Math.min(1, Math.max(0, 1 - left / totalMs));
-    // eslint-disable-next-line react-hooks/immutability -- a Reanimated shared value is written through .value by design
     fill.value = withTiming(1, {
       duration: left,
       easing: Easing.linear,

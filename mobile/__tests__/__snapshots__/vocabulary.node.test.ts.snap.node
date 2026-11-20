@@ -84,6 +84,7 @@ exports[`the words a person reads use the agreed words the way the snapshot hold
   "Task started …",
   "This app can’t use the camera. Allow it in Settings.",
   "This conversation is getting long —",
+  "This copy of the app has no push entitlement with …, so it can’t be woken with the app closed. Install the App Store or TestFlight build.",
   "This task isn’t open on",
   "Update the app on … to search your conversations from here.",
   "What the new task should do",
