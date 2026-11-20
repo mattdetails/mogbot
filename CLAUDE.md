@@ -853,6 +853,20 @@ Need a value that doesn't exist yet? Add it to the correct layer named by the to
 - `@keyframes` names are **global** in CSS. Shared keyframes (`spin`, `fadeIn`, `skeleton-pulse`) live in base.css only; feature-specific ones must be feature-prefixed. Duplicates fail CI (a duplicate silently overrides every consumer app-wide based on import order).
 - `var(--something)` referencing a token that's defined nowhere fails CI — an undefined var makes the declaration invalid and the style silently doesn't apply.
 
+### Every control a person has, an agent has too
+
+Julian, 19 Nov: agents manage everything. Any control a person has on desk or phone (tasks,
+folders, pinning, conversations, model, independence, usage mode, settings, notifications,
+projects, routines, apps and logins, take over, pause, delete) also has an agent tool behind the
+same approval wall (`mcp::decide`, the independence level, outside text capped). An agent's
+change is shown as the agent's ("Mail added a task · 09:10"), never as the user's. Every design
+spec has an **Agent control** section naming the tool and its card; a feature without one isn't
+ready to build.
+
+**Pills** only on the chat message box and on small tags and count chips. The chat header has no
+chip: key, name and one muted line (the task line when there is open work), and a plain ⋯ icon
+button. Every other button is the rectangular `Button`.
+
 ### Colour, theme and name → monochrome, both themes, name-free
 
 Full model: [The accent](docs/design-system.md#the-accent) and [Themes](docs/design-system.md#themes-light-and-dark).
