@@ -31,6 +31,23 @@
   /* An agent row: its name and one line under it. Fixed, so a step's words,
      a wrap or a state change never moves the rows below. */
   --size-agents-list-row: 52px;
+  /* Catch up on the desk (direction 2): the queue beside the open card. */
+  --size-catchup-head: 56px;
+  --size-catchup-queue: 360px;
+  --size-catchup-pane-min: 520px;
+  --size-catchup-card: 640px;
+  --size-catchup-narrow: 880px;
+  --size-catchup-action: 36px;
+  --catchup-title-size: 22px;
+  --catchup-row-size: 13.5px;
+  --catchup-label-tracking: 0.09em;
+  --catchup-card-radius: 16px;
+  --catchup-dot: 7px;
+  --catchup-ring: 48px;
+  --catchup-tile: 28px;
+  --catchup-meta-size: 12.5px;
+  --catchup-key-row: 32px;
+  --catchup-key-card: 28px;
   /* The band at the bottom of the sidebar list that fades into the footer. */
   --size-sidebar-footer-fade: calc(var(--space-32) + var(--space-16));
   --size-sidebar-section-row: 22px;

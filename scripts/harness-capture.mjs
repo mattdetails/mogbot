@@ -443,6 +443,14 @@ async function capture({
       : undefined;
     const misaligned = column ? columnMisaligned(column) : false;
 
+    // HARNESS_MEASURE="sel;sel": print every drawn match's box and a few computed
+    // styles in CSS px, to measure a screen against its mock instead of by eye.
+    if (process.env.HARNESS_MEASURE) {
+      const sels = process.env.HARNESS_MEASURE.split(';').filter(Boolean);
+      const probe = `JSON.stringify(${JSON.stringify(sels)}.map((sel) => [...document.querySelectorAll(sel)].slice(0, 8).map((el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); const n = (v) => Math.round(v * 100) / 100; return { sel, x: n(r.left), y: n(r.top), w: n(r.width), h: n(r.height), fs: cs.fontSize, fw: cs.fontWeight, lh: cs.lineHeight, color: cs.color, bg: cs.backgroundColor, radius: cs.borderRadius, pad: cs.padding, gap: cs.gap }; })))`;
+      console.log(`measure ${label ?? file}: ${await page.eval(probe).catch((e) => String(e))}`);
+    }
+
     // The scenario's subject must actually be on screen. Without this a
     // scenario whose surface has vanished still yields a clean screenshot of
     // whatever else was rendered, under this scenario's name.
