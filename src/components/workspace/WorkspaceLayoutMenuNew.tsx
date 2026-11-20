@@ -470,6 +470,8 @@ function ColumnTile({
         : null}
     </Fragment>
   );
+  // The column still drags from anywhere on it, but it holds menu items, so it
+  // is a group, not a button: its handle is the keyboard's way to move it.
   return (
     <DragSortItem
       id={columnDragId(column)}
@@ -479,6 +481,11 @@ function ColumnTile({
       activation="item"
       className="workspace-layout-menu__column-sort-item"
       overlay={columnOverlay(column, columnNumber, floatingPanels)}
+      role="group"
+      tabIndex={undefined}
+      aria-roledescription={undefined}
+      aria-describedby={undefined}
+      aria-label={`${side === 'left' ? 'Left' : 'Right'} column ${columnNumber}`}
     >
       <div
         className="workspace-layout-menu__column"
