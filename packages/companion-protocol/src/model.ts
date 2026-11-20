@@ -204,6 +204,13 @@ export interface TurnWork {
   stepsOmitted?: boolean;
 }
 
+/** The header's quiet line: what an agent is doing and how much is open. */
+export interface TaskCounts {
+  doing?: string;
+  toDo: number;
+  waits: number;
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -240,6 +247,13 @@ export interface Agent {
   preview: string | null;
   unread: number;
   pendingApprovals: number;
+  /**
+   * What is open on its task list (the Mac sends it only when something is):
+   * `doing` is the running status line, else the line marked Doing; `toDo` counts
+   * Next and Stuck; `waits` counts lines waiting on you. Absent: nothing open and
+   * not working, so the header's quiet line is hidden.
+   */
+  tasks?: TaskCounts;
   /** What its turns run on; mirrors `engine::Engine`. */
   engine: AgentEngine;
   /**
