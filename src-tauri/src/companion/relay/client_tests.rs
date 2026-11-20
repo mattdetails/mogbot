@@ -1344,3 +1344,58 @@ async fn live_a_gap_between_the_graces_is_noticed_and_re_hellos() {
     )
     .await;
 }
+
+/// An App Store 1.0.1 phone (the plain hello, no sessions, unnumbered frames,
+/// a raw `ping` to the relay every 25 s, a `ping` frame and a read every 15 s)
+/// kept for 130 s against the real Worker and this Mac's client: its channel
+/// must stay open past the Worker's 60 s Mac-quiet rule and every timer.
+#[tokio::test]
+#[ignore = "needs the Worker under `wrangler dev` (RELAY_LIVE)"]
+async fn live_an_old_phone_holds_its_channel_for_two_minutes() {
+    let worker = std::env::var("RELAY_LIVE").expect("RELAY_LIVE=ws://127.0.0.1:8799");
+    let t0 = Instant::now();
+    let say = |s: &str| println!("{:7.2}s  [old phone] {s}", t0.elapsed().as_secs_f32());
+    let (c, _stub) = Stub::companion();
+    let fingerprint = c.registry.identity().unwrap().fingerprint();
+    let (_r, token, _) = c
+        .registry
+        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .unwrap();
+    let port = loopback(c.clone()).await;
+    let link = Arc::new(Link::default());
+    let (_stop_tx, stop_rx) = oneshot::channel();
+    tokio::spawn(run(c.clone(), Config { base: worker.clone(), port: Some(port) }, link.clone(), stop_rx));
+    live_until("the link", Duration::from_secs(10), || {
+        link.status().state == RelayState::Connected
+    })
+    .await;
+    let url = format!("{worker}/v1/phone/{fingerprint}");
+    let mut phone = Phone::connect(&url, &fingerprint).await;
+    assert!(!phone.keys.sessions, "the plain hello gets the old channel");
+    phone.send(challenge()).await;
+    assert_eq!(phone.next().await["t"], "identity");
+    phone.send(hello(&token)).await;
+    assert_eq!(phone.next().await["t"], "welcome");
+    say("welcomed");
+    let mut id = 0u64;
+    let mut next_raw = Instant::now() + Duration::from_secs(25);
+    let mut next_app = Instant::now() + Duration::from_secs(15);
+    while t0.elapsed() < Duration::from_secs(130) {
+        if let Some(f) = phone.next_for(Duration::from_millis(500)).await {
+            assert_ne!(f["t"], "closed", "closed at {:?}", t0.elapsed());
+        }
+        if Instant::now() >= next_raw {
+            phone.ws.send(Message::Text("ping".into())).await.unwrap();
+            next_raw += Duration::from_secs(25);
+        }
+        if Instant::now() >= next_app {
+            id += 1;
+            phone.send(json!({ "t": "ping" })).await;
+            phone.send(json!({ "t": "req", "id": id, "method": "rooms.list", "params": {} })).await;
+            assert_eq!(phone.res(id, Duration::from_secs(5)).await["ok"], true);
+            say(&format!("read {id} answered"));
+            next_app += Duration::from_secs(15);
+        }
+    }
+    say("still open after 130 s");
+}
