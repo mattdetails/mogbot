@@ -2556,6 +2556,8 @@ export interface ReplyRef {
   /** The original's text (at most 200 characters, cut on a word); an attachment, file or link's name or domain; a card's title. */
   excerpt: string;
   kind: ReplyKind;
+}
+
 /** What the header's quiet line says of one agent (`agents/tasks.rs`, `Counts`). */
 export interface TaskCounts {
   /** What it is doing now: its status line while a turn runs, else the line marked Doing. */
