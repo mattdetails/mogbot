@@ -47,6 +47,14 @@ pub struct UsageTotals {
     /// `priced_turns + priced_checks == turns + checks`.
     #[serde(default)]
     pub priced_checks: u32,
+    /// The end-of-turn task-list keeper's calls (`tasks_keep`): headless, so
+    /// no tokens are reported; shown as the "Task list" usage line.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub list_checks: u32,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 impl UsageTotals {
@@ -65,6 +73,7 @@ impl UsageTotals {
         self.duration_ms = self.duration_ms.saturating_add(other.duration_ms);
         self.checks = self.checks.saturating_add(other.checks);
         self.priced_checks = self.priced_checks.saturating_add(other.priced_checks);
+        self.list_checks = self.list_checks.saturating_add(other.list_checks);
     }
 
     /// One turn's numbers recounted as a model check's.

@@ -1783,8 +1783,9 @@ fn message_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value 
 /// carries none of the caller's grants, and is refused in a turn answering
 /// outside text. Counts as one agent-to-agent hop, so a chain of
 /// assignments can't run on forever.
-fn task_assign(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: &Value) -> Value {
-    let outside = runner::from_outside(&caller.id) && super::broker::is_live(&caller.id, turn);
+fn task_assign(app: &AppHandle, caller: &store::Agent, _turn: Option<u64>, args: &Value) -> Value {
+    // From outside text, whatever the turn: never fails open.
+    let outside = runner::from_outside(&caller.id);
     let Some(name) = arg(args, "agent") else {
         return error("`agent` is required.");
     };
@@ -1799,20 +1800,11 @@ fn task_assign(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: 
             ))
         }
     };
-    if let Err(why) = super::tasks::check_assign(
-        &caller.id,
-        &target.id,
-        &target.name,
-        outside,
-        runner::next_hop(&caller.id).is_some(),
-        super::tasks::assigned_by(&target.id, &caller.id),
-    ) {
-        return error(why);
-    }
-    let (id, dup) = super::tasks::assign(&target.id, caller, title, arg(args, "note"));
-    if id.is_empty() {
-        return error("`title` is empty.");
-    }
+    let hop_ok = runner::next_hop(&caller.id).is_some();
+    let (id, dup) = match super::tasks::assign(&target, caller, title, arg(args, "note"), outside, hop_ok) {
+        Ok(r) => r,
+        Err(why) => return error(why),
+    };
     let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
     if dup {
         return text(format!(
@@ -1838,29 +1830,45 @@ fn task_assign(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: 
 /// waiting) with its reason goes to that agent as a message.
 fn task_update(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: &Value) -> Value {
     let before = arg(args, "id").and_then(|id| super::tasks::find(&caller.id, id));
+    let state = arg(args, "state").unwrap_or("");
+    let why = arg(args, "note").unwrap_or("No reason given.");
+    // A hand-back that can't be told to the assigner isn't made: the line
+    // stays as it was and the caller hears why.
+    let back = before.as_ref().and_then(|task| {
+        let body = super::tasks::hand_back_body(task, state, why)?;
+        Some((body, task.from.clone()?))
+    });
+    let hop = runner::next_hop(&caller.id);
+    if back.is_some() && hop.is_none() {
+        return error("Not changed: this chain of agent-to-agent work is too long to hand it back. Tell the user where things stand instead.");
+    }
+    let archive = args.get("archived").and_then(Value::as_bool).unwrap_or(false);
+    // A turn answering outside text can't archive.
+    if archive && runner::from_outside(&caller.id) {
+        return error("Not while answering what a “When…” routine found: that text came from outside this app.");
+    }
     let result = match super::tasks::run_update(caller, args) {
         Ok(t) => t,
         Err(e) => return error(e),
     };
-    let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
-    let state = arg(args, "state").unwrap_or("");
-    if let Some(task) = before {
-        let why = arg(args, "note").unwrap_or("No reason given.");
-        if let (Some(body), Some(from)) = (
-            super::tasks::hand_back_body(&task, state, why),
-            task.from.as_ref(),
-        ) {
-            if let (Ok(assigner), Some(hop)) = (store::get(&from.id), runner::next_hop(&caller.id))
-            {
-                let mut sent =
-                    runner::new_message(&caller.id, MessageKind::SentToAgent, body.clone());
-                sent.peer = Some(peer(&assigner));
-                let _ = runner::record(app, sent);
-                let _ = runner::record(app, received_line(caller, &assigner, &body, true));
-                let outside =
-                    runner::from_outside(&caller.id) && super::broker::is_live(&caller.id, turn);
-                runner::enqueue_reply_from(app, &assigner.id, body, peer(caller), hop, outside);
+    // Which message delivered it: named, or the last the agent said (done by `set`).
+    let delivered = arg(args, "delivered_msg");
+    if archive || delivered.is_some() {
+        if let Some(id) = arg(args, "id") {
+            if let Err(e) = super::tasks::annotate(&caller.id, id, delivered, archive) {
+                return error(e);
             }
+        }
+    }
+    let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
+    if let (Some((body, from)), Some(hop)) = (back, hop) {
+        if let Ok(assigner) = store::get(&from.id) {
+            let mut sent = runner::new_message(&caller.id, MessageKind::SentToAgent, body.clone());
+            sent.peer = Some(peer(&assigner));
+            let _ = runner::record(app, sent);
+            let _ = runner::record(app, received_line(caller, &assigner, &body, true));
+            let outside = runner::from_outside(&caller.id) && super::broker::is_live(&caller.id, turn);
+            runner::enqueue_reply_from(app, &assigner.id, body, peer(caller), hop, outside);
         }
     }
     text(result)

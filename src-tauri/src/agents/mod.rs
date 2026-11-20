@@ -199,6 +199,7 @@ pub mod tab_accounts;
 pub mod takeover;
 pub mod task;
 pub mod tasks;
+pub mod tasks_keep;
 pub mod team_reach;
 pub mod team_record;
 pub mod team_setup;
