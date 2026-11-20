@@ -679,6 +679,20 @@ export const keySize = { xs: 16, sm: 20, md: 30, lg: 44, xl: 112 } as const;
 
 /** The key on a Catch up card and its queue rows (spec-catchup-dir2: 32 pt, a step over `md`). */
 export const catchKeySize = 32;
+/** Catch up's measures (Fidelity QA's spec): flat buttons, labels, rows, the all-clear page. */
+export const catchUp = {
+  button: 48,
+  buttonText: 15,
+  title: 17,
+  countGap: 10,
+  eyebrow: 11,
+  rowTitle: 13.5,
+  rowAge: 12,
+  clearRing: 48,
+  clearTitle: 20,
+  clearBody: 14,
+  clearGap: 18,
+} as const;
 
 /** A key's three shades (face, skirt, depth) and its legend's ink. */
 export interface KeyColors {

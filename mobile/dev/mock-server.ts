@@ -222,6 +222,8 @@ export interface MockOptions {
   solo?: boolean;
   /** Catch up with exactly one decision (Ops' push) and one thing that happened (Acme Site). */
   catchUpOne?: boolean;
+  /** Something happened while away, with no ask: the queue ends on "While you were away". */
+  catchUpSeveral?: boolean;
   /** The Designer's key colour (a colourway id): the chat bubbles take it. */
   designColorway?: string;
   /** Agents filed in folders made on the Mac (Website, Design, Ops). */
@@ -1931,6 +1933,15 @@ export function createMockServer(opts: MockOptions = {}) {
         a.unread = 0;
         a.hidden = true;
       }
+    }
+  }
+  if (opts.catchUpSeveral) {
+    const quiet = agents.find((a) => a.id === 'brief');
+    if (quiet) {
+      quiet.hidden = false;
+      quiet.unread = 1;
+      quiet.lastActivityAt = now - 20 * 60_000;
+      quiet.preview = 'The weekly numbers are ready.';
     }
   }
   // A Mac just set up has only the Chief: the others are seeded (their
