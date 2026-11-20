@@ -26,6 +26,7 @@ import {
   memo,
   useCallback,
   useMemo,
+  useEffect,
   useRef,
   type KeyboardEvent,
   type PointerEvent,
@@ -98,6 +99,7 @@ import {
   type SearchHit,
 } from '../../lib/agents';
 import { kbd } from '../../lib/shortcuts';
+import { markLaunchAfterPaint } from '../../lib/launchMarks';
 import { previewText } from '../../../packages/companion-protocol/src/preview';
 
 interface AgentsSidebarProps {
@@ -360,6 +362,10 @@ export function AgentsSidebar({
   roomActions,
   onNew,
 }: AgentsSidebarProps) {
+  const hasAgents = agents.length > 0;
+  useEffect(() => {
+    if (hasAgents) markLaunchAfterPaint('agents-list');
+  }, [hasAgents]);
   // Optional sections: by project, or the folders you make (none until the first).
   const grouping = useAgentGroups();
   const searching = query.trim().length > 0;

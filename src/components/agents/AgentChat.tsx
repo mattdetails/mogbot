@@ -227,6 +227,7 @@ import { guardRow, useGuardedRows } from './AgentsErrorBoundary';
 import { AreaBoundary } from '../primitives/AreaBoundary';
 import { isRecipeFile, looksLikeRecipe } from '../../lib/agentRecipe';
 import { scrollMotion } from '../../lib/motion';
+import { markLaunchAfterPaint } from '../../lib/launchMarks';
 import { THIS_COMPUTER } from '../../lib/computer';
 
 /**
@@ -1282,6 +1283,10 @@ export const AgentChat = memo(function AgentChat({
     .filter((m) => m.approval?.status === 'pending')
     .map((m) => m.id)
     .join(' ');
+  const hasRows = messages !== undefined && messages.length > 0;
+  useEffect(() => {
+    if (hasRows) markLaunchAfterPaint('first-chat');
+  }, [hasRows]);
   const seenCardsRef = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (messages === undefined) return;

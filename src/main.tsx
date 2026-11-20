@@ -258,6 +258,8 @@ const initialProjectPath = urlParams.get('project');
 const isQuickEntry = urlParams.get('window') === 'quick-entry';
 if (isQuickEntry) document.documentElement.dataset.window = 'quick-entry';
 
+import { markLaunchAfterPaint } from './lib/launchMarks';
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement, {
   // Only report errors that escape ErrorBoundary. Caught errors already flow
   // through `logger.logError` → backend `log_frontend_event` → `tracing::error!`
@@ -271,3 +273,4 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement, {
     </ErrorBoundary>
   </React.StrictMode>
 );
+if (!isQuickEntry) markLaunchAfterPaint('window-shown');
