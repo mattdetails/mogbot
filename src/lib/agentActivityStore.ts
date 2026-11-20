@@ -10,6 +10,8 @@
  * overlay is unmounted or re-rendering are never dropped.
  */
 
+import { MOTION_DURATION } from '../../packages/companion-protocol/src/motion';
+
 export type AgentEffectKind = 'cursor' | 'flash';
 
 export interface AgentActivityEffect {
@@ -38,8 +40,8 @@ export interface AgentActivityState {
 const LINGER_MS = 2200;
 /** How long a cursor/flash effect stays before clearing. */
 const EFFECT_MS = 1600;
-/** Exit-animation duration — matches agent-activity.css. */
-const EXIT_MS = 220;
+/** The exit (agent-activity.css, --motion-exit), and a couple of frames to finish on. */
+const EXIT_MS = MOTION_DURATION.exitQuick + 30;
 
 interface ToolMeta {
   label: (args: Record<string, unknown> | undefined) => string;

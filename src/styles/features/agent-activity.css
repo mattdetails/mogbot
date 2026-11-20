@@ -21,11 +21,25 @@
   box-shadow:
     inset 0 0 0 2px color-mix(in srgb, var(--status-running) 70%, transparent),
     inset 0 0 28px color-mix(in srgb, var(--status-running) 18%, transparent);
-  animation: agact-glow-in var(--transition) ease-out;
+  animation: agact-glow-in var(--motion-arrive);
 }
 
-.agent-activity-glow--busy {
-  animation: agact-glow-pulse 1.6s ease-in-out infinite;
+/* Busy, the glow pulses brighter and back. The brighter glow is a layer of
+   its own that fades in and out: opacity, which the compositor runs.
+   Animating the box-shadow itself repainted the whole preview every frame
+   for as long as an agent worked there. */
+.agent-activity-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow:
+    inset 0 0 0 3px color-mix(in srgb, var(--status-running) 95%, transparent),
+    inset 0 0 44px color-mix(in srgb, var(--status-running) 32%, transparent);
+  opacity: 0;
+}
+
+.agent-activity-glow--busy::after {
+  animation: agact-glow-pulse var(--motion-pulse) infinite;
 }
 
 @keyframes agact-glow-in {
@@ -40,14 +54,10 @@
 @keyframes agact-glow-pulse {
   0%,
   100% {
-    box-shadow:
-      inset 0 0 0 2px color-mix(in srgb, var(--status-running) 70%, transparent),
-      inset 0 0 28px color-mix(in srgb, var(--status-running) 18%, transparent);
+    opacity: 0;
   }
   50% {
-    box-shadow:
-      inset 0 0 0 3px color-mix(in srgb, var(--status-running) 95%, transparent),
-      inset 0 0 44px color-mix(in srgb, var(--status-running) 32%, transparent);
+    opacity: 1;
   }
 }
 
@@ -71,8 +81,8 @@
   font-weight: 500;
   white-space: nowrap;
   box-shadow: var(--shadow-md);
-  /* Back-out curve: a touch of overshoot so the grow-in feels alive. */
-  animation: agact-chip-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  /* It arrives like a popover: from a little above and a little smaller. */
+  animation: agact-chip-in var(--motion-arrive) both;
 }
 
 /* Solid dot with a ping ring radiating from behind it (live-indicator style). */
@@ -91,13 +101,15 @@
   inset: 0;
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--status-running) 35%, transparent);
-  animation: agact-dot-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  /* One ping per beat of the glow's pulse. */
+  animation: agact-dot-ping var(--motion-pulse) infinite;
 }
 
 @keyframes agact-chip-in {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-4px) scale(0.85);
+    transform: translateX(-50%) translateY(calc(-1 * var(--motion-travel-popover)))
+      scale(var(--motion-scale-popover));
   }
   to {
     opacity: 1;
@@ -105,14 +117,14 @@
   }
 }
 
-/* Exit phase: the overlay stays mounted ~220ms (EXIT_MS in
-   AgentActivityOverlay) while everything shrinks and fades away. */
+/* Exit phase: the overlay stays mounted a little longer than the exit
+   (EXIT_MS in agentActivityStore) while everything fades away. */
 .agent-activity-overlay--exiting .agent-activity-chip {
-  animation: agact-chip-out 0.2s ease-in both;
+  animation: agact-chip-out var(--motion-exit) both;
 }
 
 .agent-activity-overlay--exiting .agent-activity-glow {
-  animation: agact-glow-out 0.2s ease-in both;
+  animation: agact-glow-out var(--motion-exit) both;
 }
 
 @keyframes agact-chip-out {
@@ -122,7 +134,8 @@
   }
   to {
     opacity: 0;
-    transform: translateX(-50%) translateY(-4px) scale(0.85);
+    transform: translateX(-50%) translateY(calc(-1 * var(--motion-travel-popover)))
+      scale(var(--motion-scale-popover));
   }
 }
 
@@ -152,7 +165,7 @@
   position: absolute;
   /* left/top are set inline as fractions of the frame. */
   transform: translate(-4px, -3px); /* hotspot: the arrow tip, not the box */
-  animation: agact-cursor-in 0.35s ease-out;
+  animation: agact-cursor-in var(--motion-screen);
 }
 
 .agent-activity-cursor svg {
@@ -169,7 +182,8 @@
   transform: translate(-50%, -50%);
   border: 2px solid color-mix(in srgb, var(--status-running) 90%, transparent);
   border-radius: var(--radius-full);
-  animation: agact-ripple 0.9s ease-out 0.25s both;
+  /* A ring going out once the cursor has landed: the Paired ring's timing. */
+  animation: agact-ripple var(--motion-celebrate) var(--motion-celebrate-delay) both;
 }
 
 @keyframes agact-cursor-in {
@@ -200,7 +214,7 @@
   position: absolute;
   inset: 0;
   background: var(--text-inverse);
-  animation: agact-flash 0.6s ease-out both;
+  animation: agact-flash var(--motion-screen) both;
 }
 
 @keyframes agact-flash {
