@@ -25,6 +25,7 @@ import {
   useRef,
   useState,
   type ComponentProps,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
@@ -64,7 +65,7 @@ import { AgentUsageRing } from './AgentUsageRing';
 import { AgentAccountChip } from './AccountSwitcher';
 import { AgentFilesModal } from './AgentFilesModal';
 import { RememberModal } from './AgentRemember';
-import { useArrivals, useFollowBottom, usePresence, useRecently } from './useAgentMotion';
+import { useArrivals, useFollowBottom, usePresence } from './useAgentMotion';
 import { useNextLine } from './useNextLine';
 import { useRowAnchoring } from './useRowAnchoring';
 import { useDictation } from './useDictation';
@@ -109,6 +110,13 @@ import {
   rewoundIds,
 } from '../../../packages/companion-protocol/src/rewind';
 import { useQuoteSelection } from './useQuoteSelection';
+import { ReplyContext, type ReplyApi } from './ReplyContext';
+import {
+  bubbleColors,
+  colorwayOf as keyColorway,
+  keyLookFor,
+} from '../../../packages/companion-protocol/src';
+import { replyTargetOf, type ReplyRef } from '../../lib/replyTo';
 import { useCommands } from '../../commands/useCommands';
 import {
   AgentBubble,
@@ -193,7 +201,6 @@ import {
   upsertMessage,
   useAgentsList,
   useAgentsSelector,
-  type AgentsState,
 } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { ImportTalkBar } from './ImportTalkBar';
@@ -326,9 +333,6 @@ const STICK_THRESHOLD = 80;
 /** Older lines start loading while this many screens of history are still above. */
 const LOAD_AHEAD_SCREENS = 1.5;
 
-/** After a block of a reply ends, how long before the working line may come back. */
-const WORKING_AFTER_REPLY_MS = 700;
-
 /**
  * A chat opens with this many of its newest lines in the DOM, and mounts more
  * of what's loaded, this many at a time, as you scroll up: the same steps as
@@ -415,6 +419,8 @@ interface Pending {
   resend?: OutgoingAttachment[];
   /** "Ask for changes": the result this message asks to revise. */
   revises?: ResultRef;
+  /** A reply: the message it answers, shown as a quote until the Mac's own lands. */
+  replyTo?: ReplyRef;
 }
 
 function newPending(text: string, mentions: AgentRef[], extra: Partial<Pending> = {}): Pending {
@@ -460,19 +466,6 @@ interface AgentChatProps extends AgentActions {
 }
 
 /**
- * The reply being written, as far as the history needs to know: which one and
- * when it started. Its words are read by its own bubble (`DraftProse`), so a
- * delta re-renders that bubble and nothing else.
- */
-function draftHeadOf(s: AgentsState, agentId: string): AgentMessage | null {
-  const draft = s.drafts[agentId];
-  // Whitespace that hasn't become words yet isn't worth a bubble.
-  return draft && draft.text.trim() ? draft : null;
-}
-const sameDraftHead = (a: AgentMessage | null, b: AgentMessage | null) =>
-  a === b || (a !== null && b !== null && a.id === b.id && a.ts === b.ts);
-
-/**
  * Who the @mention picker offers and what it shows of them, in any order: the
  * sidebar order changes with every message anywhere, and the chat isn't
  * re-rendered for that. The order is read when the picker is (`draft`).
@@ -513,6 +506,12 @@ export const AgentChat = memo(function AgentChat({
 }: AgentChatProps) {
   // Everything in this conversation takes on the agent's colour.
   const accentScope = useAccentScope(agent.color);
+  // Your bubble: the key's face colour with the ink both desk and phone pick the
+  // same way (`bubbleColors`, shared), so a key never has different ink on each.
+  const bubbleVars = useMemo(() => {
+    const b = bubbleColors(keyColorway(keyLookFor(agent).colorway).face);
+    return { '--bubble-user-fill': b.fill, '--bubble-user-ink': b.ink } as CSSProperties;
+  }, [agent]);
   // The conversation on screen (`agentConversations`): its own lines, kept
   // under its own key. Unknown for a moment on first open, while the Mac
   // says which one the user was last in.
@@ -530,7 +529,6 @@ export const AgentChat = memo(function AgentChat({
   // This chat's slices only: another agent's reply streaming doesn't touch it.
   const messages = useAgentsSelector((s) => (chatKey ? s.messages[chatKey] : undefined));
   const importChoice = useAgentsSelector((s) => s.importChoice);
-  const draftHead = useAgentsSelector((s) => draftHeadOf(s, agent.id), sameDraftHead);
   const engineReady = useAgentsSelector((s) =>
     engineIsReady(agent.engine, s.engines, s.engineReady)
   );
@@ -569,12 +567,9 @@ export const AgentChat = memo(function AgentChat({
     (message: AgentMessage) => onOpenMessage?.(agent.id, message.id, conversationOf(message)),
     [agent.id, onOpenMessage]
   );
-  // The streaming bubble's place in the history: the same object for the
-  // whole reply, so the history is built once when it starts, not per word.
-  const streaming = useMemo(
-    () => (!inRoom && !elsewhere && draftHead ? { ...draftHead, text: '' } : null),
-    [draftHead, inRoom, elsewhere]
-  );
+  // A reply lands whole: its words aren't drawn while they are being written
+  // (the working line stays until the finished message arrives), so the
+  // history never holds a growing draft (docs/guide/chat.md).
   const { showToast } = useOptionalToast();
   // Kept outside the component: an agent opening a project switches this
   // window away from Agents and back, and a restart reopens the chat, and
@@ -872,18 +867,16 @@ export const AgentChat = memo(function AgentChat({
         text: p.text,
         mentions: p.mentions,
         ...(p.revises ? { revises: p.revises } : {}),
+        ...(p.replyTo ? { replyTo: p.replyTo } : {}),
       });
       if (p.failed) failed.add(p.key);
       else if (p.files) sending.set(p.key, p.files);
     }
-    // The reply being written sits after what's settled and before anything
-    // you've just sent, which it will read next.
-    const draft = streaming && !list.some((m) => m.id === streaming.id) ? [streaming] : [];
     // Sent while dictation still tidies it: here at once, dimmed, until it goes.
     if (held !== null)
       local.push({ id: HELD_ID, agentId: agent.id, ts: Date.now(), kind: 'user', text: held });
-    return { shown: [...list, ...draft, ...local], aliases, failed, sending };
-  }, [messages, pending, agent.id, streaming, held]);
+    return { shown: [...list, ...local], aliases, failed, sending };
+  }, [messages, pending, agent.id, held]);
 
   // What the rows read from the agent. A status or activity change re-renders
   // the header and the indicator, never the history.
@@ -1093,6 +1086,8 @@ export const AgentChat = memo(function AgentChat({
   );
   /** The sent message being edited: sending goes back to just before it. */
   const [editing, setEditing] = useState<AgentMessage | null>(null);
+  // Replying to a message: one at a time, shown above the box and sent with the words.
+  const [replying, setReplying] = useState<ReplyRef | null>(null);
   const [goBackAsk, setGoBackAsk] = useState<GoBackAsk | null>(null);
   const [goingBack, setGoingBack] = useState(false);
   // Another conversation on screen: an edit or a confirm was about this one's message.
@@ -1103,6 +1098,8 @@ export const AgentChat = memo(function AgentChat({
   const onGoBack = useStableEvent((action: GoBackAction, message: AgentMessage) => {
     if (action === 'edit') {
       setEditing(message);
+      // The reply it answered goes again with the edit (the line shows it).
+      setReplying(message.replyTo ?? null);
       typeStarter(message.text);
       return;
     }
@@ -1194,11 +1191,6 @@ export const AgentChat = memo(function AgentChat({
   }, [shown, failed, turn]);
   // A card left open after the turn ended is not "working": no dots, no Stop.
   const working = agent.status.state === 'working';
-  // While words are arriving they are the sign of life; the dots and what
-  // it's doing come back between text blocks, while tools run, once the gap
-  // has lasted a moment: a blink of the working line between two blocks was
-  // the flash that made streaming read as janky.
-  const wroteJustNow = useRecently(!!streaming, WORKING_AFTER_REPLY_MS);
   // Waiting on a card of this chat, the row says "Needs your OK on N" with a real
   // Review in place of the status, and the bar above the composer stays out of it.
   // What waits on you, said on the working row with a real Review: it brings
@@ -1217,9 +1209,8 @@ export const AgentChat = memo(function AgentChat({
     };
   }, [messages]);
   const waitingHere = agent.status.state === 'waiting' && !!needsOk;
-  // The row stays while the reply streams in, as dots in a pill (`typing`): the
-  // only time dots show.
-  const indicator = usePresence(((working || waitingHere) && !wroteJustNow) || !!streaming);
+  // The working line stays until the reply is there; it lands whole.
+  const indicator = usePresence(working || waitingHere);
   const jump = usePresence(!atBottom);
   // What it's doing now goes above what's waiting: the indicator sits before
   // the run of queued messages at the end, not under them.
@@ -1552,7 +1543,9 @@ export const AgentChat = memo(function AgentChat({
         entry.resend,
         ids,
         entry.revises?.id,
-        viewing
+        viewing,
+        undefined,
+        entry.replyTo?.id
       );
       setPending((list) => list.map((p) => (p.key === entry.key ? { ...p, id: message.id } : p)));
       upsertMessage(message);
@@ -1575,15 +1568,26 @@ export const AgentChat = memo(function AgentChat({
     atBottomRef.current = true;
     const text = withQuotes(quoted, typed);
     const asked = revising;
+    const replied = replying;
     const entry = newPending(text, mentionsIn(typed), {
       files,
       ...(asked ? { revises: asked } : {}),
+      ...(replied ? { replyTo: replied } : {}),
     });
     setPending((list) => [...list, entry]);
     try {
       const outgoing = await toOutgoing(files);
       const ids = entry.mentions.map((m) => m.id);
-      const message = await sendAgentMessage(agent.id, text, outgoing, ids, asked?.id, viewing);
+      const message = await sendAgentMessage(
+        agent.id,
+        text,
+        outgoing,
+        ids,
+        asked?.id,
+        viewing,
+        undefined,
+        replied?.id
+      );
       setPending((list) =>
         list.map((p) => (p.key === entry.key ? { ...p, id: message.id, files: undefined } : p))
       );
@@ -1594,6 +1598,7 @@ export const AgentChat = memo(function AgentChat({
       setDraft(typed);
       setQuotes(quoted);
       setRevising(asked);
+      setReplying(replied);
       attachments.setItems(files);
       showToast(formatCommandError(asCommandError(error)), 'error');
     }
@@ -1633,6 +1638,29 @@ export const AgentChat = memo(function AgentChat({
    */
   const shownRef = useRef(shown);
   shownRef.current = shown;
+  const replyApi = useMemo<ReplyApi>(
+    () => ({
+      reply: (m) => {
+        setReplying(replyTargetOf(m, agent.name));
+        requestAnimationFrame(() => inputRef.current?.focus());
+      },
+      cancel: () => setReplying(null),
+      has: (id) => shownRef.current.some((m) => m.id === id),
+      jump: (id) => {
+        const row = messagesRef.current?.querySelector<HTMLElement>(
+          `[data-message-ids~="${CSS.escape(id)}"]`
+        );
+        if (!row) return false;
+        row.scrollIntoView({ block: 'center', behavior: scrollMotion() });
+        row.setAttribute('data-flash', '');
+        window.setTimeout(() => row.removeAttribute('data-flash'), 700);
+        return true;
+      },
+    }),
+    // inputRef and messagesRef are stable refs.
+
+    [agent.name]
+  );
   const replySend = useStableEvent((text: string) => sendStarter(text));
   const replyStage = useStableEvent((text: string) => typeStarter(text));
   const blockReply = useMemo<BlockReply>(
@@ -1704,17 +1732,20 @@ export const AgentChat = memo(function AgentChat({
       const target = editing;
       const files = staged;
       const quoted = quotes;
+      const replied = replying ?? target.replyTo ?? null;
       setEditing(null);
+      setReplying(null);
       setDraft('');
       setQuotes([]);
       if (files.length) attachments.setItems([]);
       void rewindConversation(agent.id, viewing ?? FIRST_CONVERSATION, target.id).then(
         () => {
           if (files.length) void sendWithFiles(typed, quoted, files, false);
-          else sendText(withQuotes(quoted, typed));
+          else sendText(withQuotes(quoted, typed), false, replied ? { replyTo: replied } : {});
         },
         (error: unknown) => {
           setEditing(target);
+          setReplying(replied);
           setDraft(typed);
           setQuotes(quoted);
           if (files.length) attachments.setItems(files);
@@ -1737,13 +1768,17 @@ export const AgentChat = memo(function AgentChat({
     setDraft('');
     setQuotes([]);
     setRevising(null);
+    setReplying(null);
     if (staged.length > 0) {
       atBottomRef.current = true;
       attachments.setItems([]);
       void sendWithFiles(typed, quotes, staged, now && busy);
       return;
     }
-    sendText(withQuotes(quotes, typed), now && busy, revising ? { revises: revising } : {});
+    sendText(withQuotes(quotes, typed), now && busy, {
+      ...(revising ? { revises: revising } : {}),
+      ...(replying ? { replyTo: replying } : {}),
+    });
   });
 
   // Stable, for the memoised rows.
@@ -1756,6 +1791,7 @@ export const AgentChat = memo(function AgentChat({
   const interruptNow = useStableEvent(() => void interrupt());
   const cancelEditing = useCallback(() => {
     setEditing(null);
+    setReplying(null);
     setDraft('');
   }, [setDraft]);
   const askForChanges = useStableEvent((ref: ResultRef) => {
@@ -1809,9 +1845,12 @@ export const AgentChat = memo(function AgentChat({
         state={agentKeyState(agent)}
         size="md"
       />
-      <h2 className="agent-chat__name" title={role || undefined}>
-        {agent.name}
-      </h2>
+      <span className="agent-chat__who">
+        <h2 className="agent-chat__name" title={role || undefined}>
+          {agent.name}
+        </h2>
+        {role && <span className="agent-chat__subtitle">{role}</span>}
+      </span>
     </>
   );
 
@@ -1903,7 +1942,6 @@ export const AgentChat = memo(function AgentChat({
                     message={m}
                     arrived={arrived}
                     agent={rowAgent}
-                    streaming={m === streaming}
                     onRemember={setRemembering}
                   />
                   <DecideCards message={m} />
@@ -1916,7 +1954,6 @@ export const AgentChat = memo(function AgentChat({
                 message={m}
                 arrived={arrived}
                 agent={rowAgent}
-                streaming={m === streaming}
                 onRemember={setRemembering}
                 scripted={chiefScripts && !m.work && (m.id === firstShownId || isGuideLine(m))}
               />
@@ -2011,7 +2048,6 @@ export const AgentChat = memo(function AgentChat({
       interruptNow,
       driven,
       colorwayOf,
-      streaming,
       rowsPaused,
       onAnswer,
       onSignIn,
@@ -2067,7 +2103,6 @@ export const AgentChat = memo(function AgentChat({
           agent={rowAgent}
           bare={importTalking}
           needsOk={needsOk}
-          typing={!!streaming}
           place={
             inRoom ? (
               <RoomWorkingPlace roomId={inRoom} onOpenRoom={onOpenAgent} />
@@ -2084,438 +2119,452 @@ export const AgentChat = memo(function AgentChat({
 
   return (
     <AccentScopeProvider scope={accentScope}>
-      <AgentGalleryProvider messages={shown} agentOf={galleryAgentOf}>
-        <ResultChatProvider value={resultChat}>
-          <BlockReplyContext.Provider value={blockReply}>
-            <section
-              ref={sectionRef}
-              className="agent-chat"
-              data-color={agent.color}
-              data-colorway={agentColorway(agent)}
-              data-dropping={dropping || undefined}
-              data-takeover-terminal={terminalShown || undefined}
-              aria-label={`Conversation with ${agent.name}`}
-              {...accentScope}
-              {...dropHandlers}
-            >
-              <ChatAnnouncer chatId={agent.id} messages={messages} agentName={agent.name} />
-              <header className="agent-chat__header" data-window-drag>
-                {compact && (
-                  <CompactModeToggle
-                    mode="agents"
-                    onProjects={compact.onGoProjects}
-                    className="agent-chat__mode"
-                  />
-                )}
-                {compact ? (
-                  <LiveAgentSwitcher
-                    currentId={agent.id}
-                    title={title}
-                    label={`${agent.name}. Switch agent`}
-                    onOpenAgent={onOpenAgent}
-                    onGoHome={compact.onGoHome}
-                  />
-                ) : (
-                  <div className="agent-chat__title">
-                    {title}
-                    {/* Not in the compact switcher: it's a button already. */}
-                    <AgentProjectChip agent={agent} />
-                    <AgentAccountChip agent={agent} />
-                    {conversationSwitcher}
+      <ReplyContext.Provider value={replyApi}>
+        <AgentGalleryProvider messages={shown} agentOf={galleryAgentOf}>
+          <ResultChatProvider value={resultChat}>
+            <BlockReplyContext.Provider value={blockReply}>
+              <section
+                ref={sectionRef}
+                className="agent-chat"
+                data-color={agent.color}
+                data-colorway={agentColorway(agent)}
+                data-dropping={dropping || undefined}
+                data-takeover-terminal={terminalShown || undefined}
+                aria-label={`Conversation with ${agent.name}`}
+                {...accentScope}
+                style={{ ...accentScope.style, ...bubbleVars }}
+                {...dropHandlers}
+              >
+                <ChatAnnouncer chatId={agent.id} messages={messages} agentName={agent.name} />
+                <header className="agent-chat__header" data-window-drag>
+                  {compact && (
+                    <CompactModeToggle
+                      mode="agents"
+                      onProjects={compact.onGoProjects}
+                      className="agent-chat__mode"
+                    />
+                  )}
+                  {compact ? (
+                    <LiveAgentSwitcher
+                      currentId={agent.id}
+                      title={title}
+                      label={`${agent.name}. Switch agent`}
+                      onOpenAgent={onOpenAgent}
+                      onGoHome={compact.onGoHome}
+                    />
+                  ) : (
+                    <div className="agent-chat__title">
+                      {title}
+                      {/* Not in the compact switcher: it's a button already. */}
+                      <AgentProjectChip agent={agent} />
+                      <AgentAccountChip agent={agent} />
+                      {conversationSwitcher}
+                    </div>
+                  )}
+                  <div className="agent-chat__actions">
+                    {/* Compact: the title is the agent menu, so it sits with the actions. */}
+                    {compact && conversationSwitcher}
+                    <ConversationPagePin agent={agent} conversation={viewing} />
+                    {/* Nothing to schedule or pick a model for until Claude Code is here. */}
+                    {engineReady && (
+                      <>
+                        <AgentUsageRing
+                          agent={agent}
+                          open={usageOpen}
+                          onOpenChange={setUsageOpen}
+                        />
+                        <AgentSchedulePopover
+                          agent={agent}
+                          open={scheduleOpen}
+                          onOpenChange={openSchedule}
+                          startWhen={scheduleWhen}
+                          startEditing={scheduleRoutine}
+                        />
+                        <AgentModelMenu agent={agent} />
+                      </>
+                    )}
+                    <Dropdown
+                      align="right"
+                      portal
+                      menuClassName="agent-model-menu"
+                      className="agent-chat__menu"
+                      trigger={(p) => (
+                        <IconButton
+                          {...p}
+                          tabIndex={0}
+                          variant="ghost"
+                          icon={<MoreHorizontalIcon size={14} />}
+                          title="Agent actions"
+                          aria-label={`Actions for ${agent.name}`}
+                        />
+                      )}
+                    >
+                      <AgentActionItems
+                        agent={agent}
+                        kind="dropdown"
+                        onSchedule={engineReady ? () => setScheduleOpen(true) : undefined}
+                        onFiles={() => setFilesOpen(true)}
+                        onGoBack={ownRecent.length > 0 ? () => setPicking(true) : undefined}
+                        {...actions}
+                      />
+                    </Dropdown>
+                    <AgentFilesModal
+                      agent={agent}
+                      isOpen={filesOpen}
+                      onClose={() => setFilesOpen(false)}
+                    />
+                    <RememberModal
+                      key={remembering?.id ?? 'none'}
+                      agent={agent}
+                      message={remembering}
+                      onClose={() => setRemembering(null)}
+                    />
+                  </div>
+                </header>
+
+                {/* This conversation's living page, kept current by the agent. */}
+                <ConversationPage agent={agent} conversation={viewing} />
+
+                {/* Unmounted while the chat shows (a hidden xterm would fit itself to
+            nothing); showing it again replays the session's scrollback. */}
+                {takeover && terminalShown && (
+                  <div className="agent-chat__takeover">
+                    <TakeoverTerminal takeover={takeover} />
                   </div>
                 )}
-                <div className="agent-chat__actions">
-                  {/* Compact: the title is the agent menu, so it sits with the actions. */}
-                  {compact && conversationSwitcher}
-                  <ConversationPagePin agent={agent} conversation={viewing} />
-                  {/* Nothing to schedule or pick a model for until Claude Code is here. */}
-                  {engineReady && (
-                    <>
-                      <AgentUsageRing agent={agent} open={usageOpen} onOpenChange={setUsageOpen} />
-                      <AgentSchedulePopover
-                        agent={agent}
-                        open={scheduleOpen}
-                        onOpenChange={openSchedule}
-                        startWhen={scheduleWhen}
-                        startEditing={scheduleRoutine}
-                      />
-                      <AgentModelMenu agent={agent} />
-                    </>
-                  )}
-                  <Dropdown
-                    align="right"
-                    portal
-                    menuClassName="agent-model-menu"
-                    className="agent-chat__menu"
-                    trigger={(p) => (
-                      <IconButton
-                        {...p}
-                        tabIndex={0}
-                        variant="ghost"
-                        icon={<MoreHorizontalIcon size={14} />}
-                        title="Agent actions"
-                        aria-label={`Actions for ${agent.name}`}
-                      />
-                    )}
-                  >
-                    <AgentActionItems
-                      agent={agent}
-                      kind="dropdown"
-                      onSchedule={engineReady ? () => setScheduleOpen(true) : undefined}
-                      onFiles={() => setFilesOpen(true)}
-                      onGoBack={ownRecent.length > 0 ? () => setPicking(true) : undefined}
-                      {...actions}
-                    />
-                  </Dropdown>
-                  <AgentFilesModal
-                    agent={agent}
-                    isOpen={filesOpen}
-                    onClose={() => setFilesOpen(false)}
-                  />
-                  <RememberModal
-                    key={remembering?.id ?? 'none'}
-                    agent={agent}
-                    message={remembering}
-                    onClose={() => setRemembering(null)}
-                  />
-                </div>
-              </header>
 
-              {/* This conversation's living page, kept current by the agent. */}
-              <ConversationPage agent={agent} conversation={viewing} />
-
-              {/* Unmounted while the chat shows (a hidden xterm would fit itself to
-            nothing); showing it again replays the session's scrollback. */}
-              {takeover && terminalShown && (
-                <div className="agent-chat__takeover">
-                  <TakeoverTerminal takeover={takeover} />
-                </div>
-              )}
-
-              {/* Focusable, so the history scrolls with the keyboard (arrows, Page Up). */}
-              <div
-                className="agent-chat__scroll"
-                ref={scrollRef}
-                onScroll={onScroll}
-                onKeyDown={typeIntoComposer}
-                tabIndex={0}
-                role="region"
-                aria-label="Messages"
-              >
-                <ImportGuideProvider value={guideLive}>
-                  <div
-                    className="agent-chat__messages"
-                    ref={messagesRef}
-                    data-greeting={(greetingOnly && engineReady) || undefined}
-                  >
-                    {/* Asked once, for an install that never answered it. On a
+                {/* Focusable, so the history scrolls with the keyboard (arrows, Page Up). */}
+                <div
+                  className="agent-chat__scroll"
+                  ref={scrollRef}
+                  onScroll={onScroll}
+                  onKeyDown={typeIntoComposer}
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Messages"
+                >
+                  <ImportGuideProvider value={guideLive}>
+                    <div
+                      className="agent-chat__messages"
+                      ref={messagesRef}
+                      data-greeting={(greetingOnly && engineReady) || undefined}
+                    >
+                      {/* Asked once, for an install that never answered it. On a
               first run it comes after the greeting and its starters (below),
               so the Chief speaks first. */}
-                    {agent.isMain && engineReady && !greetingOnly && <ImportGuideAsk />}
-                    {items.length === 0 ? (
-                      <div className="agent-chat__empty">
-                        <AgentKey id={agent.id} name={agent.name} color={agent.color} size="lg" />
-                        <p className="agent-chat__empty-name">{agent.name}</p>
-                        {agent.isMain ? (
-                          <>
-                            <p className="agent-chat__empty-role">
-                              Tell me what you’re working on and I’ll put a team together. I create
-                              agents, hand them the work, and bring you what comes back.
-                            </p>
-                            {engineReady && chiefStarters}
-                          </>
-                        ) : (
-                          <>
-                            {agent.role && <p className="agent-chat__empty-role">{agent.role}</p>}
-                            <p className="agent-chat__empty-hint">
-                              It remembers what you tell it. Anything risky comes to you first, for
-                              you to Allow or Deny.
-                            </p>
-                            <TextButton tabIndex={0} onClick={() => actions.onEdit(agent)}>
-                              View instructions
-                            </TextButton>
-                            {engineReady && templateStarters}
-                            {engineReady && !template && (
-                              <div className="agent-chat__starters">
-                                {AGENT_STARTERS.map((text) => (
-                                  <Button
-                                    key={text}
-                                    tabIndex={0}
-                                    variant="secondary"
-                                    onClick={() => sendStarter(text)}
-                                  >
-                                    {text}
-                                  </Button>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      rows
-                    )}
-                    {/* The Chief spoke first (its stored greeting); the ways in sit
+                      {agent.isMain && engineReady && !greetingOnly && <ImportGuideAsk />}
+                      {items.length === 0 ? (
+                        <div className="agent-chat__empty">
+                          <AgentKey id={agent.id} name={agent.name} color={agent.color} size="lg" />
+                          <p className="agent-chat__empty-name">{agent.name}</p>
+                          {agent.isMain ? (
+                            <>
+                              <p className="agent-chat__empty-role">
+                                Tell me what you’re working on and I’ll put a team together. I
+                                create agents, hand them the work, and bring you what comes back.
+                              </p>
+                              {engineReady && chiefStarters}
+                            </>
+                          ) : (
+                            <>
+                              {agent.role && <p className="agent-chat__empty-role">{agent.role}</p>}
+                              <p className="agent-chat__empty-hint">
+                                It remembers what you tell it. Anything risky comes to you first,
+                                for you to Allow or Deny.
+                              </p>
+                              <TextButton tabIndex={0} onClick={() => actions.onEdit(agent)}>
+                                View instructions
+                              </TextButton>
+                              {engineReady && templateStarters}
+                              {engineReady && !template && (
+                                <div className="agent-chat__starters">
+                                  {AGENT_STARTERS.map((text) => (
+                                    <Button
+                                      key={text}
+                                      tabIndex={0}
+                                      variant="secondary"
+                                      onClick={() => sendStarter(text)}
+                                    >
+                                      {text}
+                                    </Button>
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        rows
+                      )}
+                      {/* The Chief spoke first (its stored greeting); the ways in sit
               under it until the user says something. */}
-                    {/* The Chief asks where their agents are first; its starters
+                      {/* The Chief asks where their agents are first; its starters
               are the other way in, under it. */}
-                    {greetingOnly && engineReady && <ImportGuideAsk />}
-                    {/* The first question is only about bringing agents over;
+                      {greetingOnly && engineReady && <ImportGuideAsk />}
+                      {/* The first question is only about bringing agents over;
               the starters come once it's answered ("I'm starting fresh"
               asks what to do and puts them under that). */}
-                    {((greetingOnly && importChoice !== 'undecided') || freshAsked) &&
-                      engineReady &&
-                      chiefStarters}
-                    {/* Mogbot for Chrome: missing or not connected, in every chat; the
+                      {((greetingOnly && importChoice !== 'undecided') || freshAsked) &&
+                        engineReady &&
+                        chiefStarters}
+                      {/* Mogbot for Chrome: missing or not connected, in every chat; the
               Chief's waits for the first result, as the phone's does. */}
-                    {engineReady && !busy && (!agent.isMain || reachedFirstResult(shown)) && (
-                      <ChromeNotice />
-                    )}
-                    {/* The phone, offered once the first thing asked for is back. */}
-                    {agent.isMain &&
-                      engineReady &&
-                      onSetUpPhone &&
-                      !busy &&
-                      importChoice !== 'undecided' &&
-                      importChoice !== 'bringing' &&
-                      reachedFirstResult(shown) && <ChiefPhoneOffer onSetUp={onSetUpPhone} />}
-                    {/* A ready-made agent the Chief just made: only "Created by" so
+                      {engineReady && !busy && (!agent.isMain || reachedFirstResult(shown)) && (
+                        <ChromeNotice />
+                      )}
+                      {/* The phone, offered once the first thing asked for is back. */}
+                      {agent.isMain &&
+                        engineReady &&
+                        onSetUpPhone &&
+                        !busy &&
+                        importChoice !== 'undecided' &&
+                        importChoice !== 'bringing' &&
+                        reachedFirstResult(shown) && <ChiefPhoneOffer onSetUp={onSetUpPhone} />}
+                      {/* A ready-made agent the Chief just made: only "Created by" so
               far, so its own starters sit under it until the user speaks. */}
-                    {templateFirstOpen && engineReady && !firstOpen && templateStarters}
-                    {/* A new agent's welcome, then three things it can do now. */}
-                    {firstOpen && engineReady && (
-                      <AgentStarters starters={agent.starters ?? []} onSend={sendStarter} />
-                    )}
-                    {items.length > 0 && (
-                      <FreshHint agent={agent} onStartFresh={() => actions.onStartFresh(agent)} />
-                    )}
-                    {items.length === 0 && indicator.mounted && (
-                      <WorkingIndicator
-                        activity={activity}
-                        work={agent.status.work}
-                        agent={rowAgent}
-                        bare={importTalking}
-                        entering={indicator.entering}
-                        leaving={indicator.leaving}
-                        onExited={indicator.onExited}
-                      />
-                    )}
-                  </div>
-                </ImportGuideProvider>
-              </div>
+                      {templateFirstOpen && engineReady && !firstOpen && templateStarters}
+                      {/* A new agent's welcome, then three things it can do now. */}
+                      {firstOpen && engineReady && (
+                        <AgentStarters starters={agent.starters ?? []} onSend={sendStarter} />
+                      )}
+                      {items.length > 0 && (
+                        <FreshHint agent={agent} onStartFresh={() => actions.onStartFresh(agent)} />
+                      )}
+                      {items.length === 0 && indicator.mounted && (
+                        <WorkingIndicator
+                          activity={activity}
+                          work={agent.status.work}
+                          agent={rowAgent}
+                          bare={importTalking}
+                          entering={indicator.entering}
+                          leaving={indicator.leaving}
+                          onExited={indicator.onExited}
+                        />
+                      )}
+                    </div>
+                  </ImportGuideProvider>
+                </div>
 
-              <div className="agent-chat__footer">
-                {jump.mounted && (
-                  <IconButton
-                    tabIndex={0}
-                    className="agent-chat__jump"
-                    data-leaving={jump.leaving || undefined}
-                    onAnimationEnd={jump.leaving ? jump.onExited : undefined}
-                    icon={<ArrowDownIcon size={14} />}
-                    onClick={scrollToBottom}
-                    aria-label="Jump to latest"
-                    title="Jump to latest"
-                  />
-                )}
+                <div className="agent-chat__footer">
+                  {jump.mounted && (
+                    <IconButton
+                      tabIndex={0}
+                      className="agent-chat__jump"
+                      data-leaving={jump.leaving || undefined}
+                      onAnimationEnd={jump.leaving ? jump.onExited : undefined}
+                      icon={<ArrowDownIcon size={14} />}
+                      onClick={scrollToBottom}
+                      aria-label="Jump to latest"
+                      title="Jump to latest"
+                    />
+                  )}
 
-                {/* This conversation's state, in one stack in a fixed order: you're
+                  {/* This conversation's state, in one stack in a fixed order: you're
               driving it, an import, what its engine can't do, a key in the
               draft, dictation blocked. Two at most; the rest fold. A bar that
               fails to draw leaves the composer and the history working. */}
-                <AreaBoundary where="agent-bars" resetKey={agent.id}>
-                  <ConversationBars
-                    bars={[
-                      // The phone is driving a tab in this Mac's Chrome: said in every conversation.
-                      { id: 'phoneSignin', node: <PhoneSigninBar /> },
-                      // You're in its browser right now (Step in): Hand back from here.
-                      { id: 'stepIn', node: <StepInBar agent={agent} messages={allLines ?? []} /> },
-                      {
-                        id: 'waiting',
-                        node: needsOk ? null : (
-                          <WaitingForYouBar
-                            agent={agent}
-                            messages={allLines ?? []}
-                            onReview={onOpenMessage ? reviewCard : undefined}
-                          />
-                        ),
-                      },
-                      {
-                        id: 'takeover',
-                        node: (
-                          <TakeoverBanner
-                            agent={agent}
-                            terminalShown={terminalShown}
-                            onToggleTerminal={toggleTerminal}
-                          />
-                        ),
-                      },
-                      { id: 'import', node: agent.isMain && <ImportTalkBar /> },
-                      {
-                        // What the import left to do opens its checklist, not the
-                        // requests panel: those logins are on the card (and left out
-                        // of the requests bar's counts through `shownRequestIds`).
-                        id: 'setup',
-                        node: setupHere && !setupHere.complete && (
-                          <ConversationBar
-                            state="waiting"
-                            data-testid="team-setup-bar"
-                            title={SETUP_BAR_TITLE}
-                            detail={progressLine(setupHere)}
-                            actions={
-                              <Button size="compact" variant="secondary" onClick={showTeamSetup}>
-                                Continue
-                              </Button>
-                            }
-                          />
-                        ),
-                      },
-                      {
-                        id: 'requests',
-                        node: engineReady && (
-                          <AgentRequestsBar
-                            agent={agent}
-                            peerIds={peerIds}
-                            askers={foreignOwners}
-                            shownRequestIds={shownRequestIds}
-                            onOpenAgent={onOpenAgent}
-                            setup={setupBarTarget}
-                          />
-                        ),
-                      },
-                      {
-                        id: 'engine',
-                        node: engineReady && cantAsk && (
-                          <ConversationBar
-                            data-testid="agent-cant-ask"
-                            title={`${ENGINE_LABEL[agent.engine]} can’t stop to ask you here`}
-                            detail={`Anything that needs your OK is refused instead. Updating ${ENGINE_LABEL[agent.engine]} fixes this.`}
-                          />
-                        ),
-                      },
-                      {
-                        id: 'secret',
-                        node: engineReady && (
-                          <LiveSecretHint agentId={agent.id} agentName={agent.name} />
-                        ),
-                      },
-                      {
-                        id: 'dictation',
-                        node: blocked && (
-                          <ConversationBar
-                            role="alert"
-                            state="waiting"
-                            title={
-                              dictation.preparing === null
-                                ? blocked.message
-                                : `${blocked.message} ${Math.round(dictation.preparing * 100)}%`
-                            }
-                            actions={
-                              <>
-                                <TextButton onClick={dictation.dismissBlocked}>Dismiss</TextButton>
-                                {blocked.settings && (
-                                  <Button
-                                    size="compact"
-                                    variant="secondary"
-                                    onClick={() => {
-                                      const url = blocked.settings;
-                                      if (url) void openPrivacySettings(url);
-                                    }}
-                                  >
-                                    Open System Settings
-                                  </Button>
-                                )}
-                              </>
-                            }
-                          />
-                        ),
-                      },
-                    ]}
-                  />
-                </AreaBoundary>
+                  <AreaBoundary where="agent-bars" resetKey={agent.id}>
+                    <ConversationBars
+                      bars={[
+                        // The phone is driving a tab in this Mac's Chrome: said in every conversation.
+                        { id: 'phoneSignin', node: <PhoneSigninBar /> },
+                        // You're in its browser right now (Step in): Hand back from here.
+                        {
+                          id: 'stepIn',
+                          node: <StepInBar agent={agent} messages={allLines ?? []} />,
+                        },
+                        {
+                          id: 'waiting',
+                          node: needsOk ? null : (
+                            <WaitingForYouBar
+                              agent={agent}
+                              messages={allLines ?? []}
+                              onReview={onOpenMessage ? reviewCard : undefined}
+                            />
+                          ),
+                        },
+                        {
+                          id: 'takeover',
+                          node: (
+                            <TakeoverBanner
+                              agent={agent}
+                              terminalShown={terminalShown}
+                              onToggleTerminal={toggleTerminal}
+                            />
+                          ),
+                        },
+                        { id: 'import', node: agent.isMain && <ImportTalkBar /> },
+                        {
+                          // What the import left to do opens its checklist, not the
+                          // requests panel: those logins are on the card (and left out
+                          // of the requests bar's counts through `shownRequestIds`).
+                          id: 'setup',
+                          node: setupHere && !setupHere.complete && (
+                            <ConversationBar
+                              state="waiting"
+                              data-testid="team-setup-bar"
+                              title={SETUP_BAR_TITLE}
+                              detail={progressLine(setupHere)}
+                              actions={
+                                <Button size="compact" variant="secondary" onClick={showTeamSetup}>
+                                  Continue
+                                </Button>
+                              }
+                            />
+                          ),
+                        },
+                        {
+                          id: 'requests',
+                          node: engineReady && (
+                            <AgentRequestsBar
+                              agent={agent}
+                              peerIds={peerIds}
+                              askers={foreignOwners}
+                              shownRequestIds={shownRequestIds}
+                              onOpenAgent={onOpenAgent}
+                              setup={setupBarTarget}
+                            />
+                          ),
+                        },
+                        {
+                          id: 'engine',
+                          node: engineReady && cantAsk && (
+                            <ConversationBar
+                              data-testid="agent-cant-ask"
+                              title={`${ENGINE_LABEL[agent.engine]} can’t stop to ask you here`}
+                              detail={`Anything that needs your OK is refused instead. Updating ${ENGINE_LABEL[agent.engine]} fixes this.`}
+                            />
+                          ),
+                        },
+                        {
+                          id: 'secret',
+                          node: engineReady && (
+                            <LiveSecretHint agentId={agent.id} agentName={agent.name} />
+                          ),
+                        },
+                        {
+                          id: 'dictation',
+                          node: blocked && (
+                            <ConversationBar
+                              role="alert"
+                              state="waiting"
+                              title={
+                                dictation.preparing === null
+                                  ? blocked.message
+                                  : `${blocked.message} ${Math.round(dictation.preparing * 100)}%`
+                              }
+                              actions={
+                                <>
+                                  <TextButton onClick={dictation.dismissBlocked}>
+                                    Dismiss
+                                  </TextButton>
+                                  {blocked.settings && (
+                                    <Button
+                                      size="compact"
+                                      variant="secondary"
+                                      onClick={() => {
+                                        const url = blocked.settings;
+                                        if (url) void openPrivacySettings(url);
+                                      }}
+                                    >
+                                      Open System Settings
+                                    </Button>
+                                  )}
+                                </>
+                              }
+                            />
+                          ),
+                        },
+                      ]}
+                    />
+                  </AreaBoundary>
 
-                {engineReady ? (
-                  <AgentComposer
-                    agentId={agent.id}
-                    agentName={agent.name}
-                    inputRef={inputRef}
-                    micRef={micRef}
-                    dictation={composerDictation}
-                    mentionSet={mentionSet}
-                    staged={staged}
-                    onRemoveStaged={attachments.remove}
-                    onPaste={attachments.onPaste}
-                    quotes={quotes}
-                    onRemoveQuote={removeQuote}
-                    revising={revising}
-                    onClearRevising={clearRevising}
-                    editing={editing?.text ?? null}
-                    onCancelEditing={cancelEditing}
-                    busy={busy}
-                    working={working}
-                    onEscape={onEscape}
-                    onStop={stopNow}
-                    onSend={send}
-                    onPickFiles={pickFiles}
-                    unfilled={unfilled}
-                    lastSent={lastSent}
-                  />
-                ) : (
-                  <div className="agent-composer agent-composer--blocked" role="status">
-                    <InfoIcon size={14} className="agent-composer__blocked-icon" />
-                    <span className="agent-composer__blocked-text">
-                      {engineInstalled
-                        ? `${agent.name} runs on ${ENGINE_LABEL[agent.engine]}, which is signed out on ${THIS_COMPUTER}.`
-                        : `${agent.name} runs on ${ENGINE_LABEL[agent.engine]}, which isn’t installed on ${THIS_COMPUTER} yet.`}
-                    </span>
-                    <Button tabIndex={0} variant="primary" onClick={onSetUpEngine}>
-                      {engineInstalled ? 'Sign in' : `Set up ${ENGINE_LABEL[agent.engine]}`}
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {quoting.anchor && (
-                <Button
-                  size="compact"
-                  className="agent-chat__quote"
-                  style={{ top: quoting.anchor.top, left: quoting.anchor.left }}
-                  // Keep the selection: a mousedown here would otherwise clear it.
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => quoting.quote()}
-                >
-                  Quote <kbd className="agent-chat__kbd">⌘L</kbd>
-                </Button>
-              )}
-
-              <GoBackPicker
-                open={picking}
-                messages={ownRecent}
-                state={goBack}
-                onPick={pickGoBack}
-                onClose={() => setPicking(false)}
-              />
-              <GoBackConfirm
-                ask={goBackAsk}
-                agentName={agent.name}
-                project={agent.project ? agent.project.split('/').filter(Boolean).pop() : null}
-                page={livingPage?.title}
-                busy={goingBack}
-                onCancel={() => setGoBackAsk(null)}
-                onConfirm={() => void confirmGoBack()}
-              />
-
-              <div className="agent-chat__drop" aria-hidden={!dropping}>
-                <div className="agent-chat__drop-label">
-                  <span className="agent-chat__drop-icon">
-                    <PaperclipIcon size={18} />
-                  </span>
-                  Drop files for {agent.name}
+                  {engineReady ? (
+                    <AgentComposer
+                      agentId={agent.id}
+                      agentName={agent.name}
+                      inputRef={inputRef}
+                      micRef={micRef}
+                      dictation={composerDictation}
+                      mentionSet={mentionSet}
+                      staged={staged}
+                      onRemoveStaged={attachments.remove}
+                      onPaste={attachments.onPaste}
+                      quotes={quotes}
+                      onRemoveQuote={removeQuote}
+                      revising={revising}
+                      onClearRevising={clearRevising}
+                      replying={replying}
+                      onCancelReplying={() => setReplying(null)}
+                      editing={editing?.text ?? null}
+                      onCancelEditing={cancelEditing}
+                      busy={busy}
+                      working={working}
+                      onEscape={onEscape}
+                      onStop={stopNow}
+                      onSend={send}
+                      onPickFiles={pickFiles}
+                      unfilled={unfilled}
+                      lastSent={lastSent}
+                    />
+                  ) : (
+                    <div className="agent-composer agent-composer--blocked" role="status">
+                      <InfoIcon size={14} className="agent-composer__blocked-icon" />
+                      <span className="agent-composer__blocked-text">
+                        {engineInstalled
+                          ? `${agent.name} runs on ${ENGINE_LABEL[agent.engine]}, which is signed out on ${THIS_COMPUTER}.`
+                          : `${agent.name} runs on ${ENGINE_LABEL[agent.engine]}, which isn’t installed on ${THIS_COMPUTER} yet.`}
+                      </span>
+                      <Button tabIndex={0} variant="primary" onClick={onSetUpEngine}>
+                        {engineInstalled ? 'Sign in' : `Set up ${ENGINE_LABEL[agent.engine]}`}
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </section>
-          </BlockReplyContext.Provider>
-        </ResultChatProvider>
-      </AgentGalleryProvider>
+
+                {quoting.anchor && (
+                  <Button
+                    size="compact"
+                    className="agent-chat__quote"
+                    style={{ top: quoting.anchor.top, left: quoting.anchor.left }}
+                    // Keep the selection: a mousedown here would otherwise clear it.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => quoting.quote()}
+                  >
+                    Quote <kbd className="agent-chat__kbd">⌘L</kbd>
+                  </Button>
+                )}
+
+                <GoBackPicker
+                  open={picking}
+                  messages={ownRecent}
+                  state={goBack}
+                  onPick={pickGoBack}
+                  onClose={() => setPicking(false)}
+                />
+                <GoBackConfirm
+                  ask={goBackAsk}
+                  agentName={agent.name}
+                  project={agent.project ? agent.project.split('/').filter(Boolean).pop() : null}
+                  page={livingPage?.title}
+                  busy={goingBack}
+                  onCancel={() => setGoBackAsk(null)}
+                  onConfirm={() => void confirmGoBack()}
+                />
+
+                <div className="agent-chat__drop" aria-hidden={!dropping}>
+                  <div className="agent-chat__drop-label">
+                    <span className="agent-chat__drop-icon">
+                      <PaperclipIcon size={18} />
+                    </span>
+                    Drop files for {agent.name}
+                  </div>
+                </div>
+              </section>
+            </BlockReplyContext.Provider>
+          </ResultChatProvider>
+        </AgentGalleryProvider>
+      </ReplyContext.Provider>
     </AccentScopeProvider>
   );
 });

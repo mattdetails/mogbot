@@ -42,7 +42,7 @@
   padding: var(--spacing-tight);
   background: var(--surface-panel);
   border: var(--border-width-default) solid var(--border-default);
-  border-radius: var(--radius-lg);
+  border-radius: var(--agents-composer-radius);
   /* Lifted a hair off the canvas, like the site's composer. */
   box-shadow: var(--shadow-sm);
 }
@@ -149,8 +149,28 @@
   flex: 0 0 auto;
 }
 
-/* Send is the neutral strong button (never the agent's colour), and an empty
-   box leaves it at 30%: there is nothing to send yet. */
+/* Send and Stop are one round button in the agent's colour (chat-design, option
+   A), its ink picked for contrast on that colour (--accent-on-user); an empty box
+   leaves Send muted at 30%: there is nothing to send yet. The + beside the words
+   is a thin outlined circle. */
+.agent-composer__send,
+.agent-composer__stop {
+  border-radius: var(--radius-full);
+  background: var(--bubble-user-fill, var(--accent-user));
+  color: var(--bubble-user-ink, var(--accent-on-user));
+}
+
+.agent-composer__send:hover:not(:disabled),
+.agent-composer__stop:hover:not(:disabled) {
+  background: var(--accent-user-hover);
+  color: var(--accent-on-user);
+}
+
+.agent-composer__attach {
+  border-radius: var(--radius-full);
+  border: var(--border-width-default) solid var(--border-default);
+}
+
 .agent-composer__send:disabled {
   opacity: 0.3; /* css-ok: disabled Send, the composer audit's 30% */
 }

@@ -22,7 +22,7 @@ import {
   type Block,
   type BlockSet,
 } from '../../../../packages/companion-protocol/src/blocks';
-import { FinishedProse } from '../AgentProse';
+import { Prose } from '../AgentProse';
 import { MessageAttachments } from '../AgentAttachments';
 import { BlockChart } from './BlockChart';
 import { BlockForm } from './BlockForm';
@@ -60,7 +60,7 @@ export const AgentBlocks = memo(function AgentBlocks({ messageId, agent, set }: 
     <div className="agent-blocks" data-message-id={messageId}>
       {set.intro && (
         <div className="agent-bubble agent-bubble--agent agent-markdown">
-          <FinishedProse id={messageId} text={set.intro} />
+          <Prose text={set.intro} />
         </div>
       )}
       {blockRuns(set.items).map((run, i) =>

@@ -160,6 +160,11 @@ export interface Scenario {
    */
   sameColumn?: string[];
   /**
+   * A real pointer move onto this element just before the screenshot, so its
+   * `:hover` state renders (the `hover` step only fires events, which don't).
+   */
+  pointAt?: string;
+  /**
    * A Cmd+K command run once the app has settled, to navigate to the surface
    * this scenario is about. Reuses the same plumbing as `?command=`; a
    * scenario that needs a panel or modal open should say so here rather than

@@ -43,7 +43,7 @@
   --agents-ink-sky: #9dc8ea;
   --agents-ink-lilac: #c3b4e2;
 
-  --agents-header-height: calc(var(--control-height-standard) + (var(--spacing-sm) * 2));
+  --agents-header-height: calc(var(--control-height-standard) + (var(--spacing-md) * 2));
   /* The collapsed home rail floats its nav row over the top-left of the
      window; the conversation header keeps clear of it. Four controls at
      control height, the row's gaps, and its padding. */
@@ -51,6 +51,9 @@
     (var(--control-height-standard) * 4) + (var(--button-gap) * 3) + (var(--spacing-sm) * 2)
   );
   --agents-chat-width: 720px;
+  /* A full page (Missions, Team, Usage) has its own, wider column, centred the same way. */
+  --agents-page-width: 960px;
+  --agents-page-inset: max(var(--agents-chat-gutter), (100% - var(--agents-page-width)) / 2);
   /* The least space either side of the column. */
   --agents-chat-gutter: var(--spacing-xl);
   --agents-bubble-max: 80%;
@@ -313,7 +316,8 @@
   :is(
     .agents-list__row.is-current,
     .agents-search__hit.is-current,
-    .agent-bubble--user,
+    .agents-catchup__row.is-selected,
+    button.agents-catchup__row:hover,
     .account-switcher__row[aria-current='page']
   ) {
   --text-secondary: var(--color-gray-300);

@@ -18,10 +18,10 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react';
-import { DraftProse, FinishedProse, GrowingProse, Prose } from './AgentProse';
+import { GrowingProse, Prose } from './AgentProse';
 import { useStreamIn } from './useStreamIn';
 import { TypingDots } from '../primitives/TypingDots';
-import { agentIn, getAgentsSnapshot, useAgentsSelector } from '../../lib/agentsStore';
+import { agentIn, useAgentsSelector } from '../../lib/agentsStore';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import {
   CheckIcon,
@@ -37,6 +37,7 @@ import {
   RoutineIcon,
   MoreHorizontalIcon,
   PinIcon,
+  ReplyIcon,
   SettingsSlidersIcon,
   ShieldCheckIcon,
   WarningIcon,
@@ -52,6 +53,8 @@ import { ComposerAttachments, MessageAttachments } from './AgentAttachments';
 import { LocalLinks } from './AgentLocalLinks';
 import type { DraftAttachment } from './useComposerAttachments';
 import { MentionText } from './AgentMentions';
+import { canReplyTo } from '../../lib/replyTo';
+import { ReplyPill, useReply } from './ReplyContext';
 import { GoBackContextMenu, GoBackMenu, type GoBackAction, type GoBackState } from './AgentGoBack';
 import { AgentPeerStatus } from './AgentPeerStatus';
 import { SecretCard } from './AgentSecretCard';
@@ -188,12 +191,95 @@ function MessageActions({
 }
 
 /**
+ * The hover tools, Grok's: bare icons beside the message at its vertical
+ * centre, on the open side: Reply and ⋯ (the message's menu, with Reply first).
+ * Not drawn on touch or in a window under 480px; the menu is still reachable
+ * by right-click and by R.
+ */
+function MessageTools({ onReply, menu }: { onReply?: () => void; menu?: ReactNode }) {
+  if (!onReply && !menu) return null;
+  return (
+    <div className="agent-message__tools">
+      {onReply && (
+        <IconButton
+          tabIndex={-1}
+          variant="ghost"
+          size="compact"
+          className="agent-message__reply"
+          icon={<ReplyIcon size={17} />}
+          onClick={onReply}
+          aria-label="Reply"
+          title="Reply (R)"
+        />
+      )}
+      {menu}
+    </div>
+  );
+}
+
+/** An agent message's ⋯: Reply first, then Copy and Remember this. */
+function AgentMessageMenu({
+  text,
+  onReply,
+  onRemember,
+}: {
+  text: string;
+  onReply?: () => void;
+  onRemember?: () => void;
+}) {
+  const { copy } = useCopyToClipboard();
+  return (
+    <Dropdown
+      align="left"
+      portal
+      boundary=".agent-chat"
+      trigger={(p) => (
+        <IconButton
+          {...p}
+          tabIndex={-1}
+          variant="ghost"
+          size="compact"
+          className="agent-message__more"
+          icon={<MoreHorizontalIcon size={17} />}
+          aria-label="Message actions"
+          title="More"
+        />
+      )}
+    >
+      {onReply && (
+        <DropdownItem icon={<ReplyIcon size={12} />} onSelect={onReply}>
+          Reply
+        </DropdownItem>
+      )}
+      <DropdownItem icon={<CopyIcon size={12} />} onSelect={() => void copy(text)}>
+        Copy
+      </DropdownItem>
+      {onRemember && (
+        <DropdownItem icon={<PinIcon size={12} />} onSelect={onRemember}>
+          Remember this
+        </DropdownItem>
+      )}
+    </Dropdown>
+  );
+}
+
+/**
  * ⌘C on a focused message with nothing selected copies the whole message, as
  * its Copy button would.
  */
-function useCopyOnKey(textOf: string | (() => string)) {
+function useCopyOnKey(textOf: string | (() => string), onReply?: () => void) {
   const { copy } = useCopyToClipboard();
+  const reply = useReply();
   return (event: React.KeyboardEvent<HTMLElement>) => {
+    // R replies to the focused message; Esc drops the reply that is set.
+    if (event.target === event.currentTarget && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (event.key.toLowerCase() === 'r' && onReply) {
+        event.preventDefault();
+        onReply();
+        return;
+      }
+      if (event.key === 'Escape' && reply) reply.cancel();
+    }
     if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'c') return;
     const text = typeof textOf === 'function' ? textOf() : textOf;
     if (!text) return;
@@ -208,41 +294,49 @@ interface AgentBubbleProps extends Arrival {
   message: AgentMessage;
   /** Whose reply: local paths resolve against its home, shared files live there. */
   agent: Agent;
-  /** Still being written: the text grows in place and a caret marks its end. */
-  streaming?: boolean;
   /** "Remember this", with this message. */
   onRemember?: (message: AgentMessage) => void;
   /** One of the Chief's scripted lines: it types itself out when first seen (`useStreamIn`). */
   scripted?: boolean;
 }
 
-/** The reply an agent is writing, as it is now: read from the store, not passed down. */
-const draftTextOf = (agentId: string) =>
-  getAgentsSnapshot().drafts[agentId]?.text.trimStart() ?? '';
-
 /** A reply in prose, and any files the agent shared with it (`share_file`). */
 export const AgentBubble = memo(function AgentBubble({
   message,
   agent,
   arrived,
-  streaming,
   onRemember,
   scripted,
 }: AgentBubbleProps) {
   const onClick = useProseLinks(agent.id);
-  const streamIn = useStreamIn(message.id, message.text, message.ts, !!scripted && !streaming);
+  const streamIn = useStreamIn(message.id, message.text, message.ts, !!scripted);
   // Blocks (`show`) draw in place of the text, which is their plain version.
-  const blocks = streaming ? null : readBlocks(message);
+  const blocks = readBlocks(message);
   const attachments = attachmentsOutsideBlocks(message.attachments, blocks);
-  const actions = !streaming && (
+  const replies = useReply();
+  const onReply = replies && canReplyTo(message) ? () => replies.reply(message) : undefined;
+  const actions = (
     <MessageActions
       text={message.text}
       ts={message.ts}
       onRemember={onRemember && (() => onRemember(message))}
     />
   );
+  // Reply and ⋯ beside the bubble, on its open side.
+  const tools = (
+    <MessageTools
+      onReply={onReply}
+      menu={
+        <AgentMessageMenu
+          text={message.text}
+          onReply={onReply}
+          onRemember={onRemember && message.text ? () => onRemember(message) : undefined}
+        />
+      }
+    />
+  );
   // Still being written: its words live in the store, not in this message.
-  const onKeyDown = useCopyOnKey(streaming ? () => draftTextOf(message.agentId) : message.text);
+  const onKeyDown = useCopyOnKey(message.text, onReply);
   if (streamIn.phase !== 'done') {
     return (
       <div
@@ -268,7 +362,7 @@ export const AgentBubble = memo(function AgentBubble({
       className="agent-chat__row agent-chat__row--agent"
       data-arrived={arrived || undefined}
       data-stopped={message.stopped || undefined}
-      data-actions={(!streaming && attachments.length === 0) || undefined}
+      data-actions={attachments.length === 0 || undefined}
       data-attachments={attachments.length > 0 || undefined}
       data-local-links={(message.localLinks?.length ?? 0) > 0 || undefined}
       data-blocks={blocks ? true : undefined}
@@ -280,23 +374,17 @@ export const AgentBubble = memo(function AgentBubble({
           <AgentBlocks messageId={message.id} agent={agent} set={blocks} />
         </div>
       ) : (
-        (streaming || message.text) && (
-          <div
-            className="agent-bubble agent-bubble--agent agent-markdown"
-            data-streaming={streaming || undefined}
-            aria-busy={streaming || undefined}
-            onClick={onClick}
-          >
-            {streaming ? (
-              <DraftProse agentId={message.agentId} id={message.id} />
-            ) : (
-              <FinishedProse id={message.id} text={message.text} />
-            )}
-          </div>
+        message.text && (
+          <>
+            <div className="agent-bubble agent-bubble--agent agent-markdown" onClick={onClick}>
+              <Prose text={message.text} />
+            </div>
+            {tools}
+          </>
         )
       )}
       {message.stopped && <span className="agent-bubble__stopped">Stopped</span>}
-      {!streaming && <LocalLinks message={message} />}
+      <LocalLinks message={message} />
       {attachments.length > 0 ? (
         <div className="agent-chat__line agent-chat__line--agent">
           <MessageAttachments agent={agent} attachments={attachments} side="agent" />
@@ -373,18 +461,34 @@ export const UserBubble = memo(function UserBubble({
   onGoBack,
 }: UserBubbleProps) {
   const attachments = message.attachments ?? [];
+  const replies = useReply();
+  const onReply =
+    replies && !failed && !sending && !tidying && canReplyTo(message)
+      ? () => replies.reply(message)
+      : undefined;
   const actions = !failed && !sending && !tidying && (
     <MessageActions
       text={message.text}
       ts={message.ts}
       onRemember={onRemember && (() => onRemember(message))}
-      more={
+    />
+  );
+  const tools = !failed && !sending && !tidying && (
+    <MessageTools
+      onReply={onReply}
+      menu={
         goBack &&
-        onGoBack && <GoBackMenu state={goBack} onPick={(action) => onGoBack(action, message)} />
+        onGoBack && (
+          <GoBackMenu
+            state={goBack}
+            onReply={onReply}
+            onPick={(action) => onGoBack(action, message)}
+          />
+        )
       }
     />
   );
-  const onKeyDown = useCopyOnKey(message.text);
+  const onKeyDown = useCopyOnKey(message.text, onReply);
   const bubble = (
     <div className="agent-bubble agent-bubble--user">
       {message.revises && <RevisesBar revises={message.revises} />}
@@ -434,13 +538,18 @@ export const UserBubble = memo(function UserBubble({
           <MessageAttachments agent={agent} attachments={attachments} />
         </div>
       )}
+      {message.replyTo && replies && (
+        <ReplyPill replyTo={message.replyTo} otherParty={agent.name} />
+      )}
       {(message.text || tidying) && (
         <div className="agent-chat__line">
           {actions}
+          {tools}
           {goBack && onGoBack && !failed && !sending && !tidying ? (
             <GoBackContextMenu
               state={goBack}
               text={message.text}
+              onReply={onReply}
               onPick={(action) => onGoBack(action, message)}
               onRemember={onRemember && (() => onRemember(message))}
             >
@@ -1386,16 +1495,16 @@ const ApprovalCardBody = memo(function ApprovalCard({
               : undefined
         }
         note={
-          pending && gate
-            ? 'It waits for you, and closes if the routine runs again first.'
-            : pending && skill
-              ? SKILL_OFFER_NOTE
-              : pending && paused && !plainDeny && !approval.settings && !approval.slackReply
-                ? 'It paused here for you. Allow it and it picks up where it left off.'
-                : approval.status === 'expired'
-                  ? approval.setAside
-                  : pending && approval.always
-                    ? approval.alwaysNote
+          pending && approval.always && approval.alwaysNote
+            ? approval.alwaysNote
+            : pending && gate
+              ? 'It waits for you, and closes if the routine runs again first.'
+              : pending && skill
+                ? SKILL_OFFER_NOTE
+                : pending && paused && !plainDeny && !approval.settings && !approval.slackReply
+                  ? 'It paused here for you. Allow it and it picks up where it left off.'
+                  : approval.status === 'expired'
+                    ? approval.setAside
                     : undefined
         }
         actions={

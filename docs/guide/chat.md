@@ -3,13 +3,19 @@ title: The chat
 order: 9
 ---
 
-Every message is a bubble. On the phone, yours takes the agent's key colour, on the right, with white or near-black words, whichever reads better (at least 4.5 to 1); your agent's is a quiet tint of the text colour (4% in dark, 6% in light) on the left, up to 560 wide. A reply arrives whole, not word by word; the working line stays until all of it is there. Each has a small square corner at the bottom toward whoever spoke. Cards (results, approvals, tables and charts) keep their own frames and are not bubbles.
+Every message is a bubble. Yours takes your agent's colour (with writing in near-black or near-white, whichever reads best on that colour) on the right; your agent's is a faint tint of the text colour on the left. Each has a small square corner at the bottom toward whoever spoke. Cards (results, approvals, tables and charts) keep their own frames and are not bubbles.
+
+A reply appears all at once, not word by word: while your agent writes it, the one working line stays at the end of the chat, and when the reply is ready it takes that line's place. The same goes in a room.
+
+## Reply to a message
+
+Hover a message and two bare icons appear beside it: **Reply** and **⋯** (the message's menu, with Reply first). With a message focused, press **R** (Esc drops it again); on your own messages the right-click menu has Reply first too. The message you're replying to shows as one outlined line at the top inside the message box, with a × to cancel. One reply at a time; replying to another replaces it. Your message then goes with a one-line pill above its bubble showing what it answers (a name first only when it quotes someone other than you and this agent), and your agent is told which message you meant. Click the pill to jump to the original and see it flash; if the original is no longer loaded the pill says "Message not available". The hover icons aren't drawn on touch screens or in a window narrower than 480 pixels.
 
 ## When your agent is busy
 
 ## The message box
 
-The box holds the paperclip, your words, the mic and Send, and nothing else. Send is neutral (near-black in light, near-white in dark), never the agent's colour, and sits faint until there is something to send. The mic is there only while the box is empty. While the agent works and the box is empty, a Stop square sits where Send would be; Stop stops the turn. The model is no longer in the box: change it from **Model** in the chat header (desk) or **Model and controls** in the ⋯ menu (phone).
+The box is one rounded bar: a **+** (attach files) on the left, your words, the mic while the box is empty, and one round button on the right in your agent's colour. That button is a muted send arrow while the box is empty, a lit send arrow once there is something to send, and a stop square while your agent is working and the box is empty; Stop stops the turn. The model is no longer in the box: change it from **Model** in the chat header (desk) or **Model and controls** in the ⋯ menu (phone).
 
 Send something while it is working and it waits its turn. Under your message you see **Next**, and **Send now** if you'd rather it stop and read yours straight away. The agent's one working line sits below; that is all the chat says about it.
 
@@ -29,7 +35,7 @@ A request's title says what will happen, in plain words, when the app can tell (
 
 ## Catch up
 
-**Catch up** sits under Search in the Agents sidebar and stays put while the list scrolls: a row the height of a conversation that says how many agents need you and who, or "All clear" (the bell beside the sidebar toggle opens it too, and so does ⌘K). It shows one at a time: who asked and when, the request in a line, why in two, and, for anything that sends, the exact words. **Deny** and **Allow** sit under it (Allow is always black and white, never an agent's colour); **Open chat** opens that agent's chat; **Later** moves it to the back, and it comes back the next time you catch up. While a card has focus, A, D, O and L do those four; Esc closes. **Up next** lists what comes after, so it never feels endless. When nothing is left you see "You're caught up", and what only happened while you were away (a result, a routine's run), which needs no answer.
+**Catch up** sits under Search in the Agents sidebar and stays put while the list scrolls: a row the height of a conversation that says how many agents need you and who, or "All clear" (the bell beside the sidebar toggle opens it too, and so does ⌘K). Opening it shows a list of what waits on the left and the open item on the right. The list is the queue: **Needs you · N** (longest waiting first), then **Then**, whose one row is "While you were away"; what you answer moves to **Done · N** at the top. The card on the right shows who asked and when, what kind of ask it is, the request in a line, why, and, for anything that sends, the exact words. **Allow** (always black and white, never an agent's colour) and **Deny** sit under it, with **Details** for the request's own words; **Open chat** opens that agent's chat; **Later** moves it to the end of the list with a muted "Later" tag and it stays there. A, D, O and L do those four while the card has focus; ↑ ↓ (or J and K) move through the list; Esc closes. The count at the top says "3 left", "Summary" or "All clear" ("99+" from a hundred). In a window narrower than 880 pixels the list hides and the count becomes a button that opens it. When nothing is left you see "All clear" (with the time of your last decision, if you answered one here), or the summary of what only happened while you were away, which needs no answer and ends with **Got it**.
 
 On your phone, Catch up is the same: one card at a time, the same Allow, and one last card for what only happened.
 

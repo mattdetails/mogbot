@@ -420,9 +420,9 @@ fn a_new_agent_gets_its_colours_nearest_colourway_its_icon_and_its_letter() {
 
 #[test]
 fn a_face_is_a_look_the_mac_takes_and_names() {
-    assert_eq!(keys::faces().len(), 16);
+    assert_eq!(keys::faces().len(), 34);
     assert!(keys::is_icon("face-05") && keys::is_face("face-05"));
-    assert!(!keys::is_icon("face-17"));
+    assert!(!keys::is_icon("face-35"));
     let mut team = vec![
         agent("a", "Ostler site", "amber"),
         agent("b", "Hiring", "teal"),
@@ -431,5 +431,5 @@ fn a_face_is_a_look_the_mac_takes_and_names() {
     let l = look_args(&team[0], &team, &json!({ "icon": "face-05" })).unwrap();
     assert_eq!(l.key.icon.as_deref(), Some("face-05"));
     assert_eq!(l.line().as_deref(), Some("now with the Propeller face"));
-    assert!(keys::icon_hint().contains("face-01 to face-16"));
+    assert!(keys::icon_hint().contains("face-01 to face-34"));
 }

@@ -352,7 +352,6 @@ pub fn new_message(agent_id: &str, kind: MessageKind, text: impl Into<String>) -
         fresh: false,
         result: None,
         revises: None,
-        reply_to: None,
         takeover: false,
         room: None,
         decide: Vec::new(),

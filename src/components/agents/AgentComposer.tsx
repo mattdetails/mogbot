@@ -21,12 +21,14 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from 'react';
-import { ArrowUpIcon, MicrophoneIcon, PaperclipIcon } from '@/components/icons';
+import { ArrowUpIcon, MicrophoneIcon, PlusIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
 import { TextArea } from '../primitives/TextField';
 import { ComposerAttachments, ComposerQuotes } from './AgentAttachments';
 import { ComposerRevising } from './AgentResult';
 import { ComposerEditing } from './AgentGoBack';
+import { ReplyLine } from './ReplyChip';
+import type { ReplyRef } from '../../lib/replyTo';
 import { AgentSecretHint } from './AgentSecretHint';
 import { useMentionPicker } from './AgentMentions';
 import type { DraftAttachment } from './useComposerAttachments';
@@ -75,6 +77,9 @@ interface AgentComposerProps {
   onRemoveQuote: (index: number) => void;
   revising: ResultRef | null;
   onClearRevising: () => void;
+  /** Replying to a message: the line at the top of the box, or null. */
+  replying?: ReplyRef | null;
+  onCancelReplying?: () => void;
   /** Editing a sent message (Edit and resend): its words as sent, or null. */
   editing?: string | null;
   onCancelEditing?: () => void;
@@ -180,6 +185,8 @@ export const AgentComposer = memo(function AgentComposer({
   onRemoveQuote,
   revising,
   onClearRevising,
+  replying = null,
+  onCancelReplying,
   editing = null,
   onCancelEditing,
   busy,
@@ -300,6 +307,7 @@ export const AgentComposer = memo(function AgentComposer({
       }}
     >
       {mentionPicker.menu}
+      <ReplyLine replying={replying} onCancel={() => onCancelReplying?.()} />
       <ComposerEditing text={editing} onCancel={() => onCancelEditing?.()} />
       <ComposerRevising revising={revising} onRemove={onClearRevising} />
       <ComposerQuotes quotes={quotes} onRemove={onRemoveQuote} />
@@ -360,12 +368,12 @@ export const AgentComposer = memo(function AgentComposer({
         aria-describedby={queueing ? queueHintId : undefined}
       />
       <div className="agent-composer__bar">
-        {/* The paperclip stays while listening, so the text never moves. */}
+        {/* The + (attach) stays while listening, so the text never moves. */}
         <IconButton
           tabIndex={0}
           variant="ghost"
           className="agent-composer__attach"
-          icon={<PaperclipIcon size={14} />}
+          icon={<PlusIcon size={14} />}
           onClick={onPickFiles}
           aria-label="Attach files"
           title="Attach files, or paste or drop them here"
@@ -426,7 +434,7 @@ export const AgentComposer = memo(function AgentComposer({
           {working && !canSend && !blank && !dictating ? (
             <IconButton
               tabIndex={0}
-              variant="secondary"
+              variant="strong"
               className="agent-composer__stop"
               data-armed={escArmed || undefined}
               icon={<span className="agent-composer__stop-square" aria-hidden />}

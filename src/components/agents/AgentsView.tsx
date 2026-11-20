@@ -42,6 +42,7 @@ import { AgentsRoutinesView, type BulkAsk } from './AgentsRoutinesView';
 import { ROUTINES_ID } from '../../lib/agentDesk';
 import { menuOwnsShortcuts, onMenuAction, reportMenuContext } from '../../lib/nativeMenu';
 import { AgentEditorModal, type EditorTab } from './AgentEditorModal';
+import { NewAgentDialog } from './NewAgentDialog';
 import { AgentProjectsProvider } from './AgentProject';
 import { TakeoverProvider, useTakeover } from './AgentTakeover';
 import { OpenReachContext } from './openReach';
@@ -219,6 +220,8 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
     focus?: 'skills' | 'reach';
     /** Creating: the ready-made agent it opens on. */
     template?: string;
+    /** Creating: the full editor, not the simple first screen. */
+    full?: boolean;
   }>({
     open: false,
     agent: null,
@@ -1325,13 +1328,28 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
           {!isCompact && preview}
         </div>
 
+        {/* New agent opens on the simple screen; a template, "More options" or an
+            edit uses the full editor. */}
+        <NewAgentDialog
+          key={editor.open && !editor.agent ? 'new-simple' : 'closed-simple'}
+          isOpen={editor.open && !editor.agent && !editor.template && !editor.full}
+          onClose={() => setEditor({ open: false, agent: null })}
+          onCreated={(id) => {
+            void refreshAgents();
+            openAgent(id);
+          }}
+          onMoreOptions={() => setEditor({ open: true, agent: null, full: true })}
+        />
         <AgentEditorModal
           key={
             editor.open
               ? `${editor.agent?.id ?? 'new'}-${editor.tab ?? ''}-${editor.focus ?? ''}-${editor.template ?? ''}`
               : 'closed'
           }
-          isOpen={editor.open}
+          isOpen={
+            editor.open &&
+            (Boolean(editor.agent) || Boolean(editor.template) || Boolean(editor.full))
+          }
           agent={editor.agent}
           initialTab={editor.tab}
           initialFocus={editor.focus}

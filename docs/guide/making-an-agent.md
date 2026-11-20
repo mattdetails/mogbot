@@ -20,19 +20,18 @@ you. Leave it alone with nothing going on and it falls asleep; move the pointer 
 at it and it smiles, press it and it squishes, click it and it jumps, and click it a few times
 fast and it gets dizzy.
 
-## Describe the agent you want
+## Make the agent's key, then say what it does
 
-Click **New agent** (or press ⌘N) and write what you want in a sentence or two. **Draft it**
-fills in the whole agent:
+Click **New agent** (or press ⌘N). The first screen is the agent itself: a live preview of its key, a name, a colour (one row of the colours) and a **Faces | Icons** switch, with Faces first (34 faces drawn on the colour you picked; Icons has a search over about 2,000). **Create** works as soon as it has a name and opens a blank agent's chat.
 
-- a name and a colour,
+Under the key, an optional box asks **What should it do?** Write a sentence and **Create** becomes **Drafting…** while the Chief drafts:
+
 - a one-line role,
 - a briefing (its instructions),
 - up to four routines, each shown the way the app read it ("Every Friday at 16:00"),
-- the apps it will need.
+- the apps it will need,
 
-Everything is editable, and nothing is made until you press **Create**. A routine the app couldn't
-read as a time says so and can't be ticked; it's never guessed.
+and the agent is made with them, ready for you to change in its editor. A routine the app couldn't read as a time is left out, never guessed. If the draft fails you can **Create blank** or **Try again**, and nothing you typed is lost. **More options…** opens the full editor (ready-made agents to start from, engine, model, project).
 
 You can also ask the Chief in chat: "Make me an agent that…". It replies with the draft and asks
 "Make it?" first.
@@ -49,7 +48,7 @@ own voice and three things you can tap to start.
 
 **Edit agent** is one sheet, laid out like Settings. At the top is the agent's key (click it to
 change its colour, its face or icon, and its shortcut key), its name, and what it runs on. Under
-Colour, **Face** or **Icon** picks which it wears: one of 16 faces, or any of over 2,000 icons. Three tabs sit under
+Colour, **Face** or **Icon** picks which it wears: one of 34 faces, or any of over 2,000 icons. Three tabs sit under
 it: **Agent**, **Memory** and **Usage**.
 
 On **Agent**, the rows are grouped:

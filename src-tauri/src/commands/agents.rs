@@ -382,7 +382,6 @@ pub async fn agents_send(
     revises: Option<String>,
     conversation: Option<String>,
     written_at: Option<i64>,
-    reply_to: Option<String>,
 ) -> Result<store::AgentMessage, CommandError> {
     send_in(
         app,
@@ -395,7 +394,6 @@ pub async fn agents_send(
         true,
         conversation,
         written_at,
-        reply_to,
     )
     .await
 }
@@ -426,7 +424,6 @@ pub(crate) async fn send_as(
         typed,
         None,
         None,
-        None,
     )
     .await
 }
@@ -446,7 +443,6 @@ pub(crate) async fn send_in(
     typed: bool,
     conversation: Option<String>,
     written_at: Option<i64>,
-    reply_to: Option<String>,
 ) -> Result<store::AgentMessage, CommandError> {
     let text = text.trim().to_string();
     let said = text.clone();
@@ -501,18 +497,6 @@ pub(crate) async fn send_in(
             )
         })?);
     }
-    // A reply: the original as the log has it (never as the client says it);
-    // an id that isn't there sends the message with no reply.
-    if let Some(id) = reply_to.filter(|r| !r.trim().is_empty()) {
-        let (log_of, name) = (agent_id.clone(), recipient.name.clone());
-        message.reply_to = tokio::task::spawn_blocking(move || {
-            store::messages(&log_of, usize::MAX)
-                .ok()
-                .and_then(|log| agents::reply::build(&log, id.trim(), &name))
-        })
-        .await
-        .map_err(agents::err_other)?;
-    }
     // A phone's send id, echoed so its optimistic bubble reconciles by id.
     message.client_id = client_id.filter(|c| !c.is_empty());
     // Only real agents, other than the recipient, once each; anything else is dropped.
@@ -552,14 +536,8 @@ pub(crate) async fn send_in(
     } else {
         String::new()
     };
-    let replying = message
-        .reply_to
-        .as_ref()
-        .map(agents::reply::prompt_line)
-        .unwrap_or_default();
     let prompt = [
         revising,
-        replying,
         text,
         prompts::mentions(&names, recipient.is_main),
         setup,

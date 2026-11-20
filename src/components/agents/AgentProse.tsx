@@ -1,19 +1,8 @@
 /**
- * An agent's words as markdown: a finished reply, and a reply still being
- * written.
- *
- * A reply streams in as the whole text so far, every 40 ms. Three things keep
- * that smooth here, as the phone's reply already was:
- *
- * - **It is revealed at the display's pace** (`useReveal`), not in 40 ms
- *   steps: what arrived is spread over the frames until the next arrival, so
- *   the words flow instead of jumping a few at a time.
- * - **Only the block being written is redrawn.** The parser keeps finished
- *   blocks (`createStreamingSegments`), and `ProseRun` keeps their DOM: it
- *   used to set the whole reply's HTML on every delta, which rebuilt and
- *   re-laid-out every paragraph above the one growing.
- * - **The finished message carries on from where the draft had got to**
- *   (`FinishedProse`), instead of snapping the last few words in.
+ * An agent's words as markdown. A reply lands whole (no word-by-word reveal),
+ * drawn block by block: the parser keeps finished blocks
+ * (`createStreamingSegments`) and `ProseRun` keeps their DOM, so a long reply
+ * never rebuilds the paragraphs above the one that changed.
  *
  * @module components/agents/AgentProse
  */
@@ -22,9 +11,7 @@ import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CheckIcon, CopyIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
-import { useAgentsSelector } from '../../lib/agentsStore';
 import { createStreamingSegments, toSegments, type Segment } from './agentMarkdown';
-import { isRevealing, useReveal } from './useReveal';
 
 const CodeBlock = memo(function CodeBlock({ text }: { text: string }) {
   const { copy, isCopied } = useCopyToClipboard();
@@ -130,31 +117,4 @@ export function GrowingProse({ text }: { text: string }) {
   const [segmentsFor] = useState(createStreamingSegments);
   const segments = useMemo(() => segmentsFor(text), [segmentsFor, text]);
   return <ProseSegments segments={segments} />;
-}
-
-/**
- * A reply still being written. It reads its own text from the store, so a
- * delta re-renders only this.
- */
-export function DraftProse({ agentId, id }: { agentId: string; id: string }) {
-  const text = useAgentsSelector((s) => s.drafts[agentId]?.text.trimStart() ?? '');
-  return <GrowingProse text={useReveal(id, text, true)} />;
-}
-
-/**
- * A finished reply. Normally drawn whole; when it has just replaced its own
- * draft and the reveal hadn't caught up, it carries on revealing first.
- */
-export function FinishedProse({ id, text }: { id: string; text: string }) {
-  // Only a reply caught mid-reveal pays for the hook's frames; history doesn't.
-  const [catching] = useState(() => isRevealing(id));
-  if (!catching) return <Prose text={text} />;
-  return <CatchingUp id={id} text={text} />;
-}
-
-function CatchingUp({ id, text }: { id: string; text: string }) {
-  // The draft was revealed without its leading whitespace; so is this.
-  const target = text.trimStart();
-  const shown = useReveal(id, target, false);
-  return shown.length < target.length ? <GrowingProse text={shown} /> : <Prose text={text} />;
 }

@@ -36,7 +36,13 @@ export const agentsNestedListScenarios: Scenario[] = [
         args.agentId === 'chief'
           ? [
               chiefGreeting('chief', now - 99 * MIN),
-              { id: 'nested-list', agentId: 'chief', ts: now - 98 * MIN, kind: 'agent' as const, text: LIST },
+              {
+                id: 'nested-list',
+                agentId: 'chief',
+                ts: now - 98 * MIN,
+                kind: 'agent' as const,
+                text: LIST,
+              },
             ]
           : [],
     },

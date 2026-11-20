@@ -3161,7 +3161,7 @@ export const agentsScenarios: Scenario[] = [
     openSelector: AGENTS_TAB,
     requires: '.agent-sheet__menu[aria-label^="Runs on"]',
     clipSelector: '.agent-editor',
-    steps: [{ click: '.agents-list__new' }],
+    steps: [{ click: '.agents-list__new' }, { click: '.new-agent__more' }],
     commands: {
       agents_overview: {
         ...overview(),
@@ -3178,7 +3178,11 @@ export const agentsScenarios: Scenario[] = [
     openSelector: AGENTS_TAB,
     requires: '.agent-sheet [aria-labelledby="settings-group-agent-runs-on"]',
     clipSelector: '.agent-editor',
-    steps: [{ click: '.agents-list__new' }, { click: '.agent-editor__fill-in' }],
+    steps: [
+      { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
+      { click: '.agent-editor__fill-in' },
+    ],
     commands: {
       agents_overview: {
         ...overview(),
@@ -3257,11 +3261,11 @@ export const agentsScenarios: Scenario[] = [
   },
   {
     id: 'agents-new',
-    title: 'Agents — creating an agent',
+    title: 'Agents — New agent, the simple first screen',
     looksRightWhen:
-      'Describe first, and only that: “Describe the agent you want” over a tall box whose placeholder is short and muted (“For example: …”), so the box reads as empty; Draft it (the neutral strong button, disabled until there are a few words) and its one-line hint. Under it one quiet line: “Or fill it in yourself, start from Research, Inbox or Weekly Review, or ask your Chief of Staff.” No name field, form, Advanced or Create yet; the footer has Cancel only.',
+      'A 560px dialog: “New agent” and a × in the header; a big live key preview centred; a 40px name field (“Name your agent”, centred text); the colour row left-aligned (14 dots, one selected with a ring); a Faces | Icons switch with Faces selected and the 34 faces drawn on the chosen colour, a name under each; the caps label “What should it do? (optional)” over a 68px box. Footer: More options… at the left, Cancel (outline) and Create (strong, neutral, disabled until there is a name). Rectangular buttons, no pills.',
     command: 'agents.new',
-    requires: '.agent-describe',
+    requires: '.new-agent',
     commands: {},
   },
   {
@@ -3270,7 +3274,11 @@ export const agentsScenarios: Scenario[] = [
     looksRightWhen:
       'After “fill it in yourself”: Start from (Blank pressed), Name, the brief, then Advanced open under it: Runs on, Model (Default / Opus / Sonnet / Haiku), Works in, Apps, scrolled so Apps sits whole above the footer, not cut in half by it. (Colour is with the shape and face, behind the avatar beside Name.)',
     // Steps run before a scenario's command, so the dialog is opened by its button.
-    steps: [{ click: '.agents-list__new' }, { click: '.agent-editor__fill-in' }],
+    steps: [
+      { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
+      { click: '.agent-editor__fill-in' },
+    ],
     requires: '.agent-sheet__menu',
     commands: {},
   },
@@ -3712,11 +3720,11 @@ export const agentsScenarios: Scenario[] = [
   },
   {
     id: 'agents-streaming',
-    title: 'Agents — a reply streaming in',
+    title: 'Agents — a reply being written lands whole',
     looksRightWhen:
-      'The first reply is complete; below it the second is still being written: plain agent bubble, same width and type as the rest, a soft dot breathing at the end of its last line, no typing dots under it. The header still says Working and the composer offers Stop. With ?freeze=off it plays live: words arrive every 40ms, the bubble grows without re-animating, and “Editing PricingCards.tsx” shows between the two blocks.',
+      'The first reply is complete (one bubble, all its text). The second reply is still being written and is NOT on screen: no half-written bubble, no growing text, no dot at its end. The working line under the first reply says what it is doing; the header still says Working and the composer offers Stop. With ?freeze=off the second reply appears all at once when it is done, the working line going as it lands.',
     command: 'agents.open',
-    requires: '.agent-bubble[data-streaming]',
+    requires: '.agent-working__line',
     mockEvents: true,
     commands: {
       agents_overview: overview(
@@ -3732,11 +3740,11 @@ export const agentsScenarios: Scenario[] = [
   ].map(
     ({ id, width, height }): Scenario => ({
       id,
-      title: `Agents — working: its reply is streaming in${width < 600 ? ' (390px)' : ''}`,
+      title: `Agents — working: its reply is being written${width < 600 ? ' (390px)' : ''}`,
       looksRightWhen:
-        'The reply is being written (the second block stops mid-way): under it ONE row with the agent’s key and three dots in a pill, and no phrase, no timer: dots show only while the reply streams. The row sits 10px under the bubble.',
+        'The second reply is being written and is not drawn: after the first reply, ONE working row (the agent’s key and what it is doing) stays until the reply lands whole. The row sits 10px under the bubble.',
       command: 'agents.open',
-      requires: '.agent-working__pill',
+      requires: '.agent-working__line',
       mockEvents: true,
       viewport: { width, height },
       commands: {

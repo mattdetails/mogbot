@@ -46,7 +46,6 @@
   column-gap: var(--spacing-sm);
   height: var(--agents-header-height);
   padding: 0 var(--agents-column-inset);
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
 }
 
 .agent-chat__header > * {
@@ -145,6 +144,22 @@
    to a 3px dot beside a one-letter name. */
 .agent-chat__switcher-chevron {
   flex: none;
+}
+
+.agent-chat__who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The agent's one-line description under its name (it becomes the task line
+   when there is open work): muted, one line, no fill or border. */
+.agent-chat__subtitle {
+  overflow: hidden;
+  font-size: var(--catchup-meta-size);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .agent-chat__name {
@@ -501,9 +516,9 @@
    --font-size-body-sm for metadata. */
 .agent-bubble {
   max-width: var(--agents-bubble-max);
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--agents-bubble-pad-y) var(--spacing-md);
   font-size: var(--font-size-subhead-lg);
-  line-height: var(--line-height-reading);
+  line-height: var(--agents-bubble-line);
   color: var(--text-primary);
   border-radius: var(--radius-lg);
   overflow-wrap: anywhere;
@@ -511,8 +526,8 @@
   user-select: text;
 }
 
-/* The agent's reply is a bubble, Grok Bot's: a 7% tint of the reading text
-   over the page (quieter than yours), an 18px corner with a 6px one toward the
+/* The agent's reply is a bubble, Grok Bot's: a faint tint of the reading text
+   over the page (4% dark, 6% light; quieter than yours), an 18px corner with a 6px one toward the
    agent, hugging its words up to 78% of the column. Blocks (`show`) and cards
    keep their own frames and are not bubbles. */
 .agent-bubble--agent {
@@ -521,7 +536,7 @@
      their own frame), so Copy and the time beside it stay inside the column
      in a narrow window instead of being pushed off its edge. */
   min-width: 0;
-  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  background: color-mix(in srgb, var(--text-primary) var(--agents-bubble-tint), transparent);
   border-radius: var(--radius-bubble);
   border-bottom-left-radius: var(--radius-bubble-tail);
 }
@@ -532,25 +547,27 @@
   width: fit-content;
 }
 
-/* Yours is strong and inverted, one neutral colour for every agent (identity
-   lives in the key): near-white on dark, near-black on light, with its own ink.
+/* Yours takes the agent's colour (Grok's "bot colour", Julian's option A, 19 Nov):
+   the chat is inside that agent's accent scope, so --accent-user is its key
+   colour and --accent-on-user the ink picked for contrast on it (at least 4.5:1,
+   dark on gold and green, light on the deep colours), never a fixed white.
    An 18px corner with a 6px one toward you. */
 .agent-bubble--user {
   white-space: pre-wrap;
-  background: var(--surface-inverse);
-  color: var(--text-on-inverse);
+  background: var(--bubble-user-fill, var(--accent-user));
+  color: var(--bubble-user-ink, var(--accent-on-user));
   border-radius: var(--radius-bubble);
   border-bottom-right-radius: var(--radius-bubble-tail);
 }
 
-/* An @name in your inverted bubble: the bubble's own ink at label weight. The
-   agent's colour mixed toward the page's text was 2.4:1 on the inverse fill. */
+/* An @name in your coloured bubble: the bubble's own ink at label weight (the
+   agent's colour on its own colour would vanish). */
 .agent-bubble--user .agent-mention,
 :root[data-theme='light'] .agent-bubble--user .agent-mention {
   color: inherit;
 }
 
-/* A quoted passage inside your inverted bubble reads in the bubble's own ink. */
+/* A quoted passage inside your bubble reads in the bubble's own ink. */
 .agent-bubble--user .agent-bubble__quote {
   color: inherit;
   opacity: 0.8;
@@ -600,9 +617,10 @@
   width: 100%;
 }
 
-/* About 70% of the column: a long message wraps rather than spanning it. */
+/* Up to 560px and 80% of the column, leaving room for Copy and the time: a
+   long message wraps rather than spanning it. */
 .agent-chat__line > .agent-bubble--user {
-  max-width: 70%;
+  max-width: min(80%, var(--agents-user-bubble-max), calc(100% - 82px));
 }
 
 .agent-message__actions {
@@ -1129,6 +1147,101 @@
 
 @media (prefers-reduced-motion: reduce) {
   .agent-bubble__wave > span {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------ reply to a message */
+
+/* The reply line at the top of the box (Grok's): one outlined line inside it,
+   32px tall, the first line of the original muted, a × at the right. No label,
+   no bar, no agent colour. The box grows by it. */
+.agent-reply-line {
+  display: flex;
+  align-items: center;
+  height: var(--agents-reply-line-height);
+  padding-left: var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
+  border: var(--border-width-default) solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.agent-reply-line__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--font-size-13);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-reply-line__cancel {
+  flex: none;
+  width: var(--agents-reply-cancel);
+  height: var(--agents-reply-cancel);
+  margin-right: var(--spacing-2xs);
+}
+
+/* What a sent reply answers: a one-line outlined pill directly above the
+   bubble, outside it, against the bubble's right edge (4px gap). */
+.agent-reply-pill {
+  max-width: 100%;
+  padding: var(--spacing-3xs) var(--spacing-md);
+  padding-block: 3px; /* css-ok: the spec's 3px */
+  overflow: hidden;
+  font: inherit;
+  font-size: var(--font-size-13);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: var(--border-width-default) solid var(--border-strong);
+  border-radius: 14px; /* css-ok: the spec's 14px pill */
+  cursor: pointer;
+}
+
+.agent-reply-pill[data-gone] {
+  cursor: default;
+}
+
+/* Going to the original: it pulses once. */
+@keyframes agent-reply-flash {
+  from {
+    background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  }
+}
+
+.agent-chat__row[data-flash] {
+  animation: agent-reply-flash 600ms ease-out;
+  border-radius: var(--radius-lg);
+}
+
+/* The hover tools: bare icons (17px, 6px apart) beside the message at its
+   vertical centre, 14px away, on the open side. Only while the message is
+   hovered or focused; not on touch or in a narrow window. */
+.agent-message__tools {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: var(--spacing-tight);
+  margin-inline: 14px; /* css-ok: the spec's 14px from the bubble */
+  opacity: 0;
+}
+
+.agent-chat__row:hover .agent-message__tools,
+.agent-chat__row:focus-within .agent-message__tools {
+  opacity: 1;
+}
+
+@media (pointer: coarse), (max-width: 480px) {
+  .agent-message__tools {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-chat__row[data-flash] {
     animation: none;
   }
 }

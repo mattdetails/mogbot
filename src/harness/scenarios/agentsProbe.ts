@@ -445,6 +445,7 @@ export const agentsProbeScenarios: Scenario[] = [
     clipSelector: '.agent-editor',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       {
         fill: '#agent-describe-text',
         value: 'Every morning, read my inbox and tell me the three things that matter.',
@@ -469,6 +470,7 @@ export const agentsProbeScenarios: Scenario[] = [
     clipSelector: '.agent-editor',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       { fill: '#agent-describe-text', value: 'Remind me to water the plants whenever it’s dry.' },
       { click: '.agent-describe__actions button' },
     ],

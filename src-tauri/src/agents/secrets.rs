@@ -745,7 +745,6 @@ mod tests {
             fresh: false,
             result: None,
             revises: None,
-            reply_to: None,
             takeover: false,
             room: None,
             decide: Vec::new(),

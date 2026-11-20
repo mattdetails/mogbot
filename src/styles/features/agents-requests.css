@@ -401,8 +401,9 @@
   color: var(--text-muted);
 }
 
-/* Catch up on the desk (AgentsCatchUp): one decision in the middle, what is
-   coming beside it. Neutral throughout: the agent's colour lives in its key. */
+/* Catch up on the desk (AgentsCatchUp), direction 2: the queue on the left,
+   the open card on the right. Neutral throughout: the agent's colour lives in
+   its key, Allow is the inverse surface, focus is a neutral ring. */
 .agents-catchup {
   display: flex;
   flex-direction: column;
@@ -411,10 +412,13 @@
 }
 
 .agents-catchup__head {
+  position: relative;
   display: flex;
+  flex: none;
   align-items: center;
   gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-xl);
+  height: var(--size-catchup-head);
+  padding: 0 var(--spacing-xl);
   border-bottom: var(--border-width-default) solid var(--border-subtle);
 }
 
@@ -425,45 +429,204 @@
 }
 
 .agents-catchup__left {
-  font-size: var(--font-size-body-sm);
+  font-size: var(--catchup-meta-size);
   color: var(--text-muted);
 }
 
-.agents-catchup__bar {
+.agents-catchup__grow {
   flex: 1;
-  height: var(--spacing-2xs);
-  border-radius: var(--radius-pill);
-  background: var(--border-subtle);
-  overflow: hidden;
 }
 
-.agents-catchup__bar > span {
-  display: block;
-  height: 100%;
-  background: var(--text-secondary);
-  transition: width var(--transition-interaction);
+/* The count is a button only where the queue is hidden (a narrow window). */
+.agents-catchup__left-button {
+  display: none;
+  align-items: center;
+  gap: var(--spacing-xs);
+  height: 30px; /* css-ok: the spec's 30px, as the ghost buttons beside it */
+  padding: 0 10px; /* css-ok: the spec's 10px */
+  border: 0;
+  border-radius: var(--radius-card);
+  background: none;
+  font: inherit;
+  font-size: var(--font-size-12);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.agents-catchup__left-button:hover {
+  background: var(--surface-control-hover);
+}
+
+.agents-catchup__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dropdown);
+  background: var(--overlay-30);
+}
+
+.agents-catchup__popover {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: var(--spacing-md);
+  z-index: calc(var(--z-dropdown) + 1);
+  width: min(var(--size-catchup-queue), calc(100% - var(--spacing-xl)));
+  max-height: 60vh;
+  overflow: auto;
+  padding: var(--spacing-lg) var(--spacing-md);
+  border-radius: var(--radius-lg);
+  border: var(--border-width-default) solid var(--border-default);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-md);
 }
 
 .agents-catchup__body {
+  display: grid;
   flex: 1;
   min-height: 0;
+  grid-template-columns: var(--size-catchup-queue) minmax(var(--size-catchup-pane-min), 1fr);
+}
+
+.agents-catchup__queue {
+  min-height: 0;
   overflow: auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
-  gap: var(--spacing-xl);
-  padding: var(--spacing-xl);
-  align-items: start;
+  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
+  padding-top: 20px; /* css-ok: the spec's 20px, between md and xl */
+  border-right: var(--border-width-default) solid var(--border-subtle);
+}
+
+.agents-catchup__group + .agents-catchup__group {
+  margin-top: 18px; /* css-ok: the spec's 18px between groups */
+}
+
+.agents-catchup__group > h3 {
+  margin: 0 0 var(--spacing-sm) var(--spacing-sm);
+  font-size: var(--font-size-11);
+  font-weight: var(--font-weight-label);
+  letter-spacing: var(--catchup-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.agents-catchup__row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+  height: var(--size-agents-list-row);
+  padding: 0 var(--spacing-sm);
+  border: var(--border-width-default) solid transparent;
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+}
+
+.agents-catchup__row + .agents-catchup__row {
+  margin-top: var(--spacing-2xs);
+}
+
+button.agents-catchup__row {
+  cursor: pointer;
+}
+
+/* Hover is always a step below selected, in both themes: selected is the
+   selected surface with a strong border (Designer's dark-theme token rule). */
+button.agents-catchup__row:hover:not(.is-selected) {
+  background: var(--surface-control-hover);
+}
+
+.agents-catchup__row.is-selected {
+  background: var(--surface-selected);
+  border-color: var(--border-strong);
+}
+
+/* An answered row lands in Done with a 150ms fade (none under reduced motion). */
+.agents-catchup__row.is-muted {
+  animation: agents-motion-fade-in 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agents-catchup__row.is-muted {
+    animation: none;
+  }
+}
+.agents-catchup__row:focus-visible,
+.agents-catchup__sum-row:focus-visible {
+  outline: 2px solid var(--text-secondary);
+  outline-offset: 1px;
+}
+
+.agents-catchup__row.is-muted .agents-catchup__row-title {
+  color: var(--text-secondary);
+}
+
+.agents-catchup__row-text {
+  display: flex;
+  gap: var(--spacing-2xs);
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.agents-catchup__row-title {
+  overflow: hidden;
+  font-size: var(--catchup-row-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-catchup__row-sub {
+  overflow: hidden;
+  font-size: var(--font-size-12);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-catchup__row-right {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  font-size: var(--font-size-12);
+  color: var(--text-muted);
+}
+
+/* The clock tile: the summary's key, and the empty rows'. */
+.agents-catchup__tile {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--catchup-tile);
+  height: var(--catchup-tile);
+  margin: 0 var(--spacing-2xs);
+  border-radius: var(--radius-8);
+  border: var(--border-width-default) solid var(--border-strong);
+  background: var(--surface-control);
+  color: var(--text-secondary);
+}
+
+.agents-catchup__pane {
+  display: flex;
+  min-height: 0;
+  overflow: auto;
+  flex-direction: column;
+  align-items: center;
+  /* Centred, an optical 24px above true centre. */
+  justify-content: center;
+  padding: 40px 40px 88px; /* css-ok: the spec's 40px pane, 24px above centre */
 }
 
 .agents-catchup__card {
-  justify-self: center;
-  width: min(100%, 620px);
+  position: relative;
+  width: min(100%, var(--size-catchup-card));
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
   padding: var(--spacing-xl);
-  border-radius: var(--radius-lg);
-  background: var(--surface-panel);
+  border-radius: var(--catchup-card-radius);
+  background: var(--surface-control);
   border: var(--border-width-default) solid var(--border-subtle);
   outline: none;
 }
@@ -471,36 +634,64 @@
 .agents-catchup__who {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-body-sm);
+  gap: var(--spacing-md);
+  font-size: var(--font-size-12);
   color: var(--text-muted);
 }
 
 .agents-catchup__name {
   color: var(--text-primary);
+  font-size: var(--font-size-14);
   font-weight: var(--font-weight-heading);
 }
 
-.agents-catchup__tag {
+.agents-catchup__ago {
   margin-left: auto;
-  padding: 0 var(--spacing-sm);
-  border-radius: var(--radius-sm);
-  border: var(--border-width-default) solid var(--border-subtle);
+  font-size: var(--catchup-meta-size);
+}
+
+.agents-catchup__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: 20px 0 6px; /* css-ok: the spec's 20px under the key, 6px over the title */
+  font-size: var(--font-size-11);
+  font-weight: var(--font-weight-label);
+  letter-spacing: var(--catchup-label-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.agents-catchup__dot {
+  flex: none;
+  width: var(--catchup-dot);
+  height: var(--catchup-dot);
+  border-radius: var(--radius-full);
+  background: var(--accent-warning);
 }
 
 .agents-catchup__ask {
   margin: 0;
-  font-size: var(--font-size-h3);
-  line-height: var(--line-height-compact);
+  font-size: var(--catchup-title-size);
+  font-weight: var(--font-weight-heading);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .agents-catchup__why {
-  margin: 0;
+  margin: 10px 0 0; /* css-ok: the spec's 10px under the title */
+  font-size: var(--font-size-14);
   color: var(--text-secondary);
-  line-height: var(--line-height-reading);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -509,6 +700,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xs);
+  margin-top: var(--spacing-lg);
   padding: var(--spacing-md);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -520,98 +712,184 @@
 }
 
 .agents-catchup__words-label {
-  font-size: var(--font-size-body-sm);
+  font-size: var(--font-size-12);
   color: var(--text-muted);
 }
 
-.agents-catchup__more pre {
-  margin: var(--spacing-sm) 0 0;
+/* Details hangs below the card instead of growing it, so the card (and its
+   actions) stay where they are while it is open. */
+.agents-catchup__detail {
+  position: absolute;
+  top: calc(100% + var(--spacing-md));
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: var(--spacing-md);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 240px;
   overflow: auto;
-  font-size: var(--font-size-body-sm);
+  border-radius: var(--radius-lg);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background: var(--surface-recessed);
+  font-size: var(--font-size-12);
   color: var(--text-secondary);
 }
 
 .agents-catchup__actions {
   display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-xs);
+  gap: 10px; /* css-ok: the spec's 10px between actions */
+  margin-top: var(--spacing-xl);
+}
+
+.agents-catchup__actions > .button {
+  height: var(--size-catchup-action);
+  border-radius: var(--radius-card);
+  font-size: var(--catchup-row-size);
+}
+
+.agents-catchup__head .button,
+.agents-catchup__quiet .button {
+  height: 30px; /* css-ok: the spec's 30px ghost button */
+  padding: 0 10px; /* css-ok: the spec's 10px */
+  border-radius: var(--radius-8);
+  font-size: var(--font-size-13);
+}
+
+.agents-catchup__quiet .button {
+  height: 32px; /* css-ok: the spec's 32px ghost buttons under the card's actions */
+}
+
+/* Flat: solid fill, no bevel, no inner ring (the spec). */
+.agents-catchup .button {
+  box-shadow: none;
+}
+
+/* The outline answer keeps its outline without the bevel. */
+.agents-catchup .button--secondary {
+  border: var(--border-width-default) solid var(--border-strong);
+  background: var(--surface-control);
+  color: var(--text-primary);
+}
+
+/* The keys here are the spec's: 32px in the queue and the summary, 28px on the card. */
+.agents-catchup__queue .agent-key,
+.agents-catchup__popover .agent-key {
+  --agent-key-s: var(--catchup-key-row);
+}
+
+.agents-catchup__who .agent-key,
+.agents-catchup__sum-row .agent-key {
+  --agent-key-s: var(--catchup-key-card);
 }
 
 .agents-catchup__quiet {
   display: flex;
-  justify-content: center;
-  gap: var(--spacing-xl);
+  justify-content: flex-start;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
 }
 
+.agents-catchup .button kbd,
 .agents-catchup kbd {
   margin-left: var(--spacing-xs);
   font: inherit;
-  font-size: var(--font-size-body-sm);
-  /* A text role, not opacity: 0.6 over the button's ink fell under 4.5:1 (axe). */
-  color: var(--text-secondary);
-}
-
-.agents-catchup__next {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.agents-catchup__next h3 {
-  margin: 0;
-  font-size: var(--font-size-body-sm);
-  font-weight: var(--font-weight-label);
-  color: var(--text-muted);
-}
-
-.agents-catchup__next-row,
-.agents-catchup__happened {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-xs) 0;
-  text-align: left;
-  background: none;
-  border: 0;
-  color: inherit;
-  font: inherit;
-}
-
-.agents-catchup__happened {
-  cursor: pointer;
-  border-radius: var(--radius-lg);
-}
-
-.agents-catchup__next-title,
-.agents-catchup__next-sub {
-  display: block;
-  min-width: 0;
-}
-
-.agents-catchup__next-title {
+  font-size: var(--font-size-11);
+  padding: 0 var(--spacing-tight);
+  border-radius: var(--radius-6);
+  border: var(--border-width-default) solid var(--border-strong);
+  background: var(--surface-control);
+  /* The chip carries its own fill, so its letter is the primary text colour on
+     it: at least 4.5:1 on every button, strong or not (axe). */
   color: var(--text-primary);
 }
 
-.agents-catchup__next-sub {
-  font-size: var(--font-size-body-sm);
-  color: var(--text-muted);
+.agents-catchup__summary .agents-catchup__who {
+  padding-bottom: var(--spacing-xs);
 }
 
-.agents-catchup__then {
-  margin: var(--spacing-sm) 0 0;
-  padding: var(--spacing-md);
-  border-radius: var(--radius-lg);
+.agents-catchup__sum-rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--spacing-xs);
+}
+
+.agents-catchup__sum-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  height: var(--size-agents-list-row);
+  padding: 0;
+  border: 0;
+  border-top: var(--border-width-default) solid var(--border-subtle);
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agents-catchup__sum-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--catchup-row-size);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-catchup__clear {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  outline: none;
+}
+
+.agents-catchup__ring {
+  display: grid;
+  place-items: center;
+  width: var(--catchup-ring);
+  height: var(--catchup-ring);
+  margin-bottom: 18px; /* css-ok: the spec's 18px under the ring */
+  border-radius: var(--radius-full);
+  border: var(--border-width-default) solid var(--border-strong);
   background: var(--surface-control);
   color: var(--text-secondary);
-  font-size: var(--font-size-body-sm);
 }
 
-@media (max-width: 860px) {
+.agents-catchup__clear h3 {
+  margin: 0 0 var(--spacing-tight);
+  font-size: 20px; /* css-ok: the spec's 20/600 */
+  font-weight: var(--font-weight-heading);
+  color: var(--text-primary);
+}
+
+.agents-catchup__clear p {
+  margin: 0 0 20px; /* css-ok: the spec's 20px over the button */
+  font-size: var(--font-size-14);
+}
+
+/* A narrow window: the queue hides, the count opens it in a popover and the
+   card fills the pane at 100% minus 32px. */
+@media (max-width: 880px) {
   .agents-catchup__body {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .agents-catchup__queue,
+  .agents-catchup__head > span.agents-catchup__left {
+    display: none;
+  }
+  .agents-catchup__left-button,
+  .agents-catchup__popover {
+    display: flex;
+  }
+  .agents-catchup__popover {
+    flex-direction: column;
+  }
+  .agents-catchup__pane {
+    padding: var(--spacing-lg) var(--spacing-lg) 56px;
   }
 }
 

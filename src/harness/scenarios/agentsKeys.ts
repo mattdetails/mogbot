@@ -177,6 +177,7 @@ export const agentsKeysScenarios: Scenario[] = [
     requires: '.agent-sheet__key .agent-key--xl',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       // New agent opens describe-first; the form (and its key) is hidden by
       // the stylesheet until "fill it in yourself", so a step into it would
       // still "find" its control.
@@ -202,6 +203,22 @@ export const agentsKeysScenarios: Scenario[] = [
     commands: { ...commands, agents_instructions: 'Keep the team moving.' },
   },
   {
+    id: 'agents-keys-faces-picker',
+    title: 'Agents — choosing a face: all 34 (both sets)',
+    looksRightWhen:
+      'Edit agent with its look open on Face: 34 faces as small keys in the agent’s colourway, set 1 (Calm … Sprout) then set 2 (Mohawk … Wings), each filling its key face, hats and all, nothing cut off at the key’s edges. Readable in both themes.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-sheet__key .agent-key--xl',
+    steps: [
+      { click: '.agent-chat__menu [aria-label^="Actions for"]' },
+      { click: '[role="menuitem"]', text: 'Edit agent' },
+      { click: '.agent-sheet__key' },
+      { click: '[aria-label="Face or icon"] button', text: 'Face' },
+    ],
+    clipSelector: '.agent-look',
+    commands: { ...commands, agents_instructions: 'Keep the team moving.' },
+  },
+  {
     id: 'agents-keys-icon-search',
     title: 'Agents — searching every icon for “money”',
     looksRightWhen:
@@ -209,6 +226,7 @@ export const agentsKeysScenarios: Scenario[] = [
     requires: '.agent-icons .agent-look__choice[data-value="lucide:banknote"]',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       { click: '.agent-editor__fill-in' },
       { fill: '.agent-sheet__field[aria-label="Agent name"]', value: 'Bookkeeper' },
       { click: '.agent-sheet__key' },
@@ -225,6 +243,7 @@ export const agentsKeysScenarios: Scenario[] = [
     requires: '.agent-sheet__key .agent-key[data-colorway="navy"]',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       { click: '.agent-editor__fill-in' },
       { fill: '.agent-sheet__field[aria-label="Agent name"]', value: 'Ledger' },
       { click: '.agent-sheet__key' },
@@ -240,6 +259,7 @@ export const agentsKeysScenarios: Scenario[] = [
     requires: '.agent-look__bind-field',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       { click: '.agent-editor__fill-in' },
       { click: '.agent-sheet__key' },
       { focus: '.agent-look__bind-field' },

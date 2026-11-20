@@ -619,11 +619,6 @@ pub struct AgentMessage {
     /// Absent on lines written before there were several: the first one's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub conversation: Option<String>,
-    /// On a user message: the message it answers (`agents/reply.rs`), filled
-    /// by the Mac from the stored original. Never in what the agent reads
-    /// from the log; the turn is told it once. Older builds show the text alone.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reply_to: Option<super::reply::ReplyRef>,
 }
 
 /// A fix a note offers, as a button that opens where it's done.

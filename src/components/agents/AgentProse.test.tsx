@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
 import { GrowingProse, Prose } from './AgentProse';
-import { revealStep, REVEAL_CATCH_UP_MS, REVEAL_MIN_RATE } from './useReveal';
 import { toSegments } from './agentMarkdown';
 
 afterEach(cleanup);
@@ -34,19 +33,5 @@ describe('a reply growing', () => {
   it('makes a table a tab stop, so a wide one can be scrolled by keyboard', () => {
     const { container } = render(<Prose text={'| A | B |\n| - | - |\n| 1 | 2 |'} />);
     expect(container.querySelector('table')?.getAttribute('tabindex')).toBe('0');
-  });
-});
-
-describe('the reveal pace', () => {
-  it('shows what is queued over about a quarter of a second, never slower than its floor', () => {
-    // 260 characters queued: about one per ms, ~16 a frame.
-    expect(revealStep(260, 16, 0).n).toBe(16);
-    // Almost nothing queued still moves, at the floor rate.
-    const slow = revealStep(3, 16, 0);
-    expect(slow.n).toBe(0);
-    expect(slow.carry).toBeCloseTo((REVEAL_MIN_RATE * 16) / 1000);
-    // Never more than is there.
-    expect(revealStep(2, 1000, 0).n).toBe(2);
-    expect(REVEAL_CATCH_UP_MS).toBeLessThan(400);
   });
 });

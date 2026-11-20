@@ -133,6 +133,7 @@ export const agentsStepsScenarios: Scenario[] = [
     clipSelector: '.agent-editor',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       { fill: '#agent-describe-text', value: DESCRIPTION },
       { click: '.agent-describe__actions button' },
     ],

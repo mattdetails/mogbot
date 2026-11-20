@@ -1,8 +1,10 @@
 /**
- * Catch up on the desk: what waits on you, one decision at a time, as on the
- * phone. One card in the middle (who asked and when, what it is in a line, why
- * in two, and for a send the exact words), Deny and Allow under it, Open chat
- * and Later quieter. "Up next" shows what is coming so it never feels endless.
+ * Catch up on the desk: the queue on the left, the open card on the right
+ * (Designer's direction 2). The queue is the list (Needs you, then the
+ * summary row; what you answered moves to Done); the selected row is the card:
+ * who asked and when, what it is in a line, why in a few, and for a send the
+ * exact words. Words and their order are shared with the phone
+ * (`companion-protocol/catchUpWords`).
  * Allow is black and white, never an agent's colour. Keys A, D, O and L work
  * while the card has focus (never from anywhere else: a one-key yes on a card
  * not read is the reflex the guard exists to stop, `useCardGuard`); Esc closes.
@@ -12,7 +14,8 @@
  * @module components/agents/AgentsCatchUp
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { CheckIcon, ChevronIcon, HistoryIcon } from '@/components/icons';
 import { Button } from '../primitives/Button';
 import { TextButton } from '../primitives/TextButton';
 import { AgentKey } from './AgentKey';
@@ -31,7 +34,7 @@ import {
 } from '../../lib/agents';
 import { useAgentsSelector } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
-import { formatAgo } from '../../lib/formatAgo';
+import { formatAge, formatAgo } from '../../lib/formatAgo';
 import { draftOf } from '../../lib/draftCard';
 import {
   answersHere,
@@ -41,6 +44,17 @@ import {
   type CatchItem,
 } from '../../lib/catchUpDesk';
 import { previewText } from '../../../packages/companion-protocol/src/preview';
+import {
+  CATCH_UP,
+  CATCH_UP_EYEBROW,
+  CATCH_UP_SUMMARY_ROWS,
+  catchUpAllClearBody,
+  catchUpGroup,
+  catchUpLeft,
+  catchUpMore,
+  catchUpThingsHead,
+  catchUpThingsNoDecisions,
+} from '../../../packages/companion-protocol/src/catchUpWords';
 
 interface Props {
   onOpenAgent: (id: string) => void;
@@ -50,28 +64,42 @@ interface Props {
   onOpenInFlight: () => void;
 }
 
-/** What the request is, in two words, for the tag and the Up next line. */
+/** What kind of ask it is, for the card's eyebrow. */
 function kindOf(m: AgentMessage | undefined): string {
   const a = m?.approval;
-  if (!a) return 'Didn’t finish';
-  const d = draftOf(a);
-  if (d?.kind === 'slack') return 'Send in Slack';
-  if (d?.kind === 'email') return 'Send an email';
-  if (a.login) return 'Sign in';
-  if (a.secret) return 'A key';
-  if (a.prompt) return 'Question';
-  if (a.plan) return 'Under your name';
-  return 'Request';
+  if (!a) return CATCH_UP_EYEBROW.didntFinish;
+  return a.login || a.secret || a.prompt ? CATCH_UP_EYEBROW.needsInput : CATCH_UP_EYEBROW.needsOk;
 }
 
+/** The time now, for what is noticed during a render (kept out of the component body). */
+const stamp = (): number => Date.now();
+
+/** The row's second line: who and what kind ("Lead Gen · Needs your OK"); the kind alone when the title already starts with the agent's name. */
+const rowSub = (i: CatchItem): string =>
+  headline(i).toLowerCase().startsWith(i.agent.name.toLowerCase())
+    ? kindOf(i.message)
+    : `${i.agent.name} · ${kindOf(i.message)}`;
+
+/** A clock time in the user's own format, lower-cased ("5:57 am"). */
+const clock = (ts: number): string =>
+  new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+
 /** The card's headline: what it is, in a line. */
-const headline = (i: CatchItem): string =>
-  i.message?.approval?.title ?? failurePill(failedTurn(i.agent)!, '', i.agent.engine).label;
+const headline = (i: CatchItem): string => {
+  if (i.message?.approval) return i.message.approval.title;
+  // A turn that didn't finish: the ask is what it said when it stopped, not the
+  // eyebrow's own words ("Didn't finish").
+  const said = i.failure?.text.trim().split('\n')[0];
+  return said || failurePill(failedTurn(i.agent)!, '', i.agent.engine).label;
+};
 
 /** Why, in two lines: the agent's own summary, else the first of the detail. */
 function why(i: CatchItem): string {
   const a = i.message?.approval;
-  if (!a) return previewText(i.agent.preview) ?? '';
+  if (!a) {
+    const said = previewText(i.agent.preview) ?? '';
+    return said === headline(i) ? '' : said;
+  }
   const raw = a.summary?.trim() || a.detail?.trim() || '';
   const first = raw.split('\n')[0];
   // A raw tool call isn't a reason: its own words are one click away.
@@ -87,94 +115,301 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
   const [later, setLater] = useState<string[]>([]);
   const items = useMemo(() => withLater(all, later), [all, later]);
   const left = leftCount(all, later);
-  const item = left > 0 ? items[0] : undefined;
-  // How many there were when you came in, for the bar.
-  const [total, setTotal] = useState(left);
-  if (left > total) setTotal(left);
 
+  // What was in the queue when it was seen, so an answered row can move to Done.
+  const [seen, setSeen] = useState<CatchItem[]>([]);
+  const [doneAt, setDoneAt] = useState<Record<string, number>>({});
+  const missing = seen.filter((s) => !all.some((i) => i.key === s.key) && !(s.key in doneAt));
+  const unseen = all.filter((i) => !seen.some((s) => s.key === i.key));
+  if (unseen.length > 0) setSeen([...seen, ...unseen]);
+  // An answered row moves to Done, stamped when it was noticed gone.
+  if (missing.length > 0) {
+    const at = stamp();
+    setDoneAt({ ...doneAt, ...Object.fromEntries(missing.map((m) => [m.key, at])) });
+  }
+  const done = useMemo(
+    () => seen.filter((s) => s.key in doneAt).sort((a, b) => doneAt[a.key] - doneAt[b.key]),
+    [seen, doneAt]
+  );
+  const lastDecision =
+    done.length > 0 ? clock(Math.max(...done.map((d) => doneAt[d.key]))) : undefined;
+
+  const [gotIt, setGotIt] = useState(false);
   const happened = useMemo(
     () =>
-      agents
-        .filter((a) => !a.hidden && a.unread > 0 && !all.some((i) => i.agent.id === a.id))
-        .slice(0, 6),
-    [agents, all]
+      gotIt
+        ? []
+        : agents.filter((a) => !a.hidden && a.unread > 0 && !all.some((i) => i.agent.id === a.id)),
+    [agents, all, gotIt]
+  );
+
+  // What is open: a row the user picked, else the first of Needs you, else the summary.
+  const [picked, setPicked] = useState<string | null>(null);
+  const open: string | null =
+    picked === 'summary' && happened.length > 0
+      ? 'summary'
+      : picked && items.some((i) => i.key === picked)
+        ? picked
+        : (items[0]?.key ?? (happened.length > 0 ? 'summary' : null));
+  const item = open && open !== 'summary' ? items.find((i) => i.key === open) : undefined;
+  const summaryOpen = open === 'summary';
+
+  // `N left` while anything waits (a put-off item still waits), Summary, All clear.
+  const headCount = summaryOpen
+    ? CATCH_UP.summary
+    : items.length > 0
+      ? catchUpLeft(left > 0 ? left : items.length)
+      : CATCH_UP.allClear;
+
+  // Got it: the summary is read; what is left is All clear.
+  const gotItNow = useCallback(() => {
+    setGotIt(true);
+    setPicked(null);
+  }, []);
+
+  const move = useCallback(
+    (by: number) => {
+      const keys = [...items.map((i) => i.key), ...(happened.length > 0 ? ['summary'] : [])];
+      if (keys.length === 0) return;
+      const at = Math.max(0, keys.indexOf(open ?? ''));
+      setPicked(keys[Math.min(keys.length - 1, Math.max(0, at + by))]);
+    },
+    [items, happened.length, open, setPicked]
   );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !e.defaultPrevented) onClose();
+      if (e.defaultPrevented) return;
+      if (e.key === 'Escape') return onClose();
+      if (
+        e.key === 'Enter' &&
+        summaryOpen &&
+        !(e.target as HTMLElement | null)?.closest('button')
+      ) {
+        e.preventDefault();
+        gotItNow();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest('input, textarea, [contenteditable="true"]')) return;
+      if (e.key === 'ArrowDown' || e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        move(1);
+      } else if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        move(-1);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, move, summaryOpen, gotItNow]);
+
+  const [queueOpen, setQueueOpen] = useState(false);
+  const queue = (
+    <Queue
+      items={items}
+      later={later}
+      done={done}
+      happened={happened}
+      open={open}
+      onPick={(key) => {
+        setPicked(key);
+        setQueueOpen(false);
+      }}
+    />
+  );
 
   return (
     <div className="agents-catchup">
       <header className="agents-catchup__head">
-        <h2 className="agents-catchup__title">Catch up</h2>
+        <h2 className="agents-catchup__title">{CATCH_UP.title}</h2>
         <span className="agents-catchup__left" aria-live="polite">
-          {left > 0 ? `${left} left` : 'All clear'}
+          {headCount}
         </span>
-        <span className="agents-catchup__bar" aria-hidden>
-          <span
-            style={{
-              width: `${total ? ((total - left) / total) * 100 : 100}%`,
-            }}
-          />
-        </span>
-        <TextButton tabIndex={0} onClick={onOpenInFlight}>
-          What’s in flight
-        </TextButton>
-        <TextButton tabIndex={0} onClick={onClose} aria-keyshortcuts="Escape">
-          Close <kbd>esc</kbd>
-        </TextButton>
+        <button
+          type="button"
+          tabIndex={0}
+          className="agents-catchup__left agents-catchup__left-button"
+          aria-expanded={queueOpen}
+          onClick={() => setQueueOpen(!queueOpen)}
+        >
+          {headCount}
+          <ChevronIcon size={12} />
+        </button>
+        <span className="agents-catchup__grow" />
+        <Button tabIndex={0} variant="ghost" size="compact" onClick={onOpenInFlight}>
+          {CATCH_UP.whatsInFlight}
+        </Button>
+        <Button
+          tabIndex={0}
+          variant="ghost"
+          size="compact"
+          onClick={onClose}
+          aria-keyshortcuts="Escape"
+        >
+          {CATCH_UP.close} <kbd>esc</kbd>
+        </Button>
+        {queueOpen && (
+          <>
+            <div className="agents-catchup__scrim" onClick={() => setQueueOpen(false)} />
+            <div className="agents-catchup__popover">{queue}</div>
+          </>
+        )}
       </header>
       <div className="agents-catchup__body">
-        {item ? (
-          <Decision
-            key={item.key}
-            item={item}
-            onOpenChat={() =>
-              item.message
-                ? onOpenMessage(item.agent.id, item.message.id, item.message.conversation)
-                : onOpenAgent(item.agent.id)
-            }
-            onLater={() => setLater((l) => [...l.filter((k) => k !== item.key), item.key])}
-          />
-        ) : (
-          <CaughtUp
-            happened={happened}
-            saved={all.length}
-            onOpenAgent={onOpenAgent}
-            onReview={() => setLater([])}
-            onClose={onClose}
-          />
-        )}
-        <aside className="agents-catchup__next" aria-label="Up next">
-          <h3>Up next</h3>
-          {items
-            .filter((i) => i.key !== item?.key && !later.includes(i.key))
-            .slice(0, 5)
-            .map((i) => (
-              <div key={i.key} className="agents-catchup__next-row">
-                <AgentKey id={i.agent.id} name={i.agent.name} color={i.agent.color} size="sm" />
-                <span>
-                  <span className="agents-catchup__next-title">{headline(i)}</span>
-                  <span className="agents-catchup__next-sub">
-                    {i.agent.name} · {kindOf(i.message)}
-                  </span>
-                </span>
-              </div>
-            ))}
-          {happened.length > 0 && (
-            <p className="agents-catchup__then">
-              Then: {happened.length} {happened.length === 1 ? 'thing' : 'things'} that happened
-              while you were away. One card, no decisions.
-            </p>
-          )}
+        <aside className="agents-catchup__queue" aria-label="Queue">
+          {queue}
         </aside>
+        <div className="agents-catchup__pane">
+          {item ? (
+            <Decision
+              key={item.key}
+              item={item}
+              onOpenChat={() =>
+                item.message
+                  ? onOpenMessage(item.agent.id, item.message.id, item.message.conversation)
+                  : onOpenAgent(item.agent.id)
+              }
+              onLater={() => {
+                setLater((l) => [...l.filter((k) => k !== item.key), item.key]);
+                setPicked(null);
+              }}
+            />
+          ) : summaryOpen ? (
+            <Summary
+              happened={happened}
+              onOpenAgent={onOpenAgent}
+              onOpenInFlight={onOpenInFlight}
+              onGotIt={gotItNow}
+            />
+          ) : (
+            <AllClear lastDecision={lastDecision} onOpenInFlight={onOpenInFlight} />
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+/** One row of the queue: a key (or a tile), a title and who, the age at the right. */
+function Row({
+  lead,
+  title,
+  sub,
+  right,
+  selected,
+  muted,
+  onPick,
+}: {
+  lead: ReactNode;
+  title: string;
+  sub?: string;
+  right?: ReactNode;
+  selected?: boolean;
+  muted?: boolean;
+  onPick?: () => void;
+}) {
+  const inner = (
+    <>
+      {lead}
+      <span className="agents-catchup__row-text">
+        <span className="agents-catchup__row-title">{title}</span>
+        {sub && <span className="agents-catchup__row-sub">{sub}</span>}
+      </span>
+      {right && <span className="agents-catchup__row-right">{right}</span>}
+    </>
+  );
+  const cls = `agents-catchup__row${selected ? ' is-selected' : ''}${muted ? ' is-muted' : ''}`;
+  return onPick ? (
+    <button
+      type="button"
+      tabIndex={0}
+      className={cls}
+      aria-current={selected || undefined}
+      onClick={onPick}
+    >
+      {inner}
+    </button>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
+
+const tile = (icon: ReactNode) => (
+  <span className="agents-catchup__tile" aria-hidden="true">
+    {icon}
+  </span>
+);
+
+/** The queue is the list: Done, Needs you, Then. Nothing is "up next" in another style. */
+function Queue({
+  items,
+  later,
+  done,
+  happened,
+  open,
+  onPick,
+}: {
+  items: CatchItem[];
+  later: string[];
+  done: CatchItem[];
+  happened: Agent[];
+  open: string | null;
+  onPick: (key: string) => void;
+}) {
+  return (
+    <>
+      {done.length > 0 && (
+        <section className="agents-catchup__group">
+          <h3>{catchUpGroup(CATCH_UP.done, done.length)}</h3>
+          {done.map((i) => (
+            <Row
+              key={i.key}
+              muted
+              lead={
+                <AgentKey id={i.agent.id} name={i.agent.name} color={i.agent.color} size="md" />
+              }
+              title={headline(i)}
+              right={<CheckIcon size={14} />}
+            />
+          ))}
+        </section>
+      )}
+      {(items.length > 0 || done.length === 0) && (
+        <section className="agents-catchup__group">
+          <h3>{catchUpGroup(CATCH_UP.needsYou, items.length)}</h3>
+          {items.length === 0 && (
+            <Row muted lead={tile(<CheckIcon size={14} />)} title={CATCH_UP.nothingWaiting} />
+          )}
+          {items.map((i) => (
+            <Row
+              key={i.key}
+              lead={
+                <AgentKey id={i.agent.id} name={i.agent.name} color={i.agent.color} size="md" />
+              }
+              title={headline(i)}
+              sub={rowSub(i)}
+              right={later.includes(i.key) ? CATCH_UP.later : formatAge(i.ts)}
+              selected={open === i.key}
+              onPick={() => onPick(i.key)}
+            />
+          ))}
+        </section>
+      )}
+      {happened.length > 0 && (
+        <section className="agents-catchup__group">
+          <h3>{CATCH_UP.then}</h3>
+          <Row
+            lead={tile(<HistoryIcon size={14} />)}
+            title={CATCH_UP.whileAway}
+            sub={catchUpThingsNoDecisions(happened.length)}
+            selected={open === 'summary'}
+            onPick={() => onPick('summary')}
+          />
+        </section>
+      )}
+    </>
   );
 }
 
@@ -240,12 +475,15 @@ function Decision({
           name={agent.name}
           color={agent.color}
           state={agentKeyState(agent, false)}
-          size="sm"
+          size="md"
         />
         <span className="agents-catchup__name">{agent.name}</span>
         <span className="agents-catchup__ago">{formatAgo(item.ts)}</span>
-        <span className="agents-catchup__tag">{kindOf(message)}</span>
       </div>
+      <p className="agents-catchup__eyebrow">
+        <span className="agents-catchup__dot" aria-hidden="true" />
+        {kindOf(message)}
+      </p>
       <h3 className="agents-catchup__ask">{headline(item)}</h3>
       {why(item) && <p className="agents-catchup__why">{why(item)}</p>}
       {draft && (
@@ -255,27 +493,9 @@ function Decision({
           <div>{draft.body}</div>
         </div>
       )}
-      {approval && approval.detail.trim() && (
-        <div className="agents-catchup__more">
-          <TextButton tabIndex={0} onClick={() => setAll(!all)} aria-expanded={all}>
-            {all ? 'Hide' : 'Show everything it said'}
-          </TextButton>
-          {all && <pre>{approval.detail}</pre>}
-        </div>
-      )}
       <div className="agents-catchup__actions">
         {here ? (
           <>
-            <Button
-              tabIndex={0}
-              variant="secondary"
-              width="fill"
-              disabled={busy}
-              onClick={() => void answer(false)}
-              aria-keyshortcuts="D"
-            >
-              Deny <kbd>D</kbd>
-            </Button>
             <Button
               tabIndex={0}
               variant="strong"
@@ -286,80 +506,135 @@ function Decision({
               onClick={guard(() => void answer(true))}
               aria-keyshortcuts="A"
             >
-              Allow <kbd>A</kbd>
+              {CATCH_UP.allow} <kbd>A</kbd>
             </Button>
+            <Button
+              tabIndex={0}
+              variant="secondary"
+              disabled={busy}
+              onClick={() => void answer(false)}
+              aria-keyshortcuts="D"
+            >
+              {CATCH_UP.deny} <kbd>D</kbd>
+            </Button>
+            {approval && approval.detail.trim() && (
+              <Button tabIndex={0} variant="ghost" aria-expanded={all} onClick={() => setAll(!all)}>
+                {CATCH_UP.details}
+              </Button>
+            )}
           </>
         ) : (
-          <Button tabIndex={0} variant="strong" width="fill" onClick={onOpenChat}>
-            Open chat <kbd>O</kbd>
+          <>
+            <Button
+              tabIndex={0}
+              variant="strong"
+              width="fill"
+              onClick={onOpenChat}
+              aria-keyshortcuts="O"
+            >
+              {CATCH_UP.openChat} <kbd>O</kbd>
+            </Button>
+            <Button tabIndex={0} variant="ghost" onClick={onLater} aria-keyshortcuts="L">
+              {CATCH_UP.later} <kbd>L</kbd>
+            </Button>
+          </>
+        )}
+      </div>
+      {all && approval && <pre className="agents-catchup__detail">{approval.detail}</pre>}
+      {here && (
+        <div className="agents-catchup__quiet">
+          <Button
+            tabIndex={0}
+            variant="ghost"
+            size="compact"
+            onClick={onOpenChat}
+            aria-keyshortcuts="O"
+          >
+            {CATCH_UP.openChat} <kbd>O</kbd>
           </Button>
-        )}
-      </div>
-      <div className="agents-catchup__quiet">
-        {here && (
-          <TextButton tabIndex={0} onClick={onOpenChat} aria-keyshortcuts="O">
-            Open chat <kbd>O</kbd>
-          </TextButton>
-        )}
-        <TextButton tabIndex={0} onClick={onLater} aria-keyshortcuts="L">
-          Later <kbd>L</kbd>
-        </TextButton>
-      </div>
+          <Button
+            tabIndex={0}
+            variant="ghost"
+            size="compact"
+            onClick={onLater}
+            aria-keyshortcuts="L"
+          >
+            {CATCH_UP.later} <kbd>L</kbd>
+          </Button>
+        </div>
+      )}
     </article>
   );
 }
 
-function CaughtUp({
+function Summary({
   happened,
-  saved,
   onOpenAgent,
-  onReview,
-  onClose,
+  onOpenInFlight,
+  onGotIt,
 }: {
   happened: Agent[];
-  /** Put off with Later: still waiting. */
-  saved: number;
   onOpenAgent: (id: string) => void;
-  onReview: () => void;
-  onClose: () => void;
+  onOpenInFlight: () => void;
+  onGotIt: () => void;
 }) {
+  const shown = happened.slice(0, CATCH_UP_SUMMARY_ROWS);
+  const rest = happened.length - shown.length;
   return (
-    <section className="agents-catchup__card agents-catchup__done" tabIndex={-1}>
-      <h3 className="agents-catchup__ask">You’re caught up</h3>
-      <p className="agents-catchup__why">
-        {saved > 0
-          ? `${saved} ${saved === 1 ? 'is' : 'are'} saved for Later and still waiting.`
-          : happened.length
-            ? 'While you were away'
-            : 'Nothing else is waiting on you.'}
-      </p>
-      {happened.map((a) => (
-        <button
-          key={a.id}
-          type="button"
-          tabIndex={0}
-          className="agents-catchup__happened"
-          onClick={() => onOpenAgent(a.id)}
-        >
-          <AgentKey id={a.id} name={a.name} color={a.color} size="sm" />
-          <span>
-            <span className="agents-catchup__next-title">
+    <section className="agents-catchup__card agents-catchup__summary" tabIndex={-1}>
+      <div className="agents-catchup__who">
+        {tile(<HistoryIcon size={14} />)}
+        <span className="agents-catchup__name">{CATCH_UP.whileAway}</span>
+        <span className="agents-catchup__ago">{catchUpThingsHead(happened.length)}</span>
+      </div>
+      <div className="agents-catchup__sum-rows">
+        {shown.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            tabIndex={0}
+            className="agents-catchup__sum-row"
+            onClick={() => onOpenAgent(a.id)}
+          >
+            <AgentKey id={a.id} name={a.name} color={a.color} size="md" />
+            <span className="agents-catchup__sum-text">
               {previewText(a.preview) || 'Something new'}
             </span>
-            <span className="agents-catchup__next-sub">{a.name}</span>
-          </span>
-        </button>
-      ))}
+            <span className="agents-catchup__row-right">{clock(a.lastActivityAt)}</span>
+          </button>
+        ))}
+      </div>
+      {rest > 0 && (
+        <TextButton tabIndex={0} onClick={onOpenInFlight}>
+          {catchUpMore(rest)}
+        </TextButton>
+      )}
       <div className="agents-catchup__actions">
-        {saved > 0 && (
-          <Button tabIndex={0} variant="secondary" width="fill" onClick={onReview}>
-            Go through them
-          </Button>
-        )}
-        <Button tabIndex={0} variant="strong" width="fill" onClick={onClose}>
-          Done
+        <Button tabIndex={0} variant="strong" width="fill" onClick={onGotIt}>
+          {CATCH_UP.gotIt}
         </Button>
       </div>
+    </section>
+  );
+}
+
+function AllClear({
+  lastDecision,
+  onOpenInFlight,
+}: {
+  lastDecision?: string;
+  onOpenInFlight: () => void;
+}) {
+  return (
+    <section className="agents-catchup__clear" tabIndex={-1}>
+      <span className="agents-catchup__ring" aria-hidden="true">
+        <CheckIcon size={22} />
+      </span>
+      <h3>{CATCH_UP.allClear}</h3>
+      <p>{catchUpAllClearBody(lastDecision)}</p>
+      <Button tabIndex={0} variant="secondary" onClick={onOpenInFlight}>
+        {CATCH_UP.whatsInFlight}
+      </Button>
     </section>
   );
 }
