@@ -195,8 +195,10 @@ export const agentsKeysScenarios: Scenario[] = [
     openSelector: AGENTS_TAB,
     requires: '.agent-sheet__key .agent-key--xl',
     steps: [
-      { click: '.agent-chat__menu [aria-label^="Actions for"]' },
-      { click: '[role="menuitem"]', text: 'Edit agent' },
+      // The header's ⋯ (the old actions menu is gone): Instructions and memory
+      // opens the editor.
+      { click: '.agent-chat__more' },
+      { click: '[role="menuitem"]', text: 'Instructions and memory' },
       { click: '.agent-sheet__key' },
     ],
     clipSelector: '.agent-look',
