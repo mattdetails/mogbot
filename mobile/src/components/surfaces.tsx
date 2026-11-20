@@ -21,7 +21,7 @@
  * the rest are `outline`; `danger` only for what destroys work.
  */
 
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { useContext, useState, type ReactNode } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -69,7 +69,8 @@ export type CardTone = 'warning' | 'error';
  * their own surface, border, shadow and padding, so there is one container,
  * not a box in a box.
  */
-export const FlatCardContext = createContext(false);
+export { FlatCardContext } from './ui';
+import { FlatCardContext } from './ui';
 const FLAT = {
   backgroundColor: 'transparent',
   borderWidth: 0,

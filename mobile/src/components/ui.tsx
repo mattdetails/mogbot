@@ -6,7 +6,7 @@
  */
 
 import { SymbolView } from 'expo-symbols';
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -202,6 +202,13 @@ export const DISABLED_OPACITY = 0.4;
 /** Send with nothing to send: fainter than the rest, so it reads as not yet (the composer audit's 30%). */
 export const SEND_OFF_OPACITY = 0.3;
 
+/**
+ * Inside a screen that is itself the card (Catch up): the chat's cards drop
+ * their own surface, border, shadow and padding, and every Button in them is
+ * flat (48 tall, 15pt, a 1pt outline), not only the ones that ask for it.
+ */
+export const FlatCardContext = createContext(false);
+
 export function Button({
   title,
   variant = 'secondary',
@@ -209,7 +216,7 @@ export function Button({
   busy = false,
   icon,
   style,
-  flat = false,
+  flat: flatOwn = false,
   disabled,
   onPress,
   lines = 1,
@@ -231,6 +238,7 @@ export function Button({
   const ripple = useRipple();
   const accent = useAccent();
   const answer = useAnswerAccent();
+  const flat = flatOwn || useContext(FlatCardContext);
   const filled = variant === 'primary' || variant === 'answer';
   const a = variant === 'answer' ? answer : accent;
   const off = !!disabled && !busy;
@@ -260,7 +268,7 @@ export function Button({
         styles.button,
         {
           minHeight: height,
-          ...(flat && { borderWidth: StyleSheet.hairlineWidth }),
+          ...(flat && { borderWidth: 1 }),
           paddingHorizontal: size === 'compact' ? space.md : space.lg,
           backgroundColor: pressed ? c.pressed : c.bg,
           borderColor: c.border ?? 'transparent',

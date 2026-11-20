@@ -15,7 +15,9 @@
  *
  *   pnpm qa:web                          # everything, into qa-shots/
  *   pnpm qa:web --only chat-,composer-   # shots whose name starts with chat- or composer-
- *   pnpm qa:web --phases heavy           # only these phases (demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture)
+ *   pnpm qa:web --phases heavy           # only these phases (demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture,catchup-dir2,chat-spec,reply,cards-tonight,tasks,nested-list)
+ *   pnpm qa:web --no-pair               # skip the pairing screens (minutes, an unreachable host times out)
+ *   The default run includes catchup-dir2, chat-spec, reply, cards-tonight, tasks and nested-list.
  *   pnpm qa:web --themes dark            # one theme
  *   pnpm qa:web --size 375x667           # another phone (default 402x874)
  *   pnpm qa:web --phases send            # a send, frame by frame (not in the default run)
@@ -23,8 +25,12 @@
  *   pnpm qa:web --phases net             # requests the Mac sees and React renders: cold start, tabs, chats, reconnect, a streaming reply (not in the default run)
  *   pnpm qa:web --phases reconnecting    # the Mac going away under an open app (not in the default run)
  *   pnpm qa:web --phases project-preview # a project's picture on its card: empty, phone, desktop (not in the default run)
- *   pnpm qa:web --phases catchup-dir2    # Catch up, direction 2: one left, several, summary, all clear (not in the default run)
- *   pnpm qa:web --phases nested-list     # a reply that is only a nested list (not in the default run)
+ *   pnpm qa:web --phases catchup-dir2    # Catch up, direction 2: one left, several, summary, all clear
+ *   pnpm qa:web --phases nested-list     # a reply that is only a nested list
+ *   pnpm qa:web --phases chat-spec       # the chat in six agent colours: your bubble, the reply tint, Send
+ *   pnpm qa:web --phases reply           # reply to a message: pills, swipe, the line in the box, the menu
+ *   pnpm qa:web --phases cards-tonight   # copy, risk, folded and answered cards
+ *   pnpm qa:web --phases tasks           # the task line, the ⋯ menu's Tasks row, the list sheet
  *   pnpm qa:web --phases dictation-words # Settings → Dictation words: the list, and Remove (not in the default run)
  *   pnpm qa:web --phases quiet-drops     # a short drop shows nothing; a 4-minute one shows the bar (not in the default run)
  *   pnpm qa:web --phases link-down       # the connection bar: away, back, the Mac's app stuck or closing (not in the default run)
@@ -66,7 +72,7 @@ const MAX_MS = Number(opt('--max-ms', 'QA_MAX_MS', 75 * 60 * 1000));
 const PHASES = opt(
   '--phases',
   'QA_PHASES',
-  'demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture'
+  'demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture,catchup-dir2,chat-spec,reply,cards-tonight,tasks,nested-list'
 ).split(',');
 const phase = (name) => PHASES.includes(name);
 // Ports other tools in this repo own: the desktop app, its harness, the phone's Metro.
@@ -4884,14 +4890,14 @@ async function main() {
       await page.goto(`${WEB}/chat/design`);
       await sleep(7000);
       await screen(page, theme, {
-        name: 'tasks-header',
+        name: 'chat-header2-task-line',
         check:
           'The header: key, name, and under it the task line (a dot, what it is doing, “· 4 to do · 1 waits” with the waits amber, a chevron); no pill',
       });
       await page.clickLabel('More');
       await sleep(900);
       await screen(page, theme, {
-        name: 'tasks-menu',
+        name: 'agent-menu-sheet',
         check:
           'The ⋯ menu: Tasks is the first row with “1 waits · 4 to do” under it, then Usage, Conversations, About',
       });
@@ -4907,7 +4913,7 @@ async function main() {
       await page.goto(`${WEB}/chat/design`);
       await sleep(7000);
       await screen(page, theme, {
-        name: 'tasks-header-idle',
+        name: 'chat-header2',
         check:
           'Nothing open and not working: the muted line under the name is the agent’s role again',
       });
