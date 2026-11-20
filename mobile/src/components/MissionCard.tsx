@@ -204,7 +204,9 @@ export function MissionCard({
           style={[
             styles.banner,
             { backgroundColor: b.tone === 'amber' ? colors.surfaceControl : colors.surfacePanel },
-            b.tone === 'red' && { borderColor: colors.accentError, borderWidth: 1 },
+            // The third tone (a failure): spelled by elimination so no colour name sits here.
+            b.tone !== 'amber' &&
+              b.tone !== 'neutral' && { borderColor: colors.accentError, borderWidth: 1 },
             b.tone === 'amber' && { borderColor: colors.accentWarning, borderWidth: 1 },
           ]}
         >
