@@ -249,7 +249,6 @@ describe('a card', () => {
 
 describe('a card the Mac says is already answered', () => {
   it('closes every cached copy, so Catch up stops showing it', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { closeCard, emptySync } = require('../src/lib/sync') as typeof import('../src/lib/sync');
     const card = {
       id: 'm1',

@@ -131,7 +131,7 @@ function Files() {
       }
       ListHeaderComponent={
         <View style={styles.head}>
-          <RefreshStatus outcome={outcome} onRetry={onRefresh} onDismiss={dismiss} />
+          <RefreshStatus outcome={outcome} onRetry={() => void onRefresh()} onDismiss={dismiss} />
           <Segmented<Filter>
             value={filter}
             onChange={setFilter}

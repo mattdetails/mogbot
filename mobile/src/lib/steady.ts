@@ -11,6 +11,7 @@ export { STEADY_HOLD_MS, THINKING_GRACE_MS, steadyNext } from '@shipstudio/compa
  */
 export function useSteadyLine(line: string, enabled = true): string {
   const [shown, setShown] = useState(line);
+  // eslint-disable-next-line react-hooks/purity -- the clock is read in render on purpose; it only feeds a label that is re-read on the next render
   const shownAt = useRef(Date.now());
   const latest = useRef(line);
   latest.current = line;

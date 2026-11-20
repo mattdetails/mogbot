@@ -83,7 +83,7 @@ describe('one agent', () => {
   it('takes one thing away in a tap, sending exactly the narrow offered', async () => {
     await render(<OnItsOwnList agentId="a1" />);
     await screen.findByText('Uses Gmail (work@acme.com)');
-    fireEvent.press(screen.getByLabelText('Read only'));
+    void fireEvent.press(screen.getByLabelText('Read only'));
     await waitFor(() =>
       expect(mockCall).toHaveBeenCalledWith('agents.onItsOwnNarrow', {
         agentId: 'a1',
@@ -95,10 +95,11 @@ describe('one agent', () => {
 
   it('keeps the list and says why when the Mac refuses', async () => {
     mockCall.mockImplementationOnce(() => Promise.resolve(view));
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the Mac rejects with a plain object
     mockCall.mockImplementationOnce(() => Promise.reject({ message: 'That’s already gone.' }));
     await render(<OnItsOwnList agentId="a1" />);
     await screen.findByText('Run npm test');
-    fireEvent.press(screen.getAllByLabelText('Take back')[0]);
+    void fireEvent.press(screen.getAllByLabelText('Take back')[0]);
     expect(await screen.findByText('That’s already gone.')).toBeTruthy();
     expect(screen.getByText('Run npm test')).toBeTruthy();
   });
@@ -116,14 +117,14 @@ describe('the team', () => {
   it('lists shared rules and each agent, a tap from its own list', async () => {
     await render(<OnItsOwnTeamList />);
     await screen.findByText('Rules for every agent');
-    fireEvent.press(screen.getByText('Finance'));
+    void fireEvent.press(screen.getByText('Finance'));
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/on-its-own', params: { id: 'a1' } });
   });
 
   it('takes a shared rule back through the Chief', async () => {
     await render(<OnItsOwnTeamList />);
     await screen.findByText('Rules for every agent');
-    fireEvent.press(screen.getByLabelText('Remove'));
+    void fireEvent.press(screen.getByLabelText('Remove'));
     await waitFor(() =>
       expect(mockCall).toHaveBeenCalledWith('agents.onItsOwnNarrow', {
         agentId: 'chief',

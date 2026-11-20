@@ -19,18 +19,19 @@ export function speak(_text: string, options: Options = {}) {
   if (queue.length === 1) options.onStart?.();
 }
 
-export async function stop() {
+export function stop(): Promise<void> {
   const stopped = queue;
   queue = [];
   stopped.forEach((o) => o.onStopped?.());
+  return Promise.resolve();
 }
 
 export async function pause() {}
 export async function resume() {}
-export async function isSpeakingAsync() {
-  return queue.length > 0;
+export function isSpeakingAsync(): Promise<boolean> {
+  return Promise.resolve(queue.length > 0);
 }
-export async function getAvailableVoicesAsync() {
-  return [];
+export function getAvailableVoicesAsync(): Promise<never[]> {
+  return Promise.resolve([]);
 }
 export const maxSpeechInputLength = 4000;

@@ -68,6 +68,7 @@ export default function UsageAccount() {
       onMoveDown: order && i < ids.length - 1 ? () => void state.move(key.engine, i, 1) : undefined,
       busy: state.busy,
     };
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- the deps are the ones that matter; the memo is kept as written
   }, [key, accounts, state]);
 
   return (
@@ -97,7 +98,9 @@ export default function UsageAccount() {
           </>
         ) : (
           <T color={colors.textSecondary}>
-            {inventory ? `This account isn’t on ${comp.your} anymore.` : `Reading it from ${comp.your}…`}
+            {inventory
+              ? `This account isn’t on ${comp.your} anymore.`
+              : `Reading it from ${comp.your}…`}
           </T>
         )}
         {state.error && (

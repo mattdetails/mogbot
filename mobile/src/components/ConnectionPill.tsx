@@ -88,6 +88,7 @@ export function useLinkBar(): { bar: LinkBar | null; back: boolean } {
   // across the tabs that show it.
   const verdict = shown ? `${shown.kind}:${shown.title}` : null;
   const detail = useRef('');
+  // eslint-disable-next-line react-hooks/refs -- a ref the render owns, read and written outside React state on purpose (gesture and arrival bookkeeping)
   detail.current = shown ? `${shown.title}. ${shown.detail}` : '';
   useEffect(() => {
     if (!verdict) {
@@ -254,6 +255,7 @@ export function LinkProblem({ what, macName }: { what: string; macName: string }
   const bar = linkBar(state, now);
   const first = useFirstDown(state.link.kind !== 'connected');
   // Nothing says "problem" until the drop has gone on QUIET_MS (a refusal at once).
+  // eslint-disable-next-line react-hooks/purity -- the clock is read in render on purpose; it only feeds a label that is re-read on the next render
   const due = failureDue(state.link, Math.max(now, Date.now()), first);
   if (!due || (p.tone !== 'problem' && bar?.tone !== 'problem')) {
     return (

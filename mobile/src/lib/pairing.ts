@@ -177,7 +177,7 @@ export function asCredentials(v: unknown): Credentials | null {
   if (!Array.isArray(c.routes)) return null;
   const routes = c.routes.filter(
     (r): r is Route =>
-      typeof r === 'object' && r !== null && filled(r.kind) && filled((r as Route).url)
+      typeof r === 'object' && r !== null && filled((r as Route).kind) && filled((r as Route).url)
   );
   if (!routes.length) return null;
   if (c.fingerprint != null && typeof c.fingerprint !== 'string') return null;

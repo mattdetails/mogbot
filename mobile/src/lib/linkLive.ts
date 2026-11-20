@@ -12,6 +12,7 @@ import { useApp } from './store';
 export function useFirstDown(down: boolean): number | undefined {
   const at = useRef<number | undefined>(undefined);
   if (!down) at.current = undefined;
+  // eslint-disable-next-line react-hooks/purity -- the clock is read in render on purpose; it only feeds a label that is re-read on the next render
   else if (at.current == null) at.current = Date.now();
   return at.current;
 }
@@ -24,6 +25,7 @@ export function useFirstDown(down: boolean): number | undefined {
 export function useLinkLive(): boolean {
   const link = useApp((s) => s.link);
   // Only ticks while the link is down: a healthy link costs nothing here.
+  // eslint-disable-next-line react-hooks/purity -- the clock is read in render on purpose; it only feeds a label that is re-read on the next render
   const [now, setNow] = useState(Date.now());
   const down = link.kind !== 'connected' || link.stuck != null;
   useEffect(() => {
@@ -33,6 +35,6 @@ export function useLinkLive(): boolean {
     return () => clearInterval(timer);
   }, [down]);
   const first = useFirstDown(link.kind !== 'connected');
+  // eslint-disable-next-line react-hooks/purity -- the clock is read in render on purpose; it only feeds a label that is re-read on the next render
   return feelsLive(link, Math.max(now, Date.now()), first);
 }
-

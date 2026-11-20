@@ -103,7 +103,7 @@ it('shows the agent and its step on the project it works in, first, and opens it
   expect(screen.getByText('Juno')).toBeTruthy();
   expect(screen.getByText('Running the build')).toBeTruthy();
   expect(screen.queryByText('Idle One')).toBeNull();
-  fireEvent.press(screen.getByLabelText('Juno, Running the build. Open its chat'));
+  void fireEvent.press(screen.getByLabelText('Juno, Running the build. Open its chat'));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/chat/[id]', params: { id: 'juno' } });
 });
 

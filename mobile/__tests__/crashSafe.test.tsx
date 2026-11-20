@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports -- each launch requires fresh modules */
 /**
  * Nothing you were writing is lost when the app dies: the draft (typed and
  * dictated words alike) is on disk within DRAFT_SAVE_MS of each change and
@@ -275,7 +274,7 @@ describe('a crash', () => {
     expect(sent).toEqual([['First', 'Second'], ['Third']]);
   });
 
-  it('keeps them for the next connect when the Mac didn\'t answer', async () => {
+  it("keeps them for the next connect when the Mac didn't answer", async () => {
     const { crash } = launch();
     await crash.recordCrash(new Error('Lost'), 'js', false, 1000);
     await expect(crash.sendCrashes(() => Promise.reject(new Error('gone')))).rejects.toThrow();

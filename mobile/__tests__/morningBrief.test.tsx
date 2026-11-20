@@ -98,7 +98,7 @@ describe('the morning brief on the phone', () => {
   it('shows the Mac’s time, and sets a morning or off from the sheet', async () => {
     await render(<MorningBriefSetting />);
     expect(await screen.findByText('08:00')).toBeTruthy();
-    fireEvent.press(screen.getAllByText('Morning brief')[1]);
+    void fireEvent.press(screen.getAllByText('Morning brief')[1]);
     const [title, choices] = mockChoose.mock.calls[0] as [
       string,
       { label: string; run: () => void }[],

@@ -209,17 +209,17 @@ function AgentSheet() {
                 {...keyLookFor(agent)}
                 taken={[...taken]}
                 onColorway={(colorway) =>
-                  setAgentToggles(agent.id, { colorway }).catch((e: unknown) =>
+                  void setAgentToggles(agent.id, { colorway }).catch((e: unknown) =>
                     setError(describeError(e))
                   )
                 }
                 onIcon={(icon) =>
-                  setAgentToggles(agent.id, { icon }).catch((e: unknown) =>
+                  void setAgentToggles(agent.id, { icon }).catch((e: unknown) =>
                     setError(describeError(e))
                   )
                 }
                 onBoundKey={(boundKey) =>
-                  setAgentToggles(agent.id, { boundKey }).catch((e: unknown) =>
+                  void setAgentToggles(agent.id, { boundKey }).catch((e: unknown) =>
                     setError(describeError(e))
                   )
                 }
@@ -228,7 +228,7 @@ function AgentSheet() {
               <ColorSwatches
                 value={agent.color}
                 onChange={(color) =>
-                  setAgentToggles(agent.id, { color }).catch((e: unknown) =>
+                  void setAgentToggles(agent.id, { color }).catch((e: unknown) =>
                     setError(describeError(e))
                   )
                 }

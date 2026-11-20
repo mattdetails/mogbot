@@ -46,6 +46,7 @@ export function RefreshStatus({
       setSaid('failed');
       haptic.warning();
     }
+    // eslint-disable-next-line react-hooks/immutability -- a Reanimated shared value is written through .value by design
     open.value = withTiming(outcome === 'idle' ? 0 : 1, { duration: duration.slow });
   }, [outcome, open]);
 
@@ -84,6 +85,7 @@ export function RefreshStatus({
       <View
         style={styles.measure}
         onLayout={(e) => {
+          // eslint-disable-next-line react-hooks/immutability -- a Reanimated shared value is written through .value by design
           height.value = e.nativeEvent.layout.height;
         }}
       >

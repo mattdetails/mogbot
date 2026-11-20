@@ -2940,7 +2940,7 @@ export function createMockServer(opts: MockOptions = {}) {
       return convList(agentId);
     },
     'agents.page': (p) =>
-      pages.get(String(p.agentId), p.conversationId ? String(p.conversationId) : undefined),
+      pages.get(asText(p.agentId), p.conversationId ? asText(p.conversationId) : undefined),
     'agents.pageVersion': (p) => pages.version(String(p.agentId), Number(p.version)),
     'agents.pagePin': (p) => pages.pin(String(p.agentId), p.pinned === true),
     // `rewind::rewind`: the lines from the message on folded, never deleted; refused mid-turn.
@@ -3995,7 +3995,7 @@ export function createMockServer(opts: MockOptions = {}) {
       return methods['agents.usagePlan']!({}, c);
     },
     'agents.spare.add': (p, c) => {
-      const text = String(p.text ?? '').trim();
+      const text = asText(p.text ?? '').trim();
       if (!text) return fail({ type: 'Validation', field: 'text', reason: 'Say what to do.' });
       spareAdded.push({
         id: `spare-${spareAdded.length + 1}`,
@@ -4119,7 +4119,7 @@ export function createMockServer(opts: MockOptions = {}) {
         const draft: MockMission = {
           ...missionBase,
           id: typeof d.id === 'string' ? d.id : `m-${missions.length + 1}`,
-          goal: String(d.goal ?? ''),
+          goal: asText(d.goal ?? ''),
           state: 'draft',
           startedAt: Date.now(),
           criteria: ((d.criteria as { text: string }[]) ?? []).map((c, i) => ({
@@ -4178,7 +4178,7 @@ export function createMockServer(opts: MockOptions = {}) {
     },
     // As the router does: `on` and `at` (0 to 1439) required.
     'agents.setMorningBrief': (p) => {
-      const at = p.at as unknown;
+      const at = p.at;
       if (
         typeof p.on !== 'boolean' ||
         !Number.isInteger(at) ||
@@ -4238,7 +4238,7 @@ export function createMockServer(opts: MockOptions = {}) {
     },
     'agents.endOfDay': () => endOfDay,
     'agents.setEndOfDay': (p) => {
-      const at = p.at as unknown;
+      const at = p.at;
       if (
         typeof p.on !== 'boolean' ||
         !Number.isInteger(at) ||
@@ -4430,7 +4430,7 @@ export function createMockServer(opts: MockOptions = {}) {
     }),
     // "Describe the agent you want" (router.rs `agents.draft`): the fixture's draft.
     'agents.draft': (p) => {
-      if (String(p.description ?? '').trim().length < 8)
+      if (asText(p.description ?? '').trim().length < 8)
         return fail({
           type: 'Validation',
           field: 'description',
@@ -4564,7 +4564,7 @@ export function createMockServer(opts: MockOptions = {}) {
       }
       if (
         input.effort !== undefined &&
-        !['', 'low', 'medium', 'high'].includes(String(input.effort))
+        !['', 'low', 'medium', 'high'].includes(asText(input.effort))
       ) {
         return fail({
           type: 'Validation',
@@ -4591,7 +4591,7 @@ export function createMockServer(opts: MockOptions = {}) {
         a.icon = input.icon;
       }
       if (input.boundKey !== undefined) {
-        const key = normalizeBoundKey(String(input.boundKey));
+        const key = normalizeBoundKey(asText(input.boundKey));
         if (!key)
           return fail({
             type: 'Validation',
@@ -5054,7 +5054,7 @@ export function createMockServer(opts: MockOptions = {}) {
         if (result instanceof Promise) {
           const id = frame.id;
           void result.then(
-            (value) => send(c, { t: 'res', id, ok: true, result: value } as ServerFrame),
+            (value: unknown) => send(c, { t: 'res', id, ok: true, result: value } as ServerFrame),
             (error: unknown) => {
               const e: WireError =
                 error instanceof Failure ? error.wire : { type: 'Other', message: String(error) };
@@ -6488,4 +6488,11 @@ function parseWhen(
     return { nextAt: d.getTime() };
   }
   return fail(`I can't read "${raw.trim()}" as a time.`);
+}
+
+/** A request field as text: what `String(x)` gave for a string, number or boolean, without printing an object as `[object Object]`. */
+function asText(v: unknown): string {
+  return typeof v === 'object' && v !== null
+    ? JSON.stringify(v)
+    : String(v as string | number | boolean | null | undefined);
 }

@@ -37,9 +37,9 @@ export function blockAnswers(
 ): Map<string, string> {
   const out = new Map<string, string>();
   // The oldest pending send is the first thing said after every message.
-  let next: string | null = pending.length ? pending[0]!.text : null;
+  let next: string | null = pending.length ? pending[0].text : null;
   for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i]!;
+    const m = messages[i];
     if (m.kind === 'user') {
       next = m.text;
       continue;

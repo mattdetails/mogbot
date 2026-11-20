@@ -25,7 +25,7 @@ import { msg, provenBy, until } from './helpers';
 const line = (id: string): Item => ({
   kind: 'message',
   key: id,
-  message: msg(id, 1) as AgentMessage,
+  message: msg(id, 1),
   grouped: false,
 });
 const day = (key: string): Item => ({ kind: 'day', key, label: 'Today' });
@@ -106,7 +106,9 @@ describe('the Rewound fold', () => {
 describe('the project a confirm names', () => {
   it('is the folder of a project an agent works on in a copy, and nothing else', () => {
     expect(copyProject({ project: '/Users/j/ShipStudio/acme-site' })).toBe('acme-site');
-    expect(copyProject({ project: '/Users/j/ShipStudio/acme-site', workDirectly: true })).toBeNull();
+    expect(
+      copyProject({ project: '/Users/j/ShipStudio/acme-site', workDirectly: true })
+    ).toBeNull();
     expect(copyProject({})).toBeNull();
   });
 });
@@ -162,7 +164,9 @@ describe('rewind and fork on the mock Mac', () => {
     expect(fork.title).toBe('Fork of Update the winter opening hours');
     const forked = await page(fork.id);
     expect(forked.slice(0, at).map((m) => m.id)).toEqual(before.slice(0, at).map((m) => m.id));
-    expect(forked[forked.length - 1].text).toMatch(/^Forked from “Update the winter opening hours”/);
+    expect(forked[forked.length - 1].text).toMatch(
+      /^Forked from “Update the winter opening hours”/
+    );
     expect((await page('c-hours')).map((m) => m.id)).toEqual(before.map((m) => m.id));
   });
 

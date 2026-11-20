@@ -96,10 +96,12 @@ function Slider({
   const [at, setAt] = useState(START);
   const [ratio, setRatio] = useState(4 / 3);
   const atRef = useRef(at);
+  // eslint-disable-next-line react-hooks/refs -- a ref the render owns, read and written outside React state on purpose (gesture and arrival bookkeeping)
   atRef.current = at;
   const from = useRef(START);
   const pan = useMemo(
     () =>
+      // eslint-disable-next-line react-hooks/refs -- a ref the render owns, read and written outside React state on purpose (gesture and arrival bookkeeping)
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         // Sideways is the slider's; up and down stay the chat's scroll.

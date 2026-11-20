@@ -110,11 +110,11 @@ describe('Agent controls', () => {
   it('sets the effort through agents.update', async () => {
     await sheet();
     await act(async () => {
-      fireEvent.press(screen.getByText('Medium'));
+      void fireEvent.press(screen.getByText('Medium'));
     });
     expect(mockSetEngine).toHaveBeenCalledWith('design', { effort: 'medium' });
     await act(async () => {
-      fireEvent.press(screen.getByText('Opus'));
+      void fireEvent.press(screen.getByText('Opus'));
     });
     expect(mockSetEngine).toHaveBeenCalledWith('design', { model: 'opus' });
   });
@@ -134,18 +134,18 @@ describe('Agent controls', () => {
     await sheet();
     expect(screen.getByText(/once it’s done with this/)).toBeTruthy();
     await act(async () => {
-      fireEvent.press(screen.getByText('Medium'));
+      void fireEvent.press(screen.getByText('Medium'));
     });
     expect(mockSetEngine).not.toHaveBeenCalled();
     await act(async () => {
       // The one control for it: the slider's stop, as everywhere.
       // The slider lays its stops out once it knows its width.
-      fireEvent(screen.getByTestId('independence-slider'), 'layout', {
+      void fireEvent(screen.getByTestId('independence-slider'), 'layout', {
         nativeEvent: { layout: { width: 320, height: 44, x: 0, y: 0 } },
       });
     });
     await act(async () => {
-      fireEvent.press(
+      void fireEvent.press(
         screen.getByTestId('independence-stop-often', { includeHiddenElements: true })
       );
     });
@@ -160,12 +160,12 @@ describe('Agent controls', () => {
     await sheet();
     await act(async () => {
       // The slider lays its stops out once it knows its width.
-      fireEvent(screen.getByTestId('independence-slider'), 'layout', {
+      void fireEvent(screen.getByTestId('independence-slider'), 'layout', {
         nativeEvent: { layout: { width: 320, height: 44, x: 0, y: 0 } },
       });
     });
     await act(async () => {
-      fireEvent.press(
+      void fireEvent.press(
         screen.getByTestId('independence-stop-full_send', { includeHiddenElements: true })
       );
     });
@@ -197,9 +197,9 @@ describe('Agent controls', () => {
 
   it('usage and the agent sheet are a tap away', async () => {
     await sheet();
-    fireEvent.press(screen.getByText('Usage'));
+    void fireEvent.press(screen.getByText('Usage'));
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/usage', params: { id: 'design' } });
-    fireEvent.press(screen.getByText('More about Designer'));
+    void fireEvent.press(screen.getByText('More about Designer'));
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/agent/[id]', params: { id: 'design' } });
   });
 });

@@ -165,6 +165,24 @@ export default tseslint.config(
     },
   },
 
+  // Phone tests: `await act(async () => …)` and `jest.fn(async () => …)` are the idiom for
+  // flushing promises and mocking an async API; the sync form would change what they test.
+  // Jest mocks, `requireActual`/`requireMock`, `.props` and `mock.calls` are untyped by nature,
+  // and a mock factory has to `require` (jest.mock is hoisted above imports), so the no-unsafe-*
+  // and no-require-imports rules are off here and stay on for the phone's own code.
+  {
+    files: ['mobile/__tests__/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+
   // Prettier must be last to override formatting rules
   prettier
 );

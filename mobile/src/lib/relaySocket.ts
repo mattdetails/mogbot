@@ -37,7 +37,7 @@ function asBytes(data: unknown): Uint8Array | null {
   const tag = Object.prototype.toString.call(data);
   if (tag === '[object ArrayBuffer]') return new Uint8Array(data as ArrayBuffer);
   if (ArrayBuffer.isView(data)) {
-    const v = data as ArrayBufferView;
+    const v = data;
     return new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
   }
   // Node's `ws` may hand a list of fragments.
