@@ -34,23 +34,18 @@ import {
 } from '@shipstudio/companion-protocol';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import {
-  PanResponder,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, {
   FadeIn,
   FadeInRight,
   FadeOutLeft,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { spring } from '../lib/motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner } from '../components/agent';
 import { AgentKey } from '../components/AgentKey';
@@ -393,28 +388,35 @@ function Shown({
   // Swipe left: Later. The card follows the finger, and springs back short of it.
   const dx = useSharedValue(0);
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: dx.value }] }));
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) =>
-          g.dx < -space.md && Math.abs(g.dx) > Math.abs(g.dy) * 2,
-        onPanResponderMove: (_, g) => {
-          dx.value = Math.min(0, g.dx);
-        },
-        onPanResponderRelease: (_, g) => {
-          if (-g.dx > width * SWIPE_SHARE) {
-            dx.value = withTiming(-width, { duration: 160 });
-            goLater();
-          } else {
-            dx.value = withSpring(0);
-          }
-        },
-        onPanResponderTerminate: () => {
-          dx.value = withSpring(0);
-        },
-      }),
-    [dx, width, goLater]
-  );
+  // On the UI thread (gesture-handler + Reanimated, docs/MOTION.md): it follows
+  // the finger 1:1, ticks once as it crosses the line, flies off or settles
+  // back on spring.standard. Only leftward and mostly sideways, so the
+  // card's own scroll keeps vertical drags.
+  const pastLine = useSharedValue(false);
+  const pan = useMemo(() => {
+    const line = width * SWIPE_SHARE;
+    return Gesture.Pan()
+      .activeOffsetX([-space.md, 9999])
+      .failOffsetY([-space.md / 2, space.md / 2])
+      .onUpdate((e) => {
+        const off = Math.min(0, e.translationX);
+        dx.set(off);
+        const over = -off > line;
+        if (over !== pastLine.get()) {
+          pastLine.set(over);
+          if (over) runOnJS(haptic.select)();
+        }
+      })
+      .onEnd(() => {
+        if (!pastLine.get()) return;
+        dx.set(withSpring(-width, spring.standard));
+        runOnJS(goLater)();
+      })
+      .onFinalize(() => {
+        if (!pastLine.get()) dx.set(withSpring(0, spring.standard));
+        pastLine.set(false);
+      });
+  }, [pastLine, dx, width, goLater]);
 
   const failure = failedTurn(agent);
   const status =
@@ -503,107 +505,108 @@ function Shown({
   );
 
   return (
-    <Animated.View
-      entering={FadeInRight.duration(260)}
-      exiting={FadeOutLeft.duration(160)}
-      style={[styles.body, slide]}
-      {...pan.panHandlers}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        onLayout={(e) => setViewport(e.nativeEvent.layout.height)}
-        onContentSizeChange={(_, h) => {
-          if (viewport > 0 && h > viewport) setTall(true);
-        }}
+    <GestureDetector gesture={pan}>
+      <Animated.View
+        entering={FadeInRight.duration(260)}
+        exiting={FadeOutLeft.duration(160)}
+        style={[styles.body, slide]}
       >
-        <FlatCardContext.Provider value>
-          <View style={styles.cardWrap}>
-            <View style={styles.who}>
-              <AgentKey id={agent.id} name={agent.name} color={agent.color} size={catchKeySize} />
-              <T variant="small" color={colors.textStrong} numberOfLines={1} style={styles.name}>
-                {agent.name}
-              </T>
-              <T variant="label" color={colors.textMuted} numberOfLines={1}>
-                {catchUpAge(card?.ts ?? agent.lastActivityAt)}
-              </T>
-            </View>
-            {eyebrow && (
-              <View style={styles.eyebrow}>
-                <View style={[styles.eyebrowDot, { backgroundColor: colors.accentWarning }]} />
-                <T variant="caption" color={colors.textSecondary} style={styles.eyebrowText}>
-                  {CATCH_UP_EYEBROW[eyebrow]}
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          onLayout={(e) => setViewport(e.nativeEvent.layout.height)}
+          onContentSizeChange={(_, h) => {
+            if (viewport > 0 && h > viewport) setTall(true);
+          }}
+        >
+          <FlatCardContext.Provider value>
+            <View style={styles.cardWrap}>
+              <View style={styles.who}>
+                <AgentKey id={agent.id} name={agent.name} color={agent.color} size={catchKeySize} />
+                <T variant="small" color={colors.textStrong} numberOfLines={1} style={styles.name}>
+                  {agent.name}
+                </T>
+                <T variant="label" color={colors.textMuted} numberOfLines={1}>
+                  {catchUpAge(card?.ts ?? agent.lastActivityAt)}
                 </T>
               </View>
-            )}
-            {card?.approval && shown.length > 0 && (
-              // The ask is the hierarchy: what it said is plain words, not a bubble in a box.
-              <T color={colors.textSecondary} numberOfLines={4}>
-                {previewText(shown.filter((m) => m.kind === 'agent').slice(-1)[0]?.text ?? '')}
-              </T>
-            )}
-            <GalleryContext.Provider value={gallery}>
-              {(card?.approval ? [] : shown).map((m) => (
-                <RowBoundary key={m.id} resetKey={m}>
-                  <MessageRow message={m} agent={agent} queued={false} onError={setError} />
-                </RowBoundary>
-              ))}
-            </GalleryContext.Provider>
-            {item.kind === 'reply' && shown.length === 0 && !!agent.preview && (
-              <T color={colors.textBody} style={styles.read}>
-                {previewText(agent.preview)}
-              </T>
-            )}
-            {status && <Line text={status} />}
-            {item.kind === 'setup' && (
-              <Card icon="list.bullet" title={SETUP_TITLE}>
-                <T variant="small" color={colors.textSecondary}>
-                  {`${setup ? `${setupProgress(setup)} · ` : ''}in ${agent.name}’s chat`}
+              {eyebrow && (
+                <View style={styles.eyebrow}>
+                  <View style={[styles.eyebrowDot, { backgroundColor: colors.accentWarning }]} />
+                  <T variant="caption" color={colors.textSecondary} style={styles.eyebrowText}>
+                    {CATCH_UP_EYEBROW[eyebrow]}
+                  </T>
+                </View>
+              )}
+              {card?.approval && shown.length > 0 && (
+                // The ask is the hierarchy: what it said is plain words, not a bubble in a box.
+                <T color={colors.textSecondary} numberOfLines={4}>
+                  {previewText(shown.filter((m) => m.kind === 'agent').slice(-1)[0]?.text ?? '')}
                 </T>
-              </Card>
-            )}
-            {card?.approval &&
-              (action.kind === 'answer' ? (
-                <ApprovalCard
-                  message={card}
-                  approval={card.approval}
-                  agent={agent}
-                  onError={setError}
-                  answers={false}
-                  // A risky request is read in full before it's allowed.
-                  full={highRisk(card.approval)}
-                />
-              ) : (
-                <Card icon={askIcon(card.approval)} title={card.approval.title}>
+              )}
+              <GalleryContext.Provider value={gallery}>
+                {(card?.approval ? [] : shown).map((m) => (
+                  <RowBoundary key={m.id} resetKey={m}>
+                    <MessageRow message={m} agent={agent} queued={false} onError={setError} />
+                  </RowBoundary>
+                ))}
+              </GalleryContext.Provider>
+              {item.kind === 'reply' && shown.length === 0 && !!agent.preview && (
+                <T color={colors.textBody} style={styles.read}>
+                  {previewText(agent.preview)}
+                </T>
+              )}
+              {status && <Line text={status} />}
+              {item.kind === 'setup' && (
+                <Card icon="list.bullet" title={SETUP_TITLE}>
                   <T variant="small" color={colors.textSecondary}>
-                    {askingLine(card.approval)}
+                    {`${setup ? `${setupProgress(setup)} · ` : ''}in ${agent.name}’s chat`}
                   </T>
                 </Card>
-              ))}
-            {moved && (
-              <Animated.View entering={FadeIn.duration(150)}>
-                <Line text={movedLine} />
-              </Animated.View>
-            )}
-            {!!error && (
-              <T variant="small" color={colors.accentErrorLight} accessibilityLiveRegion="polite">
-                {error}
-              </T>
-            )}
-            {pending && !connected && (
-              <T variant="small" color={colors.textSecondary}>
-                Answer it once {comp.your} is back. It stays open until then.
-              </T>
-            )}
-            {!tall && actions}
-          </View>
-        </FlatCardContext.Provider>
-        {footer}
-        <View style={{ height: Math.max(bottom, space.lg) }} />
-      </ScrollView>
-      {tall && (
-        <View style={[styles.bar, { paddingBottom: Math.max(bottom, space.md) }]}>{actions}</View>
-      )}
-    </Animated.View>
+              )}
+              {card?.approval &&
+                (action.kind === 'answer' ? (
+                  <ApprovalCard
+                    message={card}
+                    approval={card.approval}
+                    agent={agent}
+                    onError={setError}
+                    answers={false}
+                    // A risky request is read in full before it's allowed.
+                    full={highRisk(card.approval)}
+                  />
+                ) : (
+                  <Card icon={askIcon(card.approval)} title={card.approval.title}>
+                    <T variant="small" color={colors.textSecondary}>
+                      {askingLine(card.approval)}
+                    </T>
+                  </Card>
+                ))}
+              {moved && (
+                <Animated.View entering={FadeIn.duration(150)}>
+                  <Line text={movedLine} />
+                </Animated.View>
+              )}
+              {!!error && (
+                <T variant="small" color={colors.accentErrorLight} accessibilityLiveRegion="polite">
+                  {error}
+                </T>
+              )}
+              {pending && !connected && (
+                <T variant="small" color={colors.textSecondary}>
+                  Answer it once {comp.your} is back. It stays open until then.
+                </T>
+              )}
+              {!tall && actions}
+            </View>
+          </FlatCardContext.Provider>
+          {footer}
+          <View style={{ height: Math.max(bottom, space.lg) }} />
+        </ScrollView>
+        {tall && (
+          <View style={[styles.bar, { paddingBottom: Math.max(bottom, space.md) }]}>{actions}</View>
+        )}
+      </Animated.View>
+    </GestureDetector>
   );
 }
 

@@ -111,12 +111,12 @@ import Animated, {
   ZoomOut,
   cancelAnimation,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { useReduceMotion } from '../lib/moving';
 import type { ComposerDraft } from '../lib/drafts';
 import { LiveWords, type WordMorph } from './LiveWords';
 import { Waveform } from './Waveform';
@@ -1203,7 +1203,10 @@ export function ComposerField({
       !followsEnd({ dictating: listening, caret: at.at, length: value.length, before: at.length })
     )
       return;
-    scroll.current?.scrollToEnd({ animated: placed.current });
+    // While dictating, a new word arrives every few hundred ms: an animated
+    // scroll for each stacked one glide on another. Jump to the end then; a
+    // typed change still glides.
+    scroll.current?.scrollToEnd({ animated: placed.current && !listening });
     placed.current = true;
   };
   // Heard words becoming typed ones (Stop) can keep the size and so not
@@ -1526,7 +1529,7 @@ export function RoundButton({
  */
 function Caret() {
   const accent = useAccent();
-  const still = useReducedMotion();
+  const still = useReduceMotion();
   const shown = useSharedValue(1);
   useEffect(() => {
     if (still) return;
