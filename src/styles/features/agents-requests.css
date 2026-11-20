@@ -417,9 +417,9 @@
   flex: none;
   align-items: center;
   gap: var(--spacing-md);
-  height: var(--size-catchup-head);
+  /* A pane header like the chat's: the same height, no bottom line. */
+  height: var(--agents-header-height);
   padding: 0 var(--spacing-xl);
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
 }
 
 .agents-catchup__title {

@@ -50,6 +50,9 @@ interface ConversationSwitcherProps {
   /** Rename opens from ⌘K too. */
   renaming?: boolean;
   onRenamingChange?: (open: boolean) => void;
+  /** Opened from elsewhere too (the agent menu's Conversations row). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function ConversationSwitcher({
@@ -57,6 +60,8 @@ export function ConversationSwitcher({
   viewing,
   renaming,
   onRenamingChange,
+  open,
+  onOpenChange,
 }: ConversationSwitcherProps) {
   const list = useAgentsSelector((s) => s.conversations[agent.id]);
   const { showToast } = useOptionalToast();
@@ -88,17 +93,26 @@ export function ConversationSwitcher({
   }, [list, query]);
   const hidden = !query && (list?.items.length ?? 0) > SHOWN;
 
+  const onOpened = useCallback(() => {
+    setQuery('');
+    setNow(Date.now());
+    void refreshConversations(agent.id);
+  }, [agent.id]);
+  // Opened from the agent menu: the same fresh list as a click on the button.
+  useEffect(() => {
+    if (open) onOpened();
+  }, [open, onOpened]);
+
   return (
     <>
       <Dropdown
         portal
         className="agent-conversations"
         menuClassName="agent-model-menu agent-conversations__menu"
-        onOpenChange={(open) => {
-          if (!open) return;
-          setQuery('');
-          setNow(Date.now());
-          void refreshConversations(agent.id);
+        open={open}
+        onOpenChange={(next) => {
+          onOpenChange?.(next);
+          if (next) onOpened();
         }}
         search={{
           value: query,

@@ -678,14 +678,6 @@
       "consumerCount": 2
     },
     {
-      "name": "--size-catchup-head",
-      "definitionFile": "src/styles/global/tokens-components.css",
-      "layer": "components",
-      "owner": "global/component",
-      "status": "canonical",
-      "consumerCount": 1
-    },
-    {
       "name": "--size-catchup-queue",
       "definitionFile": "src/styles/global/tokens-components.css",
       "layer": "components",
@@ -1931,7 +1923,7 @@
       "layer": "components",
       "owner": "Button",
       "status": "canonical",
-      "consumerCount": 12
+      "consumerCount": 13
     },
     {
       "name": "--button-font-size",
@@ -5979,7 +5971,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 223
+      "consumerCount": 222
     },
     {
       "name": "--border-strong",
@@ -6011,7 +6003,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 378
+      "consumerCount": 377
     },
     {
       "name": "--border-width-emphasis",
@@ -6947,7 +6939,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 91
+      "consumerCount": 92
     },
     {
       "name": "--spacing-tight",
@@ -7619,7 +7611,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 223
+      "consumerCount": 222
     },
     {
       "name": "--border-strong",

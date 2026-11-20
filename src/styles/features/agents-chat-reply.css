@@ -122,6 +122,13 @@
   width: var(--size-agent-menu);
 }
 
+/* The agent menu is one short fixed list (spec-agent-menu §2), never a long
+   one: it shows whole, up to the room the window has, instead of scrolling
+   at the shared 360px and hiding Take over and Delete. */
+.ss-dropdown__menu.agent-menu {
+  max-height: min(calc(100vh - var(--spacing-2xl) * 3), var(--ss-dropdown-room, 100vh));
+}
+
 .agent-menu .agent-menu__value {
   margin-left: var(--spacing-xs);
   font-size: var(--font-size-body-md);

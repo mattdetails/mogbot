@@ -81,6 +81,7 @@ import {
 } from './useComposerAttachments';
 import { AgentSwitcher } from './AgentSwitcher';
 import { ConversationSwitcher } from './ConversationSwitcher';
+import { useOpenReach } from './openReach';
 import { ConversationPage, ConversationPagePin } from './ConversationPage';
 import { useConversationPage } from '../../lib/agentPage';
 import {
@@ -666,6 +667,8 @@ export const AgentChat = memo(function AgentChat({
   }, [agent.id]);
   const [filesOpen, setFilesOpen] = useState(false);
   const [renamingConversation, setRenamingConversation] = useState(false);
+  // Opened from its button, or from the agent menu's Conversations row.
+  const [conversationsOpen, setConversationsOpen] = useState(false);
   // Which of its conversations is on screen, beside its name.
   const conversationSwitcher = viewing ? (
     <ConversationSwitcher
@@ -673,8 +676,12 @@ export const AgentChat = memo(function AgentChat({
       viewing={viewing}
       renaming={renamingConversation}
       onRenamingChange={setRenamingConversation}
+      open={conversationsOpen}
+      onOpenChange={setConversationsOpen}
     />
   ) : null;
+  const teamIndependence = useAgentsSelector((s) => s.independence);
+  const openReach = useOpenReach();
   const [tasksOpen, setTasksOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   /** A starter's brief typed in with its blank still empty: not sendable as it is. */
@@ -2201,11 +2208,18 @@ export const AgentChat = memo(function AgentChat({
                         onTasks={() => setTasksOpen(true)}
                         onUsage={() => setUsageOpen(true)}
                         onRoutines={() => setScheduleOpen(true)}
+                        onConversations={
+                          viewing ? () => setConversationsOpen(true) : undefined
+                        }
                         onModel={() => actions.onEdit(agent)}
+                        onApps={openReach ? () => openReach(agent.id) : undefined}
+                        teamIndependence={teamIndependence}
+                        actions={actions}
                       >
                         <AgentActionItems
                           agent={agent}
                           kind="dropdown"
+                          inAgentMenu
                           onSchedule={engineReady ? () => setScheduleOpen(true) : undefined}
                           onFiles={() => setFilesOpen(true)}
                           onGoBack={ownRecent.length > 0 ? () => setPicking(true) : undefined}

@@ -48,6 +48,13 @@
   padding: 0 var(--agents-column-inset);
 }
 
+/* Wide: who it is takes what's left of the column and gives way (its
+   subtitle ellipsises), so ⋯ ends on the column's right edge however long
+   the task line is. Only compact's centred switcher needs the even sides. */
+.agent-chat__header:not(:has(> .agent-chat__mode)) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, max-content) max-content;
+}
+
 .agent-chat__header > * {
   grid-row: 1;
   grid-column: 2;
@@ -160,6 +167,13 @@
   color: var(--text-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* On the pressed or hovered surface of the switcher (narrow), muted was 3.6:1
+   in dark (secondary only 4.2:1); it takes the button's own pressed ink
+   there, as the header's actions do. */
+.agent-chat__header .agent-chat__title:is(:hover, [aria-expanded='true']) .agent-chat__subtitle {
+  color: var(--button-text-hover);
 }
 
 .agent-chat__name {
