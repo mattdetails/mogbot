@@ -164,6 +164,50 @@ All over the channel's binary payloads. Base64url is unpadded. `scheme` = `PAIRI
      frames until `more` is false. The Mac answers by calling its own loopback server, adding a
      per-launch secret header so the device token is checked without a tailnet login.
 
+### Sessions: a phone's socket drops and comes back (2026-11-19)
+
+The relay's own resume (§6) keeps a *Mac* socket's channels across a blip. A *phone's* socket
+dying (a tunnel, Wi-Fi to cellular, a killed path) used to end its channel: the next socket
+was a new channel, a new handshake and a new `hello`, so anything unacked, and the Mac's
+handler state, was lost. A **session** keeps them. It lives entirely inside the encrypted
+channel: **the relay and the worker change nothing** and see only a new phone socket, as
+before. Either side lacking it gets the old behaviour.
+
+**Why a new handshake each time is right.** Every phone socket still does a fresh X25519
+exchange, so its ChaCha20-Poly1305 counters start at 0 under new keys: a nonce is never reused,
+and nothing is "resent byte for byte". What carries over is the *plaintext* above the cipher,
+numbered and kept until acked, and re-sealed under the new keys.
+
+1. **Offer.** The phone's hello adds `"s":1`. The Mac's answer adds `"s":1` only if the hello did
+   (the signed transcript is unchanged; a relay stripping the flag only downgrades to the old
+   behaviour). Test vectors are unchanged.
+2. **Resume key.** `okm` is expanded to 96 bytes (HKDF's first 64 are the same); `okm[64..96]` is
+   this channel's `resumeKey`.
+3. **First sealed frame, Mac → phone, always:** `{"t":"sess","sid":"<b64url, 16 random bytes>","resumed":false}`.
+   The phone keeps `sid` and `resumeKey`; each resume replaces `resumeKey` with the new channel's.
+4. **Sequenced frames.** Companion protocol frames (not `http`/`httpBody`, which stay one channel
+   per request) are wrapped, each way, from 1: `{"t":"q","n":<seq>,"a":<last seq taken from the
+   other side>,"d":"<the frame's text>"}`. Alone, every 8 frames taken: `{"t":"a","a":<seq>}`.
+   A repeat (`n` ≤ last taken) is dropped; a hole (`n` > last taken + 1) ends the session.
+   Each side keeps what the other hasn't acked: at most 256 frames or 4 MiB; past it the session ends.
+5. **Resume.** A phone socket that died after step 3 reconnects (a new socket, so a new channel)
+   and opens with a hello carrying `"resume":{"sid","rx","k","mac"}`: `rx` the last Mac→phone
+   `n` it took, `k` a counter from 1 that grows with every resume attempt, `mac` =
+   base64url `HMAC-SHA256(resumeKey, "resume\n<hello e>\n<sid>\n<rx>\n<k>")` with the key from
+   the phone's last completed handshake. The Mac accepts when the session is parked, `k` is above
+   the last it took (a replayed hello is refused) and `mac` verifies under the current or the
+   previous key (the answer to an earlier attempt may have been lost). It then answers as
+   always, and its first sealed frame is `{"t":"sess","sid":…,"resumed":true,"rx":<last phone→Mac n it took>}`.
+   Both sides drop what the other's `rx` says it took, then re-send the rest in order as fresh
+   `q` frames with the same `n`. The Mac's socket handler (device, subscriptions) never noticed.
+6. **Anything else is a fresh session** (unknown or expired `sid`, bad `mac`, old `k`): the Mac
+   answers a normal first sess frame with `"resumed":false` and a new `sid`; the phone then ends
+   the socket as closed, and its transport reconnects from scratch (a new `hello`), as before.
+7. **Grace.** The Mac parks a session whose channel ended unannounced (the phone's socket went)
+   for 120 s, keeping its handler and at most 256 frames or 4 MiB it owes the phone. A channel
+   ended by the handler (the phone logged out, the Mac closed it) or by a protocol error is not
+   parked. The phone retries with backoff for the same 120 s, then reports the socket closed.
+
 Test vectors for the handshake and the first frames: `packages/companion-protocol/src/relayVectors.json`,
 used by the phone's tests and the Mac's.
 

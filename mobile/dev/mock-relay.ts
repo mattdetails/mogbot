@@ -31,7 +31,7 @@ import {
 import http from 'node:http';
 import https from 'node:https';
 import { WebSocket, WebSocketServer } from 'ws';
-import { Cipher, deriveKeys, relayTranscript } from '../src/lib/relayCrypto';
+import { Cipher, deriveKeys, relayTranscript, resumeMac } from '../src/lib/relayCrypto';
 
 /** What the mock relay says of the Mac when a phone connects. */
 export type MockRelayMac = 'online' | 'offline' | 'sign_in_needed';
@@ -57,7 +57,25 @@ const bytesOf = (raw: unknown): Uint8Array =>
       ? new Uint8Array(raw)
       : new Uint8Array(raw as Buffer);
 
+/** A phone's session at the mock Mac (docs/relay.md, "Sessions"). */
+interface MockSession {
+  sid: string;
+  key: Uint8Array;
+  lastK: number;
+  tx: number;
+  rx: number;
+  unacked: { n: number; text: string }[];
+  since: number;
+  loopback: WebSocket | null;
+  queued: string[];
+  /** Seals one plaintext to the phone now attached, if any. */
+  sealRaw: ((text: string) => void) | null;
+  closePhone: (() => void) | null;
+  drop: ReturnType<typeof setTimeout> | null;
+}
+
 export function createMockRelay(opts: MockRelayOptions) {
+  const sessions = new Map<string, MockSession>();
   let mac: MockRelayMac = 'online';
   /** Phone connections still to swallow without answering (a stalled first try). */
   let stall = 0;
@@ -94,7 +112,24 @@ export function createMockRelay(opts: MockRelayOptions) {
     phones.add(phone);
     let channel: { send: Cipher; receive: Cipher } | null = null;
     let loopback: WebSocket | null = null;
-    const queued: string[] = [];
+    let queued: string[] = [];
+    let sess: MockSession | null = null;
+    const frameOf = (s: MockSession, n: number, text: string) =>
+      JSON.stringify({ t: 'q', n, a: s.rx, d: text });
+    /** This socket is the session's phone now (its loopback is the session's). */
+    const attach = (s: MockSession) => {
+      s.sealRaw = seal;
+      s.closePhone = closePhone;
+      loopback = s.loopback;
+      queued = s.queued;
+    };
+    /** A frame for the phone: numbered and kept on a session. */
+    const emit = (text: string) => {
+      if (!sess) return seal(text);
+      const n = ++sess.tx;
+      sess.unacked.push({ n, text });
+      sess.sealRaw?.(frameOf(sess, n, text));
+    };
     const requests = new Map<number, { head: RelayHttpRequest; parts: Uint8Array[] }>();
 
     const seal = (text: string) => {
@@ -113,7 +148,12 @@ export function createMockRelay(opts: MockRelayOptions) {
       const bytes = bytesOf(raw);
       if (!channel) {
         // The phone's first payload: its fresh X25519 key, answered signed by the Mac.
-        let hello: { v?: unknown; e?: unknown };
+        let hello: {
+          v?: unknown;
+          e?: unknown;
+          s?: unknown;
+          resume?: { sid?: unknown; rx?: unknown; k?: unknown; mac?: unknown };
+        };
         try {
           hello = JSON.parse(dec.decode(bytes)) as typeof hello;
         } catch {
@@ -127,12 +167,52 @@ export function createMockRelay(opts: MockRelayOptions) {
         const keys = deriveKeys(shared, transcript);
         channel = { send: new Cipher(keys.macToPhone), receive: new Cipher(keys.phoneToMac) };
         const proof = opts.prove(transcript);
-        phone.send(enc.encode(JSON.stringify({ v: 1, e: macE, ...proof })));
+        const wantsSession = hello.s === 1;
+        phone.send(enc.encode(JSON.stringify({ v: 1, e: macE, ...proof, ...(wantsSession ? { s: 1 } : {}) })));
+        if (!wantsSession) return;
+        // A session: a returning phone proves the old one, or a new one starts.
+        const r = hello.resume;
+        const old = r && typeof r.sid === 'string' ? sessions.get(r.sid) : undefined;
+        const good =
+          old &&
+          typeof r!.rx === 'number' &&
+          typeof r!.k === 'number' &&
+          r!.k > old.lastK &&
+          r!.mac === resumeMac(old.key, hello.e, old.sid, r!.rx, r!.k);
+        if (good && old) {
+          sess = old;
+          if (old.drop) clearTimeout(old.drop);
+          old.drop = null;
+          old.lastK = r!.k as number;
+          old.key = keys.resume;
+          attach(old);
+          seal(JSON.stringify({ t: 'sess', sid: old.sid, resumed: true, rx: old.rx }));
+          old.unacked = old.unacked.filter((m) => m.n > (r!.rx as number));
+          for (const m of old.unacked) seal(frameOf(old, m.n, m.text));
+        } else {
+          sess = {
+            sid: toBase64Url(x25519.utils.randomSecretKey().slice(0, 16)),
+            key: keys.resume,
+            lastK: 0,
+            tx: 0,
+            rx: 0,
+            unacked: [],
+            since: 0,
+            loopback: null,
+            queued: [],
+            sealRaw: null,
+            closePhone: null,
+            drop: null,
+          };
+          sessions.set(sess.sid, sess);
+          attach(sess);
+          seal(JSON.stringify({ t: 'sess', sid: sess.sid, resumed: false }));
+        }
         return;
       }
-      const text = channel.receive.open(bytes);
+      let text = channel.receive.open(bytes);
       if (text == null) return phone.close(1002);
-      let frame: { t?: unknown; id?: unknown };
+      let frame: { t?: unknown; id?: unknown; n?: unknown; a?: unknown; d?: unknown };
       try {
         frame = JSON.parse(text) as typeof frame;
       } catch {
@@ -140,6 +220,24 @@ export function createMockRelay(opts: MockRelayOptions) {
       }
       if (frame.t === 'http' || frame.t === 'httpBody') {
         return void onHttp(frame as RelayHttpRequest | RelayHttpBody);
+      }
+      if (sess) {
+        if (typeof frame.a === 'number') {
+          const a = frame.a;
+          sess.unacked = sess.unacked.filter((m) => m.n > a);
+        }
+        if (frame.t === 'a') return;
+        if (frame.t !== 'q' || typeof frame.n !== 'number' || typeof frame.d !== 'string') {
+          return phone.close(1002);
+        }
+        if (frame.n <= sess.rx) return;
+        if (frame.n !== sess.rx + 1) return phone.close(1002);
+        sess.rx = frame.n;
+        if (++sess.since >= 8) {
+          sess.since = 0;
+          seal(JSON.stringify({ t: 'a', a: sess.rx }));
+        }
+        text = frame.d;
       }
       // A companion frame: served by the Mac's own socket handler, on loopback.
       if (!loopback) {
@@ -149,19 +247,40 @@ export function createMockRelay(opts: MockRelayOptions) {
           headers: { 'x-mock-relay': '1' },
         });
         loopbacks.add(loopback);
-        loopback.on('open', () => queued.splice(0).forEach((t) => loopback!.send(t)));
-        loopback.on('message', (data) => seal(dec.decode(bytesOf(data))));
-        loopback.on('close', () => {
-          loopbacks.delete(loopback!);
-          closePhone();
+        if (sess) {
+          sess.loopback = loopback;
+          sess.queued = queued;
+        }
+        const lb = loopback;
+        lb.on('open', () => queued.splice(0).forEach((t) => lb.send(t)));
+        lb.on('message', (data) => emit(dec.decode(bytesOf(data))));
+        lb.on('close', () => {
+          loopbacks.delete(lb);
+          if (sess) {
+            sessions.delete(sess.sid);
+            sess.closePhone?.();
+          } else closePhone();
         });
-        loopback.on('error', () => {});
+        lb.on('error', () => {});
       }
       if (loopback.readyState === WebSocket.OPEN) loopback.send(text);
       else queued.push(text);
     });
     phone.on('close', () => {
       phones.delete(phone);
+      if (sess && loopback) {
+        // The phone's socket went, not the phone: its handler waits for it.
+        const parked = sess;
+        parked.sealRaw = null;
+        parked.closePhone = null;
+        parked.drop = setTimeout(() => {
+          sessions.delete(parked.sid);
+          parked.loopback?.close();
+        }, 10_000);
+        parked.drop.unref?.();
+        return;
+      }
+      if (sess) sessions.delete(sess.sid);
       loopback?.close();
     });
     phone.on('error', () => {});
