@@ -1474,3 +1474,18 @@
 .agent-tasks__head .agent-tasks__close {
   margin-left: auto;
 }
+
+/* Task rows in the panel: a dropped line is kept for the day, muted and not struck through. */
+.agent-tasks__row[data-dropped] .agent-tasks__title {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.agents-list__busy {
+  color: var(--accent-warning);
+}
+
+.agent-tasks__row[data-dropped] .agent-tasks__mark {
+  border-color: var(--border-strong);
+  background: none;
+}

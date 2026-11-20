@@ -59,7 +59,9 @@ export function groupTasks(open: AgentTask[], recent: AgentTask[], now = Date.no
     {
       key: 'done',
       label: TASK_COPY.done,
-      tasks: recent.filter((t) => t.state === 'done' && now - t.updatedAt < day),
+      tasks: recent.filter(
+        (t) => (t.state === 'done' || t.state === 'dropped') && now - t.updatedAt < day
+      ),
     },
   ];
 }
@@ -72,7 +74,8 @@ function clock(ms: number): string {
 /** A row's sub line: where it came from and when. */
 function sub(task: AgentTask): string {
   const at = clock(task.createdAt);
-  if (task.source === 'agent' && task.from) return `from ${task.from.name} · ${at}`;
+  if (task.state === 'dropped') return task.note ? `Dropped · ${task.note}` : 'Dropped';
+  if ((task.source === 'agent' || task.source === 'assigned') && task.from) return `from ${task.from.name} · ${at}`;
   if (task.state === 'waiting' && task.waitingOn) return `${task.waitingOn}`;
   return task.source === 'user' ? `you asked ${at}` : at;
 }
@@ -140,9 +143,14 @@ export function AgentTasksPanel({
             <section key={g.key} className="agent-tasks__group">
               <h4>{g.label}</h4>
               {g.tasks.map((t) => (
-                <div key={t.id} className="agent-tasks__row" data-state={g.key}>
+                <div
+                  key={t.id}
+                  className="agent-tasks__row"
+                  data-state={g.key}
+                  data-dropped={t.state === 'dropped' || undefined}
+                >
                   <span className="agent-tasks__mark" aria-hidden="true">
-                    {g.key === 'done' && <CheckIcon size={10} />}
+                    {g.key === 'done' && t.state !== 'dropped' && <CheckIcon size={10} />}
                   </span>
                   <span className="agent-tasks__text">
                     <span className="agent-tasks__title">{t.title}</span>

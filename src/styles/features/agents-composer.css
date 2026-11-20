@@ -149,13 +149,13 @@
   flex: 0 0 auto;
 }
 
-/* Send and Stop are one round button in the agent's colour (chat-design, option
+/* Send and Stop are one button (6px corners, concentric with the 12px box) in the agent's colour (chat-design, option
    A), its ink picked for contrast on that colour (--accent-on-user); an empty box
    leaves Send muted at 30%: there is nothing to send yet. The + beside the words
    is a thin outlined circle. */
 .agent-composer__send,
 .agent-composer__stop {
-  border-radius: var(--radius-full);
+  border-radius: var(--agents-composer-button-radius);
   background: var(--bubble-user-fill, var(--accent-user));
   color: var(--bubble-user-ink, var(--accent-on-user));
 }
@@ -167,7 +167,7 @@
 }
 
 .agent-composer__attach {
-  border-radius: var(--radius-full);
+  border-radius: var(--agents-composer-button-radius);
   border: var(--border-width-default) solid var(--border-default);
 }
 

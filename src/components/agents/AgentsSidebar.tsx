@@ -100,6 +100,7 @@ import {
   type SearchHit,
 } from '../../lib/agents';
 import { kbd } from '../../lib/shortcuts';
+import { toDoLine } from './AgentTasksPanel';
 import { markLaunchAfterPaint } from '../../lib/launchMarks';
 import { previewText } from '../../../packages/companion-protocol/src/preview';
 
@@ -149,8 +150,26 @@ function subtitle(agent: Agent): ReactNode {
   if (agent.status.state === 'working') return <AgentWorkingLine agent={agent} inRow />;
   const failure = failedTurn(agent);
   if (failure) return failureLine(failure, previewText(agent.preview), agent.engine);
-  return previewText(agent.preview) ?? (agent.isMain ? FIRST_LINE : '');
+  // Open work: how much, and Busy (ten or more) in amber; a quiet agent says Idle.
+  const toDo = agent.tasks?.toDo ?? 0;
+  if (toDo > 0) {
+    return (
+      <>
+        {toDoLine(toDo)}
+        {toDo >= BUSY_AT && (
+          <>
+            {' · '}
+            <span className="agents-list__busy">Busy</span>
+          </>
+        )}
+      </>
+    );
+  }
+  return previewText(agent.preview) || (agent.isMain ? FIRST_LINE : 'Idle');
 }
+
+/** Ten or more lines to do is Busy (docs/guide/asks.md). */
+const BUSY_AT = 10;
 
 /** The Chief's row before it has said anything else (the stored greeting's first line). */
 const FIRST_LINE = 'Hi. Tell me what you want to get done.';

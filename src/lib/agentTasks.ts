@@ -13,7 +13,7 @@ export type TaskState = 'doing' | 'next' | 'waiting' | 'stuck' | 'done' | 'dropp
 export interface AgentTask {
   id: string;
   title: string;
-  source: 'user' | 'agent' | 'own';
+  source: 'user' | 'agent' | 'own' | 'assigned';
   from?: { id: string; name: string };
   state: TaskState;
   createdAt: number;
