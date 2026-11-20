@@ -53,6 +53,14 @@ export interface ScenarioStep {
   text?: string;
   /** Let this many ms of real time pass (a state that only arrives after a while). */
   wait?: number;
+  /**
+   * Pick this up with the pointer and hold it over `to` (pointerdown, then
+   * moves, no release): a drag photographed mid-way, through the app's own
+   * pointer handlers.
+   */
+  drag?: string;
+  /** Where `drag` holds what it picked up. */
+  to?: string;
 }
 
 export interface Scenario {

@@ -260,6 +260,10 @@
   box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--focus-ring);
 }
 
+.agents-list__row[data-muted] .agents-list__name-text {
+  color: var(--text-secondary);
+}
+
 .agents-list__row[data-hidden] .agents-list__name {
   color: var(--text-muted);
 }

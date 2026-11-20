@@ -144,7 +144,7 @@ const FILED: Record<string, string> = {
   leadgen: 'f-out',
   native: 'f-web',
 };
-const folderCommands = (pinned: 'top' | 'inFolder', extra: typeof FOLDERS = []) => ({
+export const folderCommands = (pinned: 'top' | 'inFolder', extra: typeof FOLDERS = []) => ({
   agents_overview: {
     ...overview(TEAM.map((a) => (FILED[a.id] ? { ...a, folder: FILED[a.id] } : a))),
     folders: { folders: [...extra, ...FOLDERS], pinned, broughtIn: true },
