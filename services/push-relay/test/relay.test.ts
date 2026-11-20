@@ -323,7 +323,32 @@ describe('APNs', () => {
       auth,
       body: { device: 'dev_phone', kind: 'finished' },
     });
-    expect(r).toEqual({ status: 502, body: { error: 'provider', status: 429 } });
+    expect(r).toEqual({
+      status: 502,
+      body: { error: 'provider', status: 429, reason: 'TooManyRequests' },
+    });
+  });
+
+  it('says why Apple refused a token, as one plain word, so the Mac can log it', async () => {
+    const auth = await installWithPhone();
+    fetchMock.mockResolvedValueOnce(Response.json({ reason: 'BadDeviceToken' }, { status: 400 }));
+    const r = await call('POST', '/v1/send', {
+      auth,
+      body: { device: 'dev_phone', kind: 'finished' },
+    });
+    expect(r).toEqual({ status: 410, body: { error: 'gone', reason: 'BadDeviceToken' } });
+  });
+
+  it('never passes free text from a provider through', async () => {
+    const auth = await installWithPhone();
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ reason: 'secret words in a sentence' }, { status: 500 })
+    );
+    const r = await call('POST', '/v1/send', {
+      auth,
+      body: { device: 'dev_phone', kind: 'finished' },
+    });
+    expect(r).toEqual({ status: 502, body: { error: 'provider', status: 500 } });
   });
 });
 
