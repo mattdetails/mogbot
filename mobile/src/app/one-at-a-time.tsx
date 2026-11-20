@@ -89,7 +89,7 @@ import { useApp } from '../lib/store';
 import { progress as setupProgress } from '../lib/teamSetup';
 import {
   heroMark,
-  keySize,
+  catchKeySize,
   iconSize,
   lineHeight,
   radius,
@@ -520,7 +520,7 @@ function Shown({
         <FlatCardContext.Provider value>
           <View style={styles.cardWrap}>
             <View style={styles.who}>
-              <AgentKey id={agent.id} name={agent.name} color={agent.color} size={keySize.row} />
+              <AgentKey id={agent.id} name={agent.name} color={agent.color} size={catchKeySize} />
               <T variant="small" color={colors.textStrong} numberOfLines={1} style={styles.name}>
                 {agent.name}
               </T>
@@ -685,7 +685,7 @@ function UpNext({
             }}
             style={({ pressed }) => [styles.row, pressed && PRESSED]}
           >
-            <AgentKey id={agent.id} name={agent.name} color={agent.color} size={keySize.row} />
+            <AgentKey id={agent.id} name={agent.name} color={agent.color} size={catchKeySize} />
             <View style={styles.grow}>
               <T variant="small" color={colors.textStrong} numberOfLines={1}>
                 {titleOf(it, agent, chats[agent.id]?.messages)}
@@ -781,7 +781,7 @@ function Summary({
               onPress={() => onOpen(agent.id)}
               style={({ pressed }) => [styles.summaryRow, pressed && PRESSED]}
             >
-              <AgentKey id={agent.id} name={agent.name} color={agent.color} size={keySize.row} />
+              <AgentKey id={agent.id} name={agent.name} color={agent.color} size={catchKeySize} />
               <T variant="small" color={colors.textStrong} numberOfLines={2} style={styles.grow}>
                 {previewText(agent.preview) || 'Something new'}
               </T>
@@ -892,8 +892,8 @@ const useStyles = makeStyles((colors) => ({
   },
   grow: { flex: 1 },
   clockTile: {
-    width: keySize.row,
-    height: keySize.row,
+    width: catchKeySize,
+    height: catchKeySize,
     borderRadius: radius.inner,
     alignItems: 'center',
     justifyContent: 'center',
