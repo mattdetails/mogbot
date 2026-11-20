@@ -5020,6 +5020,53 @@ async function main() {
     }
   }
 
+  if (phase('states-1.1')) {
+    // The remaining phone states of the 1.1 gate that the mock can show (ids as Fidelity QA suggested).
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--probe');
+      await dropCaches(page);
+      // A turn running with nothing typed: Stop where Send would be.
+      await page.goto(`${WEB}/chat/worker`);
+      await sleep(6000);
+      await screen(page, theme, {
+        name: 'composer-working-empty',
+        check:
+          'A running turn, empty box: the + , the placeholder, the mic and Stop; the working row names what it is doing',
+      });
+      // Scrolled up in a long chat: the round ↓ button; timestamps and team lines centred.
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(6000);
+      await page.eval(FIND_SCROLLER);
+      await page.eval(
+        'window.__qaScroller && (window.__qaScroller.scrollTop = window.__qaScroller.scrollTop - window.__qaScroller.clientHeight * 1.5)'
+      );
+      await sleep(900);
+      await screen(page, theme, {
+        name: 'chat-scrolled-up',
+        check: 'Scrolled up: a round ↓ button at the lower right to get back to the newest',
+      });
+      await page.eval(
+        'window.__qaScroller && (window.__qaScroller.scrollTop = window.__qaScroller.scrollTop - window.__qaScroller.clientHeight * 4)'
+      );
+      await sleep(900);
+      await screen(page, theme, {
+        name: 'chat-timestamps',
+        check: 'Day and time lines and the team lines centred between the bubbles',
+      });
+      // The agents list: a long-press on a row.
+      await page.goto(`${WEB}/agents`);
+      await sleep(5000);
+      await holdMessage(page, 'Designer').catch(() => {});
+      await screen(page, theme, {
+        name: 'agents-longpress',
+        check: 'Long-press on a row: its menu (Pin, Mute, Move to folder, Hide)',
+      });
+      await page.clickText('Cancel').catch(() => {});
+      await sleep(500);
+    }
+  }
+
   if (phase('nested-list')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);
