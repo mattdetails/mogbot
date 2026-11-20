@@ -69,12 +69,41 @@ jobs:
       # failure, so one round fixes them all.
       - name: Every frontend check (scripts/ci-local.sh)
         run: pnpm ci:frontend
+        env:
+          # The phone app's checks run as the Mobile job below, in parallel.
+          CI_NO_MOBILE: '1'
 
       - name: Coverage floor
         # Floor set at current baseline (~5% lines, 16% branches, 4% functions).
         # Plan's aspirational target is 25% lines / 20% branches; raise
         # thresholds as more tests land (see Block 14 follow-ups).
         run: pnpm test:coverage --coverage.thresholds.lines=4 --coverage.thresholds.functions=4 --coverage.thresholds.branches=15 --coverage.thresholds.statements=4
+
+  # The phone app (mobile/) has its own lockfile; it was never checked here.
+  # Same script as pre-push and release.sh: `scripts/ci-local.sh mobile`.
+  mobile:
+    name: Mobile App Checks
+    runs-on: ubuntu-latest
+    needs: [config-integrity]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 9.15.9
+
+      # The root install brings the lint config the phone's lint script uses.
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Phone app checks (scripts/ci-local.sh mobile)
+        run: bash scripts/ci-local.sh mobile
 
   # axe-core over every harness scenario, light and dark, with Reduce Motion
   # on. Fails on any WCAG A/AA violation (or a loop still running) beyond
