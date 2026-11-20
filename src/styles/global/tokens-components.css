@@ -45,6 +45,14 @@
   --size-composer-model-max: 220px;
   /* The quiet header's hint dot (spec-header-dropdown.md). */
   --size-hint-dot: 6px;
+  /* The quiet header's name button: 32 tall. */
+  --size-quiet-name-button: 32px;
+  /* The quiet header's ⌄ panel: 344 wide, 30px rows, 14px task marks; it
+     stops 140px short of the window's height, clear of the message box. */
+  --size-header-panel: 344px;
+  --size-header-panel-row: 30px;
+  --size-header-panel-mark: 14px;
+  --size-header-panel-clear: 140px;
   --agents-reply-line-height: 32px;
   --agents-reply-cancel: 26px;
   --agents-user-bubble-max: 560px;

@@ -12,7 +12,7 @@
  * @module components/agents/ConversationSwitcher
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckIcon, ChevronIcon, CommentIcon, PencilIcon, PlusIcon } from '@/components/icons';
 import { Dropdown, DropdownDivider, DropdownItem } from '../primitives/Dropdown';
 import { MenuButton } from '../primitives/MenuButton';
@@ -53,12 +53,6 @@ interface ConversationSwitcherProps {
   /** Opened from elsewhere too (the agent menu's Conversations row). */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /**
-   * The quiet header (spec-header-dropdown.md): the trigger is who this is —
-   * the key and the name, then ⌄ and the hint dot — as one button. The list
-   * behind it is this switcher until the ⌄ panel is settled.
-   */
-  nameTrigger?: { content: ReactNode; after?: ReactNode; label: string };
 }
 
 export function ConversationSwitcher({
@@ -68,7 +62,6 @@ export function ConversationSwitcher({
   onRenamingChange,
   open,
   onOpenChange,
-  nameTrigger,
 }: ConversationSwitcherProps) {
   const list = useAgentsSelector((s) => s.conversations[agent.id]);
   const { showToast } = useOptionalToast();
@@ -140,53 +133,33 @@ export function ConversationSwitcher({
             return Boolean(first);
           },
         }}
-        trigger={(p) =>
-          nameTrigger ? (
-            <button
-              {...p}
-              type="button"
-              tabIndex={0}
-              className="agent-chat__name-button"
-              aria-label={nameTrigger.label}
-            >
-              {nameTrigger.content}
-              <ChevronIcon
-                size={12}
-                className={`agent-chat__name-chevron${p['aria-expanded'] ? ' chevron-flipped' : ''}`}
-              />
-              {nameTrigger.after}
-            </button>
-          ) : (
-            <MenuButton
-              {...p}
-              tabIndex={0}
-              expanded={p['aria-expanded']}
-              variant="ghost"
-              size="compact"
-              className="agent-conversations__trigger"
-              title={single ? 'Conversations' : `Conversation: ${title}`}
-              aria-label={single ? 'Conversations' : `Conversation: ${title}. Switch conversation`}
-            >
-              {/* Another conversation waiting is a badge on the icon, never a dot
+        trigger={(p) => (
+          <MenuButton
+            {...p}
+            tabIndex={0}
+            expanded={p['aria-expanded']}
+            variant="ghost"
+            size="compact"
+            className="agent-conversations__trigger"
+            title={single ? 'Conversations' : `Conversation: ${title}`}
+            aria-label={single ? 'Conversations' : `Conversation: ${title}. Switch conversation`}
+          >
+            {/* Another conversation waiting is a badge on the icon, never a dot
                 after this one's title, which read as this one needing you. */}
-              <span className="agent-conversations__icon">
-                <CommentIcon size={12} />
-                {waiting > 0 && (
-                  <span
-                    className="agent-conversations__badge"
-                    role="img"
-                    aria-label={`${waiting === 1 ? 'Another conversation needs' : `${waiting} other conversations need`} your OK`}
-                  />
-                )}
-              </span>
-              {!single && <span className="agent-conversations__title">{title}</span>}
-              <ChevronIcon
-                size={10}
-                className={p['aria-expanded'] ? 'chevron-flipped' : undefined}
-              />
-            </MenuButton>
-          )
-        }
+            <span className="agent-conversations__icon">
+              <CommentIcon size={12} />
+              {waiting > 0 && (
+                <span
+                  className="agent-conversations__badge"
+                  role="img"
+                  aria-label={`${waiting === 1 ? 'Another conversation needs' : `${waiting} other conversations need`} your OK`}
+                />
+              )}
+            </span>
+            {!single && <span className="agent-conversations__title">{title}</span>}
+            <ChevronIcon size={10} className={p['aria-expanded'] ? 'chevron-flipped' : undefined} />
+          </MenuButton>
+        )}
       >
         <DropdownItem
           icon={<PlusIcon size={14} />}
@@ -258,7 +231,7 @@ function detailOf(c: ConversationView, now: number): string {
   return now && c.lastActivityAt > 0 ? formatAgo(c.lastActivityAt, now) : '';
 }
 
-function RenameConversation({
+export function RenameConversation({
   agentId,
   conversation,
   onClose,

@@ -79,7 +79,8 @@ import {
   type DraftAttachment,
 } from './useComposerAttachments';
 import { AgentSwitcher } from './AgentSwitcher';
-import { ConversationSwitcher } from './ConversationSwitcher';
+import { ConversationSwitcher, RenameConversation } from './ConversationSwitcher';
+import { AgentHeaderPanel } from './AgentHeaderPanel';
 import { useOpenReach } from './openReach';
 import { ConversationPage, ConversationPagePin } from './ConversationPage';
 import { useConversationPage } from '../../lib/agentPage';
@@ -181,7 +182,7 @@ import {
   roleWithoutPath,
   showsStarters,
   agentKeyState,
-  hintDot,
+  failedTurn,
   needsYou,
   ROUTINES_NEED_THE_COMPUTER,
 } from '../../lib/agents';
@@ -680,57 +681,58 @@ export const AgentChat = memo(function AgentChat({
       onOpenChange={setConversationsOpen}
     />
   ) : null;
+  const teamIndependence = useAgentsSelector((s) => s.independence);
+  const headerConversations = useAgentsSelector((s) => s.conversations[agent.id]);
   // The quiet header (Julian's pick, 20 Nov; spec-header-dropdown.md): who
-  // this is, as one button — key, name, ⌄, the hint dot — that opens the
-  // conversation list until the ⌄ panel is settled. No description, task
-  // line, chips or switcher of its own.
-  const dot = hintDot(agent);
-  const dotWords =
-    dot === 'waits'
-      ? 'Something waits on you'
-      : dot === 'failed'
-        ? "The last turn didn't finish"
-        : dot === 'working'
-          ? 'Working'
-          : null;
-  const quietName = (
-    <>
-      <AgentKey
-        id={agent.id}
-        name={agent.name}
-        color={agent.color}
-        state={agentKeyState(agent)}
-        size="sm"
-      />
-      <h2 className="agent-chat__name">{agent.name}</h2>
-    </>
-  );
+  // this is as one button, and behind its ⌄ everything about the agent now,
+  // with the only conversation switcher (`AgentHeaderPanel`).
   const quietTitle = viewing ? (
     <span className="agent-chat__quiet">
-      <ConversationSwitcher
+      <AgentHeaderPanel
         agent={agent}
         viewing={viewing}
-        renaming={renamingConversation}
-        onRenamingChange={setRenamingConversation}
+        teamIndependence={teamIndependence}
         open={conversationsOpen}
         onOpenChange={setConversationsOpen}
-        nameTrigger={{
-          content: quietName,
-          after: dot ? (
-            <span className="agent-chat__hint-dot" data-dot={dot} aria-hidden="true" />
-          ) : null,
-          label: `${agent.name}${dotWords ? `, ${dotWords.toLowerCase()}` : ''}. Conversations`,
-        }}
+        onEdit={() => actions.onEdit(agent)}
+        onEditMemory={() => (actions.onEditMemory ?? actions.onEdit)(agent)}
+        onAllTasks={() => setTasksOpen(true)}
+        onRetry={failedTurn(agent) ? () => retryLast() : undefined}
+        onReview={() =>
+          scrollRef.current
+            ?.querySelector('.agent-approval[data-status="pending"]')
+            ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+        }
       />
+      {renamingConversation && (
+        <RenameConversation
+          agentId={agent.id}
+          conversation={
+            headerConversations?.items.find((c) => c.id === viewing) ?? {
+              id: viewing,
+              title: '',
+              named: false,
+            }
+          }
+          onClose={() => setRenamingConversation(false)}
+          onError={(e) => showToast(formatCommandError(asCommandError(e)), 'error')}
+        />
+      )}
     </span>
   ) : (
     <span className="agent-chat__quiet">
       <span className="agent-chat__name-button" data-static>
-        {quietName}
+        <AgentKey
+          id={agent.id}
+          name={agent.name}
+          color={agent.color}
+          state={agentKeyState(agent)}
+          size="sm"
+        />
+        <h2 className="agent-chat__name">{agent.name}</h2>
       </span>
     </span>
   );
-  const teamIndependence = useAgentsSelector((s) => s.independence);
   const openReach = useOpenReach();
   const [tasksOpen, setTasksOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);

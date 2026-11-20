@@ -38,6 +38,8 @@ export interface AgentActions {
   onToggleMuted: (agent: Agent) => void;
   onMarkUnread: (agent: Agent) => void;
   onEdit: (agent: Agent) => void;
+  /** The editor open on its memory (the ⌄ panel's "Instructions and memory"). */
+  onEditMemory?: (agent: Agent) => void;
   onDelete: (agent: Agent) => void;
   /** A new conversation, memory kept (asks first). */
   onStartFresh: (agent: Agent) => void;

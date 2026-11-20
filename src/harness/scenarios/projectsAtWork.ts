@@ -196,6 +196,20 @@ export const projectsAtWorkScenarios: Scenario[] = [
     },
   },
   {
+    id: 'project-header-panel',
+    title: 'A project: the quiet header’s ⌄ panel open in the Session panel',
+    looksRightWhen:
+      'Acme Site’s chat in lumen-site. Its header is 47px with its bottom line level with the preview’s; the ⌄ panel is open under the name button (344px, never past the message box): who it is, Now (“● Running the build”, blue, its time), Conversations, and the foot.',
+    project: SITE,
+    requires: '.agent-header-panel',
+    steps: [
+      { click: '.sidebar-row--agent .sidebar-row-hit[aria-label="Acme Site"]' },
+      { click: '[data-testid="session-agent-chat"] .agent-chat__name-button' },
+      { wait: 500 },
+    ],
+    commands: chatCommands,
+  },
+  {
     id: 'project-agent-chat-back-to-terminal',
     title: 'A project: picking a terminal after an agent’s chat brings the terminals back',
     looksRightWhen:

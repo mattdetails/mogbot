@@ -121,6 +121,43 @@ export const agentsQaScenarios: Scenario[] = [
     'The name button pointed at: it fills with the hover surface (key, name, ⌄ and dot inside one 32px, 6px-radius button).',
     { pointAt: '.agent-chat__name-button' }
   ),
+  // The quiet header's ⌄ panel (spec-header-dropdown.md), open.
+  as(
+    'agents-header-panel-idle',
+    tasks('line-idle'),
+    'The ⌄ panel open under the name button, left edges aligned, 344px: Lead Gen’s key (40), name, description and “Runs on Claude Code”; Now “● Idle” (grey); no Tasks or Needs your OK group; Conversations with the one conversation ticked on the selected fill and “+ New conversation”; Edit agent · Instructions and memory.',
+    {
+      steps: [{ click: '.agent-chat__name-button' }, { wait: 400 }],
+      requires: '.agent-header-panel',
+    }
+  ),
+  as(
+    'agents-header-panel-working',
+    tasks('line-doing'),
+    'Working with tasks: Now “● Drafting intros” in blue with its time; Tasks “3 to do” over its top lines (Doing first, then what waits, then Next) and “All tasks ›”; Conversations; the foot.',
+    {
+      steps: [{ click: '.agent-chat__name-button' }, { wait: 600 }],
+      requires: '.agent-header-panel',
+    }
+  ),
+  as(
+    'agents-header-panel-waits',
+    tasks('line-waits'),
+    'Something waits on you: the header dot amber; open, Tasks says “1 waits on you” in amber and the waiting line has an amber box mark.',
+    {
+      steps: [{ click: '.agent-chat__name-button' }, { wait: 400 }],
+      requires: '.agent-header-panel',
+    }
+  ),
+  as(
+    'agents-header-panel-failed',
+    tasks('line-failed'),
+    'The last turn didn’t finish: the header dot red; open, Now reads “● Didn’t finish: …” in red with Try again when there is something to retry.',
+    {
+      steps: [{ click: '.agent-chat__name-button' }, { wait: 400 }],
+      requires: '.agent-header-panel',
+    }
+  ),
   as(
     'agents-header2-menu-hover',
     tasks('line-doing'),

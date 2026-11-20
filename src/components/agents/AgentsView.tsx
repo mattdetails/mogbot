@@ -650,6 +650,7 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
         void run(() => markAgentUnread(a.id));
       },
       onEdit: (a: Agent) => setEditor({ open: true, agent: a }),
+      onEditMemory: (a: Agent) => setEditor({ open: true, agent: a, tab: 'memory' }),
       onDelete: setDeleting,
       // A new conversation leaves nothing behind (the others stay in the
       // switcher), so it needs no confirm, and never waits on a turn.
