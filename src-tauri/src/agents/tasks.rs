@@ -64,9 +64,27 @@ pub const DESCRIPTION: &str = "Read task lists, kept by the app so an ask never 
 
 pub const ADD_TOOL: &str = "task_add";
 pub const UPDATE_TOOL: &str = "task_update";
+pub const ASSIGN_TOOL: &str = "task_assign";
+
+/// Open lines one agent may have on another's list at once.
+pub const MAX_ASSIGNED: usize = 5;
 
 pub const ADD_DESCRIPTION: &str = "Put an ask on your task list before you reply: one line in the user's words (a user ask you can't finish in this reply, or a step you owe). Asks other agents send you are added for you.";
 pub const UPDATE_DESCRIPTION: &str = "Move one of your task lines: `state` doing (one at a time), next, waiting (it waits on the user: say what in `note`), done, or dropped (`note` says why: a line is never removed without a reason). Mark an ask `done` once you've delivered it.";
+
+pub const ASSIGN_DESCRIPTION: &str = "Put a task on a teammate's list (it lands in their Next with \"from you\", and their chat says so; they aren't woken). Use it to hand over a job they own without messaging them; use `message_agent` when you need an answer. `agent` is their name, `title` the job in one line, `note` optional context. Not for yourself (use `task_add`); at most 5 open on one teammate. They can hand it back with a reason, which comes to you as a message.";
+
+pub fn assign_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "agent": { "type": "string", "description": "The teammate's name." },
+            "title": { "type": "string", "description": "The job, one line." },
+            "note": { "type": "string", "description": "Optional context for them." }
+        },
+        "required": ["agent", "title"]
+    })
+}
 
 pub fn schema() -> serde_json::Value {
     serde_json::json!({
@@ -475,6 +493,127 @@ pub fn load_of(agent: &store::Agent, now: i64) -> Load {
         open,
         recent,
     }
+}
+
+/// What the header's quiet line says of one agent ("Drafting intros · 5 to
+/// do · 1 waits"), counted here once so the desk and the phone don't each
+/// count.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Counts {
+    /// What it is doing now: its status line while a turn runs, else the line marked Doing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doing: Option<String>,
+    /// Lines still to do: Next and Stuck (the one in progress is `doing`).
+    pub to_do: u32,
+    /// Lines waiting on the user.
+    pub waits: u32,
+}
+
+/// `open` and the working status as [`Counts`]; `None` when there is
+/// nothing open and the agent isn't working (the line is hidden).
+pub fn counts(open: &[Task], working: Option<&str>) -> Option<Counts> {
+    let doing = working
+        .map(str::to_string)
+        .or_else(|| open.iter().find(|t| t.state == State::Doing).map(|t| t.title.clone()));
+    let to_do = open
+        .iter()
+        .filter(|t| matches!(t.state, State::Next | State::Stuck))
+        .count() as u32;
+    let waits = open.iter().filter(|t| t.state == State::Waiting).count() as u32;
+    (doing.is_some() || to_do > 0 || waits > 0).then_some(Counts { doing, to_do, waits })
+}
+
+/// [`counts`] for one agent, from its list and its status.
+pub fn counts_of(agent_id: &str, working: Option<String>) -> Option<Counts> {
+    counts(&open_of(agent_id), working.as_deref())
+}
+
+/// Open lines `from_id` has put on `agent_id`'s list.
+pub fn assigned_by(agent_id: &str, from_id: &str) -> usize {
+    open_of(agent_id)
+        .iter()
+        .filter(|t| t.from.as_ref().is_some_and(|f| f.id == from_id))
+        .count()
+}
+
+/// Whether `caller` may put a line on `target`'s list now. Pure: the caller
+/// says whether this turn answers outside text, whether the hop cap allows
+/// one more hop, and how many lines it already has open on `target`.
+pub fn check_assign(
+    caller_id: &str,
+    target_id: &str,
+    target_name: &str,
+    outside: bool,
+    hop_ok: bool,
+    already: usize,
+) -> Result<(), String> {
+    if outside {
+        return Err("Not while answering what a “When…” routine found: that text came from outside this app. Tell the user instead.".into());
+    }
+    if caller_id == target_id {
+        return Err("That's you: add it to your own list with task_add.".into());
+    }
+    if !hop_ok {
+        return Err("Not added: this chain of agent-to-agent work is too long. Tell the user where things stand instead.".into());
+    }
+    if already >= MAX_ASSIGNED {
+        return Err(format!(
+            "Not added: you already have {MAX_ASSIGNED} open tasks on {target_name}'s list. Let them clear some first."
+        ));
+    }
+    Ok(())
+}
+
+/// The centred line in the assignee's chat.
+pub fn assigned_line(caller_name: &str, target_name: &str, title: &str) -> String {
+    format!("{caller_name} added a task for {target_name} · {}", title_of(title))
+}
+
+/// What goes back to the agent that assigned `task` when the assignee drops
+/// it or sets it waiting (`state`), with the reason. `None` for a line that
+/// wasn't another agent's, or any other state.
+pub fn hand_back_body(task: &Task, state: &str, why: &str) -> Option<String> {
+    if task.source != Source::Agent || task.from.is_none() {
+        return None;
+    }
+    let what = match state {
+        "dropped" => "dropped",
+        "waiting" => "waiting on the user",
+        _ => return None,
+    };
+    Some(format!("Handed back: \"{}\" — {what}. {why}", task.title))
+}
+
+/// `task_assign`'s write: a line on `target`'s list from `caller`, with the
+/// optional note. Returns its id and whether it was already open.
+pub fn assign(target_id: &str, caller: &store::Agent, title: &str, note: Option<&str>) -> (String, bool) {
+    let (id, dup) = add(
+        target_id,
+        title,
+        Source::Agent,
+        Some(AgentRef {
+            id: caller.id.clone(),
+            name: caller.name.clone(),
+        }),
+    );
+    if let (false, false, Some(n)) = (id.is_empty(), dup, note) {
+        let note = clip(n, 200);
+        edit(target_id, |tasks| {
+            if let Some(t) = tasks.iter_mut().find(|t| t.id == id) {
+                t.note = Some(note);
+            }
+        });
+    }
+    (id, dup)
+}
+
+/// The line of `agent_id`'s list that `id` (or an unambiguous prefix) names.
+pub fn find(agent_id: &str, id: &str) -> Option<Task> {
+    let all = read(agent_id);
+    let mut hits = all.iter().filter(|t| t.id == id || (id.len() >= 3 && t.id.starts_with(id)));
+    let first = hits.next()?;
+    hits.next().is_none().then(|| first.clone())
 }
 
 /// Every visible agent's load, the busiest first.

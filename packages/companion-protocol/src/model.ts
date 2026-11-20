@@ -270,6 +270,12 @@ export interface Agent {
    * welcome, until the user sends anything. Older Macs never send it.
    */
   starters?: AgentStarter[];
+  /**
+   * The header's quiet line ("Drafting intros · 5 to do · 1 waits"), counted
+   * once on the Mac (`agents/tasks.rs`). Absent when the agent has nothing
+   * open and isn't working. Older Macs never send it.
+   */
+  tasks?: TaskCounts;
   muted: boolean;
   /** "Save new skills" (`agents/skills_learn.rs`); absent is `ask`. */
   learnSkills?: LearnSkills;
@@ -2531,4 +2537,14 @@ export interface AgentReachSettings {
   browserSites?: string[];
   /** Claude Code apps kept from its turns, by name there. */
   blockedApps?: string[];
+}
+
+/** What the header's quiet line says of one agent (`agents/tasks.rs`, `Counts`). */
+export interface TaskCounts {
+  /** What it is doing now: its status line while a turn runs, else the line marked Doing. */
+  doing?: string;
+  /** Lines still to do (next and stuck; the one in progress is `doing`). */
+  toDo: number;
+  /** Lines waiting on the user. */
+  waits: number;
 }
