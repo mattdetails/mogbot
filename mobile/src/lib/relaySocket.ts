@@ -47,7 +47,7 @@ export interface RelaySocketOptions {
 }
 
 /** What a dropped session waits between tries, then keeps at the last. */
-const RETRY_MS = [250, 500, 1000, 2000, 3000];
+const RETRY_MS = [1000, 2000, 4000, 8000];
 /** A try that hasn't opened by then is given up and redone. */
 const TRY_MS = 8000;
 /** Unacked frames kept for the Mac (it keeps the same). */
