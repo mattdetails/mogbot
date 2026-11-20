@@ -8147,7 +8147,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 3
     },
     {
       "name": "--accent-on-user",
@@ -8155,7 +8155,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 4
     },
     {
       "name": "--accent-user-rgb",
@@ -8219,7 +8219,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 3
     },
     {
       "name": "--accent-on-user",
@@ -8227,7 +8227,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 4
     },
     {
       "name": "--accent-user-rgb",

@@ -177,6 +177,25 @@ export const projectsAtWorkScenarios: Scenario[] = [
     commands: chatCommands,
   })),
   {
+    id: 'project-composer-short-red',
+    title: 'A project: the message box in the Session panel, a red agent',
+    looksRightWhen:
+      'As project-composer-short, with Acme Site in red: Send wears the red of your bubble on the New agent button’s chrome.',
+    project: SITE,
+    requires: '[data-testid="session-agent-chat"] .agent-composer__input',
+    clipSelector: '[data-testid="session-agent-chat"]',
+    steps: [
+      { click: '.sidebar-row--agent .sidebar-row-hit[aria-label="Acme Site"]' },
+      { fill: '.agent-composer__input', value: 'Looks good, ship it' },
+    ],
+    commands: {
+      ...chatCommands,
+      agents_overview: overview(
+        team().map((a) => (a.id === 'acme' ? { ...a, color: 'red', colorway: 'brick' } : a))
+      ),
+    },
+  },
+  {
     id: 'project-agent-chat-back-to-terminal',
     title: 'A project: picking a terminal after an agent’s chat brings the terminals back',
     looksRightWhen:

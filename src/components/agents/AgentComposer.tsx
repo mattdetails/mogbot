@@ -460,7 +460,7 @@ export const AgentComposer = memo(function AgentComposer({
           {working && !canSend && !blank && !dictating ? (
             <IconButton
               tabIndex={0}
-              variant="strong"
+              variant="default"
               className="agent-composer__stop"
               data-armed={escArmed || undefined}
               icon={<span className="agent-composer__stop-square" aria-hidden />}
@@ -472,7 +472,7 @@ export const AgentComposer = memo(function AgentComposer({
             <IconButton
               tabIndex={0}
               type="submit"
-              variant="strong"
+              variant="default"
               className="agent-composer__send"
               icon={<ArrowUpIcon size={14} />}
               disabled={sendDisabled(dictation.phase, canSend)}

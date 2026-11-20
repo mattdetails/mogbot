@@ -151,14 +151,27 @@
   flex: 0 0 auto;
 }
 
-/* Send and Stop are one neutral button, the inverse surface (an answer is
-   never the accent; docs/design-system.md), flat: no key's 3D lip under it.
-   6px corners, concentric with the 12px box. An empty box leaves Send muted
-   at 30%: there is nothing to send yet. The + is a bare icon, no circle. */
+/* Send and Stop wear your bubble's colour and ink (Julian, 20 Nov: "the same
+   color as the chat bubbles") on the chrome of every default button, the
+   sidebar's New agent: its 1px border, its soft shadow, its press. Not a 3D
+   key's lip, and not a black block. 6px corners, concentric with the 12px
+   box. Empty, Send is the same button at the disabled opacity. The + is a
+   bare icon, no circle. */
 .agent-composer .agent-composer__send,
 .agent-composer .agent-composer__stop {
   border-radius: var(--agents-composer-button-radius);
-  box-shadow: none;
+  background: var(--bubble-user-fill, var(--accent-user));
+  color: var(--bubble-user-ink, var(--accent-on-user));
+}
+
+.agent-composer .agent-composer__send:hover:not(:disabled),
+.agent-composer .agent-composer__stop:hover:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--bubble-user-fill, var(--accent-user)) 88%,
+    var(--bubble-user-ink, var(--accent-on-user))
+  );
+  color: var(--bubble-user-ink, var(--accent-on-user));
 }
 
 .agent-composer .agent-composer__attach {
@@ -187,10 +200,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.agent-composer__send:disabled {
-  opacity: 0.3; /* css-ok: disabled Send, the composer audit's 30% */
 }
 
 /* A square, as every media Stop is: at 8px with a 4px radius it was a dot. */

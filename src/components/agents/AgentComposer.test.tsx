@@ -205,12 +205,14 @@ describe('the bar: Send, Dictate, Stop', () => {
     expect(screen.queryByRole('button', { name: 'Dictate' })).toBeNull();
   });
 
-  it('keeps Send neutral (never the agent colour) and off until there is something to send', () => {
+  it('draws Send on the default button chrome (its bubble colour comes from CSS), never the accent key, and off until there is something to send', () => {
+    // Julian, 20 Nov: Send wears the user's bubble colour on the New agent
+    // button's chrome; never the accent's primary key, never a black block.
     render(<Chat id="a1" onSend={() => {}} renders={() => {}} />);
     const send = screen.getByRole('button', { name: 'Send' });
     expect(send).toBeDisabled();
-    expect(send.className).toMatch(/strong/);
-    expect(send.className).not.toMatch(/primary/);
+    expect(send.className).toMatch(/button--default/);
+    expect(send.className).not.toMatch(/primary|strong/);
   });
 
   it('turns Send into Stop while it works with nothing typed, and Stop stops the turn', () => {

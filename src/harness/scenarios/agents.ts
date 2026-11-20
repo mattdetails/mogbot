@@ -4158,6 +4158,26 @@ export const agentsScenarios: Scenario[] = [
       agents_messages: messagesFor,
     },
   })),
+  // The same box for a dark agent colour (red), Send in its bubble colour.
+  ...(['empty', 'short'] as const).map((state) => ({
+    id: `agents-composer-c-${state}-red`,
+    title: `Agents — the message box, ${state}, a red agent`,
+    looksRightWhen:
+      'Acme Site in red. Send wears the red of your bubble with its ink, on the New agent button’s chrome (1px border, soft shadow); empty, the same button at the disabled opacity.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-composer__input',
+    clipSelector: '.agent-chat__footer',
+    steps: [
+      { click: '[data-agent-id="acme"]' },
+      ...(state === 'short'
+        ? [{ fill: '.agent-composer__input', value: 'Looks good, ship it' }]
+        : []),
+    ],
+    commands: {
+      agents_overview: acmeWith({ status: status('idle'), color: 'red', colorway: 'brick' }),
+      agents_messages: messagesFor,
+    },
+  })),
   {
     id: 'agents-fresh-suggested',
     title: 'Agents — a nearly full conversation suggests starting fresh',
