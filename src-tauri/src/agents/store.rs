@@ -453,13 +453,13 @@ pub struct Approval {
     /// Older clients show a plain Allow / Deny over the same summary and detail.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gate: Option<super::routine_steps::Gate>,
-    /// "<Agent> needs you in its browser: <reason>" (`ask_user_to_step_in`,
-    /// `agents/step_in.rs`): Step in (desk only) brings the agent's tab
-    /// forward for the user, Hand back answers it; Deny is Not now. Older
-    /// clients show the same title and detail with a plain Allow / Deny,
-    /// and an Allow is refused with "Step in on your Mac".
+    /// A retired "<Agent> needs you in its browser" card (Step in, removed
+    /// with the agents' own browser). Kept only so an old stored card still
+    /// loads: whatever it held is not read, nothing raises one any more, and
+    /// the sweep closes it (`expiry.rs`); the desk and phone show it as one
+    /// plain line.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub step_in: Option<super::step_in::StepIn>,
+    pub step_in: Option<serde_json::Value>,
     /// "All your Claude Code accounts are out until 4:00 PM. Carry on with
     /// Codex until then?" (`agents/crossover.rs`): Always (Allow + always),
     /// Just this time (Allow), Wait (Deny). Older clients show a plain

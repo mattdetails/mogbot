@@ -5,8 +5,7 @@ import {
   IMPORT_CHOICE_NOTE,
   IMPORT_CHOICE_TITLE,
   runsOnDetail,
-  stepInOutcome,
-  stepInSource,
+  STEP_IN_RETIRED_LINE,
   RUNS_ON_ANY_DETAIL,
   USE_THIS_ONE_NOW,
 } from './cardWords';
@@ -36,16 +35,8 @@ describe('the words the desk and the phone share', () => {
     expect(checkInHead(undefined, NOW)).toBe('Scheduled');
   });
 
-  it('step in: where, and how it closed', () => {
-    expect(stepInSource({ site: 'login.example.com', pageTitle: 'Verify' })).toBe(
-      'login.example.com · Verify'
-    );
-    expect(stepInSource({ site: 'login.example.com' })).toBe('login.example.com');
-    expect(stepInOutcome({ status: 'allowed' })).toBe('Handed back');
-    expect(stepInOutcome({ status: 'denied' })).toBe('Not now');
-    expect(stepInOutcome({ status: 'expired', setAside: 'Handed back by itself' })).toBe(
-      'Handed back by itself'
-    );
+  it('step in is retired: one plain line for an old card', () => {
+    expect(STEP_IN_RETIRED_LINE).toBe('This sign-in used the old browser; ask again');
   });
 
   it('accounts: one word for putting one first, and Runs on', () => {

@@ -840,7 +840,7 @@ fn as_read(s: &str) -> String {
 const SECRET_FORM: &str = concat!(
     "this form asks for a secret (a password, a key, a token or a one-time code). Never in a form: an API key or token is request_secret (a masked card, into ",
     crate::keychain::store_name!(),
-    "); an account is request_login; a code for a site is the user's to type there (ask_user_to_step_in)."
+    "); an account is request_login; a code for a site is the user's to type there."
 );
 
 /// Secrets spelled as one run of letters, whatever sits between them

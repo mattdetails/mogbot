@@ -1016,8 +1016,8 @@ const PROBE = [
     {
       name: 'probe-step-in-largest',
       to: '/chat/browse',
-      ready: 'needs you in its browser',
-      check: 'The step-in card at Largest: title and lines wrap, Not now · Step in whole',
+      ready: 'This sign-in used the old browser',
+      check: 'The retired step-in line at Largest: one muted line that wraps whole, no buttons',
     },
     {
       name: 'probe-agents-largest',
@@ -1084,9 +1084,9 @@ const PROBE = [
   {
     name: 'probe-step-in',
     route: '/chat/browse',
-    ready: 'needs you in its browser',
+    ready: 'This sign-in used the old browser',
     check:
-      'The step-in card as the desk draws it: a globe, the title with the reason, the site · page title under it, “Its tab shows here and you do it by touch…”, Not now (outlined) and Step in (neutral answer, never the accent); no Allow',
+      'An old step-in card, closed: one muted line, “This sign-in used the old browser; ask again”; no card, no Allow, no Deny',
   },
   {
     name: 'probe-draft-card',
@@ -1494,13 +1494,6 @@ const LIVE = [
     ready: 'Ops',
     pages: 2,
     check: '"Start of your conversation" is a Line with no stacked padding',
-  },
-  {
-    name: 'signin-linkedin',
-    route: '/signin?agentId=qa&requestId=req_login_linkedin',
-    ready: 'Close',
-    settle: 2500,
-    check: 'Sign in on the Mac from here, on a route that cannot carry it: refused in words, Close',
   },
   {
     name: 'chat-qa',
@@ -2466,7 +2459,7 @@ const LIVE = [
       await scrollToText('Not needed')(page);
     },
     check:
-      'Gmail card, Other ways open: why there is no connector, Connect on claude.ai and Sign in from here each with what it means, then Not needed; "Hide other ways" closes it',
+      'Gmail card, Other ways open: why there is no connector, Connect on claude.ai with what it means, then Not needed; "Hide other ways" closes it',
   },
   {
     name: 'login-on-mac',

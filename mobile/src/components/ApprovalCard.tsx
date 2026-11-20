@@ -26,15 +26,10 @@ import {
   SKILL_SAVE,
   skillCardNote,
   SKILL_OFFER_NOTE,
-  stepInSource,
   cantAlwaysAllow,
 } from '@shipstudio/companion-protocol';
 import { router } from 'expo-router';
 import {
-  stepInAtComputer,
-  STEP_IN_FROM_HERE,
-  stepInOnYourComputer,
-  stepInOnPhone,
 } from '../lib/agents';
 import { highRisk } from '../lib/needsYou';
 import {
@@ -300,19 +295,10 @@ export function ApprovalCard({
 
   // "<source> sent what it knows": Ignore / Save to memory, nothing else.
   const handoff = !!approval.handoff;
-  // "Needs you in its browser": Not now, and Step in here where the Mac lets
-  // the phone into the tab (`agents.stepInBegin`); else Step in is at the Mac.
-  const stepIn = approval.stepIn;
-  const stepInHere = useServed('agents.stepInBegin', MAC_FEATURES.stepInPhone);
-  const stepInFromHere = () =>
-    router.push({
-      pathname: '/signin',
-      params: { agentId: message.agentId, requestId: approval.requestId, stepIn: '1' },
-    });
   // "Save … as a skill?": Not now / Save, nothing behind ⋯.
   const skill = approval.skill;
   const consentCard =
-    approval.connector?.kind === 'consent' || !!approval.front || handoff || !!stepIn || !!skill;
+    approval.connector?.kind === 'consent' || !!approval.front || handoff || !!skill;
   // "OK to go on?" between a routine's steps: Stop here / Go ahead, nothing broader.
   const gate = approval.gate;
   // "Carry on with Codex until then?": Wait, Just this time, Always; nothing behind ⋯.
@@ -323,9 +309,7 @@ export function ApprovalCard({
   const risky = highRisk(approval);
   const [denyWord, allowWord] = approval.front
     ? ['Not now', 'Check again']
-    : stepIn
-      ? ['Not now', stepInHere ? 'Step in' : '']
-      : handoff
+    : handoff
         ? ['Ignore', 'Save to memory']
         : gate
           ? [GATE_DENY, GATE_ALLOW]
@@ -420,22 +404,7 @@ export function ApprovalCard({
           />
         </>
       )}
-      {stepIn && stepInHere && (
-        <Button
-          title={allowWord}
-          variant="answer"
-          disabled={off}
-          focusable={armed}
-          onPress={() => {
-            haptic.select();
-            stepInFromHere();
-          }}
-          accessibilityHint={`Its tab on ${comp.your} shows here, and you do it by touch.`}
-          testID="step-in-here"
-          style={share}
-        />
-      )}
-      {!stepIn && !crossover && (
+      {!crossover && (
         <Button
           title={allowWord}
           // An offer's yes is a choice, not a release: outlined, not solid.
@@ -481,10 +450,8 @@ export function ApprovalCard({
       icon={
         risky
           ? 'exclamationmark.triangle'
-          : stepIn
-            ? 'globe'
-            : skill
-              ? 'graduationcap'
+          : skill
+            ? 'graduationcap'
               : crossover
                 ? 'arrow.left.arrow.right'
                 : consent
@@ -502,10 +469,7 @@ export function ApprovalCard({
           ? `From ${approval.connector.source} · over Remote access`
           : gate
             ? `${gate.routine} · step ${gate.done} of ${gate.total} done`
-            : stepIn
-              ? // Where, as the desk's card says it: "login.example.com · Verify it's you".
-                stepInSource(stepIn)
-              : undefined
+            : undefined
       }
       // The pin above the chat shows the question while this can't fit whole.
       hideHead={fit.pinned}
@@ -514,15 +478,7 @@ export function ApprovalCard({
       note={
         !connected
           ? offlineNote()
-          : stepIn
-            ? stepIn.inSince
-              ? stepIn.onPhone
-                ? stepInOnPhone(stepIn.onPhone, comp.kind)
-                : stepInAtComputer(comp.kind)
-              : stepInHere
-                ? STEP_IN_FROM_HERE
-                : stepInOnYourComputer(comp.kind)
-            : gate
+          : gate
               ? 'It waits for you, and closes if the routine runs again first.'
               : skill
                 ? [skillCardNote(skill), SKILL_OFFER_NOTE].filter(Boolean).join(' ')
@@ -535,16 +491,14 @@ export function ApprovalCard({
                   ? 'It paused here for you. Allow it and it picks up where it left off.'
                   : undefined
       }
-      actions={answers && !stepIn?.inSince ? actions : undefined}
+      actions={answers ? actions : undefined}
     >
-      {/* A step-in card's reason is its title, and its detail is the desk's
-          ("opens on this Mac"): the note says where to step in instead. */}
       {skill ? (
         // When to use it, then the steps as they'd be saved: never in the
         // fitted scroll area, which cut the steps off on a short pane.
         <SkillCardBody skill={skill} />
       ) : (
-        !!(crossover ? approval.summary : !stepIn && approval.detail) && (
+        !!(crossover ? approval.summary : approval.detail) && (
           <FittedDetail fit={fit}>
             {crossover ? (
               <T color={colors.textBody}>{approval.summary}</T>

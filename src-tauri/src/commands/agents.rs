@@ -1635,18 +1635,6 @@ pub async fn answer_approval_from(
     if front.is_some() {
         return agents::browser_profiles::answer(&app, &agent_id, &request_id, allow).await;
     }
-    // "Needs you in its browser": Not now from anywhere; Step in only from
-    // the desk's own button (`agents_step_in`), never a plain Allow.
-    let step_in = {
-        let (a, r) = (agent_id.clone(), request_id.clone());
-        blocking(move || Ok(agents::step_in::is_step_in(&a, &r))).await?
-    };
-    if step_in {
-        if allow {
-            return Err(CommandError::expected(agents::step_in::ON_YOUR_MAC));
-        }
-        return agents::step_in::decline(&app, &agent_id, &request_id).await;
-    }
     if login.is_some() {
         return if allow {
             agents::logins::allow_from_old_client(&app, &agent_id, &request_id).await
@@ -1670,44 +1658,6 @@ pub async fn answer_approval_from(
             Some(source),
         )
     })
-    .await
-}
-
-/* --------------------------------------------------------------- step in */
-
-/// Step into an agent's browser for its card: the tab's window comes
-/// forward on this Mac and the agent can't use that tab until Hand back.
-#[tauri::command]
-#[tracing::instrument(skip(app))]
-pub async fn agents_step_in(
-    app: AppHandle,
-    agent_id: String,
-    request_id: String,
-) -> Result<(), CommandError> {
-    agents::step_in::step_in(&app, &agent_id, &request_id).await
-}
-
-/// Bring the tab the user stepped into forward again.
-#[tauri::command]
-#[tracing::instrument]
-pub async fn agents_step_in_show(agent_id: String) -> Result<(), CommandError> {
-    agents::step_in::show(&agent_id).await
-}
-
-/// Hand the agent its browser back: it's woken with where the page is now.
-#[tauri::command]
-#[tracing::instrument(skip(app))]
-pub async fn agents_step_in_hand_back(
-    app: AppHandle,
-    agent_id: String,
-    request_id: String,
-) -> Result<(), CommandError> {
-    agents::step_in::hand_back(
-        &app,
-        &agent_id,
-        &request_id,
-        crate::agent_browser::step_in::How::HandedBack,
-    )
     .await
 }
 
@@ -2101,12 +2051,11 @@ pub(crate) fn answer_card_from(
     if approval.status != store::ApprovalStatus::Pending {
         return Err(agents::answer_gate::lost(agent_id, request_id));
     }
-    // "Needs you in its browser": Step in is the desk's button and Not now
-    // its own answer (`agents_answer_approval`), never a plain Allow here
-    // (a typed yes, an older path): that closed the card with no hold and
-    // never woke the agent.
+    // A retired "needs you in its browser" card: nothing can act on it.
     if approval.step_in.is_some() {
-        return Err(CommandError::expected(agents::step_in::ON_YOUR_MAC));
+        return Err(CommandError::expected(
+            "This sign-in used the old browser; ask again.",
+        ));
     }
     // The import connector's own cards: consent, and the staged agents.
     if approval.connector.is_some() {

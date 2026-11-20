@@ -67,7 +67,6 @@ pub const METHODS: &[&str] = &[
     "agents.signinDone",
     "agents.signinStop",
     "agents.signinFallback",
-    "agents.stepInBegin",
     "agents.focus",
     "agents.markUnread",
     "agents.startFresh",
@@ -211,7 +210,6 @@ pub const READ_ONLY_METHODS: &[&str] = &[
 /// typed is a password); the session writes its own line, the domain and
 /// how it ended.
 pub const SELF_AUDITED_METHODS: &[&str] = &[
-    "agents.stepInBegin",
     "agents.signinBegin",
     "agents.signinFrame",
     "agents.signinInput",
@@ -1607,13 +1605,6 @@ struct SigninBeginParams {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct StepInBeginParams {
-    agent_id: String,
-    request_id: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct SigninParams {
     session_id: String,
     #[serde(default)]
@@ -2261,15 +2252,6 @@ fn signin_op(method: &str, params: Value) -> Result<crate::agents::phone_signin:
                 request_id: p.request_id,
                 way: p.way,
                 connect: p.connect,
-            }
-        }
-        "agents.stepInBegin" => {
-            let p: StepInBeginParams = parse(params)?;
-            id(&p.agent_id)?;
-            id(&p.request_id)?;
-            Op::StepIn {
-                agent_id: p.agent_id,
-                request_id: p.request_id,
             }
         }
         "agents.signinInput" => {

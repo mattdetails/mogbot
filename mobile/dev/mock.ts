@@ -12,7 +12,7 @@
  *   pnpm mock --heavy              # 17 agents, ~40 cards waiting, long chats
  *   pnpm mock --torture            # the chat torture set; /dev/torture?do=… drives events
  *   pnpm mock --live-work          # QA 2 running Cypress for 5 min (output, timer), Finance gone quiet
- *   pnpm mock --probe              # 50 agents, step-in, stale and orphaned cards, 3 accounts; /dev/probe?do=…
+ *   pnpm mock --probe              # 50 agents, an old step-in line, stale and orphaned cards, 3 accounts; /dev/probe?do=…
  *   pnpm mock --probe --restarted  # the same Mac after a restart cut Builder's turn off
  *   pnpm mock --impostor           # signs with a stranger's key: "This isn't your Mac"
  *   pnpm mock --http --cors        # for the web build (`pnpm qa:web` passes both)
