@@ -46,7 +46,10 @@ static RUNS: Mutex<Option<HashMap<String, Vec<i64>>>> = Mutex::new(None);
 /// Whether a call may run for `agent_id` now; records it when it may.
 pub fn may_run(agent_id: &str, now: i64) -> bool {
     let mut g = RUNS.lock().unwrap_or_else(|e| e.into_inner());
-    let runs = g.get_or_insert_with(HashMap::new).entry(agent_id.to_string()).or_default();
+    let runs = g
+        .get_or_insert_with(HashMap::new)
+        .entry(agent_id.to_string())
+        .or_default();
     runs.retain(|t| now - *t < DAY_MS);
     if runs.len() >= MAX_PER_DAY || runs.last().is_some_and(|t| now - *t < MIN_GAP_MS) {
         return false;
@@ -113,7 +116,11 @@ Answer with one JSON object and nothing else: {\"add\":[{\"title\":\"...\"}],\"w
     }
     out.push_str(&format!(
         "\nThe turn ended {}.\n\n<<<USER\n{}\nUSER>>>\n\n<<<ASSISTANT\n",
-        if f.awaiting { "waiting on the user (it ended on a question)" } else { "with the assistant finished speaking" },
+        if f.awaiting {
+            "waiting on the user (it ended on a question)"
+        } else {
+            "with the assistant finished speaking"
+        },
         clip(&f.user_said, 1_500)
     ));
     let mut room = MAX_INPUT.saturating_sub(f.user_said.chars().count().min(1_500));
@@ -177,7 +184,9 @@ pub fn clean_title(t: &str) -> Option<String> {
 
 /// Whether the turn just closed a line that is this ask.
 pub fn already_closed(closed: &[Task], title: &str) -> bool {
-    closed.iter().any(|t| tasks::likeness(&t.title, title) >= tasks::SAME)
+    closed
+        .iter()
+        .any(|t| tasks::likeness(&t.title, title) >= tasks::SAME)
 }
 
 /// Apply the verdict to `agent_id`'s list. It adds lines (linked to the
@@ -192,7 +201,9 @@ pub fn apply(
 ) -> Applied {
     let mut done = Applied::default();
     for line in v.add.iter().take(MAX_ADDS) {
-        let Some(title) = clean_title(&line.title) else { continue };
+        let Some(title) = clean_title(&line.title) else {
+            continue;
+        };
         // An ask the turn itself just closed isn't reopened as new.
         if already_closed(closed, &title) {
             continue;
@@ -207,12 +218,22 @@ pub fn apply(
         done.added += 1;
     }
     for w in &v.waits {
-        let Some(t) = open.iter().find(|t| t.id == w.id) else { continue };
+        let Some(t) = open.iter().find(|t| t.id == w.id) else {
+            continue;
+        };
         if !matches!(t.state, State::Next | State::Doing) || w.on.trim().is_empty() {
             continue;
         }
         // Only the line as it was read: one changed since is left alone.
-        if tasks::set_checked(agent_id, &t.id, State::Waiting, Some(w.on.trim()), Some(t.current_version())).is_ok() {
+        if tasks::set_checked(
+            agent_id,
+            &t.id,
+            State::Waiting,
+            Some(w.on.trim()),
+            Some(t.current_version()),
+        )
+        .is_ok()
+        {
             done.waited += 1;
         }
     }
@@ -253,7 +274,10 @@ async fn keep(app: &AppHandle, agent_id: &str, user_said: &str, since: i64) -> R
         user_said: user_said.to_string(),
         awaiting: replies.last().is_some_and(|r| awaiting_user(r)),
         replies,
-        open: open.iter().map(|t| (t.id.clone(), t.title.clone(), state_word(t.state))).collect(),
+        open: open
+            .iter()
+            .map(|t| (t.id.clone(), t.title.clone(), state_word(t.state)))
+            .collect(),
     };
     let mine = store::get(agent_id).map(|a| a.engine).unwrap_or_default();
     let mut ready = Vec::new();
@@ -265,8 +289,12 @@ async fn keep(app: &AppHandle, agent_id: &str, user_said: &str, since: i64) -> R
             ready.push(e);
         }
     }
-    let engine = *ready.first().ok_or("no engine that can check is signed in")?;
-    let binary = super::engine::binary(engine).await.ok_or("engine not installed")?;
+    let engine = *ready
+        .first()
+        .ok_or("no engine that can check is signed in")?;
+    let binary = super::engine::binary(engine)
+        .await
+        .ok_or("engine not installed")?;
     let text = prompt(&facts);
     let answer = match engine {
         Engine::Codex => {
@@ -279,7 +307,10 @@ async fn keep(app: &AppHandle, agent_id: &str, user_said: &str, since: i64) -> R
     // The "Task list" usage line: a call, whatever it answered.
     let _ = store::update(agent_id, |a| {
         a.usage.record(
-            &super::usage::UsageTotals { list_checks: 1, ..Default::default() },
+            &super::usage::UsageTotals {
+                list_checks: 1,
+                ..Default::default()
+            },
             super::usage::today(),
         );
     });

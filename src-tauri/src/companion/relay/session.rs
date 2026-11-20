@@ -160,7 +160,10 @@ impl Session {
     /// Frames after `after` (the phone's `rx`), as fresh frames with their old numbers.
     pub fn replay(&mut self, after: u64) -> Vec<String> {
         self.acked(after);
-        self.unacked.iter().map(|(n, t)| self.frame(*n, t)).collect()
+        self.unacked
+            .iter()
+            .map(|(n, t)| self.frame(*n, t))
+            .collect()
     }
 
     /// Whether `proof` is this session's phone, and not an old attempt replayed.
@@ -271,7 +274,10 @@ pub fn park(
     tokio::spawn(async move {
         tokio::time::sleep(GRACE).await;
         let mut r = registry().lock().unwrap();
-        if r.parked.get(&sid).is_some_and(|p| p.generation == generation) {
+        if r.parked
+            .get(&sid)
+            .is_some_and(|p| p.generation == generation)
+        {
             r.parked.remove(&sid);
             tracing::info!("[Relay] a phone's session expired");
         }
@@ -315,7 +321,10 @@ mod tests {
     use super::*;
 
     fn pair() -> (Session, Session) {
-        (Session::new([1; 32]).unwrap(), Session::new([1; 32]).unwrap())
+        (
+            Session::new([1; 32]).unwrap(),
+            Session::new([1; 32]).unwrap(),
+        )
     }
 
     #[test]

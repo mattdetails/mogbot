@@ -25,11 +25,17 @@ fn the_prompt_is_bounded_whatever_the_turn() {
     let mut f = facts();
     f.user_said = "ask ".repeat(3_000);
     f.replies = (0..50).map(|_| "reply ".repeat(500)).collect();
-    f.open = (0..200).map(|i| (format!("{i:08}"), "x".repeat(500), "next")).collect();
+    f.open = (0..200)
+        .map(|i| (format!("{i:08}"), "x".repeat(500), "next"))
+        .collect();
     // The turn's text is capped; the open-lines list is the only open-ended part, and clipped per line.
     let p = prompt(&f);
     let turn = p.split("<<<USER").nth(1).unwrap();
-    assert!(turn.chars().count() < MAX_INPUT + 1_700, "{}", turn.chars().count());
+    assert!(
+        turn.chars().count() < MAX_INPUT + 1_700,
+        "{}",
+        turn.chars().count()
+    );
 }
 
 #[test]
@@ -44,7 +50,12 @@ fn a_turn_that_ends_on_a_question_waits_on_the_user() {
 #[test]
 fn the_answer_is_read_from_json_wherever_the_model_put_it() {
     let v = parse("Sure!\n```json\n{\"add\":[{\"title\":\"Chase the Globex invoice\"}],\"waits\":[{\"id\":\"ab12cd34\",\"on\":\"your OK to send\"}]}\n```").unwrap();
-    assert_eq!(v.add, vec![NewLine { title: "Chase the Globex invoice".into() }]);
+    assert_eq!(
+        v.add,
+        vec![NewLine {
+            title: "Chase the Globex invoice".into()
+        }]
+    );
     assert_eq!(v.waits[0].id, "ab12cd34");
     assert_eq!(parse("{}").unwrap(), Verdict::default());
     assert!(parse("nothing to add").is_none());
@@ -53,7 +64,10 @@ fn the_answer_is_read_from_json_wherever_the_model_put_it() {
 
 #[test]
 fn a_title_is_one_short_real_line() {
-    assert_eq!(clean_title("  \"Chase the Globex invoice\" ").unwrap(), "Chase the Globex invoice");
+    assert_eq!(
+        clean_title("  \"Chase the Globex invoice\" ").unwrap(),
+        "Chase the Globex invoice"
+    );
     assert!(clean_title("ok").is_none());
     assert!(clean_title("   ").is_none());
     let long = clean_title(&"word ".repeat(60)).unwrap();
@@ -96,7 +110,11 @@ fn only_next_or_doing_lines_can_be_parked_and_nothing_is_ever_closed() {
         assert!(!parkable(s));
     }
     let v = parse("{\"add\":[],\"waits\":[],\"done\":[\"ab12cd34\"],\"drop\":[\"x\"]}").unwrap();
-    assert_eq!(v, Verdict::default(), "unknown fields are ignored, never obeyed");
+    assert_eq!(
+        v,
+        Verdict::default(),
+        "unknown fields are ignored, never obeyed"
+    );
     let _ = line("ab12cd34", State::Next);
 }
 

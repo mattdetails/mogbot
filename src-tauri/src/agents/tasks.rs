@@ -544,7 +544,10 @@ pub fn annotate(
     archive: bool,
 ) -> Result<(), String> {
     edit(agent_id, |tasks| {
-        let Some(t) = tasks.iter_mut().find(|t| t.id == id || (id.len() >= 3 && t.id.starts_with(id))) else {
+        let Some(t) = tasks
+            .iter_mut()
+            .find(|t| t.id == id || (id.len() >= 3 && t.id.starts_with(id)))
+        else {
             return Err(format!("No task {id} on your list."));
         };
         if archive && t.state.is_open() {
@@ -574,7 +577,10 @@ pub fn unseen(recent: &[Task]) -> usize {
 /// Link a line to the message that asked for it.
 pub fn link_ask(agent_id: &str, id: &str, msg: &str) {
     edit(agent_id, |tasks| {
-        if let Some(t) = tasks.iter_mut().find(|t| t.id == id && t.asked_msg.is_none()) {
+        if let Some(t) = tasks
+            .iter_mut()
+            .find(|t| t.id == id && t.asked_msg.is_none())
+        {
             t.asked_msg = Some(msg.to_string());
         }
     });
@@ -667,15 +673,21 @@ pub struct Counts {
 /// `open` and the working status as [`Counts`]; `None` when there is
 /// nothing open and the agent isn't working (the line is hidden).
 pub fn counts(open: &[Task], working: Option<&str>) -> Option<Counts> {
-    let doing = working
-        .map(str::to_string)
-        .or_else(|| open.iter().find(|t| t.state == State::Doing).map(|t| t.title.clone()));
+    let doing = working.map(str::to_string).or_else(|| {
+        open.iter()
+            .find(|t| t.state == State::Doing)
+            .map(|t| t.title.clone())
+    });
     let to_do = open
         .iter()
         .filter(|t| matches!(t.state, State::Next | State::Stuck))
         .count() as u32;
     let waits = open.iter().filter(|t| t.state == State::Waiting).count() as u32;
-    (doing.is_some() || to_do > 0 || waits > 0).then_some(Counts { doing, to_do, waits })
+    (doing.is_some() || to_do > 0 || waits > 0).then_some(Counts {
+        doing,
+        to_do,
+        waits,
+    })
 }
 
 /// [`counts`] for one agent, from its list and its status.
@@ -726,7 +738,10 @@ pub fn check_assign(
 
 /// The centred line in the assignee's chat.
 pub fn assigned_line(caller_name: &str, target_name: &str, title: &str) -> String {
-    format!("{caller_name} added a task for {target_name} · {}", title_of(title))
+    format!(
+        "{caller_name} added a task for {target_name} · {}",
+        title_of(title)
+    )
 }
 
 /// What goes back to the agent that assigned `task` when the assignee drops
@@ -792,7 +807,9 @@ pub fn assign(
 /// The line of `agent_id`'s list that `id` (or an unambiguous prefix) names.
 pub fn find(agent_id: &str, id: &str) -> Option<Task> {
     let all = read(agent_id);
-    let mut hits = all.iter().filter(|t| t.id == id || (id.len() >= 3 && t.id.starts_with(id)));
+    let mut hits = all
+        .iter()
+        .filter(|t| t.id == id || (id.len() >= 3 && t.id.starts_with(id)));
     let first = hits.next()?;
     hits.next().is_none().then(|| first.clone())
 }

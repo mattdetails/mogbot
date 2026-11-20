@@ -304,7 +304,8 @@ fn a_line_carries_a_version_and_an_old_one_reads_as_one() {
     t.bump();
     assert_eq!(t.current_version(), 2);
     // A line written before versions existed.
-    let old = r#"{"id":"x1","title":"Old","source":"user","state":"next","createdAt":1,"updatedAt":1}"#;
+    let old =
+        r#"{"id":"x1","title":"Old","source":"user","state":"next","createdAt":1,"updatedAt":1}"#;
     let t: Task = serde_json::from_str(old).unwrap();
     assert_eq!((t.version, t.current_version()), (0, 1));
     assert!(t.asked_msg.is_none() && t.delivered_msg.is_none() && !t.seen && !t.archived);
@@ -313,7 +314,11 @@ fn a_line_carries_a_version_and_an_old_one_reads_as_one() {
     linked.asked_msg = Some("m1".into());
     linked.delivered_msg = Some("m2".into());
     let line = serde_json::to_string(&linked).unwrap();
-    assert!(line.contains("\"askedMsg\":\"m1\"") && line.contains("\"deliveredMsg\":\"m2\"") && line.contains("\"version\":1"));
+    assert!(
+        line.contains("\"askedMsg\":\"m1\"")
+            && line.contains("\"deliveredMsg\":\"m2\"")
+            && line.contains("\"version\":1")
+    );
     assert_eq!(serde_json::from_str::<Task>(&line).unwrap(), linked);
 }
 
@@ -323,7 +328,10 @@ fn a_stale_update_is_told_the_current_version() {
     t.bump();
     t.id = "ab12cd34".into();
     let said = stale_text(&t, 1);
-    assert!(said.contains("ab12cd34") && said.contains("version 2") && said.contains("you had 1"), "{said}");
+    assert!(
+        said.contains("ab12cd34") && said.contains("version 2") && said.contains("you had 1"),
+        "{said}"
+    );
     // The tool says the line's version, and takes it back.
     assert!(update_schema()["properties"]["version"].is_object());
 }
@@ -344,21 +352,57 @@ fn answering_an_agent_closes_its_asks_never_the_lines_it_assigned() {
 #[test]
 fn an_assignment_never_merges_into_an_ask_and_the_cap_counts_only_assignments() {
     let mut list: Vec<Task> = vec![];
-    let from = |n: &str| Some(AgentRef { id: n.to_lowercase(), name: n.into() });
-    let (ask, _) = add_in(&mut list, "Chase the Globex invoice".into(), Source::Agent, from("Mail"), 1);
-    let (assigned, dup) = add_in(&mut list, "Chase the Globex invoice".into(), Source::Assigned, from("Mail"), 2);
+    let from = |n: &str| {
+        Some(AgentRef {
+            id: n.to_lowercase(),
+            name: n.into(),
+        })
+    };
+    let (ask, _) = add_in(
+        &mut list,
+        "Chase the Globex invoice".into(),
+        Source::Agent,
+        from("Mail"),
+        1,
+    );
+    let (assigned, dup) = add_in(
+        &mut list,
+        "Chase the Globex invoice".into(),
+        Source::Assigned,
+        from("Mail"),
+        2,
+    );
     assert_ne!(ask, assigned);
     assert!(!dup);
     // The same assignment twice is one line.
-    let (again, dup) = add_in(&mut list, "Chase the Globex invoice".into(), Source::Assigned, from("Mail"), 3);
+    let (again, dup) = add_in(
+        &mut list,
+        "Chase the Globex invoice".into(),
+        Source::Assigned,
+        from("Mail"),
+        3,
+    );
     assert_eq!((again, dup), (assigned, true));
     assert_eq!(assigned_in(&list, "mail"), 1);
     // message_agent asks don't use up the 5.
-    for job in ["Renew the domain registration", "Export october expenses spreadsheet", "Book dentist appointment thursday", "Rotate staging database credentials"] {
+    for job in [
+        "Renew the domain registration",
+        "Export october expenses spreadsheet",
+        "Book dentist appointment thursday",
+        "Rotate staging database credentials",
+    ] {
         add_in(&mut list, job.into(), Source::Assigned, from("Mail"), 4);
     }
     assert_eq!(assigned_in(&list, "mail"), 5);
-    assert!(check_assign("mail", "lead", "Lead Gen", false, true, assigned_in(&list, "mail")).is_err());
+    assert!(check_assign(
+        "mail",
+        "lead",
+        "Lead Gen",
+        false,
+        true,
+        assigned_in(&list, "mail")
+    )
+    .is_err());
 }
 
 #[test]
@@ -399,5 +443,8 @@ fn finished_lines_the_user_hasnt_seen_are_counted_and_archived_ones_arent() {
 
 #[test]
 fn the_assign_source_is_written_as_assigned() {
-    assert_eq!(serde_json::to_string(&Source::Assigned).unwrap(), "\"assigned\"");
+    assert_eq!(
+        serde_json::to_string(&Source::Assigned).unwrap(),
+        "\"assigned\""
+    );
 }

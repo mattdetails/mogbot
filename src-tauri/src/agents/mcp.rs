@@ -1794,13 +1794,18 @@ fn task_assign(app: &AppHandle, caller: &store::Agent, _turn: Option<u64>, args:
     };
     let target = match store::find_addressed(name) {
         Ok(Some(a)) => a,
-        _ => return error(format!("There's no agent called {name}. list_agents shows who exists.")),
+        _ => {
+            return error(format!(
+                "There's no agent called {name}. list_agents shows who exists."
+            ))
+        }
     };
     let hop_ok = runner::next_hop(&caller.id).is_some();
-    let (id, dup) = match super::tasks::assign(&target, caller, title, arg(args, "note"), outside, hop_ok) {
-        Ok(r) => r,
-        Err(why) => return error(why),
-    };
+    let (id, dup) =
+        match super::tasks::assign(&target, caller, title, arg(args, "note"), outside, hop_ok) {
+            Ok(r) => r,
+            Err(why) => return error(why),
+        };
     let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
     if dup {
         return text(format!(
@@ -1838,7 +1843,10 @@ fn task_update(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: 
     if back.is_some() && hop.is_none() {
         return error("Not changed: this chain of agent-to-agent work is too long to hand it back. Tell the user where things stand instead.");
     }
-    let archive = args.get("archived").and_then(Value::as_bool).unwrap_or(false);
+    let archive = args
+        .get("archived")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     // A turn answering outside text can't archive.
     if archive && runner::from_outside(&caller.id) {
         return error("Not while answering what a “When…” routine found: that text came from outside this app.");
@@ -1863,7 +1871,8 @@ fn task_update(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: 
             sent.peer = Some(peer(&assigner));
             let _ = runner::record(app, sent);
             let _ = runner::record(app, received_line(caller, &assigner, &body, true));
-            let outside = runner::from_outside(&caller.id) && super::broker::is_live(&caller.id, turn);
+            let outside =
+                runner::from_outside(&caller.id) && super::broker::is_live(&caller.id, turn);
             runner::enqueue_reply_from(app, &assigner.id, body, peer(caller), hop, outside);
         }
     }

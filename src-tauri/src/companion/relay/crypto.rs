@@ -283,7 +283,10 @@ pub mod phone {
 
     /// A hello offering sessions, and (when `back` is `(sid, rx, k, key)`)
     /// a proof of the session it comes back to.
-    pub fn hello_session(secret: &StaticSecret, back: Option<(&str, u64, u64, &[u8; 32])>) -> String {
+    pub fn hello_session(
+        secret: &StaticSecret,
+        back: Option<(&str, u64, u64, &[u8; 32])>,
+    ) -> String {
         let e = B64.encode(PublicKey::from(secret).as_bytes());
         let resume = back.map(|(sid, rx, k, key)| ResumeProof {
             sid: sid.to_string(),
@@ -291,7 +294,13 @@ pub mod phone {
             k,
             mac: resume_mac(key, &e, sid, rx, k),
         });
-        serde_json::to_string(&PhoneHello { v: 1, e, s: Some(1), resume }).unwrap()
+        serde_json::to_string(&PhoneHello {
+            v: 1,
+            e,
+            s: Some(1),
+            resume,
+        })
+        .unwrap()
     }
 
     /// The phone's directions (`outgoing` = phoneToMac), once the answer
