@@ -72,7 +72,7 @@ const MAX_MS = Number(opt('--max-ms', 'QA_MAX_MS', 75 * 60 * 1000));
 const PHASES = opt(
   '--phases',
   'QA_PHASES',
-  'demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture,catchup-dir2,chat-spec,reply,cards-tonight,tasks,nested-list'
+  'demo,fresh,first-run,live,cached,impostor,bars,usage-accounts,folders,heavy,importing,team-setup,live-work,engine,probe,torture,catchup-dir2,chat-spec,reply,cards-tonight,tasks,nested-list,cards-gallery'
 ).split(',');
 const phase = (name) => PHASES.includes(name);
 // Ports other tools in this repo own: the desktop app, its harness, the phone's Metro.
@@ -5104,6 +5104,59 @@ async function main() {
       });
       await page.clickText('Cancel').catch(() => {});
       await sleep(500);
+    }
+  }
+
+  if (phase('cards-gallery')) {
+    // The card states of spec-cards.md that the Mac's own fixtures carry (`/chat/fixtures`), one shot each.
+    const CARDS = [
+      [
+        'card-approval-ask',
+        'Run a command',
+        'Approval ask: the title, the command, Allow and Deny stacked 48 tall, no chips',
+      ],
+      ['card-folded-expired', 'Send an email', 'Answered: Expired, a muted line with its glyph'],
+      ['card-secret', 'Bank login', 'A key (secret) pending: masked field, Save, Not now'],
+      [
+        'card-prompt',
+        'Do you want to make this edit to Header.tsx?',
+        'Needs your input: the question with its choices',
+      ],
+      ['card-plan', 'Do these under your name?', 'Plan card: the listed actions with one Allow'],
+      ['card-error', 'Something broke.', 'Error card: what failed, in words'],
+      [
+        'card-signed-out',
+        'Claude Code is signed out.',
+        'A signed-out engine as a line with its action',
+      ],
+      ['card-result', 'October invoice summary', 'Result card: title, summary, Ask for changes'],
+    ];
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock();
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/fixtures`);
+      await sleep(7000);
+      for (const [name, text, check] of CARDS) {
+        await scrollToIncludes(text)(page).catch(() => {});
+        await sleep(700);
+        await screen(page, theme, { name, check });
+      }
+      // The same approval with its details open, and an answered line opened on tap.
+      await scrollToIncludes('Run a command')(page).catch(() => {});
+      await page.clickText('Details').catch(() => {});
+      await sleep(800);
+      await screen(page, theme, {
+        name: 'card-approval-details',
+        check: 'The approval in full: the exact command under Details',
+      });
+      await scrollToIncludes('Fetch a page')(page).catch(() => {});
+      await page.clickText('Fetch a page').catch(() => {});
+      await sleep(800);
+      await screen(page, theme, {
+        name: 'card-folded-open',
+        check: 'An answered line opened on tap: what it was about, unfolded under it',
+      });
     }
   }
 
