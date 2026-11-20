@@ -296,6 +296,19 @@ describe('ModalFrame', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('closes on the first Escape from an empty field (⌘K: "esc close")', () => {
+    const onClose = vi.fn();
+    render(
+      <ModalFrame isOpen onClose={onClose} ariaLabel="Search dialog" showCloseButton={false}>
+        <input aria-label="Search" defaultValue="" />
+      </ModalFrame>
+    );
+    const input = screen.getByRole('textbox', { name: 'Search' });
+    input.focus();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('honours a nested handler that claims Escape outright', () => {
     const onClose = vi.fn();
     render(

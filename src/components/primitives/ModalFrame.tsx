@@ -122,7 +122,15 @@ const NESTED_POPUP_SELECTOR = '[role="menu"],[role="listbox"],[aria-expanded="tr
 
 function claimsEscape(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
-  return target.matches(TEXT_ENTRY_SELECTOR) || target.closest(NESTED_POPUP_SELECTOR) !== null;
+  if (target.closest(NESTED_POPUP_SELECTOR) !== null) return true;
+  // An empty field has nothing for Escape to cancel, so the first press
+  // closes the dialog: ⌘K's footer says "esc close", and it must.
+  return target.matches(TEXT_ENTRY_SELECTOR) && !isEmptyField(target);
+}
+
+function isEmptyField(el: Element): boolean {
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return el.value === '';
+  return (el.textContent ?? '') === '';
 }
 
 const modalStack: ModalRegistration[] = [];
