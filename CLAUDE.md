@@ -863,8 +863,9 @@ change is shown as the agent's ("Mail added a task · 09:10"), never as the user
 spec has an **Agent control** section naming the tool and its card; a feature without one isn't
 ready to build.
 
-**Pills** only on the chat message box, the chat header's agent chip, and small tags and count
-chips. Every other button is the rectangular `Button`.
+**Pills** only on the chat message box and on small tags and count chips. The chat header has no
+chip: key, name and one muted line (the task line when there is open work), and a plain ⋯ icon
+button. Every other button is the rectangular `Button`.
 
 ### Colour, theme and name → monochrome, both themes, name-free
 
