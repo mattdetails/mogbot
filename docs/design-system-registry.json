@@ -573,7 +573,7 @@
     {
       "name": "ToastList",
       "file": "src/components/primitives/ToastList.tsx",
-      "exports": ["ToastList"],
+      "exports": ["ToastList", "shownToasts"],
       "purpose": "Shared rendering surface for success, info, and error notifications with dismissal and error-copy actions.",
       "owner": "primitives/notifications",
       "props": ["toasts", "onDismiss", "onHold"],
