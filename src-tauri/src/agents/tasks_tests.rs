@@ -213,7 +213,9 @@ fn an_assignment_is_refused_for_yourself_outside_text_a_long_chain_and_a_full_li
     assert!(ok(false, true, MAX_ASSIGNED - 1).is_ok());
     assert!(ok(true, true, 0).unwrap_err().contains("outside"));
     assert!(ok(false, false, 0).unwrap_err().contains("too long"));
-    assert!(ok(false, true, MAX_ASSIGNED).unwrap_err().contains("Lead Gen"));
+    assert!(ok(false, true, MAX_ASSIGNED)
+        .unwrap_err()
+        .contains("Lead Gen"));
     assert!(check_assign("a", "a", "A", false, true, 0)
         .unwrap_err()
         .contains("task_add"));
@@ -262,11 +264,18 @@ fn the_header_line_counts_once_and_hides_when_there_is_nothing() {
     let c = counts(&open, None).unwrap();
     assert_eq!(
         c,
-        Counts { doing: Some("Drafting intros".into()), to_do: 3, waits: 1 }
+        Counts {
+            doing: Some("Drafting intros".into()),
+            to_do: 3,
+            waits: 1
+        }
     );
     // A running turn's own status wins as the words.
     assert_eq!(
-        counts(&open, Some("Reading the inbox")).unwrap().doing.as_deref(),
+        counts(&open, Some("Reading the inbox"))
+            .unwrap()
+            .doing
+            .as_deref(),
         Some("Reading the inbox")
     );
     // Working with nothing on the list still shows what it is doing.

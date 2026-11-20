@@ -1176,9 +1176,10 @@
   white-space: nowrap;
 }
 
-.agent-reply-line__cancel {
+.agent-reply-line .agent-reply-line__cancel.button--icon-only {
   flex: none;
   width: var(--agents-reply-cancel);
+  min-width: var(--agents-reply-cancel);
   height: var(--agents-reply-cancel);
   margin-right: var(--spacing-2xs);
 }
@@ -1186,7 +1187,8 @@
 /* What a sent reply answers: a one-line outlined pill directly above the
    bubble, outside it, against the bubble's right edge (4px gap). */
 .agent-reply-pill {
-  max-width: 100%;
+  /* Hugs its text, up to the bubble's own cap, against the bubble's right edge. */
+  max-width: min(80%, var(--agents-user-bubble-max), calc(100% - 82px));
   padding: var(--spacing-3xs) var(--spacing-md);
   padding-block: 3px; /* css-ok: the spec's 3px */
   overflow: hidden;
@@ -1244,4 +1246,205 @@
   .agent-chat__row[data-flash] {
     animation: none;
   }
+}
+
+/* ------------------------------------------------- the agent menu and tasks */
+
+/* The header's ⋯ is a plain 32px icon button (no circle); Usage and Routines
+   open their popovers from hidden anchors at the header's right edge. */
+.agent-chat__more.button--icon-only {
+  width: var(--size-header-more);
+  height: var(--size-header-more);
+  border-radius: var(--radius-8);
+}
+
+.agent-chat__anchors {
+  position: absolute;
+  right: var(--agents-column-inset);
+  bottom: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  visibility: hidden;
+}
+
+.agent-menu {
+  width: var(--size-agent-menu);
+}
+
+.agent-menu .agent-menu__value {
+  margin-left: auto;
+  font-size: var(--catchup-meta-size);
+  color: var(--text-muted);
+}
+
+.agent-menu__group {
+  margin: var(--spacing-sm) var(--spacing-md) var(--spacing-2xs);
+  font-size: var(--font-size-11);
+  font-weight: var(--font-weight-label);
+  letter-spacing: 0.09em; /* css-ok: the spec's caps label tracking */
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The quiet line under the name: what it is doing and how much is open. */
+.agent-task-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--catchup-meta-size);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.agent-task-line:hover {
+  color: var(--text-primary);
+}
+
+.agent-task-line__dot {
+  flex: none;
+  width: var(--catchup-dot);
+  height: var(--catchup-dot);
+  border-radius: var(--radius-full);
+  background: var(--status-running);
+}
+
+.agent-task-line__dot[data-waits] {
+  background: var(--accent-warning);
+}
+
+.agent-task-line__doing {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-task-line__counts {
+  color: var(--text-muted);
+}
+
+.agent-task-line__waits {
+  color: var(--accent-warning);
+}
+
+/* The task panel: 320px, beside the chat, under the header. */
+.agent-tasks {
+  position: absolute;
+  top: calc(var(--agents-header-height) + var(--spacing-sm));
+  right: var(--spacing-lg);
+  bottom: var(--spacing-lg);
+  z-index: var(--z-sticky-band);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  width: var(--size-agent-tasks);
+  padding: var(--spacing-lg);
+  overflow: auto;
+  border: var(--border-width-default) solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-md);
+}
+
+.agent-tasks__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+}
+
+.agent-tasks__head h3 {
+  margin: 0;
+  font-size: var(--font-size-subhead-lg);
+  font-weight: var(--font-weight-heading);
+}
+
+.agent-tasks__count {
+  flex: 1;
+  font-size: var(--catchup-meta-size);
+  color: var(--text-muted);
+}
+
+.agent-tasks__failed {
+  margin: 0;
+  font-size: var(--font-size-12);
+  color: var(--accent-warning);
+}
+
+.agent-tasks__empty {
+  margin: 0;
+  font-size: var(--font-size-13);
+  color: var(--text-muted);
+}
+
+.agent-tasks__group h4 {
+  margin: 0 0 var(--spacing-xs);
+  font-size: var(--font-size-11);
+  font-weight: var(--font-weight-label);
+  letter-spacing: 0.09em; /* css-ok: the spec's caps label tracking */
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.agent-tasks__row {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xs) 0;
+}
+
+.agent-tasks__mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-task-mark);
+  height: var(--size-task-mark);
+  margin-top: var(--spacing-2xs);
+  border: var(--border-width-default) solid var(--border-strong);
+  border-radius: var(--radius-6);
+  color: var(--text-on-inverse);
+}
+
+.agent-tasks__row[data-state='doing'] .agent-tasks__mark {
+  border-radius: var(--radius-full);
+  background: radial-gradient(circle, var(--text-primary) 35%, transparent 40%);
+}
+
+.agent-tasks__row[data-state='waits'] .agent-tasks__mark {
+  border-color: var(--accent-warning);
+  background: var(--accent-warning);
+}
+
+.agent-tasks__row[data-state='done'] .agent-tasks__mark {
+  border-color: var(--accent-success);
+  background: var(--accent-success);
+}
+
+.agent-tasks__row[data-state='done'] .agent-tasks__title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.agent-tasks__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.agent-tasks__title {
+  font-size: var(--font-size-14);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.agent-tasks__sub {
+  font-size: var(--font-size-12);
+  color: var(--text-muted);
+}
+
+.agent-tasks__row[data-state='waits'] .agent-tasks__sub {
+  color: var(--accent-warning);
 }

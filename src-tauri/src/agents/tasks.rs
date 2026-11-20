@@ -513,15 +513,21 @@ pub struct Counts {
 /// `open` and the working status as [`Counts`]; `None` when there is
 /// nothing open and the agent isn't working (the line is hidden).
 pub fn counts(open: &[Task], working: Option<&str>) -> Option<Counts> {
-    let doing = working
-        .map(str::to_string)
-        .or_else(|| open.iter().find(|t| t.state == State::Doing).map(|t| t.title.clone()));
+    let doing = working.map(str::to_string).or_else(|| {
+        open.iter()
+            .find(|t| t.state == State::Doing)
+            .map(|t| t.title.clone())
+    });
     let to_do = open
         .iter()
         .filter(|t| matches!(t.state, State::Next | State::Stuck))
         .count() as u32;
     let waits = open.iter().filter(|t| t.state == State::Waiting).count() as u32;
-    (doing.is_some() || to_do > 0 || waits > 0).then_some(Counts { doing, to_do, waits })
+    (doing.is_some() || to_do > 0 || waits > 0).then_some(Counts {
+        doing,
+        to_do,
+        waits,
+    })
 }
 
 /// [`counts`] for one agent, from its list and its status.
@@ -567,7 +573,10 @@ pub fn check_assign(
 
 /// The centred line in the assignee's chat.
 pub fn assigned_line(caller_name: &str, target_name: &str, title: &str) -> String {
-    format!("{caller_name} added a task for {target_name} · {}", title_of(title))
+    format!(
+        "{caller_name} added a task for {target_name} · {}",
+        title_of(title)
+    )
 }
 
 /// What goes back to the agent that assigned `task` when the assignee drops
@@ -587,7 +596,12 @@ pub fn hand_back_body(task: &Task, state: &str, why: &str) -> Option<String> {
 
 /// `task_assign`'s write: a line on `target`'s list from `caller`, with the
 /// optional note. Returns its id and whether it was already open.
-pub fn assign(target_id: &str, caller: &store::Agent, title: &str, note: Option<&str>) -> (String, bool) {
+pub fn assign(
+    target_id: &str,
+    caller: &store::Agent,
+    title: &str,
+    note: Option<&str>,
+) -> (String, bool) {
     let (id, dup) = add(
         target_id,
         title,
@@ -611,7 +625,9 @@ pub fn assign(target_id: &str, caller: &store::Agent, title: &str, note: Option<
 /// The line of `agent_id`'s list that `id` (or an unambiguous prefix) names.
 pub fn find(agent_id: &str, id: &str) -> Option<Task> {
     let all = read(agent_id);
-    let mut hits = all.iter().filter(|t| t.id == id || (id.len() >= 3 && t.id.starts_with(id)));
+    let mut hits = all
+        .iter()
+        .filter(|t| t.id == id || (id.len() >= 3 && t.id.starts_with(id)));
     let first = hits.next()?;
     hits.next().is_none().then(|| first.clone())
 }

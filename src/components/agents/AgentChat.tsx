@@ -34,17 +34,14 @@ import {
   ArrowDownIcon,
   RoutineIcon,
   InfoIcon,
-  MoreHorizontalIcon,
   PaperclipIcon,
   PencilIcon,
 } from '@/components/icons';
 import { Button } from '../primitives/Button';
-import { Dropdown } from '../primitives/Dropdown';
 import { IconButton } from '../primitives/IconButton';
 import { CompactModeToggle } from '../workspace/ModeToggle';
 import { TextButton } from '../primitives/TextButton';
 import { AgentComposer, LiveSecretHint } from './AgentComposer';
-import { AgentModelMenu } from './AgentModelMenu';
 import { AgentRequestsBar } from './AgentRequests';
 import { AgentKey } from './AgentKey';
 import { AgentActionItems, GO_BACK_MENU, type AgentActions } from './AgentActions';
@@ -111,6 +108,8 @@ import {
 } from '../../../packages/companion-protocol/src/rewind';
 import { useQuoteSelection } from './useQuoteSelection';
 import { ReplyContext, type ReplyApi } from './ReplyContext';
+import { AgentMenu } from './AgentMenu';
+import { AgentTasksPanel, TaskLine } from './AgentTasksPanel';
 import {
   bubbleColors,
   colorwayOf as keyColorway,
@@ -672,6 +671,7 @@ export const AgentChat = memo(function AgentChat({
       onRenamingChange={setRenamingConversation}
     />
   ) : null;
+  const [tasksOpen, setTasksOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   /** A starter's brief typed in with its blank still empty: not sendable as it is. */
   const [unfilled, setUnfilled] = useState<string | null>(null);
@@ -1849,7 +1849,11 @@ export const AgentChat = memo(function AgentChat({
         <h2 className="agent-chat__name" title={role || undefined}>
           {agent.name}
         </h2>
-        {role && <span className="agent-chat__subtitle">{role}</span>}
+        {agent.tasks && (agent.tasks.doing || agent.tasks.toDo > 0 || agent.tasks.waits > 0) ? (
+          <TaskLine tasks={agent.tasks} onOpen={() => setTasksOpen(true)} />
+        ) : (
+          role && <span className="agent-chat__subtitle">{role}</span>
+        )}
       </span>
     </>
   );
@@ -2167,7 +2171,7 @@ export const AgentChat = memo(function AgentChat({
                     <ConversationPagePin agent={agent} conversation={viewing} />
                     {/* Nothing to schedule or pick a model for until Claude Code is here. */}
                     {engineReady && (
-                      <>
+                      <span className="agent-chat__anchors" aria-hidden="true">
                         <AgentUsageRing
                           agent={agent}
                           open={usageOpen}
@@ -2180,24 +2184,15 @@ export const AgentChat = memo(function AgentChat({
                           startWhen={scheduleWhen}
                           startEditing={scheduleRoutine}
                         />
-                        <AgentModelMenu agent={agent} />
-                      </>
+                      </span>
                     )}
-                    <Dropdown
-                      align="right"
-                      portal
-                      menuClassName="agent-model-menu"
-                      className="agent-chat__menu"
-                      trigger={(p) => (
-                        <IconButton
-                          {...p}
-                          tabIndex={0}
-                          variant="ghost"
-                          icon={<MoreHorizontalIcon size={14} />}
-                          title="Agent actions"
-                          aria-label={`Actions for ${agent.name}`}
-                        />
-                      )}
+                    <AgentMenu
+                      agent={agent}
+                      engineReady={engineReady}
+                      onTasks={() => setTasksOpen(true)}
+                      onUsage={() => setUsageOpen(true)}
+                      onRoutines={() => setScheduleOpen(true)}
+                      onModel={() => actions.onEdit(agent)}
                     >
                       <AgentActionItems
                         agent={agent}
@@ -2207,7 +2202,7 @@ export const AgentChat = memo(function AgentChat({
                         onGoBack={ownRecent.length > 0 ? () => setPicking(true) : undefined}
                         {...actions}
                       />
-                    </Dropdown>
+                    </AgentMenu>
                     <AgentFilesModal
                       agent={agent}
                       isOpen={filesOpen}
@@ -2221,6 +2216,14 @@ export const AgentChat = memo(function AgentChat({
                     />
                   </div>
                 </header>
+
+                {tasksOpen && (
+                  <AgentTasksPanel
+                    agentId={agent.id}
+                    counts={agent.tasks}
+                    onClose={() => setTasksOpen(false)}
+                  />
+                )}
 
                 {/* This conversation's living page, kept current by the agent. */}
                 <ConversationPage agent={agent} conversation={viewing} />

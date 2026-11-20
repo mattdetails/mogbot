@@ -1793,7 +1793,11 @@ fn task_assign(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: 
     };
     let target = match store::find_addressed(name) {
         Ok(Some(a)) => a,
-        _ => return error(format!("There's no agent called {name}. list_agents shows who exists.")),
+        _ => {
+            return error(format!(
+                "There's no agent called {name}. list_agents shows who exists."
+            ))
+        }
     };
     if let Err(why) = super::tasks::check_assign(
         &caller.id,
@@ -1846,12 +1850,15 @@ fn task_update(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: 
             super::tasks::hand_back_body(&task, state, why),
             task.from.as_ref(),
         ) {
-            if let (Ok(assigner), Some(hop)) = (store::get(&from.id), runner::next_hop(&caller.id)) {
-                let mut sent = runner::new_message(&caller.id, MessageKind::SentToAgent, body.clone());
+            if let (Ok(assigner), Some(hop)) = (store::get(&from.id), runner::next_hop(&caller.id))
+            {
+                let mut sent =
+                    runner::new_message(&caller.id, MessageKind::SentToAgent, body.clone());
                 sent.peer = Some(peer(&assigner));
                 let _ = runner::record(app, sent);
                 let _ = runner::record(app, received_line(caller, &assigner, &body, true));
-                let outside = runner::from_outside(&caller.id) && super::broker::is_live(&caller.id, turn);
+                let outside =
+                    runner::from_outside(&caller.id) && super::broker::is_live(&caller.id, turn);
                 runner::enqueue_reply_from(app, &assigner.id, body, peer(caller), hop, outside);
             }
         }
