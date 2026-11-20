@@ -268,6 +268,8 @@ export function TotalCard({
   if (glance.keys.length === 0) return null;
   const { total } = glance;
   const words = totalWords(glance);
+  // "across 2 accounts · sam@x.com as of 5:00 AM": the "as of" is its own line, so a wrap never strands the dot.
+  const [acrossMain, acrossAsOf] = (words.across ?? '').split(' · ');
   return (
     <View style={[styles.card, styles.hero]}>
       <View style={styles.answer}>
@@ -287,18 +289,23 @@ export function TotalCard({
           }
         >
           {words.figure}
-          {words.across && !large && (
+          {acrossMain && !large && (
             <>
               {' '}
               <T variant="subhead" color={colors.textSecondary}>
-                {words.across}
+                {acrossMain}
               </T>
             </>
           )}
         </T>
-        {words.across && large && (
+        {acrossMain && large && (
           <T variant="subhead" color={colors.textSecondary}>
-            {words.across}
+            {acrossMain}
+          </T>
+        )}
+        {acrossAsOf && (
+          <T variant="caption" color={colors.textMuted}>
+            {acrossAsOf}
           </T>
         )}
         {words.refill && (
