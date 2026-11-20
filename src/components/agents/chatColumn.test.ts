@@ -29,6 +29,10 @@ const ON_THE_COLUMN: [file: string, selector: string][] = [
   ['agents-composer.css', '.agent-composer__notice'],
   ['agents-surfaces.css', '.agent-bars'],
   ['agents-rooms.css', '.agent-room__ask'],
+];
+
+/** Full pages have their own, wider column (960px), centred the same way. */
+const ON_THE_PAGE_COLUMN: [file: string, selector: string][] = [
   ['agents-team.css', '.agents-team__column'],
   ['usage-view.css', '.agents-usage-view__column'],
 ];
@@ -45,6 +49,12 @@ describe('the conversation column', () => {
     const body = rule(read(file), selector);
     expect(body).toContain('var(--agents-column-inset)');
     expect(body).not.toMatch(/max-width:\s*(calc\()?var\(--agents-chat-width\)/);
+  });
+
+  it.each(ON_THE_PAGE_COLUMN)('%s %s is inset by the page column', (file, selector) => {
+    const body = rule(read(file), selector);
+    expect(body).toContain('var(--agents-page-inset)');
+    expect(body).not.toMatch(/max-width:\s*(calc\()?var\(--agents-page-width\)/);
   });
 
   it('nothing else sizes itself from the chat width', () => {
