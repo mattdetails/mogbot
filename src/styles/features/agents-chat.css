@@ -1471,3 +1471,13 @@
 .agent-header-panel .ss-dropdown__item--active .agent-header-panel__when {
   color: var(--text-primary);
 }
+
+/* Narrow: the key sits 12px (--spacing-md) after the mode toggle at every
+   width. The grid's gap, the switcher button's hairline and its padding add
+   to 17, so the button is drawn back by the difference; its hover fill keeps
+   its own padding around the key. */
+.agent-chat__header:has(> .agent-chat__mode) > .agent-chat__switcher {
+  margin-inline-start: calc(
+    var(--spacing-md) - var(--spacing-sm) - var(--border-width-default) - var(--button-padding)
+  );
+}

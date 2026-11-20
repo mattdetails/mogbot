@@ -2011,7 +2011,7 @@
       "layer": "components",
       "owner": "Button",
       "status": "canonical",
-      "consumerCount": 11
+      "consumerCount": 12
     },
     {
       "name": "--button-gap",
@@ -6051,7 +6051,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 383
+      "consumerCount": 384
     },
     {
       "name": "--border-width-emphasis",
@@ -6955,7 +6955,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1061
+      "consumerCount": 1062
     },
     {
       "name": "--spacing-md",
@@ -6963,7 +6963,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 692
+      "consumerCount": 693
     },
     {
       "name": "--spacing-lg",
