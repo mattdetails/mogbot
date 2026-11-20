@@ -14,6 +14,7 @@ import { asMessage, asMessages } from '../src/lib/wellFormed';
 import { agent } from './helpers';
 
 const mockRecordCrash = jest.fn((..._a: unknown[]) => Promise.resolve());
+jest.mock('react-native-gesture-handler', () => require('./gestureStub').gestureHandler());
 jest.mock('../src/lib/crash', () => ({
   recordCrash: (...a: unknown[]) => mockRecordCrash(...a),
 }));

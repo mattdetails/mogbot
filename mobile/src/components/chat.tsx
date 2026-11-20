@@ -48,6 +48,9 @@ import { LocalLinks } from './localLinks';
 import { useReveal } from '../lib/reveal';
 import { BubbleSize, Markdown } from './Markdown';
 import { useUserBubble } from '../lib/userBubble';
+import { REPLY } from '@shipstudio/companion-protocol';
+import { replyRefFor } from '../lib/reply';
+import { ReplyPill, SwipeReply, useReplyActions } from './Reply';
 import { Blocks } from './blocks/Blocks';
 import { Card, Line, TextAction } from './surfaces';
 import { Button, Icon, T } from './ui';
@@ -92,7 +95,7 @@ export function SendRise({ rise, children }: { rise: boolean; children: ReactNod
   return <Animated.View entering={rise ? arriving() : undefined}>{children}</Animated.View>;
 }
 
-export const MessageRow = memo(function MessageRow({
+const MessageRowBody = memo(function MessageRowBody({
   message,
   agent,
   queued,
@@ -419,6 +422,31 @@ export const MessageRow = memo(function MessageRow({
       }
       return <SystemLine message={message} />;
   }
+});
+
+type MessageRowProps = Parameters<typeof MessageRowBody>[0];
+
+/**
+ * A message in the chat. Yours and the agent's can be dragged right to reply
+ * (`SwipeReply`); a reply shows its quote as a pill above the bubble, outside
+ * it. A room, which has no replies, draws the plain row.
+ */
+export const MessageRow = memo(function MessageRow(props: MessageRowProps) {
+  const actions = useReplyActions();
+  const { message, agent } = props;
+  const body = <MessageRowBody {...props} />;
+  const plain = message.kind !== 'user' && message.kind !== 'agent';
+  if (!actions || plain || message.room || message.result) return body;
+  const pill = message.replyTo ? (
+    <ReplyPill to={message.replyTo} mine={message.kind === 'user'} parties={['you', agent.name]} />
+  ) : null;
+  const ref = replyRefFor(message, agent.name);
+  if (!ref) return body;
+  return (
+    <SwipeReply label={REPLY.action} onReply={() => actions.onReply(message.id)} above={pill}>
+      {body}
+    </SwipeReply>
+  );
 });
 
 /** Your words, with any quoted passages set off above them. */
@@ -788,6 +816,9 @@ export function PendingRow({ pending }: { pending: PendingSend }) {
             attachments={pending.attachments.map((a) => ({ ...a, path: '', localUri: a.uri }))}
           />
         </View>
+      )}
+      {!!pending.replyTo && !!pending.text && (
+        <ReplyPill to={pending.replyTo} mine parties={['you', pendingAgent?.name ?? '']} />
       )}
       {!!pending.text && (
         <View style={[styles.userBubble, { backgroundColor: look.fill }, dim && { opacity: 0.6 }]}>

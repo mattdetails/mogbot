@@ -514,6 +514,8 @@ export const radius = {
   tag: 6,
   inner: 10,
   control: 12,
+  /** The pill above a sent reply. */
+  chip: 14,
   card: 16,
   sheet: 24,
   pill: 999,
@@ -679,6 +681,21 @@ export const keySize = { xs: 16, sm: 20, md: 30, lg: 44, xl: 112 } as const;
 
 /** The key on a Catch up card and its queue rows (spec-catchup-dir2: 32 pt, a step over `md`). */
 export const catchKeySize = 32;
+/** Reply to a message: the swipe's circle, the line in the box, the pill above a sent reply. */
+export const reply = {
+  circle: 34,
+  circleInset: 14,
+  /** The line in the box: one outlined line, 32 tall, a 26 × at the right. */
+  lineHeight: 32,
+  closeSize: 26,
+  /** The pill above a bubble, 4 off it. */
+  pillPadV: 3,
+  pillPadH: 12,
+  pillGap: 4,
+  /** The flash on the original, in ms. */
+  flashMs: 600,
+} as const;
+
 /** Catch up's measures (Fidelity QA's spec): flat buttons, labels, rows, the all-clear page. */
 export const catchUp = {
   button: 48,

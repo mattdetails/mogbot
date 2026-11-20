@@ -5566,6 +5566,174 @@
       "consumerCount": 0
     },
     {
+      "name": "--duration-micro",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--duration-quick",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--duration-screen",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--duration-exit-quick",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--duration-exit-screen",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--ease-exit",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--ease-move",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--spring-snappy",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--spring-standard",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--spring-celebrate",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--duration-spring-snappy",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--duration-spring-standard",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--duration-spring-celebrate",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-popover-y",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-rise-y",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-popover-scale",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-modal-scale",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-press-scale",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--spring-snappy",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--spring-standard",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--spring-celebrate",
+      "definitionFile": "src/styles/global/tokens-core.css",
+      "layer": "core",
+      "owner": "global/core",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
       "name": "--font-size-micro",
       "definitionFile": "src/styles/global/tokens-semantic.css",
       "layer": "semantic",

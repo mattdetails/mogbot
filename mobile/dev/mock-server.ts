@@ -33,6 +33,7 @@ import {
   type UsageAccount,
   type UsageInventory,
   type AgentMessage,
+  type ReplyRef,
   type AgentSecret,
   type AgentReach,
   type OnItsOwn,
@@ -222,6 +223,10 @@ export interface MockOptions {
   solo?: boolean;
   /** Catch up with exactly one decision (Ops' push) and one thing that happened (Acme Site). */
   catchUpOne?: boolean;
+  /** The Designer's chat ends on replies: to its words, to a picture, and to a message that's gone. */
+  replies?: boolean;
+  /** The task list: `rich` has all four groups, `empty` nothing (default: one doing, one waiting). */
+  tasks?: 'rich' | 'empty';
   /** Something happened while away, with no ask: the queue ends on "While you were away". */
   catchUpSeveral?: boolean;
   /** The Designer's key colour (a colourway id): the chat bubbles take it. */
@@ -628,6 +633,22 @@ function settingsLine(
   const what = [model, effort].filter(Boolean).join(' · ');
   if (moved) return `Runs on ${engine}${what ? ` · ${what}` : ''} from its next message`;
   return `Now on ${what} from its next message`;
+}
+
+/** What the Mac stores as a reply's quote (`agents/reply.rs`): a card's title, a file's name, else the first words. */
+function replyRefOf(m: AgentMessage, agentName: string): ReplyRef {
+  const name = m.kind === 'user' ? 'you' : agentName;
+  const title = m.approval?.title ?? m.result?.title;
+  if (title) return { id: m.id, name, excerpt: title, kind: 'card' };
+  if (m.text.trim())
+    return { id: m.id, name, excerpt: m.text.trim().slice(0, 200), kind: 'message' };
+  const f = m.attachments?.[0];
+  return {
+    id: m.id,
+    name,
+    excerpt: f?.name ?? '',
+    kind: f?.mime.startsWith('image/') ? 'attachment' : 'file',
+  };
 }
 
 export function createMockServer(opts: MockOptions = {}) {
@@ -1944,6 +1965,57 @@ export function createMockServer(opts: MockOptions = {}) {
       quiet.preview = 'The weekly numbers are ready.';
     }
   }
+  if (opts.tasks === 'rich') {
+    const d = agents.find((a) => a.id === 'design');
+    if (d) d.tasks = { doing: 'Drafting intros', toDo: 2, waits: 1 };
+  }
+  if (opts.replies) {
+    const list = messages.get('design') ?? [];
+    const t = Date.now();
+    const sheetMsg = list.find((m) => m.id === 'design_p2_1');
+    const said = list.find((m) => m.kind === 'agent' && m.text.startsWith('Exported 24 icons'));
+    const mine = list.find(
+      (m) => m.kind === 'user' && m.text.startsWith('Export the new icon set')
+    );
+    const tail: AgentMessage[] = [
+      {
+        id: 'rp_1',
+        agentId: 'design',
+        ts: t - 8 * 60_000,
+        kind: 'user',
+        text: 'Ship the second set, not the first.',
+        ...(said ? { replyTo: replyRefOf(said, 'Designer') } : {}),
+      },
+      {
+        id: 'rp_2',
+        agentId: 'design',
+        ts: t - 7 * 60_000,
+        kind: 'agent',
+        text: 'On it. I’ll swap the sheet and re-export.',
+        ...(mine ? { replyTo: replyRefOf(mine, 'Designer') } : {}),
+      },
+      {
+        id: 'rp_3',
+        agentId: 'design',
+        ts: t - 6 * 60_000,
+        kind: 'user',
+        text: 'Is this the right sheet?',
+        ...(sheetMsg ? { replyTo: replyRefOf(sheetMsg, 'Designer') } : {}),
+      },
+      {
+        id: 'rp_4',
+        agentId: 'design',
+        ts: t - 5 * 60_000,
+        kind: 'user',
+        text: 'And the one from before lunch?',
+        replyTo: { id: 'rp_gone', name: 'Designer', excerpt: 'The older sheet', kind: 'message' },
+      },
+    ];
+    list.push(...tail);
+    messages.set('design', list);
+    const d = agent('design');
+    if (d) d.lastActivityAt = t - 5 * 60_000;
+  }
   // A Mac just set up has only the Chief: the others are seeded (their
   // fixtures refer to each other) and then left out of what the phone sees.
   if (opts.solo) {
@@ -3167,6 +3239,12 @@ export function createMockServer(opts: MockOptions = {}) {
       if (!text.trim() && !staged.length) {
         fail({ type: 'Validation', field: 'text', reason: 'Type a message first.' });
       }
+      // Reply: the quote comes from the stored original, as the Mac fills it; an unknown id sends plain.
+      const original =
+        typeof p.replyTo === 'string'
+          ? (messages.get(agentId) ?? []).find((x) => x.id === p.replyTo)
+          : undefined;
+      const replyTo = original ? replyRefOf(original, agent(agentId)?.name ?? '') : undefined;
       const id = `m_${randomUUID().slice(0, 8)}`;
       const m: AgentMessage = {
         id,
@@ -3175,6 +3253,7 @@ export function createMockServer(opts: MockOptions = {}) {
         kind: 'user',
         text,
         clientId,
+        ...(replyTo ? { replyTo } : {}),
         ...(typeof p.conversation === 'string' ? { conversation: p.conversation } : {}),
         ...(staged.length
           ? { attachments: staged.map((b) => attach(agentId, id, b.name, b.mime, b.bytes)) }
@@ -4218,6 +4297,54 @@ export function createMockServer(opts: MockOptions = {}) {
         return fail({ type: 'Protocol', code: 'bad_params', message: 'Tasks takes an agentId.' });
       }
       const now = Date.now();
+      if (opts.tasks === 'empty') {
+        return {
+          agentId: a.id,
+          name: a.name,
+          role: a.role ?? '',
+          doing: null,
+          open: [],
+          recent: [],
+          overloaded: false,
+          stuck: 0,
+        };
+      }
+      if (opts.tasks === 'rich') {
+        const t = (id: string, title: string, state: string, ago: number, extra: object = {}) => ({
+          id,
+          title,
+          source: 'user',
+          state,
+          createdAt: now - ago,
+          updatedAt: now - ago / 2,
+          chased: 0,
+          lastChasedAt: 0,
+          ...extra,
+        });
+        return {
+          agentId: a.id,
+          name: a.name,
+          role: a.role ?? '',
+          doing: 'Drafting intros',
+          open: [
+            t('r1', 'Draft the three intro emails', 'doing', 40 * 60_000),
+            t('r2', 'Chase the Globex invoice', 'next', 3 * 3_600_000, {
+              source: 'agent',
+              from: { id: 'mail', name: 'Mail' },
+            }),
+            t('r3', 'Update the pricing page copy', 'next', 5 * 3_600_000),
+            t('r4', 'Send Dana the deploy notes', 'waiting', 6 * 3_600_000, {
+              waitingOn: 'Dana’s reply',
+            }),
+          ],
+          recent: [
+            t('r5', 'Rotate the staging certificates', 'done', 2 * 3_600_000),
+            t('r6', 'Archive last month’s reports', 'done', 4 * 3_600_000),
+          ],
+          overloaded: false,
+          stuck: 0,
+        };
+      }
       return {
         agentId: a.id,
         name: a.name,

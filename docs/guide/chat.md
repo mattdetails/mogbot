@@ -42,3 +42,12 @@ On your phone, Catch up is the same: one card at a time, the same Allow, and one
 ## While your agent works
 
 One row at the end of the chat shows your agent's key and one phrase about what it is doing right now, in the app's own words for the step ("Reading Northwind's site", "In Chrome on linkedin.com", "Running the tests · 3 of 8", "Checking with Scout"). Before it has done anything the row says "Working on it". A timer shows after about 8 seconds. After a minute with nothing new it says "Still working" and the time. When it is waiting on you it says "Needs your OK on 12 emails" with a **Review** button that takes you to the card. The three dots appear only while a reply is being written.
+
+
+## Reply to a message
+
+On the phone, drag any message to the right to reply to it (or hold it and pick Reply, the first item). The message follows your finger up to 72 points; past 48 the arrow circle fills and you feel one tap, and letting go sets the reply. It only counts when the drag is mostly sideways, so scrolling is never taken. With VoiceOver or TalkBack, use the Reply action. The reply shows as one outlined line at the top of the message box with a × to cancel; one reply at a time. Once sent, a one-line pill sits above your bubble, outside it, with the words you replied to ("Attachment · name" for a picture, the name first in a room). Tap the pill to go to the original, which glows once; if it's gone the pill says "Message not available". Needs a Mac that supports replies.
+
+## Tasks
+
+Under an agent's name, the muted line is its role while nothing is open. With open work it becomes the task line: a dot, what it is doing, then "4 to do · 1 waits" (the waits in amber when something is waiting on someone), and a chevron. Tap it, or pick Tasks, the first row of the ⋯ menu, to see the list: Doing, Next, Waits on you and Done today, each line in your own words with who asked and when ("you asked 22:05", "from Mail · 09:10", "since 20:14"). With nothing on the list it says so. The list is read from your Mac; if it can't be reached, the last list stays and says when it was from. On the phone the list is for reading for now; adding, reordering and dropping come with the Mac's task tools.

@@ -1448,3 +1448,10 @@
 .agent-tasks__row[data-state='waits'] .agent-tasks__sub {
   color: var(--accent-warning);
 }
+
+/* A full page (Team tasks, Usage) is its own 960px column: its header's content
+   aligns to it, as a conversation's header aligns to the 720px column. */
+.agents-team .agent-chat__header,
+.agents-usage-view .agent-chat__header {
+  padding-inline: var(--agents-page-inset);
+}

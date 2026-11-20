@@ -53,6 +53,7 @@
  */
 
 import { useUserBubble } from '../lib/userBubble';
+import { ReplyLine } from './Reply';
 import {
   MAC_FEATURES,
   MAX_ATTACHMENTS,
@@ -580,7 +581,8 @@ export function Composer({
       h.clientId,
       taken.files,
       taken.mentions,
-      h.draft.revising
+      h.draft.revising,
+      h.draft.replying
     ).catch((error: unknown) => {
       haptic.error();
       onError(describeError(error));
@@ -626,12 +628,19 @@ export function Composer({
     // closes as moved on, rather than waiting behind a question nobody must answer.
     const answersCard = mode === 'queue' && waitingOnYou && !driven;
     // Offline (or unheard), the interrupt waits in the outbox with the message.
-    send(agent.id, body, now || answersCard, undefined, files, mentions, draft.revising).catch(
-      (error: unknown) => {
-        haptic.error();
-        onError(describeError(error));
-      }
-    );
+    send(
+      agent.id,
+      body,
+      now || answersCard,
+      undefined,
+      files,
+      mentions,
+      draft.revising,
+      draft.replying
+    ).catch((error: unknown) => {
+      haptic.error();
+      onError(describeError(error));
+    });
   };
 
   /**
@@ -900,45 +909,55 @@ export function Composer({
           hold={held}
           // The files ride at the card's top, as Claude's own, each with its ×.
           top={
-            attached > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tray}
-                keyboardShouldPersistTaps="handled"
-              >
-                {ready.map((f) => (
-                  <Animated.View
-                    key={f.blobId}
-                    entering={ZoomIn.duration(160)}
-                    exiting={ZoomOut.duration(120)}
-                    layout={LinearTransition.duration(160)}
+            attached > 0 || draft.replying ? (
+              <>
+                {draft.replying && (
+                  <ReplyLine
+                    to={draft.replying}
+                    onCancel={() => setComposer(agent.id, { replying: undefined })}
+                  />
+                )}
+                {attached > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.tray}
+                    keyboardShouldPersistTaps="handled"
                   >
-                    <StagedTile
-                      item={{ key: f.blobId, file: f, progress: 1, blob: f }}
-                      onRemove={() => removeFiles(agent.id, [f.blobId])}
-                      onRetry={() => {}}
-                    />
-                  </Animated.View>
-                ))}
-                {staged.map((f) => (
-                  <Animated.View
-                    key={f.key}
-                    entering={ZoomIn.duration(160)}
-                    exiting={ZoomOut.duration(120)}
-                    layout={LinearTransition.duration(160)}
-                  >
-                    <StagedTile
-                      item={f}
-                      onRemove={() => setStaged((list) => list.filter((x) => x.key !== f.key))}
-                      onRetry={() => {
-                        patch(f.key, { error: undefined, progress: 0 });
-                        void start(f);
-                      }}
-                    />
-                  </Animated.View>
-                ))}
-              </ScrollView>
+                    {ready.map((f) => (
+                      <Animated.View
+                        key={f.blobId}
+                        entering={ZoomIn.duration(160)}
+                        exiting={ZoomOut.duration(120)}
+                        layout={LinearTransition.duration(160)}
+                      >
+                        <StagedTile
+                          item={{ key: f.blobId, file: f, progress: 1, blob: f }}
+                          onRemove={() => removeFiles(agent.id, [f.blobId])}
+                          onRetry={() => {}}
+                        />
+                      </Animated.View>
+                    ))}
+                    {staged.map((f) => (
+                      <Animated.View
+                        key={f.key}
+                        entering={ZoomIn.duration(160)}
+                        exiting={ZoomOut.duration(120)}
+                        layout={LinearTransition.duration(160)}
+                      >
+                        <StagedTile
+                          item={f}
+                          onRemove={() => setStaged((list) => list.filter((x) => x.key !== f.key))}
+                          onRetry={() => {
+                            patch(f.key, { error: undefined, progress: 0 });
+                            void start(f);
+                          }}
+                        />
+                      </Animated.View>
+                    ))}
+                  </ScrollView>
+                )}
+              </>
             ) : undefined
           }
           // The + inside the field at its left; listening, × has its place.

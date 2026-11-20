@@ -10,6 +10,7 @@ import { Composer } from '../src/components/Composer';
 import { setApp } from '../src/lib/store';
 import { agent } from './helpers';
 
+jest.mock('react-native-gesture-handler', () => require('./gestureStub').gestureHandler());
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }),
 }));
@@ -151,6 +152,7 @@ describe('the message field', () => {
       undefined,
       expect.anything(),
       expect.anything(),
+      undefined,
       undefined
     );
   });

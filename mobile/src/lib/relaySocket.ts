@@ -300,6 +300,19 @@ export class RelaySocket {
     this.fail(code, reason);
   }
 
+  /**
+   * The network changed or the app came forward: a session waiting out its
+   * backoff tries now (the old socket is already closed, so the worker's
+   * per-address limit isn't touched). One try at a time.
+   */
+  nudge() {
+    if (this.done || this.retry == null) return;
+    this.untimer(this.retry);
+    this.retry = null;
+    this.attempts = 0;
+    this.connect();
+  }
+
   private dropInner(ws: Inner) {
     ws.onopen = ws.onmessage = ws.onclose = null;
     // Not null: node's `ws` throws an error event nobody listens to.
