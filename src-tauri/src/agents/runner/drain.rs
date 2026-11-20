@@ -649,6 +649,8 @@ pub(super) async fn drain_turns(app: &AppHandle, agent_id: &str, progressed: &mu
                     {
                         add_nudge(&agent_id, &note);
                     }
+                    // Asks the agent missed go on its list (`tasks_keep`).
+                    crate::agents::tasks_keep::after_turn(&app, &agent_id, &user_said, since);
                 }
                 return_results(&app, &agent_id, since, None)
             }

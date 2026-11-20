@@ -286,3 +286,34 @@ fn the_assign_tool_is_listed_with_its_schema_and_the_prompt_names_it() {
     assert!(required.contains(&serde_json::json!("title")));
     assert!(ASSIGN_DESCRIPTION.contains("aren't woken"));
 }
+
+#[test]
+fn a_line_carries_a_version_and_an_old_one_reads_as_one() {
+    let mut t = task("A line", None, 0);
+    assert_eq!(t.version, 1);
+    t.bump();
+    assert_eq!(t.current_version(), 2);
+    // A line written before versions existed.
+    let old = r#"{"id":"x1","title":"Old","source":"user","state":"next","createdAt":1,"updatedAt":1}"#;
+    let t: Task = serde_json::from_str(old).unwrap();
+    assert_eq!((t.version, t.current_version()), (0, 1));
+    assert!(t.ask_msg.is_none() && t.done_msg.is_none());
+    // The links and version are kept in the file.
+    let mut linked = task("Linked", None, 0);
+    linked.ask_msg = Some("m1".into());
+    linked.done_msg = Some("m2".into());
+    let line = serde_json::to_string(&linked).unwrap();
+    assert!(line.contains("\"askMsg\":\"m1\"") && line.contains("\"doneMsg\":\"m2\"") && line.contains("\"version\":1"));
+    assert_eq!(serde_json::from_str::<Task>(&line).unwrap(), linked);
+}
+
+#[test]
+fn a_stale_update_is_told_the_current_version() {
+    let mut t = task("A line", None, 0);
+    t.bump();
+    t.id = "ab12cd34".into();
+    let said = stale_text(&t, 1);
+    assert!(said.contains("ab12cd34") && said.contains("version 2") && said.contains("you had 1"), "{said}");
+    // The tool says the line's version, and takes it back.
+    assert!(update_schema()["properties"]["version"].is_object());
+}

@@ -111,7 +111,8 @@ pub fn update_schema() -> serde_json::Value {
         "properties": {
             "id": { "type": "string", "description": "The line's id from list." },
             "state": { "type": "string", "enum": ["doing", "next", "waiting", "done", "dropped"] },
-            "note": { "type": "string", "description": "For waiting: what it waits on. For dropped: why." }
+            "note": { "type": "string", "description": "For waiting: what it waits on. For dropped: why." },
+            "version": { "type": "integer", "description": "The line's version as `tasks list` showed it; a changed line refuses a stale update." }
         },
         "required": ["id", "state"]
     })
@@ -172,6 +173,26 @@ pub struct Task {
     pub chased: u32,
     #[serde(default)]
     pub last_chased_at: i64,
+    /// Counts up with every change (1 when made; older lines read as 1). An
+    /// update that names an older one is refused (`set_checked`).
+    #[serde(default)]
+    pub version: u32,
+    /// The message that asked (the user's, or the one that brought it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ask_msg: Option<String>,
+    /// The agent's message that delivered it, set when it is marked done.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub done_msg: Option<String>,
+}
+
+impl Task {
+    /// The version an update must name: lines from before versions are 1.
+    pub fn current_version(&self) -> u32 {
+        self.version.max(1)
+    }
+    fn bump(&mut self) {
+        self.version = self.current_version() + 1;
+    }
 }
 
 /// What the desk and the Chief see of one agent's list.
@@ -305,6 +326,14 @@ pub fn likeness(a: &str, b: &str) -> f32 {
 /// At or above this, two asks are the same ask.
 pub const SAME: f32 = 0.7;
 
+/// A line for tests in other modules.
+#[cfg(test)]
+pub fn new_task_for_tests(title: &str, state: State) -> Task {
+    let mut t = new_task(title.to_string(), Source::User, None, 0);
+    t.state = state;
+    t
+}
+
 fn new_task(title: String, source: Source, from: Option<AgentRef>, now: i64) -> Task {
     Task {
         id: store::new_id()[..8].to_string(),
@@ -318,6 +347,9 @@ fn new_task(title: String, source: Source, from: Option<AgentRef>, now: i64) -> 
         note: None,
         chased: 0,
         last_chased_at: 0,
+        version: 1,
+        ask_msg: None,
+        done_msg: None,
     }
 }
 
@@ -340,6 +372,7 @@ pub fn add(agent_id: &str, title: &str, source: Source, from: Option<AgentRef>) 
             if t.state == State::Stuck {
                 t.state = State::Next;
             }
+            t.bump();
             return (t.id.clone(), true);
         }
         let t = new_task(title, source, from, now);
@@ -382,12 +415,35 @@ fn settle(helper_id: &str, asker_id: &str, state: State, note: Option<String>) {
             t.state = state;
             t.updated_at = now;
             t.note = note.clone();
+            t.bump();
         }
     });
 }
 
 /// Set one task by id (or an unambiguous id prefix). Returns what happened.
 pub fn set(agent_id: &str, id: &str, state: State, note: Option<&str>) -> Result<String, String> {
+    set_checked(agent_id, id, state, note, None)
+}
+
+/// [`set`], refusing an update made on a line that has changed since the
+/// caller read it (`expected` is the version it read).
+pub fn set_checked(
+    agent_id: &str,
+    id: &str,
+    state: State,
+    note: Option<&str>,
+    expected: Option<u32>,
+) -> Result<String, String> {
+    let delivered = (state == State::Done)
+        .then(|| {
+            store::messages(agent_id, 20)
+                .ok()?
+                .into_iter()
+                .rev()
+                .find(|m| m.kind == store::MessageKind::Agent && !m.text.trim().is_empty())
+                .map(|m| m.id)
+        })
+        .flatten();
     let now = store::now_ms();
     edit(agent_id, |tasks| {
         let matches: Vec<usize> = tasks
@@ -399,6 +455,9 @@ pub fn set(agent_id: &str, id: &str, state: State, note: Option<&str>) -> Result
         match matches.as_slice() {
             [i] => {
                 let i = *i;
+                if let Some(v) = expected.filter(|v| *v != tasks[i].current_version()) {
+                    return Err(stale_text(&tasks[i], v));
+                }
                 if state == State::Doing {
                     for other in tasks.iter_mut().filter(|t| t.state == State::Doing) {
                         other.state = State::Next;
@@ -407,6 +466,10 @@ pub fn set(agent_id: &str, id: &str, state: State, note: Option<&str>) -> Result
                 let t = &mut tasks[i];
                 t.state = state;
                 t.updated_at = now;
+                t.bump();
+                if state == State::Done {
+                    t.done_msg = delivered;
+                }
                 match state {
                     State::Waiting => t.waiting_on = note.map(|n| clip(n, 120)),
                     _ => {
@@ -424,6 +487,24 @@ pub fn set(agent_id: &str, id: &str, state: State, note: Option<&str>) -> Result
             )),
         }
     })
+}
+
+/// What an update on an older version of a line is told.
+pub fn stale_text(t: &Task, said: u32) -> String {
+    format!(
+        "Not changed: line {} is at version {} now (you had {said}). Read it again with `tasks list`, then update it.",
+        t.id,
+        t.current_version()
+    )
+}
+
+/// Link a line to the message that asked for it.
+pub fn link_ask(agent_id: &str, id: &str, msg: &str) {
+    edit(agent_id, |tasks| {
+        if let Some(t) = tasks.iter_mut().find(|t| t.id == id && t.ask_msg.is_none()) {
+            t.ask_msg = Some(msg.to_string());
+        }
+    });
 }
 
 pub fn open_of(agent_id: &str) -> Vec<Task> {
@@ -830,7 +911,11 @@ pub fn run_update(caller: &store::Agent, args: &serde_json::Value) -> Result<Str
     if state == State::Dropped && s("note").is_none() {
         return Err("A line is never dropped without a reason: say why in `note`.".into());
     }
-    set(&caller.id, id, state, s("note")).map(|t| format!("{t}: {word}."))
+    let expected = args
+        .get("version")
+        .and_then(|v| v.as_u64())
+        .map(|v| v.min(u32::MAX as u64) as u32);
+    set_checked(&caller.id, id, state, s("note"), expected).map(|t| format!("{t}: {word}."))
 }
 
 fn list_text(l: &Load, now: i64) -> String {
@@ -843,8 +928,9 @@ fn list_text(l: &Load, now: i64) -> String {
     }
     for t in &l.open {
         out.push_str(&format!(
-            "\n- [{}] {} ({}, {} ago){}",
+            "\n- [{} v{}] {} ({}, {} ago){}",
             t.id,
+            t.current_version(),
             t.title,
             t.from
                 .as_ref()
