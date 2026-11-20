@@ -17,7 +17,9 @@ const fsModule = 'node:fs';
 const { readFileSync } = (await import(/* @vite-ignore */ fsModule)) as {
   readFileSync: (path: string, encoding: 'utf8') => string;
 };
-const css = readFileSync('src/styles/features/agents-chat.css', 'utf8');
+const css = ['agents-chat.css', 'agents-chat-prose.css']
+  .map((f) => readFileSync(`src/styles/features/${f}`, 'utf8'))
+  .join('\n');
 
 /** The declarations of every rule whose selector list is exactly `selector`. */
 function rule(selector: string): string {

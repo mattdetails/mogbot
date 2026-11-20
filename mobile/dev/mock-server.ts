@@ -4353,7 +4353,7 @@ export function createMockServer(opts: MockOptions = {}) {
     },
     // The task list's own actions (Add, Reorder, Drop): this mock keeps one list, in order.
     'agents.taskAdd': (p) => {
-      const title = String(p.title ?? '').trim();
+      const title = (typeof p.title === 'string' ? p.title : '').trim();
       if (!title) return fail({ type: 'Validation', field: 'title', reason: 'Say what it is.' });
       const t = taskOf(`n${richList.length + 1}`, title, 'next', 0, Date.now());
       richList.push(t);

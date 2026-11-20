@@ -843,8 +843,12 @@ pub trait Backend: Send + Sync + 'static {
     async fn task_add(&self, agent_id: &str, title: &str) -> Result<Value, CommandError>;
     /// `agents_task_move`: a line a place up or down in its group. Answers
     /// whether it moved (false at the end).
-    async fn task_move(&self, agent_id: &str, task_id: &str, up: bool)
-        -> Result<Value, CommandError>;
+    async fn task_move(
+        &self,
+        agent_id: &str,
+        task_id: &str,
+        up: bool,
+    ) -> Result<Value, CommandError>;
     /// `agents_task_drop`: close a line with a reason; it stays for the day.
     async fn task_drop(
         &self,
@@ -2199,7 +2203,11 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
             ),
             _ => "end-of-day check-in: off".to_string(),
         },
-        "agents.taskAdd" => format!("{} tasks: add {}", field("agentId"), preview(field("title"))),
+        "agents.taskAdd" => format!(
+            "{} tasks: add {}",
+            field("agentId"),
+            preview(field("title"))
+        ),
         "agents.taskMove" => format!(
             "{} tasks: move {} {}",
             field("agentId"),
@@ -2920,7 +2928,9 @@ async fn run(
             };
             if method == "agents.taskAdd" {
                 let Some(title) = word("title", 400) else {
-                    return Err(bad_params("Add a task takes a `title` (up to 400 characters)."));
+                    return Err(bad_params(
+                        "Add a task takes a `title` (up to 400 characters).",
+                    ));
                 };
                 return Ok(b.task_add(agent_id, title).await?);
             }

@@ -2246,40 +2246,83 @@ async fn a_phone_adds_moves_and_drops_a_task_and_each_is_audited() {
         assert!(METHODS.contains(&m), "{m} is offered");
         assert!(!READ_ONLY_METHODS.contains(&m), "{m} writes");
     }
-    let added = dispatch(&c, &me, "agents.taskAdd", json!({ "agentId": "a1", "title": "  Chase Globex  " }))
-        .await
-        .unwrap();
+    let added = dispatch(
+        &c,
+        &me,
+        "agents.taskAdd",
+        json!({ "agentId": "a1", "title": "  Chase Globex  " }),
+    )
+    .await
+    .unwrap();
     assert_eq!(added["title"], "Chase Globex");
     assert_eq!(added["state"], "next");
     // Bad input is refused before the Mac is asked.
     for (m, p) in [
         ("agents.taskAdd", json!({ "agentId": "a1" })),
-        ("agents.taskAdd", json!({ "agentId": "a1", "title": "x".repeat(401) })),
+        (
+            "agents.taskAdd",
+            json!({ "agentId": "a1", "title": "x".repeat(401) }),
+        ),
         ("agents.taskAdd", json!({ "title": "no agent" })),
-        ("agents.taskMove", json!({ "agentId": "a1", "taskId": "t1", "direction": "sideways" })),
-        ("agents.taskMove", json!({ "agentId": "a1", "direction": "up" })),
+        (
+            "agents.taskMove",
+            json!({ "agentId": "a1", "taskId": "t1", "direction": "sideways" }),
+        ),
+        (
+            "agents.taskMove",
+            json!({ "agentId": "a1", "direction": "up" }),
+        ),
         ("agents.taskDrop", json!({ "agentId": "a1" })),
     ] {
         assert!(dispatch(&c, &me, m, p).await.is_err(), "{m} refuses");
     }
     // A drop needs no reason: the Mac writes "Dropped by you".
-    assert!(dispatch(&c, &me, "agents.taskDrop", json!({ "agentId": "a1", "taskId": "t1" }))
-        .await
-        .is_ok());
-    let up = dispatch(&c, &me, "agents.taskMove", json!({ "agentId": "a1", "taskId": "t2", "direction": "up" }))
-        .await
-        .unwrap();
+    assert!(dispatch(
+        &c,
+        &me,
+        "agents.taskDrop",
+        json!({ "agentId": "a1", "taskId": "t1" })
+    )
+    .await
+    .is_ok());
+    let up = dispatch(
+        &c,
+        &me,
+        "agents.taskMove",
+        json!({ "agentId": "a1", "taskId": "t2", "direction": "up" }),
+    )
+    .await
+    .unwrap();
     assert_eq!(up, json!(true));
-    let end = dispatch(&c, &me, "agents.taskMove", json!({ "agentId": "a1", "taskId": "end", "direction": "down" }))
-        .await
-        .unwrap();
+    let end = dispatch(
+        &c,
+        &me,
+        "agents.taskMove",
+        json!({ "agentId": "a1", "taskId": "end", "direction": "down" }),
+    )
+    .await
+    .unwrap();
     assert_eq!(end, json!(false), "at the end: not moved, not an error");
-    let dropped = dispatch(&c, &me, "agents.taskDrop", json!({ "agentId": "a1", "taskId": "t2", "reason": "stale" }))
-        .await
-        .unwrap();
+    let dropped = dispatch(
+        &c,
+        &me,
+        "agents.taskDrop",
+        json!({ "agentId": "a1", "taskId": "t2", "reason": "stale" }),
+    )
+    .await
+    .unwrap();
     assert_eq!(dropped, json!(true));
     let said: Vec<String> = stub.audited().into_iter().map(|(_, _, d, _)| d).collect();
-    assert!(said.iter().any(|d| d.contains("tasks: add Chase Globex")), "{said:?}");
-    assert!(said.iter().any(|d| d.contains("tasks: move t2 up")), "{said:?}");
-    assert!(said.iter().any(|d| d.contains("tasks: drop t2")), "{said:?}");
+    assert!(
+        said.iter().any(|d| d.contains("tasks: add Chase Globex")),
+        "{said:?}"
+    );
+    assert!(
+        said.iter().any(|d| d.contains("tasks: move t2 up")),
+        "{said:?}"
+    );
+    assert!(
+        said.iter().any(|d| d.contains("tasks: drop t2")),
+        "{said:?}"
+    );
 }

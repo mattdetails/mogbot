@@ -487,7 +487,10 @@ fn moving_only_trades_with_the_same_group_and_never_a_closed_line() {
     // id0 and id2 are the Next group; the waiting and done lines are skipped.
     assert_eq!(swap_in(&mut l, "id2", true), Ok(true));
     assert_eq!(order(&l)[..3], ["id2", "id1", "id0"].map(String::from));
-    assert!(swap_in(&mut l, "id3", true).is_err(), "a done line isn't reordered");
+    assert!(
+        swap_in(&mut l, "id3", true).is_err(),
+        "a done line isn't reordered"
+    );
     assert!(swap_in(&mut l, "nope", true).is_err());
     // A waiting line alone in its group has nowhere to go.
     assert_eq!(swap_in(&mut l, "id1", true), Ok(false));
@@ -502,5 +505,8 @@ fn lines_made_in_the_same_millisecond_still_move() {
     // Order among equals is the list's own; moving the last up must put it before the middle one.
     assert_eq!(swap_in(&mut l, "id2", true), Ok(true));
     let o = order(&l);
-    assert!(o.iter().position(|x| x == "id2") < o.iter().position(|x| x == "id1"), "{o:?}");
+    assert!(
+        o.iter().position(|x| x == "id2") < o.iter().position(|x| x == "id1"),
+        "{o:?}"
+    );
 }

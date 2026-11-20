@@ -702,7 +702,7 @@ export const AgentChat = memo(function AgentChat({
         onReview={() =>
           scrollRef.current
             ?.querySelector('.agent-approval[data-status="pending"]')
-            ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+            ?.scrollIntoView({ block: 'center', behavior: scrollMotion() })
         }
       />
       {renamingConversation && (

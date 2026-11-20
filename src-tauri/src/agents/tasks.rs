@@ -643,7 +643,12 @@ pub fn swap_in(tasks: &mut [Task], id: &str, up: bool) -> Result<bool, String> {
 /// by you"), kept in the list for the day.
 pub fn drop_line(agent_id: &str, id: &str, reason: Option<&str>) -> Result<String, String> {
     let why = reason.map(str::trim).filter(|r| !r.is_empty());
-    set(agent_id, id, State::Dropped, Some(why.unwrap_or("Dropped by you")))
+    set(
+        agent_id,
+        id,
+        State::Dropped,
+        Some(why.unwrap_or("Dropped by you")),
+    )
 }
 
 /// Link a line to the message that asked for it.

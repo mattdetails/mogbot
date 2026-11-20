@@ -407,8 +407,8 @@ function NowRow({
   onDone: () => void;
 }) {
   const working = agent.status.state === 'working' && !agent.takeover;
-  const now = useNow(working, 5_000);
   const failure = failedTurn(agent);
+  const now = useNow(working || Boolean(failure?.resetsAt), 5_000);
   if (working) {
     const { text, elapsed } = workingRowLine(
       plainActivity(agent.status.activity),
@@ -433,7 +433,7 @@ function NowRow({
     );
   }
   if (failure && usageLimited(agent)) {
-    const left = failure.resetsAt ? untilWords(failure.resetsAt - Date.now()) : null;
+    const left = failure.resetsAt ? untilWords(failure.resetsAt - now) : null;
     return (
       <div className="agent-header-panel__now" data-tone="paused">
         <span className="agent-header-panel__dot" aria-hidden="true" />

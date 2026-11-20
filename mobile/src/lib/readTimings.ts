@@ -52,7 +52,6 @@ export function createReadTimings(
         },
         (e: unknown) => {
           done('failed');
-          // eslint-disable-next-line @typescript-eslint/only-throw-error -- passes on whatever the read threw, unchanged
           throw e;
         }
       );

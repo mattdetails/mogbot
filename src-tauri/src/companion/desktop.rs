@@ -838,8 +838,13 @@ impl Backend for DesktopBackend {
         up: bool,
     ) -> Result<Value, CommandError> {
         json(
-            cmd::agents_task_move(self.app.clone(), agent_id.to_string(), task_id.to_string(), up)
-                .await?,
+            cmd::agents_task_move(
+                self.app.clone(),
+                agent_id.to_string(),
+                task_id.to_string(),
+                up,
+            )
+            .await?,
         )
     }
 

@@ -100,18 +100,20 @@ function AgentNowSheet() {
   }, [list, viewing]);
 
   // What Try again sends: Continue for a cut-off turn, else your last words (only words).
+  const failure = agent?.failure;
   const retryText = useMemo(() => {
-    if (!agent?.failure) return null;
-    const fix = failureFix(agent.failure.kind);
+    if (!failure) return null;
+    const fix = failureFix(failure.kind);
     if (fix === 'continue') return CONTINUE_TEXT;
     if (fix !== 'retry') return null;
-    for (let i = (lines?.length ?? 0) - 1; i >= 0; i--) {
-      const m = lines![i];
+    const all = lines ?? [];
+    for (let i = all.length - 1; i >= 0; i--) {
+      const m = all[i];
       if (m.kind !== 'user') continue;
       return m.attachments?.length ? null : m.text.trim() || null;
     }
     return null;
-  }, [agent?.failure, lines]);
+  }, [failure, lines]);
 
   if (!agent) return <SheetPage>{null}</SheetPage>;
 
