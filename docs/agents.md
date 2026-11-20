@@ -6773,7 +6773,7 @@ cards.
   (`folders::file` refuses it). Each folder is a folding header (chevron,
   name, count) with its rows in the attention order; a dragged row or the
   row's menu (Move to …, Remove from folder) files an agent; an empty folder
-  says "Drag agents here"; a header's menu has Rename…, New folder…, the
+  holds one agent-sized place (a dashed key, "Drag an agent here", one row tall); a header's menu has Rename…, New folder…, the
   pinned choice and Remove folder (its agents go to "Not in a folder").
   **Pinned agents** sit in a "Pinned" section above the folders, or first in
   their own folder (the header menu or ⌘K → Show pinned agents in their

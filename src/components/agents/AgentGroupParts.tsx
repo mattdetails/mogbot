@@ -211,7 +211,7 @@ export function AgentGroupSection({
       )}
       {!collapsed && children}
       {!collapsed && section.agents.length === 0 && droppable && (
-        <p className="agents-list__group-empty">Drag agents here</p>
+        <p className="agents-list__group-empty">Drag an agent here</p>
       )}
     </div>
   );

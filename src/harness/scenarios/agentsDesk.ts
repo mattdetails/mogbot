@@ -144,10 +144,10 @@ const FILED: Record<string, string> = {
   leadgen: 'f-out',
   native: 'f-web',
 };
-const folderCommands = (pinned: 'top' | 'inFolder') => ({
+const folderCommands = (pinned: 'top' | 'inFolder', extra: typeof FOLDERS = []) => ({
   agents_overview: {
     ...overview(TEAM.map((a) => (FILED[a.id] ? { ...a, folder: FILED[a.id] } : a))),
-    folders: { folders: FOLDERS, pinned, broughtIn: true },
+    folders: { folders: [...extra, ...FOLDERS], pinned, broughtIn: true },
   },
   agents_messages: messagesFor,
 });
@@ -241,6 +241,15 @@ export const agentsDeskScenarios: Scenario[] = [
     requires: '.agents-list__group-toggle',
     openSelector: AGENTS_TAB,
     commands: folderCommands('top'),
+  },
+  {
+    id: 'agents-desk-folder-empty',
+    title: 'Agents — an empty folder holds one agent-sized place',
+    looksRightWhen:
+      'Under the Chief, “Mogbot 0” with nothing in it shows one row exactly an agent row tall (52px): a dashed outline the size of an agent key where the key would sit, and muted “Drag an agent here” on the names’ column, a hairline under it like any row. The other folders as in agents-desk-folders.',
+    requires: '.agents-list__group-empty',
+    openSelector: AGENTS_TAB,
+    commands: folderCommands('top', [{ id: 'f-mogbot', name: 'Mogbot' }]),
   },
   {
     id: 'agents-desk-folders-pinned-inside',
