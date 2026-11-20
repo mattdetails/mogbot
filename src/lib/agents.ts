@@ -205,9 +205,6 @@ export interface TurnWork {
   model?: string;
 }
 
-export type { TaskCounts } from '../../packages/companion-protocol/src/model';
-import type { TaskCounts } from '../../packages/companion-protocol/src/model';
-
 export interface Agent {
   id: string;
   name: string;
@@ -239,13 +236,6 @@ export interface Agent {
   unread: number;
   /** Approval cards still waiting on the user, including ones the agent paused on. */
   pendingApprovals: number;
-  /**
-   * What is open on its task list (the Mac sends it only when something is):
-   * `doing` is the running status line, else the line marked Doing; `toDo` counts
-   * Next and Stuck; `waits` counts lines waiting on you. Absent: nothing open and
-   * not working, so the header's quiet line is hidden.
-   */
-  tasks?: TaskCounts;
   /** What its turns run on; mirrors `engine::Engine`. */
   engine: AgentEngine;
   /** "Runs on": the one account of its engine its turns use, never another. Absent: any account. */
@@ -262,6 +252,8 @@ export interface Agent {
   template?: string;
   /** Its first-open starters, until the user sends anything (`agents/starters.rs`). */
   starters?: AgentStarter[];
+  /** The header's quiet line: what it is doing, how many to do and waiting (`agents/tasks.rs`). */
+  tasks?: TaskCounts;
   /** No OS notifications; unread and the Dock badge still count it. */
   muted: boolean;
   /** "Save new skills" (`agents/skills_learn.rs`); absent is `ask`. */
@@ -2879,6 +2871,8 @@ export {
 import type { ResultCard, ResultRef } from '../../packages/companion-protocol/src/results';
 import type { ReplyKind, ReplyRef } from '../../packages/companion-protocol/src/model';
 export type { ReplyKind, ReplyRef };
+import type { TaskCounts } from '../../packages/companion-protocol/src/model';
+export type { TaskCounts };
 import type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type {

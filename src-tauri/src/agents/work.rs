@@ -859,6 +859,12 @@ fn ours_tool(tool: &str, field: &dyn Fn(&str) -> Option<String>) -> Option<Actio
             "Updating a mission",
             "update a mission",
         ),
+        super::tasks::ASSIGN_TOOL => act(
+            StepKind::Message,
+            "Added a task to a teammate's list",
+            "Adding a task to a teammate's list",
+            "add a task to a teammate's list",
+        ),
         super::tasks::ADD_TOOL | super::tasks::UPDATE_TOOL => act(
             StepKind::Note,
             "Updated its task list",

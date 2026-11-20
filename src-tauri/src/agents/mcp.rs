@@ -232,6 +232,12 @@ const TOOLS: &[Tool] = &[
         schema: super::tasks::update_schema,
     },
     Tool {
+        name: super::tasks::ASSIGN_TOOL,
+        description: super::tasks::ASSIGN_DESCRIPTION,
+        main_only: false,
+        schema: super::tasks::assign_schema,
+    },
+    Tool {
         name: super::tasks::TOOL,
         description: super::tasks::DESCRIPTION,
         main_only: false,
@@ -915,13 +921,14 @@ async fn call(
         super::eod::TOOL => end_of_day(app, caller, args),
         super::missions_run::TOOL => mission_tool(app, caller, args),
         super::tasks::ADD_TOOL => match super::tasks::run_add(caller, args) {
-            Ok(t) => text(t),
+            Ok(t) => {
+                let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
+                text(t)
+            }
             Err(e) => error(e),
         },
-        super::tasks::UPDATE_TOOL => match super::tasks::run_update(caller, args) {
-            Ok(t) => text(t),
-            Err(e) => error(e),
-        },
+        super::tasks::UPDATE_TOOL => task_update(app, caller, turn, args),
+        super::tasks::ASSIGN_TOOL => task_assign(app, caller, turn, args),
         super::tasks::TOOL => match super::tasks::run_tool(caller, args) {
             Ok(t) => text(t),
             Err(e) => error(e),
@@ -1769,6 +1776,94 @@ fn message_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> Value 
         "Delivered to {}. Their answer comes back to you as a new message when they're done; don't wait for it.{plan}{dup}",
         target.name
     ))
+}
+
+/// `task_assign`: a line on a teammate's list, from `caller`. Never wakes
+/// the assignee (it is in its next briefing, and the nudge tick chases it),
+/// carries none of the caller's grants, and is refused in a turn answering
+/// outside text. Counts as one agent-to-agent hop, so a chain of
+/// assignments can't run on forever.
+fn task_assign(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: &Value) -> Value {
+    let outside = runner::from_outside(&caller.id) && super::broker::is_live(&caller.id, turn);
+    let Some(name) = arg(args, "agent") else {
+        return error("`agent` is required.");
+    };
+    let Some(title) = arg(args, "title") else {
+        return error("`title` is required.");
+    };
+    let target = match store::find_addressed(name) {
+        Ok(Some(a)) => a,
+        _ => {
+            return error(format!(
+                "There's no agent called {name}. list_agents shows who exists."
+            ))
+        }
+    };
+    if let Err(why) = super::tasks::check_assign(
+        &caller.id,
+        &target.id,
+        &target.name,
+        outside,
+        runner::next_hop(&caller.id).is_some(),
+        super::tasks::assigned_by(&target.id, &caller.id),
+    ) {
+        return error(why);
+    }
+    let (id, dup) = super::tasks::assign(&target.id, caller, title, arg(args, "note"));
+    if id.is_empty() {
+        return error("`title` is empty.");
+    }
+    let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
+    if dup {
+        return text(format!(
+            "{} already had this open from you ({id}); it stays one task.",
+            target.name
+        ));
+    }
+    // The assignee's chat says so, centred (a note); no turn starts.
+    let mut line = runner::new_message(
+        &target.id,
+        MessageKind::Note,
+        super::tasks::assigned_line(&caller.name, &target.name, title),
+    );
+    line.conversation = Some(super::conversations::current(&target.id));
+    let _ = runner::record(app, line);
+    text(format!(
+        "Added {id} to {}'s list, from you. They aren't woken: it's in their next briefing. If they hand it back, you get a message.",
+        target.name
+    ))
+}
+
+/// `task_update`, and a task another agent assigned handed back (dropped, or
+/// waiting) with its reason goes to that agent as a message.
+fn task_update(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: &Value) -> Value {
+    let before = arg(args, "id").and_then(|id| super::tasks::find(&caller.id, id));
+    let result = match super::tasks::run_update(caller, args) {
+        Ok(t) => t,
+        Err(e) => return error(e),
+    };
+    let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
+    let state = arg(args, "state").unwrap_or("");
+    if let Some(task) = before {
+        let why = arg(args, "note").unwrap_or("No reason given.");
+        if let (Some(body), Some(from)) = (
+            super::tasks::hand_back_body(&task, state, why),
+            task.from.as_ref(),
+        ) {
+            if let (Ok(assigner), Some(hop)) = (store::get(&from.id), runner::next_hop(&caller.id))
+            {
+                let mut sent =
+                    runner::new_message(&caller.id, MessageKind::SentToAgent, body.clone());
+                sent.peer = Some(peer(&assigner));
+                let _ = runner::record(app, sent);
+                let _ = runner::record(app, received_line(caller, &assigner, &body, true));
+                let outside =
+                    runner::from_outside(&caller.id) && super::broker::is_live(&caller.id, turn);
+                runner::enqueue_reply_from(app, &assigner.id, body, peer(caller), hop, outside);
+            }
+        }
+    }
+    text(result)
 }
 
 /// The line `target`'s chat shows for what `caller` sent it. An answer to a
