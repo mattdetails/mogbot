@@ -7,6 +7,17 @@ Every agent keeps its own list of what it has been asked, so nothing is forgotte
 When your Chief of Staff gives an agent work, or you ask for something an agent can't finish in one
 reply, it goes on that agent's list until it is done.
 
+## Teammates can hand each other work
+
+An agent can put a line on a teammate's list ("Send Globex's invoice to Mail"). It lands in the
+teammate's **Next** marked "from" the agent that assigned it, and the teammate's chat shows a
+centred line saying so. It doesn't wake the teammate; they pick it up on their next turn. Up to five
+lines can be open on one teammate.
+
+An assigned line stays open until the assignee marks it done or hands it back. Handing back always
+comes with a reason ("Globex isn't a client of ours"), and the reason goes to whoever assigned it as
+a message. It never just disappears. Lines you add yourself have no one to hand back to.
+
 ## Where to see it
 
 Open **What's in flight**. **Team tasks** lists each agent with something open: its first asks, how

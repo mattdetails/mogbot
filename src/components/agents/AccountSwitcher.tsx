@@ -31,7 +31,7 @@ import { FooterRowIcon, type FooterRowStatus } from '../workspace/FooterRowIcon'
 import { useUsageAccounts } from './useUsageAccounts';
 import { useUsageInventory } from './AgentsUsage';
 import { UsedBar } from './UsageStack';
-import { useAgentsSelector } from '../../lib/agentsStore';
+import { useAgentsSelector, useAgentsShape } from '../../lib/agentsStore';
 import type { Agent, AgentEngine, EngineInfo } from '../../lib/agents';
 import {
   onSwitcherRequest,
@@ -76,7 +76,6 @@ export function rowPill(line: WorkingLine): StatusTone | null {
 }
 
 const selectEngines = (s: { engines: EngineInfo[] }) => s.engines;
-const selectAgents = (s: { agents: Agent[] }) => s.agents;
 
 /**
  * The engines worth a line: installed ones that agents run on, or that have
@@ -105,7 +104,8 @@ export function pinsOf(agents: Agent[]) {
 export function useUsageGlance({ look }: { look: boolean }) {
   const { accounts, attempt, remove, reload } = useUsageAccounts();
   const engines = useAgentsSelector(selectEngines);
-  const agents = useAgentsSelector(selectAgents);
+  // Engines, accounts and names: not a working agent's every step.
+  const agents = useAgentsShape();
   const { inventory, now, reload: reloadInventory } = useUsageInventory({ glance: !look });
   const all = useMemo(() => accounts ?? [], [accounts]);
   const glance = useMemo(

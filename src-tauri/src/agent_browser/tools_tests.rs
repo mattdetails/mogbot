@@ -162,12 +162,12 @@ fn no_script_upload_or_download_tool_exists() {
     ] {
         assert!(!list.contains(&format!("\"name\":\"{banned}")), "{banned}");
     }
-    assert_eq!(TOOLS.len(), 14);
+    assert_eq!(TOOLS.len(), 13);
     let init = initialize_result(None);
     let text = init["instructions"].as_str().unwrap();
     assert!(text.contains("request_login") && text.contains("signed_out: true"));
     assert!(text.contains("Never type a password"));
-    assert!(text.contains("ask_user_to_step_in"));
+    assert!(!text.contains("step_in"));
 }
 
 #[test]
@@ -274,84 +274,6 @@ fn the_tools_drive_a_fake_chrome() {
     // Keys are a short list.
     assert!(run("tool_agent", "press", &json!({ "key": "cmd+w" })).is_err());
     run("tool_agent", "press", &json!({ "key": "Tab" })).unwrap();
-
-    // The user stepped into this tab: nothing reads or acts on it, and
-    // `tabs` names it without reading it; another tab still works.
-    let held_tab = svc.tab_for("tool_agent", None).unwrap();
-    super::super::step_in::hold(
-        "tool_agent",
-        super::super::step_in::Held {
-            request_id: "req_tools".into(),
-            tab: held_tab.id,
-            target_id: held_tab.target_id.clone(),
-            since_ms: 0,
-            before: crate::agents::browser::Landed {
-                url: String::new(),
-                title: String::new(),
-            },
-        },
-    )
-    .unwrap();
-    for (name, args) in [
-        ("read_page", json!({})),
-        ("screenshot", json!({})),
-        ("get_text", json!({})),
-        ("press", json!({ "key": "Tab" })),
-        ("navigate", json!({ "url": "https://example.com/" })),
-        ("close_tab", json!({ "tab": held_tab.id })),
-    ] {
-        assert_eq!(
-            run("tool_agent", name, &args).unwrap_err(),
-            super::super::step_in::REFUSAL,
-            "{name}"
-        );
-    }
-    let tabs = run("tool_agent", "tabs", &json!({})).unwrap();
-    assert!(tabs[0]["text"]
-        .as_str()
-        .unwrap()
-        .contains("the user is in this tab"));
-    run(
-        "tool_agent",
-        "open",
-        &json!({ "url": "https://example.com/" }),
-    )
-    .unwrap();
-    run("tool_agent", "get_text", &json!({})).unwrap();
-    assert!(run("tool_agent", "get_text", &json!({ "tab": held_tab.id })).is_err());
-    super::super::step_in::release("tool_agent", "req_tools");
-    run("tool_agent", "get_text", &json!({ "tab": held_tab.id })).unwrap();
-
-    // Review: a `wait_for` already waiting when the user steps in kept
-    // reading the page they were in (and answered whether a text the agent
-    // chose, a code, was on it). It stops at the hold.
-    let target = held_tab.target_id.clone();
-    let id = held_tab.id;
-    let stepper = std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        super::super::step_in::hold(
-            "tool_agent",
-            super::super::step_in::Held {
-                request_id: "req_wait".into(),
-                tab: id,
-                target_id: target,
-                since_ms: 0,
-                before: crate::agents::browser::Landed {
-                    url: String::new(),
-                    title: String::new(),
-                },
-            },
-        )
-        .unwrap();
-    });
-    let waited = run(
-        "tool_agent",
-        "wait_for",
-        &json!({ "tab": held_tab.id, "text": "never on the page 123456", "seconds": 4 }),
-    );
-    stepper.join().unwrap();
-    assert_eq!(waited.unwrap_err(), super::super::step_in::REFUSAL);
-    super::super::step_in::release("tool_agent", "req_wait");
 
     close_agent("tool_agent");
     assert!(svc.tabs_of(&Owner::Agent("tool_agent".into())).is_empty());

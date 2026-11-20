@@ -129,7 +129,8 @@ export const agentsApprovalScenarios: Scenario[] = [
     'agents-approval-expired',
     'finished: nobody answered',
     'One quiet line saying it wasn’t answered in time; nothing it asked for ran.',
-    TESTS('expired', { expiry: 'no_answer' })
+    TESTS('expired', { expiry: 'no_answer' }),
+    { requires: '.agent-note--expired' }
   ),
   scenario(
     'agents-approval-set-aside',

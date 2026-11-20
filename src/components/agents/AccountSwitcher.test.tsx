@@ -23,6 +23,7 @@ const store = vi.hoisted(() => ({
 vi.mock('../../lib/agentsStore', () => ({
   refreshAgents: () => Promise.resolve(),
   useAgentsSelector: (select: (s: unknown) => unknown) => select(store),
+  useAgentsShape: () => store.agents,
   subscribeAgents: () => () => {},
   getAgentsSnapshot: () => store,
 }));

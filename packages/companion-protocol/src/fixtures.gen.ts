@@ -4173,18 +4173,6 @@ export const agentsSigninFallback = {
 export const agentsSigninDone = {
   "outcome": "signed_out"
 } satisfies Result<'agents.signinDone'>;
-export const agentsStepInBegin = {
-  "domain": "okta.com",
-  "frameGapMs": 30,
-  "idleSeconds": 300,
-  "sessionId": "stepin_0123",
-  "stepIn": true,
-  "title": "approve the Okta sign-in",
-  "via": "agents_browser"
-} satisfies Result<'agents.stepInBegin'>;
-export const agentsStepInDone = {
-  "outcome": "handed_back"
-} satisfies Result<'agents.signinDone'>;
 export const agentsLoginSaveKey = {
   "createdAt": 0,
   "fields": [
@@ -5699,7 +5687,6 @@ export const frames = [
       "agents.signinDone",
       "agents.signinStop",
       "agents.signinFallback",
-      "agents.stepInBegin",
       "agents.focus",
       "agents.markUnread",
       "agents.startFresh",
@@ -5805,7 +5792,6 @@ export const frames = [
       "agents.keys",
       "signin.phone",
       "signin.connect",
-      "stepIn.phone",
       "watch.links",
       "agents.engine",
       "agents.effort",

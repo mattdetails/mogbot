@@ -16,6 +16,8 @@ vi.mock('../../lib/agents', async (importOriginal) => ({
 }));
 vi.mock('../../lib/agentsStore', () => ({
   useAgentsList: () => [{ id: 'chief', name: 'Chief of Staff', isMain: true }],
+  useAgentsSelector: (select: (s: unknown) => unknown) =>
+    select({ agents: [{ id: 'chief', name: 'Chief of Staff', isMain: true }] }),
 }));
 vi.mock('./ImportParts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./ImportParts')>()),

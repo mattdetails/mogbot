@@ -637,13 +637,21 @@ const held = new Map<string, Held>();
 let heldFrame: number | null = null;
 let heldTimer: ReturnType<typeof setTimeout> | null = null;
 const HELD_BACKSTOP_MS = 50;
+/** A window nobody can see applies once a second, and at once when it's shown. */
+const HELD_HIDDEN_MS = 1000;
+const windowHidden = () => typeof document !== 'undefined' && document.hidden;
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && held.size > 0) applyHeld();
+  });
+}
 
 function hold(event: Held) {
   const key = `${event.kind}:${event.agentId}`;
   held.delete(key);
   held.set(key, event);
   if (heldTimer !== null) return;
-  heldTimer = setTimeout(applyHeld, HELD_BACKSTOP_MS);
+  heldTimer = setTimeout(applyHeld, windowHidden() ? HELD_HIDDEN_MS : HELD_BACKSTOP_MS);
   if (typeof requestAnimationFrame === 'function') heldFrame = requestAnimationFrame(applyHeld);
 }
 
@@ -842,6 +850,56 @@ export function agentIn(agents: Agent[], id: string): Agent | undefined {
   return index.get(id);
 }
 export const useAgentsList = () => useAgentsSelector(selectAgents);
+
+/**
+ * The same agent, apart from what a turn changes on every step: its activity
+ * line, when it started and its timeline so far. Whether it's working, the
+ * room it answers in and the project its turn is in still count.
+ */
+export function sameButProgress(a: Agent, b: Agent): boolean {
+  if (a === b) return true;
+  const keys = Object.keys(a).filter((k) => a[k as keyof Agent] !== undefined);
+  const others = Object.keys(b).filter((k) => b[k as keyof Agent] !== undefined);
+  if (keys.length !== others.length) return false;
+  for (const k of keys) {
+    const x = a[k as keyof Agent];
+    const y = b[k as keyof Agent];
+    if (k === 'status') {
+      const s = x as AgentStatus;
+      const t = y as AgentStatus | undefined;
+      if (
+        s !== t &&
+        (!t ||
+          s.state !== t.state ||
+          s.room !== t.room ||
+          s.work?.project !== t.work?.project ||
+          // From no activity to some (and back) can change a row's words.
+          !s.activity !== !t.activity)
+      )
+        return false;
+    } else if (x !== y && !sameJson(x, y)) return false;
+  }
+  return true;
+}
+
+const sameAgentsShape = (a: Agent[], b: Agent[]) =>
+  a === b || (a.length === b.length && a.every((x, i) => sameButProgress(x, b[i])));
+
+/**
+ * The agents list for views that lay the team out (the Agents view, its
+ * sidebar, its dialogs) but don't show a turn's progress: it changes when an
+ * agent starts or stops working, is renamed, asks, reads… but not on every
+ * step of every working agent, which with a whole team at work was ten
+ * re-renders of the whole window a second. What shows the progress reads it
+ * live with `useLiveAgent`.
+ */
+export const useAgentsShape = () => useAgentsSelector(selectAgents, sameAgentsShape);
+
+/** This agent as it is now (its turn's progress included); itself once it's gone. */
+export function useLiveAgent(agent: Agent): Agent {
+  // An indexed lookup (`agentIn`), so selecting afresh on every check is cheap.
+  return useAgentsSelector((s) => agentIn(s.agents, agent.id)) ?? agent;
+}
 const selectRooms = (s: AgentsState) => s.rooms;
 export const useRoomsList = () => useAgentsSelector(selectRooms);
 

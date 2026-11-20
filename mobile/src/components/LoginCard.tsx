@@ -32,7 +32,6 @@ import {
   type LoginRequest,
 } from '@shipstudio/companion-protocol';
 import * as Clipboard from 'expo-clipboard';
-import { useRouter } from 'expo-router';
 import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, TextInput, View } from 'react-native';
 import { haptic } from '../lib/haptics';
@@ -47,7 +46,6 @@ import {
   phoneLine,
   phoneWay,
   signInWithSheet,
-  SHEET_REFUSED,
   loginCancel,
   loginDecline,
   loginNotNeeded,
@@ -60,7 +58,6 @@ import {
   primaryOption,
   saveLoginKey,
 } from '../lib/logins';
-import { signinHereLine } from '../lib/signinView';
 import { currentTransport, describeError, secretRouteProblem } from '../lib/session';
 import { useServed } from '../lib/store';
 import { CARD_TITLE_SCALE, fonts, space, type } from '../lib/theme';
@@ -110,24 +107,8 @@ export function LoginCard({
       login.flow.onPhone === true &&
       login.flow.option === 'claude_ai'
   );
-  // The Mac's browser, driven from here: the agents' own (the card's
-  // `agent_browser` way in), or the user's Chrome for an older card.
-  const signinServed = useServed('agents.signinBegin', MAC_FEATURES.signinPhone);
-  const way = (o: LoginOption) => phoneWay(o, phoneSignIn, hasSignInSheet(), signinServed);
-  const label = (o: LoginOption) => (way(o) === 'here' ? 'Sign in from here' : o.label);
-  const router = useRouter();
-  const signinHere = (connect?: string) =>
-    router.push({
-      pathname: '/signin',
-      params: {
-        agentId: message.agentId,
-        requestId: approval.requestId,
-        ...(connect ? { connect } : {}),
-      },
-    });
-  // An app that won't take this phone's sign-in sheet signs in through the
-  // Mac's own sign-in instead, shown live here (Vercel: `begin_connect`).
-  const connectServed = useServed('agents.signinBegin', MAC_FEATURES.signinConnect);
+  const way = (o: LoginOption) => phoneWay(o, phoneSignIn, hasSignInSheet());
+  const label = (o: LoginOption) => o.label;
 
   const wipe = () => {
     value.current = '';
@@ -162,19 +143,11 @@ export function LoginCard({
   const start = (o: LoginOption) => {
     const ids = { agentId: message.agentId, requestId: approval.requestId };
     switch (way(o)) {
-      case 'here':
-        haptic.select();
-        return signinHere();
       case 'sheet':
         return run(
           o.id,
           async () => {
-            try {
-              await signInWithSheet(ids, o.id);
-            } catch (e) {
-              if (!(connectServed && (e as Error)?.name === SHEET_REFUSED)) throw e;
-              signinHere(o.id);
-            }
+            await signInWithSheet(ids, o.id);
           },
           haptic.select
         );
@@ -398,13 +371,8 @@ export function LoginCard({
       style={answerShare}
     />
   ) : null;
-  const signinHereExtra =
-    signinServed &&
-    login.options.some((o) => o.method === 'browser') &&
-    !login.options.some((o) => o.method === 'agent_browser');
   const hasOtherWays =
     others.length > 0 ||
-    signinHereExtra ||
     (!!lead && !!key && !!login.key) ||
     canDecline ||
     (!!login.noConnector && !connects);
@@ -553,20 +521,6 @@ export function LoginCard({
               </T>
             </View>
           ))}
-          {signinHereExtra && (
-            <View style={styles.other}>
-              <Button
-                title="Sign in from here"
-                variant="outline"
-                disabled={off}
-                onPress={() => signinHere()}
-                testID="login-signin-here"
-              />
-              <T variant="caption" color={colors.textMuted}>
-                {signinHereLine(login.title)}
-              </T>
-            </View>
-          )}
           {lead && keyWay}
           {canDecline && (
             <View style={styles.other}>

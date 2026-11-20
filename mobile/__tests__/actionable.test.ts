@@ -148,12 +148,11 @@ describe('approvalNotice', () => {
     expect(n?.body.length).toBeLessThanOrEqual(180);
   });
 
-  it('keys, logins, questions, step-ins, three-way cards and skill offers never answer from a notification', () => {
+  it('keys, logins, questions, three-way cards and skill offers never answer from a notification', () => {
     for (const over of [
       { secret: { name: 'STRIPE_SECRET_KEY' } },
       { login: { service: 'gmail', title: 'Gmail' } },
       { prompt: { options: [] } },
-      { stepIn: { reason: 'r', site: 's', url: 'u', tab: 1 } },
       { crossover: {} },
       { connector: { kind: 'consent', source: 'Grok' } },
       // A skill offer: Save / Not now, never the lock screen's Allow / Deny.

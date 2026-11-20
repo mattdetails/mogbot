@@ -223,12 +223,12 @@ pub fn verdict(a: &Approval, age_ms: i64, _waited_on: bool, moment: Moment) -> O
         // Nobody waits on a secure input: saving it later still works, until it's overdue.
         return overdue.then_some(Expiry::MaybeLater);
     }
-    // A step-in the user is in right now ends by hand-back or its own limit
-    // (`agents/step_in.rs`), never by the sweep.
-    if a.step_in.is_some() && crate::agent_browser::step_in::held_for(&a.request_id).is_some() {
-        return None;
+    // A retired Step in card: nothing raises one and nothing can answer it,
+    // so it closes at once instead of counting as "needs your OK".
+    if a.step_in.is_some() {
+        return Some(Expiry::MaybeLater);
     }
-    if a.login.is_some() || a.front.is_some() || a.step_in.is_some() {
+    if a.login.is_some() || a.front.is_some() {
         return (overdue || moment == Moment::Launch).then_some(Expiry::MaybeLater);
     }
     if a.prompt.is_some() {

@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react';
 import { CheckIcon, ChevronRightIcon, CloseIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
-import { getTaskBoard, taskAge, type AgentTask } from '../../lib/agentTasks';
+import { getTaskBoard, type AgentTask } from '../../lib/agentTasks';
 import type { TaskCounts } from '../../lib/agents';
 
 export const TASK_COPY = {
@@ -59,17 +59,25 @@ export function groupTasks(open: AgentTask[], recent: AgentTask[], now = Date.no
     {
       key: 'done',
       label: TASK_COPY.done,
-      tasks: recent.filter((t) => t.state === 'done' && now - t.updatedAt < day),
+      tasks: recent.filter(
+        (t) => (t.state === 'done' || t.state === 'dropped') && now - t.updatedAt < day
+      ),
     },
   ];
 }
 
+/** A time of day, 24-hour: "22:05". */
+function clock(ms: number): string {
+  return new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 /** A row's sub line: where it came from and when. */
 function sub(task: AgentTask): string {
-  const at = taskAge(task.createdAt);
-  if (task.source === 'agent' && task.from) return `from ${task.from.name} · ${at} ago`;
+  const at = clock(task.createdAt);
+  if (task.state === 'dropped') return task.note ? `Dropped · ${task.note}` : 'Dropped';
+  if ((task.source === 'agent' || task.source === 'assigned') && task.from) return `from ${task.from.name} · ${at}`;
   if (task.state === 'waiting' && task.waitingOn) return `${task.waitingOn}`;
-  return task.source === 'user' ? `you asked ${at} ago` : `${at} ago`;
+  return task.source === 'user' ? `you asked ${at}` : at;
 }
 
 export function AgentTasksPanel({
@@ -135,9 +143,14 @@ export function AgentTasksPanel({
             <section key={g.key} className="agent-tasks__group">
               <h4>{g.label}</h4>
               {g.tasks.map((t) => (
-                <div key={t.id} className="agent-tasks__row" data-state={g.key}>
+                <div
+                  key={t.id}
+                  className="agent-tasks__row"
+                  data-state={g.key}
+                  data-dropped={t.state === 'dropped' || undefined}
+                >
                   <span className="agent-tasks__mark" aria-hidden="true">
-                    {g.key === 'done' && <CheckIcon size={10} />}
+                    {g.key === 'done' && t.state !== 'dropped' && <CheckIcon size={10} />}
                   </span>
                   <span className="agent-tasks__text">
                     <span className="agent-tasks__title">{t.title}</span>

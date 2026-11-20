@@ -222,13 +222,10 @@ makes two of `result-many`'s ten fail (404) and hang.
   `agents.loginSaveKey` (as `saveSecret`), `agents.loginsTeam|loginsConnect` ("What your team needs"),
   `agents.reach` (read-only); Mac feature `logins.phone`: `agents.loginPhoneBegin|loginPhoneFinish`
   (the sign-in sheet; the finish goes only to an identity-verified Mac) and `onPhone` on
-  `agents.loginStart|loginsConnect`; Mac feature `signin.phone`:
+  `agents.loginStart|loginsConnect`; Mac feature `signin.phone` (the Mac still serves it; the phone app no longer has the screen):
   `agents.signinBegin|signinFrame|signinInput|signinDone|signinStop|signinFallback` (signing
   in to a site from the phone, in a window of the agents' own Chrome on the Mac, streamed with
-  `after: seq`; never audited by the router, see docs/agents.md, "The agents' browser"); Mac
-  feature `stepIn.phone`: `agents.stepInBegin` (step into an agent's own held tab for its
-  step-in card, then the same frames and input; `signinDone` answers `handed_back`; see
-  docs/agents.md, "Step in"); "Not
+  `after: seq`; never audited by the router, see docs/agents.md, "The agents' browser"); ("Not
   needed" for the team (docs/agents.md, "Not needed"):
   `agents.loginNotNeeded|loginsNotNeeded|loginsUndecline` (shown only when the Mac lists them),
   `agents.reach`'s `declined` (each with "Turn back on"), and `agents.loginsRecheck` when the app
@@ -779,16 +776,10 @@ request, the diff and the photo viewer push over them. At
   "What your team needs" (`agents.loginsTeam`) and "What it can reach"
   (`agents.reach`, read-only; its footer opens Apps on that agent, where
   who can use each app is changed or the app removed) are on the phone too.
-- **Step-in cards** (`approval.stepIn`): "<Agent> needs you in its browser:
-  <reason>". With a Mac that has `stepIn.phone`, **Step in** opens the
-  sign-in screen (`app/signin.tsx`, `stepIn=1`) on the agent's own tab: the
-  Mac holds it so the agent can't use it, its window stays parked there, and
-  the page shows here, driven by touch, on the card's site and the sign-in
-  providers only. The top button is **Hand back**; leaving the screen hands
-  back too, so the agent is always woken (with where the page ended up,
-  never what was typed). While any device is in it the card offers nothing
-  and names where ("Sam's iPhone is in its browser"). An older Mac: Not now
-  only, and "Step in on your Mac".
+- **Retired Step-in cards** (`approval.stepIn`): Step in went with the agents' own
+  browser. An old stored card arrives closed and is drawn as one muted line,
+  "This sign-in used the old browser; ask again" (`STEP_IN_RETIRED_LINE`),
+  with nothing to answer.
 - **Secret cards** (`SecretCard`): masked fields straight to the Mac's
   Keychain via `agents.saveSecret`. Only over HTTPS on Tailscale, and only on
   a socket where the Mac proved the pinned identity (refused on the
@@ -1753,7 +1744,7 @@ as a local notification with the card's words. A card the Mac marked
 low-risk (`approval.risk: 'low'`) whose whole content fits and has a plain
 pair of answers gets them as buttons (Deny · Allow, or its own words: Stop here · Go ahead, Not now ·
 Check again, Ignore · Save to memory); everything else gets **Review**,
-which opens it in full: keys, logins, a session's question, step-in,
+which opens it in full: keys, logins, a session's question,
 three-way and import cards always, anything risky or unclassified
 (`approval.risk`, decided on the Mac; never re-derived from the words), and
 any card where something was redacted. Rules:
@@ -1933,8 +1924,7 @@ paused routines, long chats, an import an hour in), live and offline, and
 what agents are doing (`--live-work`: QA 2 five minutes into a Cypress run
 with its output open, Finance gone quiet with "Check on it" answered, a
 finished Cypress step with its time, counts and output), and the states the
-others miss (`--probe`: fifty agents, a very long name, a step-in card with
-only Not now, a card answered on the desk while open here, an agent deleted
+others miss (`--probe`: fifty agents, a very long name, an old step-in card as one muted line, a card answered on the desk while open here, an agent deleted
 on the desk while its card is open, three Claude accounts with one out of
 usage and one signed out, Runs on, quiet hours, and a turn cut off by the Mac
 restarting). Out: `mobile/qa-shots/` (PNGs and

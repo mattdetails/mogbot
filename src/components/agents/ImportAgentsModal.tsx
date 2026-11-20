@@ -25,7 +25,7 @@ import { Button } from '../primitives/Button';
 import { TextButton } from '../primitives/TextButton';
 import { Tabs, TabsList, TabsPanel, TabsTab } from '../primitives/Tabs';
 import { previewOtherAppImport, type OtherAppPreview } from '../../lib/agents';
-import { useAgentsList } from '../../lib/agentsStore';
+import { useAgentsSelector } from '../../lib/agentsStore';
 import { getRemoteAccessStatus } from '../../lib/remoteAccess';
 import { ImportPastePanel, type ImportResult } from './ImportPastePanel';
 import { ImportConnectorPanel } from './ImportConnectorPanel';
@@ -64,7 +64,8 @@ export function ImportAgentsModal({
   const [otherApp, setOtherApp] = useState<OtherAppPreview | null>(null);
   const [connected, setConnected] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
-  const main = useAgentsList().find((a) => a.isMain);
+  // The Chief alone: the whole list changes on every step of every working agent.
+  const main = useAgentsSelector((s) => s.agents.find((a) => a.isMain));
   // The done state opens quiet after a pointer-driven import: focus goes to
   // its body, not the button, so no ring appears on something nobody tabbed
   // to (as Dropdown's `quietOpen`). A keyboard import focuses the button.

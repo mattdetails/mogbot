@@ -84,23 +84,20 @@ export const servesPhoneSignIn = (
  *   anywhere; the Mac's `gh` keeps the sign-in (GitHub)
  * - `web`: claude.ai opened here to add the connector to the same Claude
  *   account; claude.ai holds that sign-in (Gmail, Calendar, Drive, Slack)
- * - `here`: the site's sign-in in the agents' own Chrome on the Mac, shown
- *   and driven from this phone (`/signin`); the Mac keeps the sign-in
  * - `tap`: nothing to sign in to (an account already connected, the browser)
  * - `key`: the masked field
  * - `mac`: only on the Mac (an older Mac, or no sign-in sheet in this build)
  */
-export type PhoneWay = 'sheet' | 'device' | 'web' | 'here' | 'tap' | 'key' | 'mac';
+export type PhoneWay = 'sheet' | 'device' | 'web' | 'tap' | 'key' | 'mac';
 
 export function phoneWay(
   option: Pick<LoginOption, 'method'>,
   macLetsPhoneSignIn: boolean,
-  hasSheet: boolean,
-  macLetsSigninHere = false
+  hasSheet: boolean
 ): PhoneWay {
   switch (option.method) {
     case 'agent_browser':
-      return macLetsSigninHere ? 'here' : 'mac';
+      return 'mac';
     case 'existing':
     case 'browser':
       return 'tap';
@@ -125,8 +122,6 @@ export function phoneDetail(option: LoginOption, way: PhoneWay, title: string): 
       return `Shows a one-time code to type at github.com/login/device, here or anywhere. GitHub’s sign-in stays on ${comp.your}.`;
     case 'web':
       return `Opens claude.ai here to add ${title} to your Claude account (the one ${comp.your} uses). claude.ai holds that sign-in, not ${comp.your}.`;
-    case 'here':
-      return `${title}’s sign-in opens in the agents’ own Chrome on ${comp.your} and shows here: you sign in by touch, and nothing you type is kept. Your agents then use it signed in.`;
     case 'mac':
       return `${option.detail} Finish on ${comp.your}.`;
     default:
@@ -148,8 +143,6 @@ export function phoneLine(option: LoginOption, way: PhoneWay, title: string): st
       return `Gives you a one-time code. The sign-in stays on ${comp.your}.`;
     case 'web':
       return `Adds ${title} to your Claude account on claude.ai.`;
-    case 'here':
-      return `Sign in by touch here. Nothing you type is kept.`;
     case 'mac':
       return `Finish on ${comp.your}.`;
     case 'tap':

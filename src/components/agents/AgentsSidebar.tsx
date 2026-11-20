@@ -85,6 +85,7 @@ import { RoomRow, type RoomActions } from './AgentRoomParts';
 import { ROOM_WHAT, sortRooms, type Room } from '../../lib/agentRooms';
 import { useFlipReorder, useNewKeys } from './useAgentMotion';
 import { useSteadyList } from './useAttentionOrder';
+import { useLiveAgent } from '../../lib/agentsStore';
 import {
   agentKeyState,
   failedTurn,
@@ -99,6 +100,7 @@ import {
   type SearchHit,
 } from '../../lib/agents';
 import { kbd } from '../../lib/shortcuts';
+import { toDoLine } from './AgentTasksPanel';
 import { markLaunchAfterPaint } from '../../lib/launchMarks';
 import { previewText } from '../../../packages/companion-protocol/src/preview';
 
@@ -148,8 +150,26 @@ function subtitle(agent: Agent): ReactNode {
   if (agent.status.state === 'working') return <AgentWorkingLine agent={agent} inRow />;
   const failure = failedTurn(agent);
   if (failure) return failureLine(failure, previewText(agent.preview), agent.engine);
-  return previewText(agent.preview) ?? (agent.isMain ? FIRST_LINE : '');
+  // Open work: how much, and Busy (ten or more) in amber; a quiet agent says Idle.
+  const toDo = agent.tasks?.toDo ?? 0;
+  if (toDo > 0) {
+    return (
+      <>
+        {toDoLine(toDo)}
+        {toDo >= BUSY_AT && (
+          <>
+            {' · '}
+            <span className="agents-list__busy">Busy</span>
+          </>
+        )}
+      </>
+    );
+  }
+  return previewText(agent.preview) || (agent.isMain ? FIRST_LINE : 'Idle');
 }
+
+/** Ten or more lines to do is Busy (docs/guide/asks.md). */
+const BUSY_AT = 10;
 
 /** The Chief's row before it has said anything else (the stored greeting's first line). */
 const FIRST_LINE = 'Hi. Tell me what you want to get done.';
@@ -661,7 +681,7 @@ export function RoutinesRow({
 
 /** One agent's row, memoised: a status event re-renders the row it changed, not all of them. */
 const AgentRow = memo(function AgentRow({
-  agent,
+  agent: listed,
   current,
   tabStop,
   arrived,
@@ -685,6 +705,8 @@ const AgentRow = memo(function AgentRow({
   /** Another row dropped on this one: put it just before (or after) this. */
   onReorder: (moved: string, target: string, after: boolean) => void;
 }) {
+  // Its turn's progress, live: the list it came from changes only when the team's layout does.
+  const agent = useLiveAgent(listed);
   // The Chief stays first: it neither moves nor takes a row above it.
   const movable = !agent.isMain;
   const drag = useAgentPointerDrag({ agentId: agent.id, enabled: movable, group, onReorder });

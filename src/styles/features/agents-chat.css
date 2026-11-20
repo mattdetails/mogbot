@@ -327,22 +327,26 @@
 
 /* Rhythm: a run from one speaker sits tight; a change of speaker breathes.
    A card is its own object, so it breathes even after its agent's bubble. */
-.agent-chat__messages > * + * {
+/* The adjacent-sibling rules that were here are keyed on each row's
+   `data-gap` now (components/agents/messageGaps.ts), at the same specificity
+   and in the same place: a `+` rule makes the browser restyle every row after
+   one that is removed, ~290ms a step on a long chat. */
+:where(.agent-chat__messages) > [data-gap~='any'] {
   margin-top: var(--spacing-2xl);
 }
 
-.agent-chat__row--user + .agent-chat__row--user {
+.agent-chat__row--user[data-gap~='uu'] {
   margin-top: var(--spacing-sm);
 }
 
 /* Unboxed, two replies in a row read as paragraphs of one answer. */
-.agent-chat__row--agent + .agent-chat__row--agent:not(.agent-chat__row--card) {
+.agent-chat__row--agent:not(.agent-chat__row--card)[data-gap~='aa'] {
   margin-top: var(--spacing-lg);
 }
 
 /* A message that opens with attachments is a new message, not a tail on
    the one before it. */
-.agent-chat__row--user + .agent-chat__row--user[data-attachments] {
+.agent-chat__row--user[data-attachments][data-gap~='uu'] {
   margin-top: var(--spacing-lg);
 }
 
@@ -352,14 +356,11 @@
 
 /* Quiet centred lines (notes, delegations, check-ins) are one run: they sit
    apart from the conversation, and xs apart from each other. */
-.agent-chat__messages > * + :is(.agent-note, .agent-peer, .agent-checkin),
-.agent-chat__messages > :is(.agent-note, .agent-peer, .agent-checkin) + * {
+.agent-chat__messages > [data-gap~='quiet'] {
   margin-top: var(--spacing-xl);
 }
 
-.agent-chat__messages
-  > :is(.agent-note, .agent-peer, .agent-checkin)
-  + :is(.agent-note, .agent-peer, .agent-checkin) {
+.agent-chat__messages > :is(.agent-note, .agent-peer, .agent-checkin)[data-gap~='quiet-run'] {
   margin-top: var(--spacing-xs);
 }
 
@@ -567,10 +568,10 @@
   color: inherit;
 }
 
-/* A quoted passage inside your bubble reads in the bubble's own ink. */
+/* A quoted passage inside your bubble reads in the bubble's own ink, at full
+   strength (an opacity here put it at 4.4:1 on a bright agent colour). */
 .agent-bubble--user .agent-bubble__quote {
   color: inherit;
-  opacity: 0.8;
   border-left-color: currentColor;
 }
 
@@ -1273,8 +1274,8 @@
 }
 
 .agent-menu .agent-menu__value {
-  margin-left: auto;
-  font-size: var(--catchup-meta-size);
+  margin-left: var(--spacing-xs);
+  font-size: var(--font-size-body-md);
   color: var(--text-muted);
 }
 
@@ -1297,7 +1298,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: var(--catchup-meta-size);
+  font-size: var(--font-size-body-md);
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
@@ -1333,28 +1334,42 @@
 }
 
 /* The task panel: 320px, beside the chat, under the header. */
-.agent-tasks {
-  position: absolute;
-  top: calc(var(--agents-header-height) + var(--spacing-sm));
-  right: var(--spacing-lg);
-  bottom: var(--spacing-lg);
-  z-index: var(--z-sticky-band);
+.agent-chat-dock {
   display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.agent-chat-dock > .agent-chat {
+  min-width: 0;
+}
+
+/* A docked pane beside the chat: its header is the chat header's height, the
+   hairline is the pane's own left edge (side panes draw no bottom hairline). */
+.agent-tasks {
+  display: flex;
+  flex: 0 0 var(--size-agent-tasks);
   flex-direction: column;
-  gap: var(--spacing-md);
   width: var(--size-agent-tasks);
-  padding: var(--spacing-lg);
-  overflow: auto;
-  border: var(--border-width-default) solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-md);
+  min-height: 0;
+  overflow-y: auto;
+  border-left: var(--border-width-default) solid var(--border-default);
+  background: var(--surface-app);
+}
+
+.agent-tasks > :not(.agent-tasks__head) {
+  margin-inline: var(--spacing-lg);
 }
 
 .agent-tasks__head {
   display: flex;
-  align-items: baseline;
+  flex: 0 0 auto;
+  align-items: center;
   gap: var(--spacing-sm);
+  height: var(--agents-header-height);
+  padding: 0 var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .agent-tasks__head h3 {
@@ -1365,7 +1380,7 @@
 
 .agent-tasks__count {
   flex: 1;
-  font-size: var(--catchup-meta-size);
+  font-size: var(--font-size-body-md);
   color: var(--text-muted);
 }
 
@@ -1447,4 +1462,30 @@
 
 .agent-tasks__row[data-state='waits'] .agent-tasks__sub {
   color: var(--accent-warning);
+}
+
+/* A full page (Team tasks, Usage) is its own 960px column: its header's content
+   aligns to it, as a conversation's header aligns to the 720px column. */
+.agents-team .agent-chat__header,
+.agents-usage-view .agent-chat__header {
+  padding-inline: var(--agents-page-inset);
+}
+
+.agent-tasks__head .agent-tasks__close {
+  margin-left: auto;
+}
+
+/* Task rows in the panel: a dropped line is kept for the day, muted and not struck through. */
+.agent-tasks__row[data-dropped] .agent-tasks__title {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.agents-list__busy {
+  color: var(--accent-warning);
+}
+
+.agent-tasks__row[data-dropped] .agent-tasks__mark {
+  border-color: var(--border-strong);
+  background: none;
 }

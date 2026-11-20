@@ -9,7 +9,7 @@
 #                                          # hours, monthly, the Chief's draft, who can
 #                                          # reach, disk hygiene, a routine across a
 #                                          # restart, helpers and blank turns,
-#                                          # Step in, Runs on, Slack, crossover
+#                                          # Runs on, Slack, crossover
 #                                          # (each a capped child;
 #                                          # AGENTS_NF_TIMEOUT_SECS)
 set -euo pipefail

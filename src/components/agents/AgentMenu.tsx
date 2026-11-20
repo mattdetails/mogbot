@@ -9,6 +9,7 @@
 
 import type { ReactNode } from 'react';
 import {
+  ActivityIcon,
   CheckIcon,
   MoreHorizontalIcon,
   RoutineIcon,
@@ -71,19 +72,19 @@ export function AgentMenu({
         />
       )}
     >
-      <DropdownItem icon={<CheckIcon size={14} />} onSelect={onTasks}>
+      <DropdownItem icon={<CheckIcon size={12} />} onSelect={onTasks}>
         <span className="agent-menu__label">{MENU_COPY.tasks}</span>
         {value && <span className="agent-menu__value">{value}</span>}
       </DropdownItem>
       {engineReady && (
         <>
-          <DropdownItem icon={<SettingsSlidersIcon size={14} />} onSelect={onUsage}>
+          <DropdownItem icon={<ActivityIcon size={12} />} onSelect={onUsage}>
             <span className="agent-menu__label">{MENU_COPY.usage}</span>
           </DropdownItem>
-          <DropdownItem icon={<RoutineIcon size={14} />} onSelect={onRoutines}>
+          <DropdownItem icon={<RoutineIcon size={12} />} onSelect={onRoutines}>
             <span className="agent-menu__label">{MENU_COPY.routines}</span>
           </DropdownItem>
-          <DropdownItem icon={<SettingsSlidersIcon size={14} />} onSelect={onModel}>
+          <DropdownItem icon={<SettingsSlidersIcon size={12} />} onSelect={onModel}>
             <span className="agent-menu__label">{MENU_COPY.model}</span>
             <span className="agent-menu__value">{ENGINE_LABEL[agent.engine]}</span>
           </DropdownItem>

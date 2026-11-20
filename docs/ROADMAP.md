@@ -16,7 +16,7 @@ good one exists.
    Every competitor in the 11-10 scan installs from a store.
 2. **Phone: real-device verification.** The share extension, dictation's
    real recognizer, notification click-through, Lock Screen answers, the
-   Live Activity, Siri and Shortcuts, Step in from the phone and Android
+   Live Activity, Siri and Shortcuts, and Android
    hardware have only been tried in tests, the simulator or the web build
    ([mobile.md](mobile.md), "Not built"). Most of it waits on item 1.
 3. **Recent features on live accounts.** Built and covered by the
@@ -25,9 +25,7 @@ good one exists.
    `save_skill` judging real effort, Mail and Messages "When…" sources on a
    real Mail index and `chat.db`, OpenCode beyond its free Zen models
    ([agents.md](agents.md), each section's "Not verified").
-4. **"Take over" a browser tab, the rest.** Step in at the desk and from
-   the phone are built; neither has been run against a real SSO, passkey or
-   CAPTCHA, and a passkey can't be answered from the phone. Codex take-over
+4. **"Take over", the rest.** Codex take-over
    is unverified on a real thread.
 5. **Watch claude.ai connectors.** Linear or Gmail set up as claude.ai
    connectors can't be watched by a "When…" check (the sealed call loads
@@ -91,8 +89,6 @@ Small wins: duplicate an agent; reply to a single message.
   as outside text ([agents.md](agents.md), "When… routines").
 - **"When…" routines from the phone** — set up and changed there, with the
   desk's composer words and rules.
-- **Step in from the phone** — the agent's held browser tab shown and driven
-  on the phone; Hand back from either device.
 - **Blocks** — agents answer with charts, tables, tiles, choices and short
   forms (`show`), data only and checked on the Mac, drawn alike on desk and
   phone; the morning brief as blocks ([agents.md](agents.md), "Blocks").
@@ -140,13 +136,6 @@ Small wins: duplicate an agent; reply to a single message.
 
 ### Before
 
-- **Step in to an agent's browser** — an agent that hits a wall only a
-  person can pass in its own browser (SSO, "verify it's you", a passkey, a
-  2FA code, a CAPTCHA) calls `ask_user_to_step_in` instead of failing or
-  asking for a password; one card, **Step in** brings that tab's real
-  Chrome window forward, and Hand back wakes the agent with where the page
-  ended up ([agents.md](agents.md), "Step in"). Not yet run on a live engine
-  or a real sign-in.
 - **Describe the agent you want** — one prompt drafts the whole agent (name,
   colour, briefing, routines read by the app's grammar, apps it will need) for
   one review before Create; desk, phone and the Chief
