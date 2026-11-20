@@ -1297,7 +1297,7 @@
   border: 0;
   background: none;
   font: inherit;
-  font-size: var(--catchup-meta-size);
+  font-size: var(--font-size-body-md);
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
@@ -1365,7 +1365,7 @@
 
 .agent-tasks__count {
   flex: 1;
-  font-size: var(--catchup-meta-size);
+  font-size: var(--font-size-body-md);
   color: var(--text-muted);
 }
 

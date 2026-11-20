@@ -779,7 +779,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 6
+      "consumerCount": 4
     },
     {
       "name": "--catchup-key-row",
@@ -6379,7 +6379,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 339
+      "consumerCount": 341
     },
     {
       "name": "--font-size-body-sm",
