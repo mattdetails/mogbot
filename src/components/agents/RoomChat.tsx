@@ -16,7 +16,6 @@
  */
 
 import { useNextLine } from './useNextLine';
-import { useMessageGaps } from './messageGaps';
 import {
   memo,
   type ClipboardEvent as ReactClipboardEvent,
@@ -297,7 +296,6 @@ export function RoomChat({
   const jump = usePresence(!atBottom);
   const { follow, isGliding } = useFollowBottom(scrollRef, messagesRef, atBottomRef);
   useNextLine(messagesRef);
-  useMessageGaps(messagesRef);
   const lastId = shown[shown.length - 1]?.id ?? '';
   const lastIdRef = useRef(lastId);
   useLayoutEffect(() => {
