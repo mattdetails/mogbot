@@ -629,7 +629,9 @@
   font-family: inherit;
   font-size: var(--font-size-caption);
   line-height: var(--line-height-compact);
-  color: var(--text-muted);
+  /* The key's own ink (4.5:1 on the strong button in both themes), not muted. */
+  color: inherit;
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 
 .agent-chat__row--card[data-keys]:focus-within .agent-approval__key {

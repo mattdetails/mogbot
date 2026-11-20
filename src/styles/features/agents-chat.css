@@ -567,10 +567,10 @@
   color: inherit;
 }
 
-/* A quoted passage inside your bubble reads in the bubble's own ink. */
+/* A quoted passage inside your bubble reads in the bubble's own ink, at full
+   strength (an opacity here put it at 4.4:1 on a bright agent colour). */
 .agent-bubble--user .agent-bubble__quote {
   color: inherit;
-  opacity: 0.8;
   border-left-color: currentColor;
 }
 
