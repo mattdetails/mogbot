@@ -29,8 +29,8 @@ use super::session::{self, Session, Taken};
 const HELLO_TIMEOUT: Duration = Duration::from_secs(10);
 /// Messages queued between the channel and the socket handler, each way.
 const QUEUE: usize = 64;
-/// The relay drops a payload past this (docs/relay.md, 256 KiB).
-pub const MAX_PAYLOAD: usize = 256 * 1024;
+/// The relay drops a payload past this (docs/relay.md, just under 1 MiB).
+pub const MAX_PAYLOAD: usize = 1024 * 1024 - 64;
 /// Bytes from the phone waiting for this channel to take them. Past it the
 /// channel is closed as stuck (`client`), so a phone that sends faster than
 /// it's served holds at most this much of the Mac's memory, not its queue's

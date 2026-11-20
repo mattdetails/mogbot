@@ -131,7 +131,7 @@ clear 404 unlinks it (`checkStillThere`; any other answer keeps it).
   `{"t":"authed","ch"}` once a channel's Welcome goes out (the phone proved its token), and a
   welcomed channel is never evicted, so strangers who know the fingerprint can't keep the owner's
   phone out. Payloads
-  ≤ 256 KiB (1009 past it), and per-IP connection rate limiting at the Worker (300 a minute: every relayed picture is
+  ≤ 1 MiB less 64 bytes, under Cloudflare's message limit (1009 past it; 256 KiB until 20 Nov 2026, which cut off any phone whose chat reply grew past it), and per-IP connection rate limiting at the Worker (300 a minute: every relayed picture is
   a connection). At most 4 Mac sockets
   may wait on their challenge; a fifth closes the oldest (4401 `superseded`).
 

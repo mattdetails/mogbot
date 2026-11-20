@@ -12,8 +12,13 @@ export const AUTH_TIMEOUT_MS = 10_000;
  * per address) left a chat with a few images empty boxes.
  */
 export const MAX_PHONES = 24;
-/** Largest payload either way, not counting the Mac's 4-byte channel header. */
-export const MAX_PAYLOAD = 256 * 1024;
+/**
+ * Largest payload either way, not counting the Mac's channel header. Just under
+ * Cloudflare's 1 MiB WebSocket message limit, so a framed message still fits.
+ * It was 256 KB, and a Mac whose chat reply grew past that had its phone cut off
+ * (1009) on every connect, redialling every ~2 s (20 Nov 2026).
+ */
+export const MAX_PAYLOAD = 1024 * 1024 - 64;
 /**
  * Phone sockets from one address (a keyed hash of it, from the Worker) to one
  * Mac at once, so a single stranger who knows the fingerprint can't hold all

@@ -30,7 +30,7 @@ Mac's slot.
 
 `<fingerprint>` is 22 characters of base64url. Closes: `4401` bad or late Mac login, `4409` Mac
 replaced by a newer login, `4404 mac_offline` no Mac, `4402 sign_in_needed` the Mac isn't signed in
-(accounts on only; offline is said first), `4429` more than 24 phones (12 from one address), `1009` a payload over 256 KiB. Idle sockets hibernate (and `ping` gets `pong` without waking the object), so they
+(accounts on only; offline is said first), `4429` more than 24 phones (12 from one address), `1009` a payload over 1 MiB less 64 bytes (it was 256 KiB until 20 Nov 2026). Idle sockets hibernate (and `ping` gets `pong` without waking the object), so they
 cost nothing.
 
 ## Run your own
