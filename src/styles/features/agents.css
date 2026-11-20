@@ -820,3 +820,14 @@ body[data-agent-dragging] * {
   cursor: grabbing !important; /* css-ok: the drag's cursor wins over every row's pointer */
   user-select: none;
 }
+
+/* A working row's 6px grey dot before its step; the clock is in the time column. */
+.agents-list__working-dot {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 6px; /* css-ok: the spec's 6px mark */
+  height: 6px; /* css-ok: the spec's 6px mark */
+  margin-right: var(--spacing-xs);
+  border-radius: var(--radius-pill);
+  background: var(--text-muted);
+}

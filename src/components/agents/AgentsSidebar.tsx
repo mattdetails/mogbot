@@ -74,7 +74,7 @@ import { IconButton } from '../primitives/IconButton';
 import { StatusPill } from '../primitives/StatusPill';
 import { Tooltip } from '../primitives/Tooltip';
 import { AgentKey } from './AgentKey';
-import { AgentWorkingLine } from './AgentWorkingLine';
+import { AgentWorkingLine, WorkingElapsed } from './AgentWorkingLine';
 import { AgentEngineBadge } from './AgentEngine';
 import { AgentLevelBadge } from './AgentLevelPicker';
 import { AgentActionItems, type AgentActions } from './AgentActions';
@@ -84,7 +84,6 @@ import { RoomRow, type RoomActions } from './AgentRoomParts';
 import { ROOM_WHAT, sortRooms, type Room } from '../../lib/agentRooms';
 import { useFlipReorder, useNewKeys } from './useAgentMotion';
 import { useSteadyList } from './useAttentionOrder';
-import { useAgentsSelector } from '../../lib/agentsStore';
 import {
   agentKeyState,
   failedTurn,
@@ -96,11 +95,8 @@ import {
   roleWithoutPath,
   folderName,
   type Agent,
-  type AgentMessage,
   type SearchHit,
 } from '../../lib/agents';
-import { groupLine, groupRequests } from '../../lib/agentRequests';
-import { secretTitle } from '../../lib/agentSecrets';
 import { kbd } from '../../lib/shortcuts';
 import { previewText } from '../../../packages/companion-protocol/src/preview';
 
@@ -145,46 +141,21 @@ function subtitle(agent: Agent): ReactNode {
       </>
     );
   // The step it's on and how long it's been at it, not "Working…".
-  if (agent.status.state === 'working') return <AgentWorkingLine agent={agent} />;
+  if (agent.status.state === 'working') return <AgentWorkingLine agent={agent} inRow />;
   const failure = failedTurn(agent);
   if (failure) return failureLine(failure, previewText(agent.preview), agent.engine);
   return previewText(agent.preview) ?? '';
 }
 
 /**
- * What a waiting agent is asking, from its loaded lines only: the one
- * request's own words ("Push to GitHub"), or its logins by name ("3 logins:
- * Slack bot token…"). Null when its chat isn't loaded or the count says more
- * than the words would (as the requests panel words it: `groupLine`).
- */
-function askingLine(agent: Agent, lines: readonly AgentMessage[] | undefined): string | null {
-  if (!lines) return null;
-  const group = groupRequests([agent], { [agent.id]: [...lines] }, NONE_SHOWN).groups[0];
-  if (!group || group.older > 0 || group.pending === 0) return null;
-  if (group.pending > 1 && group.logins !== group.pending) return null;
-  // One login says its name alone ("CRM API key"), not "1 login: CRM API key".
-  if (group.pending === 1 && group.logins === 1) {
-    const a = group.cards.find((m) => m.approval?.status === 'pending')?.approval;
-    if (a?.login) return a.login.title;
-    if (a?.secret) return secretTitle(a.secret.name);
-  }
-  return groupLine(group);
-}
-const NONE_SHOWN: ReadonlySet<string> = new Set();
-
-/**
  * Waiting on you or a turn that didn't finish: the state as a pill and the
  * rest in words. Driving and working keep their own line (the step and its
  * clock say more than "Working" would, and the running dot is beside them).
  */
-function rowPill(
-  agent: Agent,
-  asking: string | null
-): { tone: StatusTone; label: string; rest: string } | null {
+function rowPill(agent: Agent): { tone: StatusTone; label: string; rest: string } | null {
   if (needsYou(agent)) {
     const n = agent.pendingApprovals ?? 0;
-    // What it's asking, when the loaded lines know; else how many.
-    if (asking) return { tone: 'waiting', label: 'Needs your OK', rest: asking };
+    // The tag alone: how many when more than one, never an excerpt beside it.
     return { tone: 'waiting', label: n > 1 ? `Needs your OK · ${n}` : 'Needs your OK', rest: '' };
   }
   if (agent.takeover || agent.status.state === 'working') return null;
@@ -690,10 +661,7 @@ const AgentRow = memo(function AgentRow({
   // The Chief stays first: it neither moves nor takes a row above it.
   const movable = !agent.isMain;
   const drag = useAgentPointerDrag({ agentId: agent.id, enabled: movable, group, onReorder });
-  // Its loaded lines, only while it's waiting: the row says what it's asking.
-  const lines = useAgentsSelector((s) => (needsYou(agent) ? s.messages[agent.id] : undefined));
-  const asking = needsYou(agent) ? askingLine(agent, lines) : null;
-  const pill = rowPill(agent, asking);
+  const pill = rowPill(agent);
   // Read already when it's the one open.
   const unread = !current && agent.unread > 0;
   return (
@@ -756,8 +724,12 @@ const AgentRow = memo(function AgentRow({
           {/* When it last moved, and a blue dot under it while unread. A
               working row keeps its clock in the line instead. */}
           <span className="agents-list__meta" aria-hidden="true">
-            {agent.status.state !== 'working' && agent.lastActivityAt > 0 && (
-              <span className="agents-list__time">{formatAge(agent.lastActivityAt)}</span>
+            {agent.status.state === 'working' ? (
+              <WorkingElapsed agent={agent} />
+            ) : (
+              agent.lastActivityAt > 0 && (
+                <span className="agents-list__time">{formatAge(agent.lastActivityAt)}</span>
+              )
             )}
             {unread && <span className="agents-list__unread" />}
           </span>

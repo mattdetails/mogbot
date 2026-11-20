@@ -21,7 +21,24 @@ import { workingRowLine } from '../../../packages/companion-protocol/src/work';
 /** How often a working row's elapsed time is brought up to date. */
 const ROW_TICK_MS = 5_000;
 
-export function AgentWorkingLine({ agent }: { agent: Agent }) {
+/**
+ * The sidebar row's working clock, in the row's time column ("2m"), with the
+ * step and a small grey dot in its line. Its own component so only working
+ * rows tick.
+ */
+export function WorkingElapsed({ agent }: { agent: Agent }) {
+  const working = agent.status.state === 'working';
+  const now = useNow(working, ROW_TICK_MS);
+  const { elapsed } = workingRowLine(
+    plainActivity(agent.status.activity),
+    agent.status.work,
+    agent.status.since,
+    now
+  );
+  return elapsed ? <span className="agents-list__time">{elapsed}</span> : null;
+}
+
+export function AgentWorkingLine({ agent, inRow = false }: { agent: Agent; inRow?: boolean }) {
   const working = agent.status.state === 'working';
   const now = useNow(working, ROW_TICK_MS);
   const { text, elapsed } = workingRowLine(
@@ -31,6 +48,15 @@ export function AgentWorkingLine({ agent }: { agent: Agent }) {
     now
   );
   const steady = useSteadyLine(text, working);
+  if (inRow) {
+    // The sidebar row: a 6px grey dot and the step; the clock is the time column's.
+    return (
+      <span className="agents-list__working">
+        <span className="agents-list__working-dot" aria-hidden="true" />
+        <span className="agents-list__step">{steady}</span>
+      </span>
+    );
+  }
   return (
     <span className="agents-list__working">
       <span className="agents-list__step">{steady}</span>
