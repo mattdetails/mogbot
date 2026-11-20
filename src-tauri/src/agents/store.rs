@@ -786,7 +786,7 @@ fn registry_path() -> Result<PathBuf, CommandError> {
 /// an atomic rename, so a new version is a new inode and mtime; a hand edit or
 /// another app's write changes the stamp too.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct FileStamp {
+pub(crate) struct FileStamp {
     modified: Option<std::time::SystemTime>,
     len: u64,
     #[cfg(unix)]
@@ -794,7 +794,7 @@ struct FileStamp {
 }
 
 impl FileStamp {
-    fn of(path: &Path) -> Option<FileStamp> {
+    pub(crate) fn of(path: &Path) -> Option<FileStamp> {
         let meta = std::fs::metadata(path).ok()?;
         Some(FileStamp {
             modified: meta.modified().ok(),
@@ -1016,11 +1016,22 @@ fn harden_tree(dir: &Path, depth: usize) {
 /// Written twice: the copy is what [`recover_registry`] falls back on if the
 /// main file is ever torn.
 fn write_registry(registry: &Registry) -> Result<(), CommandError> {
-    let json = serde_json::to_vec_pretty(&registry.to_value()?)
-        .map_err(|e| super::err_other(e.to_string()))?;
+    let value = registry.to_value()?;
+    let json = serde_json::to_vec_pretty(&value).map_err(|e| super::err_other(e.to_string()))?;
     let path = registry_path()?;
     *REGISTRY_CACHE.lock().unwrap_or_else(|e| e.into_inner()) = None;
     write_atomic(&path, &json)?;
+    // The version just written is what the next read would parse: kept, so
+    // the first `list()` after each write (a chat line's preview, an unread
+    // count) doesn't read and parse the whole file again. Built from what
+    // went to disk, not the in-memory copy, so a field that isn't saved
+    // isn't served either. Same length, else something else wrote since.
+    if let Some(stamp) = FileStamp::of(&path).filter(|s| s.len == json.len() as u64) {
+        if let Some(written) = Registry::from_value(value) {
+            *REGISTRY_CACHE.lock().unwrap_or_else(|e| e.into_inner()) =
+                Some((path.clone(), stamp, written));
+        }
+    }
     if let Err(e) = write_atomic(&path.with_extension("json.bak"), &json) {
         tracing::warn!("[Agents] registry backup not written: {e}");
     }

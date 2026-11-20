@@ -29,7 +29,8 @@
 //! asks, or [`OVERLOAD_AGE_MS`] on the oldest with three or more open.
 
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 
 use super::store::{self, AgentRef, OrLog};
 
@@ -230,15 +231,38 @@ fn path(agent_id: &str) -> Option<std::path::PathBuf> {
     Some(store::agent_home(agent_id).ok()?.join("tasks.jsonl"))
 }
 
+/// Each agent's list as last parsed, kept while its file is that version:
+/// the overview counts every agent's open lines on every registry event (each
+/// chat line), and the files rarely change between two of those.
+static PARSED: LazyLock<Mutex<HashMap<std::path::PathBuf, (store::FileStamp, Vec<Task>)>>> =
+    LazyLock::new(Default::default);
+
 fn read(agent_id: &str) -> Vec<Task> {
-    path(agent_id)
-        .and_then(|p| std::fs::read_to_string(p).ok())
+    let Some(p) = path(agent_id) else {
+        return Vec::new();
+    };
+    // Stamped before reading: a write in between leaves an older stamp.
+    let Some(stamp) = store::FileStamp::of(&p) else {
+        PARSED.lock().unwrap_or_else(|e| e.into_inner()).remove(&p);
+        return Vec::new();
+    };
+    if let Some((s, tasks)) = PARSED.lock().unwrap_or_else(|e| e.into_inner()).get(&p) {
+        if *s == stamp {
+            return tasks.clone();
+        }
+    }
+    let tasks: Vec<Task> = std::fs::read_to_string(&p)
         .map(|raw| {
             raw.lines()
                 .filter_map(|l| serde_json::from_str::<Task>(l).ok())
                 .collect()
         })
-        .unwrap_or_default()
+        .unwrap_or_default();
+    PARSED
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(p, (stamp, tasks.clone()));
+    tasks
 }
 
 fn write(agent_id: &str, tasks: &[Task]) {

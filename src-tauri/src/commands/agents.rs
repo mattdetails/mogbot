@@ -3380,6 +3380,10 @@ pub async fn agents_disk_free_up(agent_id: String) -> Result<agents::disk::Freed
 }
 
 #[cfg(test)]
+#[path = "agents_overview_bench.rs"]
+mod overview_bench;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
