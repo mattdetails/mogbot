@@ -229,6 +229,12 @@ export interface MockOptions {
   mdTables?: boolean;
   /** The task list: `rich` has all four groups, `empty` nothing (default: one doing, one waiting). */
   tasks?: 'rich' | 'empty';
+  /**
+   * The quiet header's four dots, one agent each: QA 2 idle, Ops working,
+   * Designer waiting on you (with tasks), Finance didn't finish; and Acme
+   * Site with a long name.
+   */
+  headerStates?: boolean;
   /** Something happened while away, with no ask: the queue ends on "While you were away". */
   catchUpSeveral?: boolean;
   /** The Designer's key colour (a colourway id): the chat bubbles take it. */
@@ -2018,6 +2024,35 @@ export function createMockServer(opts: MockOptions = {}) {
   if (opts.tasks === 'rich') {
     const d = agents.find((a) => a.id === 'design');
     if (d) d.tasks = { doing: 'Drafting intros', toDo: 2, waits: 1 };
+  }
+  if (opts.headerStates) {
+    const at = (id: string) => agents.find((a) => a.id === id);
+    const qa = at('qa');
+    if (qa) qa.pendingApprovals = 0;
+    const ops = at('ops');
+    if (ops) {
+      ops.status = {
+        state: 'working',
+        activity: 'Rotating the staging certificates',
+        since: Date.now() - 3 * 60_000,
+      };
+    }
+    const d = at('design');
+    if (d) {
+      d.pendingApprovals = 2;
+      d.tasks = { doing: 'Drafting intros', toDo: 5, waits: 2 };
+    }
+    const fin = at('fin');
+    if (fin) {
+      fin.pendingApprovals = 0;
+      fin.failure = { kind: 'other' } as Agent['failure'];
+      fin.preview = 'Gmail is signed out, so the invoices couldn’t be sent.';
+    }
+    const site = at('site');
+    if (site) {
+      site.name = 'Acme Marketing Site and Launch Pages';
+      site.pendingApprovals = 0;
+    }
   }
   if (opts.mdTables) {
     const list = messages.get('design') ?? [];

@@ -4947,6 +4947,46 @@ async function main() {
     }
   }
 
+  if (phase('quiet-header')) {
+    // The quiet chat header (spec-header-dropdown): key, name, ⌄ and one hint dot; the name opens the sheet.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--header-states', '--tasks');
+      await dropCaches(page);
+      const states = [
+        ['qa', 'header-idle', 'QA 2: key, name, ⌄, no dot; ⋯ at the right; no role or task line'],
+        ['ops', 'header-working', 'Ops: a blue 6px dot after the ⌄'],
+        ['design', 'header-waits', 'Designer: an amber dot (2 requests, 2 tasks wait on you)'],
+        ['fin', 'header-failed', 'Finance: a red dot (the last turn didn’t finish)'],
+        ['site', 'header-long-name', 'A long name: one line, cut with an ellipsis before the ⋯'],
+      ];
+      for (const [id, name, check] of states) {
+        await page.goto(`${WEB}/chat/${id}`);
+        await sleep(4500);
+        await screen(page, theme, { name, check });
+      }
+      // The name opens the sheet (Designer: every group).
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(4500);
+      await page.clickLabel('Designer, Waits on you');
+      await sleep(2500);
+      await screen(page, theme, {
+        name: 'header-sheet-waits',
+        check:
+          'The sheet: identity (key, name, role, Runs on), Now “Waiting for your OK” in amber, Tasks with “5 to do · 2 wait on you”, top lines and All tasks, Needs your OK with Review, Conversations (current ticked), New conversation, Edit agent · Instructions and memory',
+      });
+      for (const [id, name, check] of [
+        ['ops', 'header-sheet-working', 'Now: a blue dot, “Rotating the staging certificates”, 3m'],
+        ['fin', 'header-sheet-failed', 'Now: a red dot, “Didn’t finish: …” in red'],
+        ['qa', 'header-sheet-idle', 'Now: Idle; no Tasks or Needs your OK groups'],
+      ]) {
+        await page.goto(`${WEB}/agent-now?id=${id}`);
+        await sleep(4000);
+        await screen(page, theme, { name, check });
+      }
+    }
+  }
+
   if (phase('tasks-menu')) {
     // The task sheet's ⋯ (Reorder / Drop / Add): closed, open, and each action.
     for (const theme of THEMES) {

@@ -89,6 +89,7 @@ function selfSigned(dir: string) {
     catchUpOne: args.includes('--catchup-one'),
     replies: args.includes('--replies'),
     mdTables: args.includes('--md-tables'),
+    headerStates: args.includes('--header-states'),
     tasks: args.includes('--tasks-empty') ? 'empty' : args.includes('--tasks') ? 'rich' : undefined,
     catchUpSeveral: args.includes('--catchup-several'),
     designColorway: args.find((a) => a.startsWith('--design-colorway='))?.split('=')[1],

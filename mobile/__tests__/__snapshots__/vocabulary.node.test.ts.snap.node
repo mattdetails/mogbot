@@ -2,6 +2,7 @@
 
 exports[`the words a person reads use the agreed words the way the snapshot holds 1`] = `
 [
+  "1 request needs your OK",
   "; the sign-in stays in your Mac’s Keychain.",
   "A key in your Mac’s Keychain · …",
   "Add a task",
@@ -32,7 +33,6 @@ exports[`the words a person reads use the agreed words the way the snapshot hold
   "How much it does without asking you first. Changes from its next step, even mid-task.",
   "Import from … · Needs your OK",
   "In your Mac’s Keychain",
-  "Instructions, memory, files and routines",
   "It paused here for you. Allow it and it picks up where it left off.",
   "It waits for you, and closes if the routine runs again first.",
   "Its next message starts a new conversation. Its instructions and memory carry over; this chat stays here.",
@@ -89,9 +89,11 @@ exports[`the words a person reads use the agreed words the way the snapshot hold
   "This copy of the app has no push entitlement with …, so it can’t be woken with the app closed. Install the App Store or TestFlight build.",
   "This task isn’t open on",
   "Update the app on … to search your conversations from here.",
+  "What it's doing, its tasks and conversations",
   "What the new task should do",
   "Writes your request in …’s chat for you to send",
   "Your conversations",
+  "You’re driving it on your Mac",
   "You’re driving it on …. Change these after you hand it back.",
   "You’re driving … on …",
   "a copy of ",

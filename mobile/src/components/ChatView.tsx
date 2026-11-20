@@ -103,7 +103,9 @@ import { useAccent } from '../lib/accent';
 import { chatKeyFor, conversationsOffered, jumpStep } from '../lib/conversations';
 import { getApp, useApp, useServed } from '../lib/store';
 import { replyRefFor } from '../lib/reply';
-import { TASK_WORDS, taskLine, taskMenuLine } from '@shipstudio/companion-protocol';
+import { TASK_WORDS, taskMenuLine } from '@shipstudio/companion-protocol';
+import { onJumpToFirstCard } from '../lib/chatJump';
+import { headerHint, headerHintLabel } from '../lib/headerHint';
 import { ReplyContext, type ReplyActions } from './Reply';
 import { chipLabel } from '../lib/agentControls';
 import { SETUP_KEY, chatItems, isRowFor, sentAt, withSetupCard, type Item } from '../lib/timeline';
@@ -762,6 +764,8 @@ export function ChatView({
     wantedPosition.current = 0;
     list.current?.scrollToIndex({ index, viewPosition: 0, animated: true });
   }, [messages, items]);
+  // The header sheet's Review lands here once the sheet is down.
+  useEffect(() => onJumpToFirstCard(id, reviewNeeds), [id, reviewNeeds]);
 
   if (!agent) {
     // Only a live overview can say an agent is gone; a saved one may predate it.
@@ -779,21 +783,12 @@ export function ChatView({
 
   // Embedded (beside the list) the title takes the row's flex, not the bar's budget.
   const openSheet = () => router.push({ pathname: '/agent/[id]', params: { id } });
-  const header = <Header agent={agent} buttons={0} onOpen={openSheet} />;
+  const openNow = () => router.push({ pathname: '/agent-now', params: { id } });
+  const header = <Header agent={agent} buttons={0} onOpen={openNow} />;
   const openUsage = () => router.push({ pathname: '/usage', params: { id } });
   const openConversations = () => router.push({ pathname: '/conversations', params: { id } });
-  // Which conversation this is lives in the ⋯ menu, as Conversations' subtitle
-  // (Julian, 2026-11-11: a row under the header for it was always in the way).
-  const conversationNow = conversationLine(conversations, viewing, offered);
   const openControls = () => router.push({ pathname: '/controls', params: { id } });
-  const moreActions = headerActions(
-    agent.name,
-    ring?.percent,
-    offered,
-    conversationNow,
-    controlsNow,
-    tasksNow
-  );
+  const moreActions = headerActions(agent.name, ring?.percent, controlsNow, tasksNow);
   const openMore = () =>
     showActions(undefined, moreActions, (a) =>
       a === 'tasks'
@@ -827,13 +822,7 @@ export function ChatView({
           <IconButton name="ellipsis.circle" label="More" fallback="⋯" onPress={openMore} />
         </View>
       ) : (
-        <ChatHeader
-          agent={agent}
-          ringPercent={ring?.percent}
-          ringTone={ring?.tone}
-          offered={offered}
-          conversationNow={conversationNow}
-        />
+        <ChatHeader agent={agent} ringPercent={ring?.percent} ringTone={ring?.tone} />
       )}
       {/* This conversation's living page, kept current by the agent (`agents/page.rs`). */}
       <ConversationPage
@@ -1380,15 +1369,10 @@ const ChatHeader = memo(function ChatHeader({
   agent,
   ringPercent: percent,
   ringTone: tone,
-  offered,
-  conversationNow,
 }: {
   agent: Agent;
   ringPercent?: number;
   ringTone?: UsageTone;
-  offered: boolean;
-  /** Conversations' subtitle in the ⋯ menu: which one is on screen. */
-  conversationNow?: string;
 }) {
   const styles = useStyles();
   const router = useRouter();
@@ -1397,7 +1381,8 @@ const ChatHeader = memo(function ChatHeader({
   const id = agent.id;
   const buttons = (TALK_OFFERED ? 1 : 0) + 1;
   const openSheet = () => router.push({ pathname: '/agent/[id]', params: { id } });
-  const header = <Header agent={agent} buttons={buttons} onOpen={openSheet} />;
+  const openNow = () => router.push({ pathname: '/agent-now', params: { id } });
+  const header = <Header agent={agent} buttons={buttons} onOpen={openNow} />;
   const openUsage = () => router.push({ pathname: '/usage', params: { id } });
   const openConversations = () => router.push({ pathname: '/conversations', params: { id } });
   const openTalk = () => router.push({ pathname: '/talk', params: { id } });
@@ -1407,14 +1392,7 @@ const ChatHeader = memo(function ChatHeader({
   const controlsNow = useControlsNow(agent);
   const tasksNow = agent?.tasks ? taskMenuLine(agent.tasks) : undefined;
   const openControls = () => router.push({ pathname: '/controls', params: { id } });
-  const moreActions = headerActions(
-    agent.name,
-    percent,
-    offered,
-    conversationNow,
-    controlsNow,
-    tasksNow
-  );
+  const moreActions = headerActions(agent.name, percent, controlsNow, tasksNow);
   const openTasks = () => router.push({ pathname: '/tasks', params: { id } });
   const run = (a: HeaderAction) =>
     a === 'tasks'
@@ -1490,100 +1468,58 @@ const ChatHeader = memo(function ChatHeader({
   );
 });
 
-function Header({
-  agent,
-  buttons,
-  onOpen,
-}: {
-  agent: Agent;
-  buttons: number;
-  /** The key and name open the agent's sheet; the task line is its own button. */
-  onOpen: () => void;
-}) {
+/**
+ * The quiet header (spec-header-dropdown, Julian's pick, 20 Nov): only who
+ * you're talking to. Key, name (one line), ⌄ and one hint dot are a single
+ * button that opens the agent's sheet: Now, tasks, what needs your OK,
+ * conversations. Nothing else sits here.
+ */
+function Header({ agent, buttons, onOpen }: { agent: Agent; buttons: number; onOpen: () => void }) {
   const colors = useColors();
   const styles = useStyles();
   const { width } = useWindowDimensions();
-  // The role alone, across the whole title: which account a turn ran on is
-  // desk detail, not something to read on the phone (Julian, 2026-11-10).
-  const role = agent.role?.trim();
-  const router = useRouter();
-  // With open work the muted line is the task line; idle with nothing open it's the role.
-  const line = taskLine(agent.tasks);
+  const hint = headerHint(agent);
+  const hintColor =
+    hint === 'waits'
+      ? colors.accentWarning
+      : hint === 'failed'
+        ? colors.accentErrorLight
+        : hint === 'working'
+          ? colors.statusRunning
+          : null;
+  const hintWords = headerHintLabel(hint);
   return (
-    <View style={[styles.header, { maxWidth: headerTitleWidth(width, buttons) }]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={agent.name}
-        accessibilityHint="Instructions, memory, files and routines"
-        onPress={onOpen}
-        style={({ pressed }) => pressed && PRESSED}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={hintWords ? `${agent.name}, ${hintWords}` : agent.name}
+      accessibilityHint="What it's doing, its tasks and conversations"
+      onPress={onOpen}
+      testID="chat-header-name"
+      style={({ pressed }) => [
+        styles.header,
+        { maxWidth: headerTitleWidth(width, buttons) },
+        pressed && PRESSED,
+      ]}
+    >
+      <AgentKey
+        id={agent.id}
+        name={agent.name}
+        color={agent.color}
+        state={agentKeyState(agent)}
+        size={keySize.md}
+      />
+      <T
+        variant="headline"
+        color={colors.textStrong}
+        numberOfLines={1}
+        maxFontSizeMultiplier={chromeScale}
+        style={styles.headerName}
       >
-        <AgentKey
-          id={agent.id}
-          name={agent.name}
-          color={agent.color}
-          state={agentKeyState(agent)}
-          size={keySize.md}
-        />
-      </Pressable>
-      <View style={{ flexShrink: 1 }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityHint="Instructions, memory, files and routines"
-          onPress={onOpen}
-          style={({ pressed }) => pressed && PRESSED}
-        >
-          <T
-            variant="headline"
-            color={colors.textStrong}
-            numberOfLines={1}
-            maxFontSizeMultiplier={chromeScale}
-          >
-            {agent.name}
-          </T>
-        </Pressable>
-        {line ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Tasks: ${[line.doing, line.counts].filter(Boolean).join(', ')}`}
-            hitSlop={space.sm}
-            onPress={() => router.push({ pathname: '/tasks', params: { id: agent.id } })}
-            style={styles.taskLine}
-          >
-            <View
-              style={[
-                styles.taskDot,
-                { backgroundColor: line.doing ? colors.statusRunning : colors.textFaint },
-              ]}
-            />
-            <T
-              variant="caption"
-              color={colors.textSecondary}
-              numberOfLines={1}
-              maxFontSizeMultiplier={chromeScale}
-              style={styles.taskText}
-            >
-              {line.doing ? `${line.doing} · ` : ''}
-              <T variant="caption" color={line.waits > 0 ? colors.accentWarning : colors.textMuted}>
-                {line.counts}
-              </T>
-            </T>
-            <Icon name="chevron.right" size={iconSize.micro} color={colors.textMuted} />
-          </Pressable>
-        ) : (
-          !!role && (
-            <T
-              variant="caption"
-              color={colors.textSecondary}
-              numberOfLines={1}
-              maxFontSizeMultiplier={chromeScale}
-            >
-              {role}
-            </T>
-          )
-        )}
-      </View>
-    </View>
+        {agent.name}
+      </T>
+      <Icon name="chevron.down" size={iconSize.micro} color={colors.textMuted} />
+      {hintColor && <View style={[styles.hintDot, { backgroundColor: hintColor }]} />}
+    </Pressable>
   );
 }
 
@@ -1665,9 +1601,6 @@ const fadeStyles = StyleSheet.create({
 });
 
 const useStyles = makeStyles((colors) => ({
-  taskLine: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  taskDot: { width: 7, height: 7, borderRadius: radius.pill },
-  taskText: { flexShrink: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   rewound: {
     flexDirection: 'row',
@@ -1716,7 +1649,10 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: alpha(colors.accentFocus, 0.14),
   },
   start: { alignItems: 'center', paddingVertical: space.xl },
-  header: { flexDirection: 'row', alignItems: 'center', gap: space.sm, maxWidth: 260 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: space.tight, maxWidth: 260 },
+  headerName: { flexShrink: 1, marginLeft: space['2xs'] },
+  // The hint: 6px, right after the ⌄ (spec-header-dropdown).
+  hintDot: { width: space.tight, height: space.tight, borderRadius: radius.pill },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   // Shrinks ten times faster than the account beside it.
   embeddedHeader: {
@@ -1799,13 +1735,11 @@ export function conversationLine(
   return othersWaiting(list, id) ? `Now: ${now} · another needs you` : `Now: ${now}`;
 }
 
-/** The chat header's ⋯ menu: Usage (with the figure, once an engine reported it),
- *  Conversations, About. Same rows on iOS's native menu and the sheet elsewhere. */
+/** The chat header's ⋯ menu: Tasks, Model and controls, Usage (with the figure,
+ *  once an engine reported it), About. Conversations are in the name's sheet. Same rows on iOS's native menu and the sheet elsewhere. */
 export function headerActions(
   name: string,
   percent: number | undefined,
-  offered: boolean,
-  conversationNow?: string,
   /** What it runs on ("Opus 5.5 · High"); present only when the Mac lets this phone change it. */
   controlsNow?: string,
   /** "1 waits · 5 to do": present once the Mac serves the task list. */
@@ -1838,16 +1772,8 @@ export function headerActions(
       icon: 'gauge.with.dots.needle.33percent',
       subtitle: percent != null ? `${Math.round(percent)}% of the 5-hour limit used` : undefined,
     },
-    ...(offered
-      ? [
-          {
-            id: 'conversations' as const,
-            title: 'Conversations',
-            icon: 'bubble.left' as const,
-            subtitle: conversationNow,
-          },
-        ]
-      : []),
+    // Conversations moved to the name's sheet: it's the only switcher now
+    // (spec-header-dropdown).
     { id: 'about', title: `About ${name}`, icon: 'info.circle' },
   ];
 }
