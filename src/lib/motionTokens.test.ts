@@ -17,6 +17,19 @@ const token = (name: string) => {
   expect(all.length, `--${name} is defined`).toBeGreaterThan(0);
   return all;
 };
+/** A value as written, a stop per line or not: `linear(\n 0,\n 0.05 )` reads `linear(0, 0.05)`. */
+const flat = (v: string) => v.replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')');
+/** Springs are linear() only inside `@supports (… linear(0, 1))`; outside it they fall back to a curve. */
+const supportsLinear = (() => {
+  const at = css.indexOf('@supports (transition-timing-function: linear(');
+  expect(at, 'tokens-core.css has the linear() @supports block').toBeGreaterThan(-1);
+  return css.slice(at);
+})();
+const spring = (name: string) => {
+  const inSupports = [...supportsLinear.matchAll(new RegExp(`--${name}:\\s*([^;]+);`, 'g'))];
+  expect(inSupports.length, `--${name} is set inside @supports`).toBeGreaterThan(0);
+  return flat(inSupports[0][1].trim());
+};
 
 describe('motion tokens', () => {
   it('durations match', () => {
@@ -39,7 +52,10 @@ describe('motion tokens', () => {
 
   it('springs match, as linear() and as durations', () => {
     for (const name of Object.keys(MOTION_SPRING) as (keyof typeof MOTION_SPRING)[]) {
-      expect(token(`spring-${name}`)).toContain(springEasing(name));
+      expect(spring(`spring-${name}`)).toBe(springEasing(name));
+      expect(token(`spring-${name}`)[0], 'the fallback where linear() is missing').toMatch(
+        /^var\(--ease-(move|arrive)\)$/
+      );
       expect(token(`duration-spring-${name}`)).toContain(`${MOTION_SPRING[name].duration}ms`);
     }
   });
