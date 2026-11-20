@@ -423,6 +423,7 @@ pub fn overview() -> Value {
         agent: stored_agent(),
         status,
         home: "/Users/julian/Library/Application Support/ShipStudio/agents/a1".into(),
+        tasks: None,
         takeover: None,
         // Its own level, above the team's Go hard.
         independence: Some(crate::agents::independence::Level::FullSend),
