@@ -63,6 +63,7 @@ import { AgentFilesModal } from './AgentFilesModal';
 import { RememberModal } from './AgentRemember';
 import { useArrivals, useFollowBottom, usePresence } from './useAgentMotion';
 import { useNextLine } from './useNextLine';
+import { useMessageGaps } from './messageGaps';
 import { useRowAnchoring } from './useRowAnchoring';
 import { useDictation } from './useDictation';
 import {
@@ -1252,6 +1253,7 @@ export const AgentChat = memo(function AgentChat({
   );
   useRowAnchoring(scrollRef, messagesRef, atBottomRef);
   useNextLine(messagesRef);
+  useMessageGaps(messagesRef);
 
   // Follow new content only if the reader was already at the bottom: glide
   // to a new line, land on the bottom (before paint) on first render. A reply

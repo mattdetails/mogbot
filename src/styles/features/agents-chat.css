@@ -327,22 +327,28 @@
 
 /* Rhythm: a run from one speaker sits tight; a change of speaker breathes.
    A card is its own object, so it breathes even after its agent's bubble. */
-.agent-chat__messages > * + * {
+/* (Same for the markdown's own `+` rules below: `:not(:first-child)` says the
+   same thing without the browser re-matching every sibling after a change.)
+   The adjacent-sibling rules that were here are keyed on each row's
+   `data-gap` now (components/agents/messageGaps.ts), at the same specificity
+   and in the same place: a `+` rule makes the browser restyle every row after
+   one that is removed, ~290ms a step on a long chat. */
+:where(.agent-chat__messages) > [data-gap~='any'] {
   margin-top: var(--spacing-2xl);
 }
 
-.agent-chat__row--user + .agent-chat__row--user {
+.agent-chat__row--user[data-gap~='uu'] {
   margin-top: var(--spacing-sm);
 }
 
 /* Unboxed, two replies in a row read as paragraphs of one answer. */
-.agent-chat__row--agent + .agent-chat__row--agent:not(.agent-chat__row--card) {
+.agent-chat__row--agent:not(.agent-chat__row--card)[data-gap~='aa'] {
   margin-top: var(--spacing-lg);
 }
 
 /* A message that opens with attachments is a new message, not a tail on
    the one before it. */
-.agent-chat__row--user + .agent-chat__row--user[data-attachments] {
+.agent-chat__row--user[data-attachments][data-gap~='uu'] {
   margin-top: var(--spacing-lg);
 }
 
@@ -352,14 +358,11 @@
 
 /* Quiet centred lines (notes, delegations, check-ins) are one run: they sit
    apart from the conversation, and xs apart from each other. */
-.agent-chat__messages > * + :is(.agent-note, .agent-peer, .agent-checkin),
-.agent-chat__messages > :is(.agent-note, .agent-peer, .agent-checkin) + * {
+.agent-chat__messages > [data-gap~='quiet'] {
   margin-top: var(--spacing-xl);
 }
 
-.agent-chat__messages
-  > :is(.agent-note, .agent-peer, .agent-checkin)
-  + :is(.agent-note, .agent-peer, .agent-checkin) {
+.agent-chat__messages > :is(.agent-note, .agent-peer, .agent-checkin)[data-gap~='quiet-run'] {
   margin-top: var(--spacing-xs);
 }
 
@@ -710,7 +713,7 @@
   margin-bottom: 0;
 }
 
-.agent-markdown > * + * {
+.agent-markdown > :where(:not(:first-child)) {
   margin-top: var(--spacing-lg);
 }
 
@@ -727,7 +730,7 @@
   padding-left: var(--spacing-xl);
 }
 
-.agent-markdown li + li {
+.agent-markdown li:where(:not(:first-child)):is(li) {
   margin-top: var(--spacing-xs);
 }
 
@@ -737,7 +740,7 @@
   margin: 0;
 }
 
-.agent-markdown li > p + p {
+.agent-markdown li > p:where(:not(:first-child)):is(p) {
   margin-top: var(--spacing-xs);
 }
 
@@ -788,8 +791,8 @@
   font-size: var(--font-size-h4);
 }
 
-.agent-markdown > * + :is(h1, h2, h3, h4, h5, h6),
-.agent-markdown__prose > * + :is(h1, h2, h3, h4, h5, h6) {
+.agent-markdown > :is(h1, h2, h3, h4, h5, h6):where(:not(:first-child)),
+.agent-markdown__prose > :is(h1, h2, h3, h4, h5, h6):where(:not(:first-child)) {
   margin-top: var(--spacing-xl);
 }
 
