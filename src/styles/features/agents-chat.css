@@ -1138,48 +1138,22 @@
 
 /* ------------------------------------------------------ reply to a message */
 
-/* The chip above the box (Designer's spec): the box's width, 16px corners above
-   and 6px where it meets the box, the agent's colour in a 3px bar. It and the
-   box read as one unit. */
-.agent-reply-chip {
+/* The reply line at the top of the box (Grok's): one outlined line inside it,
+   32px tall, the first line of the original muted, a × at the right. No label,
+   no bar, no agent colour. The box grows by it. */
+.agent-reply-line {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  height: var(--agents-reply-chip-height);
-  margin: 0 var(--agents-column-inset) calc(var(--border-width-default) * -1);
-  padding: 0 var(--spacing-xs) 0 var(--spacing-md);
-  border: var(--border-width-default) solid var(--border-default);
-  border-radius: var(--spacing-lg) var(--spacing-lg) var(--radius-6) var(--radius-6);
-  background: var(--surface-control);
+  height: var(--agents-reply-line-height);
+  padding-left: var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
+  border: var(--border-width-default) solid var(--border-strong);
+  border-radius: var(--radius-lg);
 }
 
-.agent-reply-chip__bar {
-  align-self: stretch;
-  flex: none;
-  width: var(--agents-reply-bar);
-  margin: var(--spacing-md) 0;
-  border-radius: var(--radius-pill);
-  background: var(--accent-user);
-}
-
-.agent-reply-chip__text {
-  display: flex;
+.agent-reply-line__text {
   flex: 1;
-  flex-direction: column;
   min-width: 0;
-}
-
-.agent-reply-chip__text {
-  gap: var(--spacing-2xs);
-}
-
-.agent-reply-chip__name {
-  font-size: var(--font-size-12);
-  font-weight: var(--font-weight-heading);
-  color: var(--text-primary);
-}
-
-.agent-reply-chip__excerpt {
   overflow: hidden;
   font-size: var(--font-size-13);
   color: var(--text-muted);
@@ -1187,47 +1161,33 @@
   white-space: nowrap;
 }
 
-/* The box under a chip squares its top corners toward it. */
-.agent-reply-chip + .agent-composer {
-  border-top-left-radius: var(--radius-6);
-  border-top-right-radius: var(--radius-6);
+.agent-reply-line__cancel {
+  flex: none;
+  width: var(--agents-reply-cancel);
+  height: var(--agents-reply-cancel);
+  margin-right: var(--spacing-2xs);
 }
 
-/* What a sent reply quotes, inside a bubble: the existing quote look with the
-   original's name over up to two of its lines; tap it to go there. */
-.agent-reply-quote {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  text-align: left;
-  font: inherit;
-  background: color-mix(in srgb, currentColor 14%, transparent);
-  border: 0;
-  border-left: var(--agents-reply-bar) solid color-mix(in srgb, currentColor 55%, transparent);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-tight) var(--spacing-md) var(--spacing-tight) var(--spacing-md);
-  color: inherit;
-  cursor: pointer;
-  margin-bottom: var(--spacing-tight);
-}
-
-.agent-reply-quote[data-gone] {
-  cursor: default;
-  opacity: 0.7;
-}
-
-.agent-reply-quote__name {
-  font-size: var(--font-size-12);
-  font-weight: var(--font-weight-heading);
-}
-
-.agent-reply-quote__text {
-  display: -webkit-box;
+/* What a sent reply answers: a one-line outlined pill directly above the
+   bubble, outside it, against the bubble's right edge (4px gap). */
+.agent-reply-pill {
+  max-width: 100%;
+  padding: var(--spacing-3xs) var(--spacing-md);
+  padding-block: 3px; /* css-ok: the spec's 3px */
   overflow: hidden;
+  font: inherit;
   font-size: var(--font-size-13);
-  line-height: 1.3;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: var(--border-width-default) solid var(--border-strong);
+  border-radius: 14px; /* css-ok: the spec's 14px pill */
+  cursor: pointer;
+}
+
+.agent-reply-pill[data-gone] {
+  cursor: default;
 }
 
 /* Going to the original: it pulses once. */
@@ -1242,10 +1202,25 @@
   border-radius: var(--radius-lg);
 }
 
-/* Reply in the hover toolbar needs a pointer and room: not on touch or in a
-   narrow window (the ⋯ menu still has it). */
+/* The hover tools: bare icons (17px, 6px apart) beside the message at its
+   vertical centre, 14px away, on the open side. Only while the message is
+   hovered or focused; not on touch or in a narrow window. */
+.agent-message__tools {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: var(--spacing-tight);
+  margin-inline: 14px; /* css-ok: the spec's 14px from the bubble */
+  opacity: 0;
+}
+
+.agent-chat__row:hover .agent-message__tools,
+.agent-chat__row:focus-within .agent-message__tools {
+  opacity: 1;
+}
+
 @media (pointer: coarse), (max-width: 480px) {
-  .agent-message__reply {
+  .agent-message__tools {
     display: none;
   }
 }

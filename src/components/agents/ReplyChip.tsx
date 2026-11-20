@@ -1,7 +1,7 @@
 /**
- * "Replying to Lead Gen": the chip directly above the message box, the same
- * width, one unit with it. A bar in the agent's colour, who and one line of the
- * original, and a × (Esc on a focused message also drops it).
+ * The reply line at the top of the message box (Grok's): one outlined line
+ * inside the box with the first line of the original and a ×. No label, no bar,
+ * no agent colour. Esc on a focused message also drops it.
  *
  * @module components/agents/ReplyChip
  */
@@ -10,7 +10,7 @@ import { CloseIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
 import { replyingTo, type ReplyRef } from '../../lib/replyTo';
 
-export function ReplyChip({
+export function ReplyLine({
   replying,
   onCancel,
 }: {
@@ -19,15 +19,13 @@ export function ReplyChip({
 }) {
   if (!replying) return null;
   return (
-    <div className="agent-reply-chip" role="group" aria-label={replyingTo(replying.name)}>
-      <span className="agent-reply-chip__bar" aria-hidden="true" />
-      <span className="agent-reply-chip__text">
-        <span className="agent-reply-chip__name">{replyingTo(replying.name)}</span>
-        <span className="agent-reply-chip__excerpt">{replying.excerpt}</span>
-      </span>
+    <div className="agent-reply-line" role="group" aria-label={replyingTo(replying.name)}>
+      <span className="agent-reply-line__text">{replying.excerpt}</span>
       <IconButton
         tabIndex={0}
         variant="ghost"
+        size="compact"
+        className="agent-reply-line__cancel"
         icon={<CloseIcon size={12} />}
         onClick={onCancel}
         aria-label="Cancel reply"

@@ -57,34 +57,34 @@ export const agentsReplyScenarios: Scenario[] = [
   scenario(
     'toolbar',
     'the toolbar on a focused message',
-    'The agent’s message shows its quiet toolbar: Reply (an arrow), Copy and the time. Reply is first.',
+    'Beside the agent’s message, at its vertical centre and 14px from it, two bare icons: Reply (an arrow) and ⋯. No container, no Copy.',
     chat(),
     { steps: [{ focus: '[data-message-ids="orig-drafted"]' }] }
   ),
   scenario(
     'chip',
     'reply set, the chip above the box',
-    'After R on the focused message, a chip sits directly above the box, its width: a 3px bar in Lead Gen’s green, “Replying to Lead Gen” in 12/600 and the first line of the original in muted 13px with an ellipsis, and a × on the right. The box under it has square top corners toward the chip.',
+    'After R on the focused message, one outlined line sits at the top inside the box (1px strong border, radius 12, 32px tall): the first line of the original in muted 13px with an ellipsis, and a × at the right. No label, no bar, no agent colour. The box is one line taller.',
     chat(),
     {
       steps: [{ focus: '[data-message-ids="orig-drafted"]' }, { key: 'r' }],
-      requires: '.agent-reply-chip',
+      requires: '.agent-reply-line',
     }
   ),
   scenario(
     'chip-yourself',
     'replying to your own message',
-    'The chip says “Replying to you” with your message’s first line.',
+    'Replying to your own message: the same line with your message’s first line; nothing else changes.',
     chat(),
     {
       steps: [{ focus: '[data-message-ids="orig-ask"]' }, { key: 'r' }],
-      requires: '.agent-reply-chip',
+      requires: '.agent-reply-line',
     }
   ),
   scenario(
     'sent',
     'sent, with the quote',
-    'Your bubble (Lead Gen’s green, dark ink) starts with a quote block: a bar in the bubble’s ink at 55%, “Lead Gen” in 12/600 and up to two lines of the original, on a faint tint of the bubble; then your words. Nothing is shown twice.',
+    'A one-line outlined pill sits directly above your bubble, outside it, 4px away and against its right edge: the quoted line only (a 1:1 chat). Nothing is inside the bubble, which holds only your words. Lead Gen’s green bubble with dark ink',
     chat(
       msg('user', 'Yes, send them at 9 am.', 6, {
         agentId: ID,
@@ -97,24 +97,24 @@ export const agentsReplyScenarios: Scenario[] = [
         },
       })
     ),
-    { requires: '.agent-reply-quote' }
+    { requires: '.agent-reply-pill' }
   ),
   scenario(
     'unavailable',
     'the original is not loaded',
-    'The quote block says “Message not available” in place of the name and excerpt, with no pointer cursor and nothing to click.',
+    'The pill says “Message not available” with no pointer cursor and nothing to click.',
     chat(
       msg('user', 'Going back to what you said yesterday: yes.', 6, {
         agentId: ID,
         replyTo: { id: 'gone', name: 'Lead Gen', excerpt: 'older', kind: 'message' },
       })
     ),
-    { requires: '.agent-reply-quote[data-gone]' }
+    { requires: '.agent-reply-pill[data-gone]' }
   ),
   scenario(
     'attachment',
     'a reply to a file',
-    'The quote says “Lead Gen” over “File · intros.pdf”.',
+    'The pill reads “File · intros.pdf”.',
     chat(
       msg('user', 'Use the second page only.', 6, {
         agentId: ID,
@@ -126,12 +126,12 @@ export const agentsReplyScenarios: Scenario[] = [
         },
       })
     ),
-    { requires: '.agent-reply-quote' }
+    { requires: '.agent-reply-pill' }
   ),
   scenario(
     'narrow',
     'a narrow window',
-    'Under 480px the toolbar’s Reply is not drawn (the ⋯ menu still has it); the chip and quote fit the column.',
+    'Under 480px the hover icons are not drawn (the ⋯ menu and R still reach Reply); the pill fits the column.',
     chat(
       msg('user', 'Yes, send them.', 6, {
         agentId: ID,
@@ -143,6 +143,6 @@ export const agentsReplyScenarios: Scenario[] = [
         },
       })
     ),
-    { viewport: { width: 440, height: 800 }, requires: '.agent-reply-quote' }
+    { viewport: { width: 440, height: 800 }, requires: '.agent-reply-pill' }
   ),
 ];

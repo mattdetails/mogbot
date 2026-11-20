@@ -116,7 +116,6 @@ import {
   colorwayOf as keyColorway,
   keyLookFor,
 } from '../../../packages/companion-protocol/src';
-import { ReplyChip } from './ReplyChip';
 import { replyTargetOf, type ReplyRef } from '../../lib/replyTo';
 import { useCommands } from '../../commands/useCommands';
 import {
@@ -2471,8 +2470,6 @@ export const AgentChat = memo(function AgentChat({
                     />
                   </AreaBoundary>
 
-                  <ReplyChip replying={replying} onCancel={() => setReplying(null)} />
-
                   {engineReady ? (
                     <AgentComposer
                       agentId={agent.id}
@@ -2488,6 +2485,8 @@ export const AgentChat = memo(function AgentChat({
                       onRemoveQuote={removeQuote}
                       revising={revising}
                       onClearRevising={clearRevising}
+                      replying={replying}
+                      onCancelReplying={() => setReplying(null)}
                       editing={editing?.text ?? null}
                       onCancelEditing={cancelEditing}
                       busy={busy}

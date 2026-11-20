@@ -27,6 +27,8 @@ import { TextArea } from '../primitives/TextField';
 import { ComposerAttachments, ComposerQuotes } from './AgentAttachments';
 import { ComposerRevising } from './AgentResult';
 import { ComposerEditing } from './AgentGoBack';
+import { ReplyLine } from './ReplyChip';
+import type { ReplyRef } from '../../lib/replyTo';
 import { AgentSecretHint } from './AgentSecretHint';
 import { useMentionPicker } from './AgentMentions';
 import type { DraftAttachment } from './useComposerAttachments';
@@ -75,6 +77,9 @@ interface AgentComposerProps {
   onRemoveQuote: (index: number) => void;
   revising: ResultRef | null;
   onClearRevising: () => void;
+  /** Replying to a message: the line at the top of the box, or null. */
+  replying?: ReplyRef | null;
+  onCancelReplying?: () => void;
   /** Editing a sent message (Edit and resend): its words as sent, or null. */
   editing?: string | null;
   onCancelEditing?: () => void;
@@ -180,6 +185,8 @@ export const AgentComposer = memo(function AgentComposer({
   onRemoveQuote,
   revising,
   onClearRevising,
+  replying = null,
+  onCancelReplying,
   editing = null,
   onCancelEditing,
   busy,
@@ -300,6 +307,7 @@ export const AgentComposer = memo(function AgentComposer({
       }}
     >
       {mentionPicker.menu}
+      <ReplyLine replying={replying} onCancel={() => onCancelReplying?.()} />
       <ComposerEditing text={editing} onCancel={() => onCancelEditing?.()} />
       <ComposerRevising revising={revising} onRemove={onClearRevising} />
       <ComposerQuotes quotes={quotes} onRemove={onRemoveQuote} />

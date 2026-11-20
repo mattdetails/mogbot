@@ -54,7 +54,7 @@ import { LocalLinks } from './AgentLocalLinks';
 import type { DraftAttachment } from './useComposerAttachments';
 import { MentionText } from './AgentMentions';
 import { canReplyTo } from '../../lib/replyTo';
-import { ReplyQuote, useReply } from './ReplyContext';
+import { ReplyPill, useReply } from './ReplyContext';
 import { GoBackContextMenu, GoBackMenu, type GoBackAction, type GoBackState } from './AgentGoBack';
 import { AgentPeerStatus } from './AgentPeerStatus';
 import { SecretCard } from './AgentSecretCard';
@@ -145,12 +145,9 @@ function MessageActions({
   ts,
   onRemember,
   more,
-  onReply,
 }: {
   text: string;
   ts: number;
-  /** Reply to this message: first in the toolbar (hidden on touch and in a narrow window). */
-  onReply?: () => void;
   /** "Remember this": offered on messages with words in them. */
   onRemember?: () => void;
   /** Your own message's Edit, Fork and Rewind (`AgentGoBack`). */
@@ -159,18 +156,6 @@ function MessageActions({
   const { copy, isCopied } = useCopyToClipboard();
   return (
     <div className="agent-message__actions">
-      {onReply && (
-        <IconButton
-          tabIndex={-1}
-          variant="ghost"
-          size="compact"
-          className="agent-message__reply"
-          icon={<ReplyIcon size={12} />}
-          onClick={onReply}
-          aria-label="Reply"
-          title="Reply (R)"
-        />
-      )}
       {text && (
         <IconButton
           tabIndex={-1}
@@ -202,6 +187,79 @@ function MessageActions({
         {formatClock(ts)}
       </time>
     </div>
+  );
+}
+
+/**
+ * The hover tools, Grok's: bare icons beside the message at its vertical
+ * centre, on the open side: Reply and ⋯ (the message's menu, with Reply first).
+ * Not drawn on touch or in a window under 480px; the menu is still reachable
+ * by right-click and by R.
+ */
+function MessageTools({ onReply, menu }: { onReply?: () => void; menu?: ReactNode }) {
+  if (!onReply && !menu) return null;
+  return (
+    <div className="agent-message__tools">
+      {onReply && (
+        <IconButton
+          tabIndex={-1}
+          variant="ghost"
+          size="compact"
+          className="agent-message__reply"
+          icon={<ReplyIcon size={17} />}
+          onClick={onReply}
+          aria-label="Reply"
+          title="Reply (R)"
+        />
+      )}
+      {menu}
+    </div>
+  );
+}
+
+/** An agent message's ⋯: Reply first, then Copy and Remember this. */
+function AgentMessageMenu({
+  text,
+  onReply,
+  onRemember,
+}: {
+  text: string;
+  onReply?: () => void;
+  onRemember?: () => void;
+}) {
+  const { copy } = useCopyToClipboard();
+  return (
+    <Dropdown
+      align="left"
+      portal
+      boundary=".agent-chat"
+      trigger={(p) => (
+        <IconButton
+          {...p}
+          tabIndex={-1}
+          variant="ghost"
+          size="compact"
+          className="agent-message__more"
+          icon={<MoreHorizontalIcon size={17} />}
+          aria-label="Message actions"
+          title="More"
+        />
+      )}
+    >
+      {onReply && (
+        <DropdownItem icon={<ReplyIcon size={12} />} onSelect={onReply}>
+          Reply
+        </DropdownItem>
+      )}
+      <DropdownItem icon={<CopyIcon size={12} />} onSelect={() => void copy(text)}>
+        Copy
+      </DropdownItem>
+      {onRemember && (
+        <DropdownItem icon={<PinIcon size={12} />} onSelect={onRemember}>
+          Remember this
+        </DropdownItem>
+      )}
+    </Dropdown>
   );
 }
 
@@ -261,8 +319,20 @@ export const AgentBubble = memo(function AgentBubble({
     <MessageActions
       text={message.text}
       ts={message.ts}
-      onReply={onReply}
       onRemember={onRemember && (() => onRemember(message))}
+    />
+  );
+  // Reply and ⋯ beside the bubble, on its open side.
+  const tools = (
+    <MessageTools
+      onReply={onReply}
+      menu={
+        <AgentMessageMenu
+          text={message.text}
+          onReply={onReply}
+          onRemember={onRemember && message.text ? () => onRemember(message) : undefined}
+        />
+      }
     />
   );
   // Still being written: its words live in the store, not in this message.
@@ -305,10 +375,12 @@ export const AgentBubble = memo(function AgentBubble({
         </div>
       ) : (
         message.text && (
-          <div className="agent-bubble agent-bubble--agent agent-markdown" onClick={onClick}>
-            {message.replyTo && <ReplyQuote replyTo={message.replyTo} />}
-            <Prose text={message.text} />
-          </div>
+          <>
+            <div className="agent-bubble agent-bubble--agent agent-markdown" onClick={onClick}>
+              <Prose text={message.text} />
+            </div>
+            {tools}
+          </>
         )
       )}
       {message.stopped && <span className="agent-bubble__stopped">Stopped</span>}
@@ -398,9 +470,13 @@ export const UserBubble = memo(function UserBubble({
     <MessageActions
       text={message.text}
       ts={message.ts}
-      onReply={onReply}
       onRemember={onRemember && (() => onRemember(message))}
-      more={
+    />
+  );
+  const tools = !failed && !sending && !tidying && (
+    <MessageTools
+      onReply={onReply}
+      menu={
         goBack &&
         onGoBack && (
           <GoBackMenu
@@ -416,7 +492,6 @@ export const UserBubble = memo(function UserBubble({
   const bubble = (
     <div className="agent-bubble agent-bubble--user">
       {message.revises && <RevisesBar revises={message.revises} />}
-      {message.replyTo && <ReplyQuote replyTo={message.replyTo} />}
       {tidying && !message.text.trim() && (
         // Sent before its words were written out: your voice, until they are.
         <span className="agent-bubble__wave" role="img" aria-label="What you said">
@@ -463,9 +538,13 @@ export const UserBubble = memo(function UserBubble({
           <MessageAttachments agent={agent} attachments={attachments} />
         </div>
       )}
+      {message.replyTo && replies && (
+        <ReplyPill replyTo={message.replyTo} otherParty={agent.name} />
+      )}
       {(message.text || tidying) && (
         <div className="agent-chat__line">
           {actions}
+          {tools}
           {goBack && onGoBack && !failed && !sending && !tidying ? (
             <GoBackContextMenu
               state={goBack}

@@ -26,33 +26,32 @@ export const ReplyContext = createContext<ReplyApi | null>(null);
 export const useReply = (): ReplyApi | null => useContext(ReplyContext);
 
 /**
- * What a sent reply quotes: the original's name and up to two lines of it, one
- * look with a quoted passage (`.agent-bubble__quote`). Tap it to go to the
- * original; when that isn't loaded any more it says so and does nothing.
+ * What a sent reply answers, Grok's way: a one-line outlined pill directly above
+ * the bubble, outside it. In a 1:1 chat it shows the quoted line only; when it
+ * quotes someone other than the two of you it starts with the name. Click it to
+ * go to the original; when that isn't loaded it says so and does nothing.
  */
-export function ReplyQuote({ replyTo }: { replyTo: ReplyRef }) {
+export function ReplyPill({ replyTo, otherParty }: { replyTo: ReplyRef; otherParty: string }) {
   const api = useReply();
   const here = api ? api.has(replyTo.id) : false;
-  const body = here ? (
-    <>
-      <span className="agent-reply-quote__name">{replyTo.name}</span>
-      <span className="agent-reply-quote__text">{replyTo.excerpt}</span>
-    </>
-  ) : (
-    <span className="agent-reply-quote__text">{REPLY_UNAVAILABLE}</span>
-  );
+  const named = replyTo.name !== 'you' && replyTo.name !== otherParty;
+  const text = here
+    ? named
+      ? `${replyTo.name}: ${replyTo.excerpt}`
+      : replyTo.excerpt
+    : REPLY_UNAVAILABLE;
   return here ? (
     <button
       type="button"
       tabIndex={-1}
-      className="agent-bubble__quote agent-reply-quote"
+      className="agent-reply-pill"
       onClick={() => api?.jump(replyTo.id)}
     >
-      {body}
+      {text}
     </button>
   ) : (
-    <div className="agent-bubble__quote agent-reply-quote" data-gone>
-      {body}
+    <div className="agent-reply-pill" data-gone>
+      {text}
     </div>
   );
 }
