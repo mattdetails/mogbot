@@ -99,7 +99,7 @@
 }
 
 .agent-browser-card__screen[data-empty] {
-  animation: skeleton-pulse 1.6s ease-in-out infinite; /* css-ok: matches the app's skeletons */
+  animation: skeleton-pulse var(--motion-pulse) infinite;
 }
 
 /* "Watch" appears over the picture's corner on hover, so the card says what

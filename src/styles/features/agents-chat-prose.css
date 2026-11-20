@@ -436,7 +436,7 @@
   height: calc(var(--bar) * 100%);
   background: currentColor;
   border-radius: var(--radius-pill);
-  animation: agents-voice-breathe 1.6s ease-in-out infinite; /* css-ok: breathing loop */
+  animation: agents-voice-breathe var(--motion-pulse) infinite;
 }
 
 .agent-bubble__wave > span:nth-child(even) {

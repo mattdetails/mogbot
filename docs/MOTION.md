@@ -41,6 +41,8 @@ it works, nothing bounces. Mogbot should feel at least as quick and calm, on eve
 | `exitQuick` / `--duration-exit-quick` | 120ms | Menus, popovers, toasts leaving |
 | `exitScreen` / `--duration-exit-screen` | 200ms | Modals, sheets, screens leaving |
 | `reduced` / `--duration-reduced` | 0.01ms | Under Reduce Motion (still fires the end event) |
+| `pulse` / `--duration-pulse` | 1600ms | One beat of a loop asking for attention: needs your OK, a skeleton, the busy glow |
+| `breathe` / `--duration-breathe` | 2400ms | One breath of a loop saying "working" |
 
 | Curve | Value | Use |
 |---|---|---|
@@ -49,6 +51,7 @@ it works, nothing bounces. Mogbot should feel at least as quick and calm, on eve
 | `move` / `--ease-move` | cubic-bezier(0.2, 0, 0, 1) | On-screen to on-screen: reorder, resize, indicator |
 | `press` / `--ease-press` | cubic-bezier(0.3, 0.7, 0.4, 1) | A press going down |
 | `standard` | cubic-bezier(0.25, 0.1, 0.25, 1) (= CSS `ease`) | Colour/opacity with no travel |
+| `loop` / `--ease-loop` | cubic-bezier(0.42, 0, 0.58, 1) (= CSS `ease-in-out`) | Loops: a pulse, a breath |
 | linear | | Progress and spinners only |
 
 **Springs** are given as perceived duration and damping ratio, which is how Reanimated 4 takes them
@@ -76,6 +79,8 @@ it works, nothing bounces. Mogbot should feel at least as quick and calm, on eve
 | `--motion-exit-screen` | exitScreen + exit | Modals, screens leaving |
 | `--motion-move` | spring standard | On-screen moves: reorder, restack, a swipe returning |
 | `--motion-pop` | spring celebrate | Paired, a first result |
+| `--motion-pulse` | pulse + loop, with `infinite` | A loop asking for attention; opacity or transform only |
+| `--motion-breathe` | breathe + loop, with `infinite` | A loop saying "working"; opacity or transform only |
 
 On the phone, `mobile/src/lib/motion.ts` exposes the same names as Reanimated configs.
 

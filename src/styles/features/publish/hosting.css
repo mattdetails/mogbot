@@ -68,7 +68,7 @@
 /* The "it worked" signal must persist. The previous implementation faded its
    success dot to zero opacity after 5s and left it invisible forever. */
 .hosting-row-dot--pulsing {
-  animation: skeleton-pulse 1.6s ease-in-out infinite;
+  animation: skeleton-pulse var(--motion-pulse) infinite;
 }
 
 .hosting-row-text {
