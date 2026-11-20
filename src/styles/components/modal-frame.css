@@ -72,3 +72,62 @@
 .modal-frame-error {
   padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
 }
+
+/* Motion (docs/MOTION.md): every dialog arrives and leaves the same way. The
+   scrim fades; the dialog fades and settles from a hair smaller. Leaving is
+   shorter and accelerates away; ModalFrame keeps the dialog mounted, inert,
+   until the overlay's exit animation ends. Reduce Motion: base.css's floor. */
+@keyframes modal-frame-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-frame-scrim-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-frame-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--motion-modal-scale));
+  }
+}
+
+@keyframes modal-frame-dialog-out {
+  to {
+    opacity: 0;
+    transform: scale(var(--motion-modal-scale));
+  }
+}
+
+.modal-frame-overlay {
+  animation: modal-frame-scrim-in var(--motion-screen) backwards;
+}
+
+.modal-frame-overlay > .modal-frame-content {
+  animation: modal-frame-dialog-in var(--motion-screen) backwards;
+}
+
+.modal-frame-overlay[data-state='closed'] {
+  pointer-events: none;
+  animation: modal-frame-scrim-out var(--motion-exit-screen) forwards;
+}
+
+.modal-frame-overlay[data-state='closed'] > .modal-frame-content {
+  animation: modal-frame-dialog-out var(--motion-exit-screen) forwards;
+}
+
+/* ⌘K is reached for many times a day: it opens and closes on the menu's
+   timing, not a dialog's. */
+.modal-frame-overlay:has(> .command-palette),
+.modal-frame-overlay > .command-palette {
+  animation-duration: var(--duration-arrive);
+}
+
+.modal-frame-overlay[data-state='closed']:has(> .command-palette),
+.modal-frame-overlay[data-state='closed'] > .command-palette {
+  animation-duration: var(--duration-exit-quick);
+}

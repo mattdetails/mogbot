@@ -18,6 +18,8 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { usePortalAccentScope } from '../../contexts/AccentScopeContext';
 import { PORTAL_ANCHOR_ATTR, PORTAL_OWNER_ATTR } from './ModalFrame';
 import { fitMenu, fitMenuX, MENU_GAP } from '../../lib/menuFit';
+import { useLeaving } from '../../hooks/useLeaving';
+import { MOTION_DURATION } from '../../../packages/companion-protocol/src/motion';
 
 const MENU_ITEM_SELECTOR = '[role="menuitem"]';
 const TYPEAHEAD_TIMEOUT_MS = 500;
@@ -463,9 +465,22 @@ export function Dropdown({
     };
   }, [isOpen, portal, align, side, boundary, close]);
 
-  const menu = isOpen ? (
+  // A closed menu stays for its exit (docs/MOTION.md), inert, showing what it
+  // showed when it closed.
+  const { leaving, done } = useLeaving(isOpen, MOTION_DURATION.exitQuick + 80);
+  const lastChildren = useRef(children);
+  if (isOpen) lastChildren.current = children;
+  const shownChildren = isOpen ? children : lastChildren.current;
+
+  const menu = isOpen || leaving ? (
     <div
       ref={menuRef}
+      data-state={isOpen ? 'open' : 'closed'}
+      data-side={side}
+      inert={!isOpen || undefined}
+      onAnimationEnd={(event) => {
+        if (!isOpen && event.target === event.currentTarget) done();
+      }}
       className={[
         'ss-dropdown__menu',
         align === 'right' && !portal ? 'ss-dropdown__menu--right' : null,
@@ -518,10 +533,10 @@ export function Dropdown({
       <DropdownContext.Provider value={{ close }}>
         {search && presentation === 'menu' ? (
           <div className="ss-dropdown__items" role="menu" aria-label={search.placeholder}>
-            {children}
+            {shownChildren}
           </div>
         ) : (
-          children
+          shownChildren
         )}
       </DropdownContext.Provider>
     </div>

@@ -9,7 +9,14 @@
  * report instead of screenshotted. Pointing at a toast holds it.
  */
 
+import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { canAnimateExit } from '../../lib/motion';
+import {
+  MOTION_DURATION,
+  MOTION_SPRING,
+  springEasing,
+} from '../../../packages/companion-protocol/src/motion';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import { SuccessIcon, InfoIcon, ErrorIcon, CloseIcon, CopyIcon } from '@/components/icons';
 import type { Toast } from '../../hooks/useToasts';
@@ -30,10 +37,17 @@ function ToastItem({
   toast,
   onDismiss,
   onHold,
+  leaving = false,
+  onLeft,
+  itemRef,
 }: {
   toast: Toast;
   onDismiss: (id: number) => void;
   onHold?: (id: number, held: boolean) => void;
+  /** Gone from the list: fading out before it unmounts (docs/MOTION.md). */
+  leaving?: boolean;
+  onLeft?: (id: number) => void;
+  itemRef?: (el: HTMLDivElement | null) => void;
 }) {
   // Per-toast hook so each error toast gets its own "Copied" flag.
   const { copy, isCopied } = useCopyToClipboard();
@@ -42,9 +56,16 @@ function ToastItem({
 
   return (
     <div
+      ref={itemRef}
       className={`toast toast-${toast.type}`}
+      data-state={leaving ? 'closed' : 'open'}
+      inert={leaving || undefined}
+      aria-hidden={leaving || undefined}
+      onAnimationEnd={(event) => {
+        if (leaving && event.target === event.currentTarget) onLeft?.(toast.id);
+      }}
       // A failure interrupts; anything else waits its turn.
-      role={toast.type === 'error' ? 'alert' : 'status'}
+      role={leaving ? undefined : toast.type === 'error' ? 'alert' : 'status'}
       onPointerEnter={() => onHold?.(toast.id, true)}
       onPointerLeave={() => onHold?.(toast.id, false)}
     >
@@ -113,15 +134,85 @@ function ensureToastRoot(): HTMLElement | null {
   return host;
 }
 
+type Shown = { toast: Toast; leaving: boolean };
+
+/**
+ * The toasts on screen: the current ones, plus any just dismissed while they
+ * fade out, each kept where it was so nothing jumps under the pointer.
+ */
+export function shownToasts(previous: Shown[], toasts: Toast[], animate: boolean): Shown[] {
+  const next: Shown[] = toasts.map((toast) => ({ toast, leaving: false }));
+  if (!animate) return next;
+  const current = new Set(toasts.map((t) => t.id));
+  previous.forEach((item, index) => {
+    if (current.has(item.toast.id)) return;
+    next.splice(Math.min(index, next.length), 0, { toast: item.toast, leaving: true });
+  });
+  return next;
+}
+
 export function ToastList({ toasts, onDismiss, onHold }: ToastListProps) {
-  if (toasts.length === 0) return null;
+  const [shown, setShown] = useState<Shown[]>(() => shownToasts([], toasts, false));
+  // Before paint, so a dismissed toast never misses a frame.
+  useLayoutEffect(() => {
+    setShown((previous) => shownToasts(previous, toasts, canAnimateExit()));
+  }, [toasts]);
+
+  // A toast that has faded out goes; the backstop covers a missed animationend.
+  const leavingIds = shown.filter((s) => s.leaving).map((s) => s.toast.id).join(' ');
+  useLayoutEffect(() => {
+    if (!leavingIds) return;
+    const t = window.setTimeout(
+      () => setShown((list) => list.filter((s) => !s.leaving)),
+      MOTION_DURATION.exitQuick + 100
+    );
+    return () => window.clearTimeout(t);
+  }, [leavingIds]);
+  const left = (id: number) => setShown((list) => list.filter((s) => s.toast.id !== id));
+
+  // The rest settle into their new places (FLIP, spring.standard), rather
+  // than jumping when one above them goes.
+  const els = useRef(new Map<number, HTMLDivElement>());
+  const tops = useRef(new Map<number, number>());
+  useLayoutEffect(() => {
+    const next = new Map<number, number>();
+    for (const [id, el] of els.current) next.set(id, el.getBoundingClientRect().top);
+    if (canAnimateExit()) {
+      for (const [id, top] of next) {
+        const before = tops.current.get(id);
+        const el = els.current.get(id);
+        if (before === undefined || !el || Math.abs(before - top) < 1) continue;
+        el.animate([{ transform: `translateY(${before - top}px)` }, { transform: 'none' }], {
+          duration: MOTION_SPRING.standard.duration,
+          easing: CSS.supports('transition-timing-function', 'linear(0, 1)')
+            ? springEasing('standard')
+            : 'cubic-bezier(0.2, 0, 0, 1)', // css-ok: --ease-move, for WAAPI
+          composite: 'add',
+        });
+      }
+    }
+    tops.current = next;
+  }, [shown]);
+
+  if (shown.length === 0) return null;
   const host = ensureToastRoot();
   if (!host) return null;
 
   return createPortal(
     <section className="toast-container" aria-label="Notifications">
-      {toasts.map((t) => (
-        <ToastItem key={t.id} toast={t} onDismiss={onDismiss} onHold={onHold} />
+      {shown.map(({ toast, leaving }) => (
+        <ToastItem
+          key={toast.id}
+          toast={toast}
+          onDismiss={onDismiss}
+          onHold={onHold}
+          leaving={leaving}
+          onLeft={left}
+          itemRef={(el) => {
+            if (el) els.current.set(toast.id, el);
+            else els.current.delete(toast.id);
+          }}
+        />
       ))}
     </section>,
     host
