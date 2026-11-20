@@ -1183,7 +1183,13 @@ async fn live_until(what: &str, d: Duration, mut ok: impl FnMut() -> bool) {
 /// One drop of the Mac's connection to the Worker, `gap` long, killed `how`.
 /// `survives`: the phone's socket and keys carry on (the gap is inside the
 /// Worker's 30 s grace). Otherwise the phone is let go and a fresh hello works.
-async fn live_case(name: &str, how: Kill, gap: Duration, survives: bool) {
+async fn live_case(
+    name: &str,
+    how: Kill,
+    gap: Duration,
+    survives: bool,
+    relinks_between: Option<(f32, f32)>,
+) {
     let worker = std::env::var("RELAY_LIVE").expect("RELAY_LIVE=ws://127.0.0.1:8799");
     let t0 = Instant::now();
     let say = |s: &str| println!("{:7.2}s  [{name}] {s}", t0.elapsed().as_secs_f32());
@@ -1264,6 +1270,13 @@ async fn live_case(name: &str, how: Kill, gap: Duration, survives: bool) {
     })
     .await;
     say("Mac linked again");
+    if let Some((lo, hi)) = relinks_between {
+        let at = t0.elapsed().as_secs_f32();
+        assert!(
+            (lo..=hi).contains(&at),
+            "relinked at {at:.1}s, outside {lo}-{hi}s: the case did not hit its window"
+        );
+    }
 
     if survives {
         let r = phone.res(2, Duration::from_secs(15)).await;
@@ -1301,17 +1314,33 @@ async fn live_case(name: &str, how: Kill, gap: Duration, survives: bool) {
 #[tokio::test]
 #[ignore = "needs wrangler dev; see the comment above"]
 async fn live_a_short_drop_with_a_tcp_close_resumes() {
-    live_case("fin-5s", Kill::Fin, Duration::from_secs(5), true).await;
+    live_case("fin-5s", Kill::Fin, Duration::from_secs(5), true, None).await;
 }
 
 #[tokio::test]
 #[ignore = "needs wrangler dev; see the comment above"]
 async fn live_an_abrupt_reset_resumes() {
-    live_case("rst-5s", Kill::Rst, Duration::from_secs(5), true).await;
+    live_case("rst-5s", Kill::Rst, Duration::from_secs(5), true, None).await;
 }
 
 #[tokio::test]
 #[ignore = "needs wrangler dev; see the comment above"]
 async fn live_a_gap_past_the_grace_re_hellos_cleanly() {
-    live_case("rst-35s", Kill::Rst, Duration::from_secs(35), false).await;
+    live_case("rst-35s", Kill::Rst, Duration::from_secs(35), false, None).await;
+}
+
+/// The Mac is back after the Worker let the channel go (30 s) but before the
+/// app lets it go itself (40 s): it still holds the channel, sends `resume`,
+/// the Worker names nothing, and the phone is told and says hello again.
+#[tokio::test]
+#[ignore = "needs wrangler dev; see the comment above"]
+async fn live_a_gap_between_the_graces_is_noticed_and_re_hellos() {
+    live_case(
+        "rst-32s",
+        Kill::Rst,
+        Duration::from_secs(32),
+        false,
+        Some((31.0, 39.0)),
+    )
+    .await;
 }
