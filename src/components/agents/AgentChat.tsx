@@ -2499,6 +2499,7 @@ export const AgentChat = memo(function AgentChat({
                       <AgentComposer
                         agentId={agent.id}
                         agentName={agent.name}
+                        modelOf={engineReady ? agent : undefined}
                         inputRef={inputRef}
                         micRef={micRef}
                         dictation={composerDictation}

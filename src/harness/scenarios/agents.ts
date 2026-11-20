@@ -4122,6 +4122,42 @@ export const agentsScenarios: Scenario[] = [
       agents_messages: messagesFor,
     },
   },
+  // Julian's composer "C" (18 Nov): one row empty or short; wrapped, the words
+  // on top and the tools under them.
+  ...(
+    [
+      [
+        'empty',
+        '',
+        'one 44px row: + and “Claude Code · Default ⌄” on the left, “Message Acme Site”, mic and a muted neutral Send on the right',
+      ],
+      [
+        'short',
+        'Looks good, ship it',
+        'one row: +, the model chip, “Looks good, ship it”, then Send lit in the inverse colour (black on light, light on dark), flat, no mic',
+      ],
+      [
+        'wrapped',
+        'Can you check the nav again on the phone width, it still does not stick to the top when you scroll down and the logo looks squished',
+        'the words on two lines across the box’s whole width; under them + and the model chip on the left, Send on the right',
+      ],
+    ] as const
+  ).map(([state, text, look]) => ({
+    id: `agents-composer-c-${state}`,
+    title: `Agents — the message box, ${state}`,
+    looksRightWhen: `Acme Site is idle. The message box: ${look}. The + is a bare icon (no circle); Send has no 3D lip.`,
+    openSelector: AGENTS_TAB,
+    requires: '.agent-composer__input',
+    clipSelector: '.agent-chat__footer',
+    steps: [
+      { click: '[data-agent-id="acme"]' },
+      ...(text ? [{ fill: '.agent-composer__input', value: text }] : []),
+    ],
+    commands: {
+      agents_overview: acmeWith({ status: status('idle') }),
+      agents_messages: messagesFor,
+    },
+  })),
   {
     id: 'agents-fresh-suggested',
     title: 'Agents — a nearly full conversation suggests starting fresh',

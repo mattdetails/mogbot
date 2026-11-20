@@ -212,10 +212,11 @@
   overflow-y: auto;
   border-left: var(--border-width-default) solid var(--border-default);
   background: var(--surface-app);
-}
-
-.agent-tasks > :not(.agent-tasks__head) {
-  margin-inline: var(--spacing-lg);
+  /* One inset for everything in the pane, the title included: set on the
+     pane, not on each child, so no later rule can put a label on its edge.
+     Groups sit 16 apart; a group's rows 8 apart, as on the phone's sheet. */
+  gap: var(--spacing-lg);
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
 }
 
 .agent-tasks__head {
@@ -224,8 +225,15 @@
   align-items: center;
   gap: var(--spacing-sm);
   height: var(--agents-header-height);
-  padding: 0 var(--spacing-lg);
-  margin-bottom: var(--spacing-md);
+  margin: 0;
+  padding: 0;
+}
+
+.agent-tasks__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: 0;
 }
 
 .agent-tasks__head h3 {
@@ -253,7 +261,7 @@
 }
 
 .agent-tasks__group h4 {
-  margin: 0 0 var(--spacing-xs);
+  margin: 0;
   font-size: var(--font-size-11);
   font-weight: var(--font-weight-label);
   letter-spacing: 0.09em; /* css-ok: the spec's caps label tracking */
@@ -264,7 +272,7 @@
 .agent-tasks__row {
   display: flex;
   gap: var(--spacing-md);
-  padding: var(--spacing-xs) 0;
+  padding: 0;
 }
 
 .agent-tasks__mark {
@@ -302,6 +310,7 @@
 .agent-tasks__text {
   display: flex;
   flex-direction: column;
+  gap: var(--spacing-2xs);
   min-width: 0;
 }
 

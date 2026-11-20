@@ -26,17 +26,19 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Same column as the messages, same field language as the sidebar search. */
-/* Same column as the messages. One slim row like a messaging app: the
-   paperclip, the text, then [mic] [send], ~44px tall at one line. The text
-   grows to about eight lines, then scrolls; the icons stay on its last line.
-   Quotes, attachments and hints take full-width rows above it. */
+/* Same column as the messages. Julian's composer "C" (18 Nov): one slim row,
+   [+] [model ⌄] the words [mic] [send], ~44px tall at one line. Once the
+   words wrap, or the box is narrow (a project's Session panel), the words
+   take a row of their own, the box's whole width, and the tools sit under
+   them: + and the model on the left, mic and Send on the right. The words
+   grow to about eight lines, then scroll. Quotes, attachments and hints take
+   full-width rows above. */
 .agent-composer {
   /* One line of text: 22px, so 6 + 4 + 22 + 4 + 6 + hairlines is 44px. */
   --agent-composer-line: calc(var(--spacing-xl) - var(--spacing-2xs));
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: end;
   margin: 0 var(--agents-column-inset) var(--spacing-lg);
   padding: var(--spacing-tight);
@@ -67,7 +69,7 @@
    words it put back, starting where the text starts. */
 .agent-composer__bar > .agent-composer__listening {
   grid-column: 2 / -1;
-  order: 4;
+  order: 5;
 }
 
 /* Dictating, the composer is one row: the paperclip, "● 0:42" and the wave
@@ -83,7 +85,7 @@
 }
 
 .agent-composer:not([data-dictation='idle']) .agent-composer__bar > .agent-composer__listening {
-  grid-column: 2;
+  grid-column: 2 / 4;
   order: 2;
   align-self: center;
   padding: 0 var(--spacing-xs);
@@ -107,8 +109,8 @@
 }
 
 .agent-composer .agent-composer__input {
-  grid-column: 2;
-  order: 2;
+  grid-column: 3;
+  order: 3;
   align-self: stretch;
   min-height: calc(var(--agent-composer-line) + (var(--spacing-xs) * 2));
   max-height: calc((var(--agent-composer-line) * 8) + (var(--spacing-xs) * 2));
@@ -135,8 +137,8 @@
 
 /* [mic] [send] on the right of the text's last line. */
 .agent-composer__actions {
-  grid-column: 3;
-  order: 3;
+  grid-column: 4;
+  order: 4;
   display: flex;
   flex: 0 0 auto;
   align-items: center;
@@ -149,26 +151,42 @@
   flex: 0 0 auto;
 }
 
-/* Send and Stop are one button (6px corners, concentric with the 12px box) in the agent's colour (chat-design, option
-   A), its ink picked for contrast on that colour (--accent-on-user); an empty box
-   leaves Send muted at 30%: there is nothing to send yet. The + beside the words
-   is a thin outlined circle. */
-.agent-composer__send,
-.agent-composer__stop {
+/* Send and Stop are one neutral button, the inverse surface (an answer is
+   never the accent; docs/design-system.md), flat: no key's 3D lip under it.
+   6px corners, concentric with the 12px box. An empty box leaves Send muted
+   at 30%: there is nothing to send yet. The + is a bare icon, no circle. */
+.agent-composer .agent-composer__send,
+.agent-composer .agent-composer__stop {
   border-radius: var(--agents-composer-button-radius);
-  background: var(--bubble-user-fill, var(--accent-user));
-  color: var(--bubble-user-ink, var(--accent-on-user));
+  box-shadow: none;
 }
 
-.agent-composer__send:hover:not(:disabled),
-.agent-composer__stop:hover:not(:disabled) {
-  background: var(--accent-user-hover);
-  color: var(--accent-on-user);
+.agent-composer .agent-composer__attach {
+  border-radius: var(--agents-composer-button-radius);
 }
 
-.agent-composer__attach {
-  border-radius: var(--radius-pill);
-  border: var(--border-width-default) solid var(--border-default);
+/* "Claude Code · Opus ⌄" beside the +: which model this chat runs on, in
+   view and one click to change. Quiet text; a long model name is cut short
+   rather than squeezing the words. */
+.agent-composer__model {
+  grid-column: 2;
+  order: 2;
+  align-self: end;
+  min-width: 0;
+  max-width: var(--size-composer-model-max);
+}
+
+.agent-composer__model-button {
+  max-width: 100%;
+  height: var(--button-height);
+  color: var(--text-secondary);
+  font-size: var(--font-size-body-sm);
+}
+
+.agent-composer__model-words {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .agent-composer__send:disabled {
@@ -197,9 +215,10 @@
   align-items: center;
   gap: var(--spacing-xs);
   margin: 0;
-  /* Starts where the text does: the box's padding, the paperclip, the
-     field's own padding. */
-  padding: 0 calc(var(--spacing-tight) + var(--button-height) + var(--spacing-xs));
+  /* Starts at the box's inner edge (its padding and the field's): the +
+     and the model sit beside the words on one row and under them once
+     wrapped, so the words' own start moves; the box's edge doesn't. */
+  padding: 0 calc(var(--spacing-tight) + var(--spacing-xs));
   font-size: var(--font-size-body-sm);
   line-height: var(--line-height-compact);
   color: var(--text-muted);
@@ -422,38 +441,30 @@
   color: var(--text-secondary);
 }
 
-/* Wrapped: the words take the box's whole width on a row of their own and
-   the tools sit in a row underneath, as on the phone: attach on the
-   left, the mic and Send on the right. One line stays one row. */
-.agent-composer[data-wrapped][data-dictation='idle'] {
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
-}
-
-.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__input {
+/* Wrapped, or narrow: the words take the box's whole width on a row of
+   their own and the tools sit in a row underneath: + and the model on the
+   left, the mic and Send on the right. One line in a wide box stays one row. */
+.agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle'] .agent-composer__input {
   grid-column: 1 / -1;
   order: 1;
 }
 
-.agent-composer[data-wrapped][data-dictation='idle']
+.agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle']
+  :is(.agent-composer__attach, .agent-composer__model, .agent-composer__actions) {
+  align-self: center;
+}
+
+.agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle']
   .agent-composer__bar
   > .agent-composer__attach {
-  grid-column: 1;
   order: 2;
-  align-self: center;
 }
 
-.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__actions {
-  display: contents;
+.agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle'] .agent-composer__model {
+  order: 3;
+  justify-self: start;
 }
 
-.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__mic {
-  grid-column: 3;
+.agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle'] .agent-composer__actions {
   order: 4;
-  align-self: center;
-}
-
-.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__send,
-.agent-composer[data-wrapped][data-dictation='idle'] .agent-composer__stop {
-  grid-column: 4;
-  order: 5;
 }

@@ -151,6 +151,31 @@ export const projectsAtWorkScenarios: Scenario[] = [
     steps: [{ click: '.sidebar-row--agent .sidebar-row-hit[aria-label="Acme Site"]' }],
     commands: chatCommands,
   },
+  // The message box in a project's Session panel (narrow): the words on their
+  // own row, the tools under them, at its one-line height when empty.
+  ...(
+    [
+      ['empty', ''],
+      ['short', 'Looks good, ship it'],
+      [
+        'wrapped',
+        'Can you check the nav again on the phone width, it still does not stick to the top when you scroll down and the logo looks squished',
+      ],
+    ] as const
+  ).map(([state, text]) => ({
+    id: `project-composer-${state}`,
+    title: `A project: the message box in the Session panel, ${state}`,
+    looksRightWhen:
+      'Acme Site’s chat in lumen-site’s Session panel. The message box: the words (or “Message”) across the whole box, not indented; under them + and the model chip on the left, mic and Send on the right; one line tall when empty, never a tall empty box.',
+    project: SITE,
+    requires: '[data-testid="session-agent-chat"] .agent-composer__input',
+    clipSelector: '[data-testid="session-agent-chat"]',
+    steps: [
+      { click: '.sidebar-row--agent .sidebar-row-hit[aria-label="Acme Site"]' },
+      ...(text ? [{ fill: '.agent-composer__input', value: text }] : []),
+    ],
+    commands: chatCommands,
+  })),
   {
     id: 'project-agent-chat-back-to-terminal',
     title: 'A project: picking a terminal after an agent’s chat brings the terminals back',

@@ -37,6 +37,7 @@ import { getAgentsSnapshot } from '../../lib/agentsStore';
 import { setComposerDraft, useComposerDraft } from '../../lib/composerDraft';
 import type { DictationMeter, DictationPhase } from './useDictation';
 import { DictationLive } from './DictationLive';
+import { AgentModelChip } from './AgentModelMenu';
 import { noteQueueHintUse, queueHintLearned } from '../../lib/queueHint';
 
 /** A second Esc within this long stops a working agent; the first only says so. */
@@ -93,6 +94,8 @@ interface AgentComposerProps {
   /** `now`: interrupt the turn in progress rather than queue (⌘↵). */
   onSend: (now?: boolean) => void;
   onPickFiles: () => void;
+  /** The agent whose model the chip beside the + shows and changes (`AgentModelChip`). */
+  modelOf?: Agent;
   /**
    * A starter's brief typed in with its blank still empty ("… My topics: "):
    * while the draft is exactly that, nothing sends (Send is off, Enter does
@@ -195,6 +198,7 @@ export const AgentComposer = memo(function AgentComposer({
   onStop,
   onSend,
   onPickFiles,
+  modelOf,
   unfilled,
   lastSent,
 }: AgentComposerProps) {
@@ -236,6 +240,7 @@ export const AgentComposer = memo(function AgentComposer({
 
   // Grow with the text, up to a cap, like a messaging app.
   const lengthRef = useRef(-1);
+  const measuredTick = useRef(0);
   // Once the words wrap they move up to a row of their own, the whole width
   // of the box, and the tools go to a row underneath, as on the phone. They
   // stay up there until the box is empty, so the row never flips back and
@@ -245,9 +250,20 @@ export const AgentComposer = memo(function AgentComposer({
   // "Message" so it stays on one line.
   const [form, setForm] = useState<HTMLFormElement | null>(null);
   const [narrow, setNarrow] = useState(false);
+  const [widthTick, setWidthTick] = useState(0);
   useLayoutEffect(() => {
     if (!form || typeof ResizeObserver === 'undefined') return;
-    const measure = () => setNarrow(form.clientWidth < NARROW_COMPOSER_PX);
+    let width = form.clientWidth;
+    const measure = () => {
+      setNarrow(form.clientWidth < NARROW_COMPOSER_PX);
+      // A new width wraps the words differently: measure the field again. A
+      // height taken while the pane was opening (near zero wide, every letter
+      // its own line) otherwise stayed at the eight-line cap.
+      if (form.clientWidth !== width) {
+        width = form.clientWidth;
+        setWidthTick((t) => t + 1);
+      }
+    };
     measure();
     const watch = new ResizeObserver(measure);
     watch.observe(form);
@@ -259,6 +275,10 @@ export const AgentComposer = memo(function AgentComposer({
     if (draft === '') {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- layout measurement decides the row
       if (wrapped) setWrapped(false);
+      // Empty is always one line: CSS's own height, never a measured one.
+      lengthRef.current = 0;
+      el.style.height = '';
+      return;
     } else if (!wrapped) {
       const style = getComputedStyle(el);
       const oneLine =
@@ -270,7 +290,11 @@ export const AgentComposer = memo(function AgentComposer({
     // Text added that still fits changes nothing: leave the height alone. Its
     // measuring pass (height `auto` and back) made the browser lay the whole
     // chat out again on every key, thousands of rows in a long one.
-    const longer = lengthRef.current >= 0 && draft.length > lengthRef.current;
+    const longer =
+      lengthRef.current >= 0 &&
+      draft.length > lengthRef.current &&
+      widthTick === measuredTick.current;
+    measuredTick.current = widthTick;
     lengthRef.current = draft.length;
     // The cap is CSS's (about eight lines); past it the field scrolls.
     const cap = parseFloat(getComputedStyle(el).maxHeight) || 180;
@@ -287,7 +311,7 @@ export const AgentComposer = memo(function AgentComposer({
     void el.offsetHeight;
     el.style.transition = '';
     el.style.height = next;
-  }, [draft, inputRef, wrapped]);
+  }, [draft, inputRef, wrapped, widthTick]);
   useFollowDictation(inputRef, draft, dictating);
 
   return (
@@ -295,6 +319,7 @@ export const AgentComposer = memo(function AgentComposer({
       ref={setForm}
       className="agent-composer"
       data-wrapped={wrapped || undefined}
+      data-narrow={narrow || undefined}
       data-queueing={(queueing && !learned) || undefined}
       data-dictation={dictation.phase}
       data-has-attachments={
@@ -378,6 +403,7 @@ export const AgentComposer = memo(function AgentComposer({
           aria-label="Attach files"
           title="Attach files, or paste or drop them here"
         />
+        {!dictating && modelOf && <AgentModelChip agent={modelOf} />}
         {(dictating || dictation.retry) && (
           <ListeningStatus
             phase={dictation.phase}

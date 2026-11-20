@@ -15,7 +15,7 @@ Hover a message and two bare icons appear beside it: **Reply** and **⋯** (the 
 
 ## The message box
 
-On the desk the box is a softly rounded rectangle whose corners match its buttons, and on the phone it is a round bar. It holds a **+** (attach files) on the left, your words, the mic while the box is empty, and one button on the right in your agent's colour. That button is a muted send arrow while the box is empty, a lit send arrow once there is something to send, and a stop square while your agent is working and the box is empty; Stop stops the turn. The model is no longer in the box: change it from **Model** in the agent's **⋯** menu (desk) or **Model and controls** in the ⋯ menu (phone).
+On the desk the box is a softly rounded rectangle whose corners match its buttons, and on the phone it is a round bar. On the desk it is one row: a **+** (attach files) and the model it runs on ("Claude Code · Default ⌄", click to change it) on the left, your words, then the mic while the box is empty and Send on the right. Once your words wrap, or in a narrow box such as a project's Session panel, the words take the whole width and the +, the model, the mic and Send sit in a row under them. Send is black on light and light on dark, never your agent's colour: a muted arrow while the box is empty, lit once there is something to send, and a stop square while your agent is working and the box is empty; Stop stops the turn. On the phone, change the model from **Model and controls** in the ⋯ menu.
 
 Send something while it is working and it waits its turn. Under your message you see **Next**, and **Send now** if you'd rather it stop and read yours straight away. The agent's one working line sits below; that is all the chat says about it.
 
