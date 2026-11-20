@@ -189,9 +189,14 @@
 /* ---------- Tab strip ---------- */
 
 .compact-tabs {
-  display: flex;
+  /* One row; each pill, its × and the + are placed in a column of their own
+   * (CompactTabBar), so a × sits over its pill without being inside it. */
+  display: grid;
+  grid-template-rows: 100%;
+  grid-auto-columns: max-content;
+  justify-content: start;
   align-items: center;
-  gap: 2px;
+  column-gap: 2px;
   height: 30px;
   padding: 0 4px;
   background: var(--surface-app);
@@ -202,7 +207,7 @@
   scrollbar-width: none;
 }
 
-/* The tablist inside the bar takes no box of its own: its tabs lay out in the bar. */
+/* The tablist inside the bar takes no box of its own: its pills lay out in the bar. */
 .compact-tabs .compact-tabs__list {
   display: contents;
 }
@@ -218,6 +223,7 @@
 }
 
 .compact-tab {
+  grid-row: 1;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -230,7 +236,7 @@
   flex-shrink: 0;
 }
 
-.compact-tab:hover {
+.compact-tab[data-hover] {
   background: var(--surface-control-hover);
 }
 
@@ -266,7 +272,7 @@
 }
 
 /* Fade the label where the close control overlays its final characters. */
-.compact-tab:hover .compact-tab-label {
+.compact-tab[data-hover] .compact-tab-label {
   -webkit-mask-image: linear-gradient(
     to right,
     var(--text-primary) 0%,
@@ -312,9 +318,10 @@
 }
 
 .compact-tab-close {
-  position: absolute;
-  inset-block-start: 50%;
-  inset-inline-end: var(--space-04);
+  grid-row: 1;
+  justify-self: end;
+  margin-inline-end: var(--space-04);
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -333,18 +340,17 @@
     background var(--transition),
     color var(--transition),
     visibility var(--transition);
-  transform: translateY(-50%);
 }
 
-.compact-tab:not(.is-active):hover .compact-tab-close {
+.compact-tab-close {
   background: var(--surface-control-hover);
 }
 
-.compact-tab.is-active .compact-tab-close {
+.compact-tab-close[data-active] {
   background: var(--surface-selected);
 }
 
-.compact-tab:hover .compact-tab-close {
+.compact-tab-close[data-hover] {
   visibility: visible;
   pointer-events: auto;
 }
@@ -354,6 +360,7 @@
 }
 
 .compact-tab-add {
+  grid-row: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;

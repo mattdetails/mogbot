@@ -4733,6 +4733,30 @@ export const agentsScenarios: Scenario[] = [
     requires: '.compact-topbar',
     commands: { ...workspaceCommands, agents_overview: overview() },
   },
+  {
+    id: 'mode-toggle-compact-workspace-tabs',
+    title: 'Compact window, project with three tabs, the pointer on the second',
+    looksRightWhen:
+      'The compact tab bar holds three tabs (Claude Code, Reviewer, Docs), the first selected, then the +. The pointer rests on Reviewer: its pill takes the hover fill and its × shows over the pill’s right end. Nothing else moves; the bar is the same height as with one tab.',
+    viewport: { width: 700, height: 800 },
+    project: WORKSPACE_PROJECT,
+    requires: '.compact-tab-close',
+    pointAt: '.compact-tab:nth-child(2)',
+    commands: {
+      ...workspaceCommands,
+      agents_overview: overview(),
+      // The saved tabs start new sessions: nothing to resume.
+      claude_session_exists: false,
+      get_terminal_state: {
+        tabs: [
+          { agent_id: 'claude-code', session_id: 'harness-tab-1' },
+          { agent_id: 'claude-code', session_id: 'harness-tab-2', custom_title: 'Reviewer' },
+          { agent_id: 'claude-code', session_id: 'harness-tab-3', custom_title: 'Docs' },
+        ],
+        active_tab_index: 0,
+      },
+    },
+  },
   secretScenario(
     'pending',
     'Finance’s chat: a card with a lock, “Finance needs your Stripe key”, the purpose under it, one masked “API key” field, a muted line saying it’s kept in the Keychain for Finance only and Finance never sees it, then Deny and a disabled Save on the right.'

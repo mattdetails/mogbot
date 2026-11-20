@@ -20,11 +20,10 @@
 import { Terminal } from '../terminal/Terminal';
 import { StaleEnvBanner } from '../terminal/StaleEnvBanner';
 import type { TerminalHandle, AgentStatus } from '../terminal/Terminal';
-import { CloseIcon, PlusIcon } from '@/components/icons';
-import { Tabs, TabsList, TabsPanel, TabsTab } from '../primitives/Tabs';
+import { Tabs, TabsPanel } from '../primitives/Tabs';
 import { CompactTopbar } from './CompactTopbar';
+import { CompactTabBar, terminalTabValue } from './CompactTabBar';
 import { getAgentById } from '../../lib/agent';
-import { kbd } from '../../lib/shortcuts';
 import { basename } from '../../lib/paths';
 import { sessionRegistry } from '../../lib/sessionRegistry';
 import type { Project } from '../../lib/project';
@@ -73,34 +72,6 @@ interface CompactWorkspaceProps {
     tabId: number
   ) => (status: AgentStatus, title: string) => void;
   handleTabTitleChange: (projectPath: string, tabId: number) => (title: string) => void;
-}
-
-/**
- * Label for an agent/terminal tab: use the registry title if present, else
- * `{Agent Name} {ordinal}` — matches the sidebar's own labelling in full mode
- * so the user sees the same names across window sizes.
- */
-function buildTabLabel(
-  tab: TerminalTab,
-  tabs: ReadonlyArray<TerminalTab>,
-  tabTitles: Map<number, string>
-): string {
-  const registryTitle = tabTitles.get(tab.id)?.trim();
-  if (registryTitle && registryTitle.length > 0) return registryTitle;
-  const agent = getAgentById(tab.agentId);
-  // Count this tab's ordinal within the same agent id (e.g. "Claude Code 2").
-  let ordinal = 0;
-  for (const t of tabs) {
-    if (t.agentId === tab.agentId) {
-      ordinal += 1;
-      if (t.id === tab.id) break;
-    }
-  }
-  return `${agent.displayName} ${ordinal}`;
-}
-
-function terminalTabValue(projectPath: string, tabId: number): string {
-  return JSON.stringify([projectPath, tabId]);
 }
 
 export function CompactWorkspace({
@@ -159,60 +130,16 @@ export function CompactWorkspace({
           if (selected) onSelectTab(selected.id);
         }}
       >
-        {/* The bar holds the tablist and the + after it: a tablist owns only tabs.
-            The list is display: contents, so the bar lays out as before. */}
-        <div className="tabs__list tabs__list--default tabs__list--appearance-segmented compact-tabs">
-          <TabsList className="compact-tabs__list" aria-label="Agent and terminal tabs">
-            {terminalTabs.map((tab) => {
-              const isActive = tab.id === activeTerminalTab;
-              const hasAttention = attentionTabs.has(tab.id) && !isActive;
-              const label = buildTabLabel(tab, terminalTabs, tabTitles);
-              const canClose = terminalTabs.length > 1;
-              return (
-                <div
-                  key={tab.id}
-                  className={`compact-tab ${isActive ? 'is-active' : ''} ${
-                    hasAttention ? 'has-attention' : ''
-                  }`}
-                >
-                  <TabsTab
-                    value={terminalTabValue(currentProject.path, tab.id)}
-                    className="compact-tab-select"
-                    title={label}
-                  >
-                    <span className="compact-tab-dot" aria-hidden="true" />
-                    <span className="compact-tab-label">{label}</span>
-                  </TabsTab>
-                  {canClose && (
-                    <button
-                      type="button"
-                      className="compact-tab-close"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCloseTab(tab.id);
-                      }}
-                      aria-label={`Close ${label}`}
-                      title="Close tab"
-                    >
-                      <CloseIcon size={12} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </TabsList>
-          {!atMaxTabs && (
-            <button
-              type="button"
-              className="compact-tab-add"
-              onClick={onAddTab}
-              aria-label="New terminal tab"
-              title={`New terminal tab (${kbd('mod', 'T')})`}
-            >
-              <PlusIcon size={12} />
-            </button>
-          )}
-        </div>
+        <CompactTabBar
+          projectPath={currentProject.path}
+          tabs={terminalTabs}
+          activeTab={activeTerminalTab}
+          tabTitles={tabTitles}
+          attentionTabs={attentionTabs}
+          atMaxTabs={atMaxTabs}
+          onAddTab={onAddTab}
+          onCloseTab={onCloseTab}
+        />
 
         <StaleEnvBanner projectPath={currentProject.path} />
 
