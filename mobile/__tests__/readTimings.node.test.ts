@@ -3,12 +3,17 @@ import { createReadTimings, SLOW_READ_MS, TIMED_FIRST } from '../src/lib/readTim
 function setup() {
   let t = 1000;
   const notes: string[] = [];
-  const timings = createReadTimings((w) => notes.push(w), () => t);
+  const timings = createReadTimings(
+    (w) => notes.push(w),
+    () => t
+  );
   const advance = (ms: number) => (t += ms);
-  const slowRead = (ms: number, ok = true) => () =>
-    new Promise<string>((resolve, reject) =>
-      setTimeout(() => (ok ? resolve('x') : reject(new Error('no'))), 0)
-    ).finally(() => advance(ms));
+  const slowRead =
+    (ms: number, ok = true) =>
+    () =>
+      new Promise<string>((resolve, reject) =>
+        setTimeout(() => (ok ? resolve('x') : reject(new Error('no'))), 0)
+      ).finally(() => advance(ms));
   return { timings, notes, advance, slowRead };
 }
 

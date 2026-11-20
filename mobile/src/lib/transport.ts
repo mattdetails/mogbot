@@ -234,10 +234,7 @@ export const MAX_TRY_MS = 60_000;
  * the next starts after a short backoff, instead of hanging a minute.
  */
 export const welcomeBudgetMs = (attempt: number, tookMs: number, handshakeMs = 0) =>
-  Math.min(
-    MAX_TRY_MS,
-    Math.max(6000 + 1000 * Math.min(attempt, 2), 3 * tookMs, 2 * handshakeMs)
-  );
+  Math.min(MAX_TRY_MS, Math.max(6000 + 1000 * Math.min(attempt, 2), 3 * tookMs, 2 * handshakeMs));
 
 export const tryBudgetMs = (attempt: number, handshakeMs = 0) =>
   Math.min(MAX_TRY_MS, Math.max(connectTimeoutMs(attempt), 2 * handshakeMs));
