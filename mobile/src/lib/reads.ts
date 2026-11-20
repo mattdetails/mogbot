@@ -7,7 +7,8 @@
  *   (`READ_ONLY_METHODS`, same params) answers the second asker too: two
  *   screens, or a tap back and forth, are one request.
  * - **Never a burst.** At most `READ_SLOTS` reads are at the Mac at once;
- *   the rest wait their turn. Changes never wait.
+ *   the rest wait their turn, except a `first` read (the chat on screen), which
+ *   goes ahead of the ones waiting. Changes never wait.
  * - **Remembered.** The last answer to each read is kept for this Mac:
  *   a screen opening draws it from its first frame (`last`), and one that
  *   wants it no older than a few seconds is answered from it (`fresh`). Any
@@ -28,9 +29,19 @@ const READS = new Set<string>(READ_ONLY_METHODS);
 
 export const isRead = (method: MethodName) => READS.has(method);
 
+export interface CallOptions {
+  /** Goes ahead of the reads waiting for a slot (what the user is looking at). */
+  first?: boolean;
+}
+
 export interface Reads {
   /** `request` for a change; shared, queued and remembered for a read. */
-  call<T>(method: MethodName, params: unknown, request: () => Promise<T>): Promise<T>;
+  call<T>(
+    method: MethodName,
+    params: unknown,
+    request: () => Promise<T>,
+    opts?: CallOptions
+  ): Promise<T>;
   /** The last answer, when it is under `maxAgeMs` old and nothing changed since; else `call`. */
   fresh<T>(
     method: MethodName,
@@ -47,17 +58,17 @@ export interface Reads {
 export function createReads(now: () => number = Date.now, slots = READ_SLOTS): Reads {
   const inflight = new Map<string, Promise<unknown>>();
   const kept = new Map<string, { at: number; value: unknown }>();
-  const queue: (() => void)[] = [];
+  const queue: { go: () => void; key: string }[] = [];
   let running = 0;
   let epoch = 0;
   const keyOf = (method: MethodName, params: unknown) => `${method} ${JSON.stringify(params)}`;
 
-  function slot<T>(run: () => Promise<T>): Promise<T> {
+  function slot<T>(run: () => Promise<T>, key: string, first: boolean): Promise<T> {
     const start = (): Promise<T> => {
       running++;
       const done = () => {
         running--;
-        queue.shift()?.();
+        queue.shift()?.go();
       };
       let out: Promise<T>;
       try {
@@ -69,10 +80,18 @@ export function createReads(now: () => number = Date.now, slots = READ_SLOTS): R
       return out.finally(done);
     };
     if (running < slots) return start();
-    return new Promise<void>((go) => queue.push(go)).then(start);
+    return new Promise<void>((go) => {
+      if (first) queue.unshift({ go, key });
+      else queue.push({ go, key });
+    }).then(start);
   }
 
-  function call<T>(method: MethodName, params: unknown, request: () => Promise<T>): Promise<T> {
+  function call<T>(
+    method: MethodName,
+    params: unknown,
+    request: () => Promise<T>,
+    opts: CallOptions = {}
+  ): Promise<T> {
     if (!READS.has(method)) {
       // A change may move any reading: the next fresh read asks again.
       if (!NEUTRAL.has(method)) for (const r of kept.values()) r.at = 0;
@@ -80,9 +99,14 @@ export function createReads(now: () => number = Date.now, slots = READ_SLOTS): R
     }
     const key = keyOf(method, params);
     const already = inflight.get(key);
-    if (already) return already as Promise<T>;
+    if (already) {
+      // The same read, still waiting for a slot, is wanted first now.
+      const at = opts.first ? queue.findIndex((q) => q.key === key) : -1;
+      if (at > 0) queue.unshift(...queue.splice(at, 1));
+      return already as Promise<T>;
+    }
     const asked = epoch;
-    const run: Promise<T> = slot(request)
+    const run: Promise<T> = slot(request, key, !!opts.first)
       .then((value) => {
         if (asked === epoch) kept.set(key, { at: now(), value });
         return value;

@@ -102,3 +102,51 @@ it('another Mac keeps nothing of the last one, even an answer that lands after',
   await late;
   expect(reads.last('agents.accounts', {})).toBeUndefined();
 });
+
+it('a first read (the chat on screen) goes ahead of ten slow background reads', async () => {
+  const reads = createReads(Date.now, 2);
+  const order: string[] = [];
+  const hold: Array<() => void> = [];
+  const slow = (name: string) => () =>
+    new Promise<string>((res) => {
+      hold.push(() => {
+        order.push(name);
+        res(name);
+      });
+    });
+  // Two fill the slots, ten more wait: Catch up, rooms, team setup.
+  const background = Array.from({ length: 12 }, (_, i) =>
+    reads.call('agents.messages', { agentId: `bg${i}` }, slow(`bg${i}`))
+  );
+  const chat = reads.call('agents.messages', { agentId: 'open' }, slow('open'), { first: true });
+  // Each background read answers in turn; the open chat is next after the two already at the Mac.
+  while (order.length < 3) {
+    hold.shift()?.();
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  expect(order.slice(0, 3)).toEqual(['bg0', 'bg1', 'open']);
+  await chat;
+  while (hold.length) {
+    hold.shift()?.();
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  await Promise.all(background);
+});
+
+it('asking for a read already waiting as first moves it to the front, still one request', async () => {
+  const reads = createReads(Date.now, 1);
+  const hold: Array<() => void> = [];
+  const request = (name: string) => () => new Promise<string>((res) => hold.push(() => res(name)));
+  void reads.call('agents.quota', { n: 'a' }, request('a'));
+  void reads.call('agents.quota', { n: 'b' }, request('b'));
+  const c = reads.call('agents.messages', { agentId: 'x' }, request('x'));
+  const again = reads.call('agents.messages', { agentId: 'x' }, request('x2'), { first: true });
+  expect(again).toBe(c);
+  hold.shift()?.(); // a answers; x, not b, takes the slot
+  await new Promise((r) => setTimeout(r, 0));
+  expect(hold).toHaveLength(1);
+  hold.shift()?.();
+  await expect(c).resolves.toBe('x');
+  hold.shift()?.();
+});

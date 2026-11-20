@@ -1494,6 +1494,11 @@ server answered, since silence looks the same either way); Claude Code
 installed and signed in (a `signed_out` turn makes it a problem whatever the
 check says); each agent's capabilities; this device.
 
+**The chat on screen reads first.** Reads queue past six at once
+(`lib/reads.ts`); a chat's page (`loadLatest`, `loadOlder`) goes ahead of the
+reads waiting (Catch up's chats, rooms, team setup), so a slow Mac never makes
+the open chat wait behind background reads. Changes never queue at all.
+
 **Timings in the trail** (`lib/readTimings.ts`). After each welcome the link's
 trail (sent to the Mac with the next hello, and in its log as "phone connected
 … trail") also says when the snapshot and "caught up" came, how long the first

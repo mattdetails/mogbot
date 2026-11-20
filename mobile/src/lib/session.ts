@@ -83,7 +83,7 @@ import {
 } from './sync';
 import { clearCache, http, localFiles, type PickedFile } from './files';
 import { relayImage, retryRelayImage, retryRelayImages } from './relayImages';
-import { createReads, isRead } from './reads';
+import { createReads, isRead, type CallOptions } from './reads';
 import { createReadTimings } from './readTimings';
 import { roomIdOf, roomKey, roomsOffered } from './rooms';
 import { registerPush } from './push';
@@ -321,19 +321,32 @@ const timings = createReadTimings((what) =>
   (transport as { noteTiming?: (w: string) => void } | null)?.noteTiming?.(what)
 );
 
-export function call<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>> {
+export function call<M extends MethodName>(
+  method: M,
+  params: Params<M>,
+  opts?: CallOptions
+): Promise<Result<M>> {
   if (!transport) return Promise.reject(new Error('Not paired'));
-  if (isRead(method)) return timings.read(method, () => callUntimed(method, params));
-  return callUntimed(method, params);
+  if (isRead(method)) return timings.read(method, () => callUntimed(method, params, opts));
+  return callUntimed(method, params, opts);
 }
 
-function callUntimed<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>> {
+function callUntimed<M extends MethodName>(
+  method: M,
+  params: Params<M>,
+  opts?: CallOptions
+): Promise<Result<M>> {
   if (!transport) return Promise.reject(new Error('Not paired'));
   const go = () =>
-    reads.call(method, params, () => {
-      if (!transport) return Promise.reject(new Error('Not paired'));
-      return transport.request(method, params);
-    });
+    reads.call(
+      method,
+      params,
+      () => {
+        if (!transport) return Promise.reject(new Error('Not paired'));
+        return transport.request(method, params);
+      },
+      opts
+    );
   // A change asked for during a drop waits for the link (a card's answer, a
   // stop, a toggle) and goes when it's back, so a short drop shows nothing;
   // past QUIET_MS the bar speaks and the ask fails as before. Reads wait the
@@ -483,24 +496,31 @@ export function watchLifecycle(): () => void {
 const loading = new Map<string, Promise<void>>();
 
 /** A page of an agent's chat, or (for a `room:<id>` key) a room's thread. */
+/** A chat's page is what the user is looking at: it goes ahead of the background reads (`lib/reads`). */
+const FIRST: CallOptions = { first: true };
+
 function readPage(key: string, before?: string) {
   const roomId = roomIdOf(key);
   const at = before ? { before } : {};
   // One conversation's chat: its own lines (`lib/conversations`).
   const conv = conversationOfKey(key);
   if (conv)
-    return call('agents.messages', {
-      agentId: conv.agentId,
-      limit: PAGE,
-      work: 'summary',
-      conversation: conv.conversation,
-      ...at,
-    });
+    return call(
+      'agents.messages',
+      {
+        agentId: conv.agentId,
+        limit: PAGE,
+        work: 'summary',
+        conversation: conv.conversation,
+        ...at,
+      },
+      FIRST
+    );
   return roomId
-    ? call('rooms.messages', { roomId, limit: PAGE, ...at })
+    ? call('rooms.messages', { roomId, limit: PAGE, ...at }, FIRST)
     : // Timelines as their folded lines: the steps were most of a page, and
       // are read as one opens (`lib/turnSteps`). An older Mac sends them anyway.
-      call('agents.messages', { agentId: key, limit: PAGE, work: 'summary', ...at });
+      call('agents.messages', { agentId: key, limit: PAGE, work: 'summary', ...at }, FIRST);
 }
 
 /** What the Mac holds as this socket's focus; undefined when unsure (a send failed). */
@@ -778,7 +798,16 @@ export async function sendToRoom(
 export const resend = (p: PendingSend) =>
   p.roomId
     ? sendToRoom(p.roomId, p.text, p.mentions ?? [], !!p.everyone, p.clientId)
-    : send(p.agentId, p.text, !!p.interrupt, p.clientId, p.attachments, p.mentions, p.revises, p.replyTo);
+    : send(
+        p.agentId,
+        p.text,
+        !!p.interrupt,
+        p.clientId,
+        p.attachments,
+        p.mentions,
+        p.revises,
+        p.replyTo
+      );
 
 let flushing = false;
 let waitingTimer: ReturnType<typeof setTimeout> | null = null;
