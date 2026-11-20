@@ -1062,6 +1062,11 @@ export class DirectTransport implements Transport {
     if (this.trail.length > TRAIL_KEPT) this.trail.splice(0, this.trail.length - TRAIL_KEPT);
   }
 
+  /** A timing from the session layer (a read's wait and answer), kept in the same trail. */
+  noteTiming(what: string) {
+    this.note(what);
+  }
+
   /** The link's recent trail, for the phone's own diagnostics. */
   recentTrail(): readonly TrailEntry[] {
     return this.trail;

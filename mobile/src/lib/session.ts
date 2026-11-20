@@ -83,7 +83,8 @@ import {
 } from './sync';
 import { clearCache, http, localFiles, type PickedFile } from './files';
 import { relayImage, retryRelayImage, retryRelayImages } from './relayImages';
-import { createReads } from './reads';
+import { createReads, isRead } from './reads';
+import { createReadTimings } from './readTimings';
 import { roomIdOf, roomKey, roomsOffered } from './rooms';
 import { registerPush } from './push';
 import { sendSecret } from './secrets';
@@ -234,6 +235,7 @@ function connect(c: Credentials) {
   t.onRefused((refusal) => setApp({ refusal }));
   t.onWelcome((welcome) => {
     caughtUp = false;
+    timings.welcomed();
     retryRelayImages();
     setApp({
       welcome,
@@ -272,6 +274,7 @@ function connect(c: Credentials) {
         else alertApproval(m);
       }
     }
+    if (event.type === 'sync.snapshot') timings.frame('snapshot');
     update((s) => applyEvent(s, event, cursor));
     if (event.type === 'alert') void notify(event.alert);
     if (event.type === 'system.status') learnRoutes(event.status.routes);
@@ -282,6 +285,7 @@ function connect(c: Credentials) {
     // the others when they're opened. Then send what waited for the Mac.
     if (event.type === 'sync.caughtUp') {
       caughtUp = true;
+      timings.frame('caught up');
       const open = getApp().openChat;
       if (open && !getApp().chats[open]?.loaded) void loadLatest(open);
       if (roomsOffered(getApp().welcome)) void refreshRooms().catch(() => {});
@@ -312,7 +316,18 @@ const reads = createReads();
 /** The Mac the kept reads are for. */
 let readsFor: string | null = null;
 
+/** The first frames and reads after each welcome, and any slow read, in the link's trail. */
+const timings = createReadTimings((what) =>
+  (transport as { noteTiming?: (w: string) => void } | null)?.noteTiming?.(what)
+);
+
 export function call<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>> {
+  if (!transport) return Promise.reject(new Error('Not paired'));
+  if (isRead(method)) return timings.read(method, () => callUntimed(method, params));
+  return callUntimed(method, params);
+}
+
+function callUntimed<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>> {
   if (!transport) return Promise.reject(new Error('Not paired'));
   const go = () =>
     reads.call(method, params, () => {

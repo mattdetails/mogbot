@@ -1494,6 +1494,13 @@ server answered, since silence looks the same either way); Claude Code
 installed and signed in (a `signed_out` turn makes it a problem whatever the
 check says); each agent's capabilities; this device.
 
+**Timings in the trail** (`lib/readTimings.ts`). After each welcome the link's
+trail (sent to the Mac with the next hello, and in its log as "phone connected
+… trail") also says when the snapshot and "caught up" came, how long the first
+ten reads took and when they were asked, and any read over a second:
+`read agents.conversations answered in 250ms, 300ms after welcome`. A "stuck"
+moment on the phone then carries its own numbers.
+
 **The connection bar** (`ConnectionBar` in `components/ConnectionPill.tsx`,
 worded by `linkBar` in `lib/connection.ts`). Screens say nothing while all is
 well. When something isn't, every tab (Catch up, Agents, Projects) shows one
