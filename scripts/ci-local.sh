@@ -3,7 +3,9 @@
 # way on this Mac as on GitHub. CI's Frontend job runs `ci-local.sh frontend`
 # itself, so the two can't drift apart.
 #
-#   scripts/ci-local.sh frontend   CI's Frontend job (what pre-push runs)
+#   scripts/ci-local.sh frontend   CI's Frontend job (what pre-push runs), and the phone app's
+#                                  checks (CI runs those as its own Mobile job: CI_NO_MOBILE=1)
+#   scripts/ci-local.sh mobile     the phone app: install, typecheck, lint, tests (mobile/)
 #   scripts/ci-local.sh rust       cargo fmt --check and clippy, as CI runs them
 #   scripts/ci-local.sh release    everything above, plus Rust tests and axe over
 #                                  every harness scenario in both themes
@@ -42,6 +44,18 @@ frontend() {
   step 'Design-system docs' pnpm -s docs:check
   step 'UI baseline' pnpm -s check:ui-baseline
   step 'Code patterns' pnpm -s check:patterns
+  # The phone app has its own lockfile and checks. CI runs them as the Mobile job.
+  if [ -z "${CI_NO_MOBILE:-}" ]; then mobile; fi
+}
+
+# The phone app (mobile/): CI never checked it before 1.0.25. Lint is run and
+# shown but doesn't fail the run yet: it has hundreds of findings from before
+# this step existed (mostly the type-aware rules), to be worked down.
+mobile() {
+  step 'Mobile install' pnpm --dir mobile install --frozen-lockfile --ignore-scripts
+  step 'Mobile type check' pnpm --dir mobile run typecheck
+  step 'Mobile lint (reported, not blocking yet)' bash -c 'pnpm --dir mobile run lint || echo "(mobile lint findings: not blocking yet)"; true'
+  step 'Mobile tests' pnpm --dir mobile exec jest --ci
 }
 
 rust() {
@@ -66,6 +80,7 @@ a11y() {
 
 case "$MODE" in
   frontend) frontend ;;
+  mobile) mobile ;;
   rust) rust ;;
   release)
     frontend
@@ -74,7 +89,7 @@ case "$MODE" in
     a11y
     ;;
   *)
-    echo "usage: $0 frontend|rust|release" >&2
+    echo "usage: $0 frontend|mobile|rust|release" >&2
     exit 2
     ;;
 esac

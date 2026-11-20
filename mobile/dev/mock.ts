@@ -86,6 +86,7 @@ function selfSigned(dir: string) {
     cors: args.includes('--cors'),
     hung: args.includes('--hung'),
     solo: args.includes('--solo'),
+    catchUpOne: args.includes('--catchup-one'),
     folders: args.includes('--folders'),
     heavy: args.includes('--heavy'),
     torture: args.includes('--torture'),

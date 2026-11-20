@@ -220,6 +220,8 @@ export interface MockOptions {
    * minutes after pairing, and the shortest list Home can have.
    */
   solo?: boolean;
+  /** Catch up with exactly one decision (Ops' push) and one thing that happened (Acme Site). */
+  catchUpOne?: boolean;
   /** Agents filed in folders made on the Mac (Website, Design, Ops). */
   folders?: boolean;
   /** How long a sign-in "on the Mac" takes before the card says it's connected. */
@@ -1910,6 +1912,22 @@ export function createMockServer(opts: MockOptions = {}) {
   ]);
   const agent = (id: string) => agents.find((a) => a.id === id);
   seedShared(now);
+  if (opts.catchUpOne) {
+    for (const a of agents) {
+      if (a.id === 'ops') {
+        a.pendingApprovals = 1;
+        a.unread = 0;
+      } else if (a.id === 'site') {
+        a.pendingApprovals = 0;
+        a.unread = 1;
+        a.preview = 'Hero copy is updated on staging.';
+      } else {
+        a.pendingApprovals = 0;
+        a.unread = 0;
+        a.hidden = true;
+      }
+    }
+  }
   // A Mac just set up has only the Chief: the others are seeded (their
   // fixtures refer to each other) and then left out of what the phone sees.
   if (opts.solo) {
@@ -5938,6 +5956,21 @@ function seedMessages(a: Agent, now: number): AgentMessage[] {
     });
   } else if (a.id === 'design') {
     add({ ts: now - 30 * 60_000, kind: 'user', text: 'Export the new icon set to the site.' });
+    // A reply that is only a nested list (Julian's iPhone, 19 Nov: empty circles, no words).
+    add({
+      ts: now - 31 * 60_000,
+      kind: 'agent',
+      text: [
+        '1. Fix the release path',
+        '   - Tag the commit that went green',
+        '   - Publish only after CI passes on it',
+        '   - Keep the generated files in step',
+        '2. Make the checks boring',
+        '   - One list of checks for CI and pre-push',
+        '   - Split the accessibility run in four',
+        '   - Pin Windows to a fixed image',
+      ].join('\n'),
+    });
     add({
       ts: now - 28 * 60_000,
       kind: 'agent',

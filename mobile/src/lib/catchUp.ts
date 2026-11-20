@@ -149,6 +149,31 @@ export const advance = (q: CatchQueue): CatchQueue => ({
   at: Math.min(q.at + 1, q.items.length),
 });
 
+/**
+ * Later: the card goes to the end of the queue (never removed: it is asked
+ * again once the rest is through). On the last card there is no end to go
+ * to, so it moves on, as Next.
+ */
+export function later(q: CatchQueue): CatchQueue {
+  const it = q.items[q.at];
+  if (!it) return q;
+  if (q.at >= q.items.length - 1) return advance(q);
+  return { items: [...q.items.slice(0, q.at), ...q.items.slice(q.at + 1), it], at: q.at };
+}
+
+/** Jump to an item further on: it is the card now, and the one it replaces waits next. */
+export function jumpTo(q: CatchQueue, key: string): CatchQueue {
+  const i = q.items.findIndex((it, j) => j > q.at && it.key === key);
+  if (i < 0) return q;
+  const items = [...q.items];
+  const [chosen] = items.splice(i, 1);
+  items.splice(q.at, 0, chosen);
+  return { items, at: q.at };
+}
+
+/** What waits after the open card, in order. */
+export const upNext = (q: CatchQueue): CatchItem[] => q.items.slice(q.at + 1);
+
 export const current = (q: CatchQueue): CatchItem | null => q.items[q.at] ?? null;
 
 export const isDone = (q: CatchQueue) => q.at >= q.items.length;

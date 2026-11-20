@@ -53,6 +53,7 @@ export * from './catchUpWords';
 export * from './approvalTitle';
 export * from './softBreaks';
 export * from './cardWords';
+export * from './catchUpWords';
 export * from './quiet';
 export * from './usageGlance';
 export * from './sameAccount';

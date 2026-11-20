@@ -1,76 +1,81 @@
 /**
- * The words of Catch up, and their order, said once for the desk
- * (`components/agents/AgentsCatchUp.tsx`) and the phone, so the two can't
- * drift apart. Spec: Designer's "Catch up, direction 2".
+ * Catch up's words and order, one place for desk and phone (design: "Catch up,
+ * direction 2", spec-catchup-dir2.md). The page is the queue and the open
+ * decision; these are the exact words around them, so the two never differ.
  *
  * @module catchUpWords
  */
 
-/** A count in a label: 99+ from a hundred. */
-export const countLabel = (n: number): string => (n >= 100 ? '99+' : String(n));
-
+/** The page, its header count states and every fixed label. */
 export const CATCH_UP = {
   title: 'Catch up',
-  inFlight: 'What’s in flight',
-  close: 'Close',
+  /** Header count while the summary card is open. */
+  summary: 'Summary',
+  /** Header count, and the title of the empty state. */
+  allClear: 'All clear',
+  needsYou: 'Needs you',
+  /** The group after the decisions (desk), and the phone's label with a single item. */
+  then: 'Then',
+  /** The phone's queue under the card. */
+  upNext: 'Up next',
+  /** Answered rows, at the top of the desk's queue. */
+  done: 'Done',
+  /** The tag on an item moved to the end. */
   later: 'Later',
-  laterTag: 'Later',
+  whileAway: 'While you were away',
+  gotIt: 'Got it',
+  whatsInFlight: 'What’s in flight',
+  close: 'Close',
   openChat: 'Open chat',
   allow: 'Allow',
   deny: 'Deny',
   details: 'Details',
-  gotIt: 'Got it',
-  summaryTitle: 'While you were away',
-  allClear: 'All clear',
+  /** The empty queue's one row. */
   nothingWaiting: 'Nothing waiting',
-  then: 'Then',
+  nothingNeedsYou: 'Nothing needs you.',
 } as const;
 
-/** The group labels, in order: Done (once something is answered), Needs you, Then. */
-export const groupLabel = {
-  needsYou: (n: number) => `Needs you · ${countLabel(n)}`,
-  done: (n: number) => `Done · ${countLabel(n)}`,
-  upNext: (n: number) => `Up next · ${countLabel(n)}`,
-  then: CATCH_UP.then,
+/** What a decision is, over its title: the amber dot's words. */
+export type CatchUpEyebrow = 'needsOk' | 'didntFinish' | 'needsInput';
+
+export const CATCH_UP_EYEBROW: Record<CatchUpEyebrow, string> = {
+  needsOk: 'Needs your OK',
+  didntFinish: 'Didn’t finish',
+  needsInput: 'Needs your input',
 };
 
-export type CatchUpHeadState =
-  | { kind: 'left'; left: number }
-  | { kind: 'later'; later: number }
-  | { kind: 'summary' }
-  | { kind: 'clear' };
+/** A count as the page shows it: `99+` from 100 up. */
+export const catchUpCount = (n: number): string => (n >= 100 ? '99+' : String(n));
 
-/** The count beside the title: `N left`, `Summary`, `All clear`; the phone adds `1 of 3`. */
-export function headCount(s: CatchUpHeadState): string {
-  if (s.kind === 'left') return `${countLabel(s.left)} left`;
-  if (s.kind === 'later') return `${countLabel(s.later)} for Later`;
-  return s.kind === 'summary' ? 'Summary' : CATCH_UP.allClear;
-}
+/** "N left": decisions remain. */
+export const catchUpLeft = (n: number): string => `${catchUpCount(n)} left`;
 
-/** "1 of 3" on the phone: where this decision is in what's left. */
-export const position = (index: number, total: number): string => `${index + 1} of ${total}`;
+/** The phone's header, with several: "1 of 3". */
+export const catchUpOf = (at: number, n: number): string =>
+  `${catchUpCount(at)} of ${catchUpCount(n)}`;
 
-/** The eyebrow over a card: what kind of ask it is, never the card's own title. */
-export function eyebrow(kind: 'ok' | 'input' | 'unfinished'): string {
-  return kind === 'unfinished'
-    ? 'Didn’t finish'
-    : kind === 'input'
-      ? 'Needs your input'
-      : 'Needs your OK';
-}
+/** A group's label: "Needs you · 3", "Up next · 2". */
+export const catchUpGroup = (label: string, n: number): string =>
+  `${label} · ${catchUpCount(n)}`;
 
-/** "6 things, no decisions" (the row in Then) and "6 things · no decisions" (the card's head). */
-export const summaryLine = (n: number): string =>
-  `${n} ${n === 1 ? 'thing' : 'things'}, no decisions`;
-export const summaryHead = (n: number): string =>
-  `${n} ${n === 1 ? 'thing' : 'things'} · no decisions`;
+/** "1 thing", "6 things". */
+export const catchUpThings = (n: number): string => `${catchUpCount(n)} ${n === 1 ? 'thing' : 'things'}`;
 
-/** "+ 3 more" under a full summary. */
-export const moreLine = (n: number): string => `+ ${n} more`;
+/** The summary row in the queue: "6 things, no decisions". */
+export const catchUpThingsNoDecisions = (n: number): string => `${catchUpThings(n)}, no decisions`;
 
-/** The empty state's line; the time only when it is known. */
-export const allClearLine = (lastDecision?: string): string =>
-  lastDecision ? `Nothing needs you. Last decision: ${lastDecision}.` : 'Nothing needs you.';
+/** The summary card's head: "6 things · no decisions". */
+export const catchUpThingsHead = (n: number): string => `${catchUpThings(n)} · no decisions`;
 
-/** The most rows a summary shows. */
-export const SUMMARY_MAX = 6;
+/**
+ * The all-clear sentence. The time of the last decision is the user's own
+ * clock format and appears only when it is known.
+ */
+export const catchUpAllClearBody = (lastDecision?: string): string =>
+  lastDecision ? `${CATCH_UP.nothingNeedsYou} Last decision: ${lastDecision}.` : CATCH_UP.nothingNeedsYou;
+
+/** How many rows the summary shows before "+ N more". */
+export const CATCH_UP_SUMMARY_ROWS = 6;
+
+/** "+ 3 more" under a long summary. */
+export const catchUpMore = (n: number): string => `+ ${catchUpCount(n)} more`;
