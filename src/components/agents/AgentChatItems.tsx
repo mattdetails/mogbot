@@ -1370,16 +1370,16 @@ const ApprovalCardBody = memo(function ApprovalCard({
               : undefined
         }
         note={
-          pending && gate
-            ? 'It waits for you, and closes if the routine runs again first.'
-            : pending && skill
-              ? SKILL_OFFER_NOTE
-              : pending && paused && !plainDeny && !approval.settings && !approval.slackReply
-                ? 'It paused here for you. Allow it and it picks up where it left off.'
-                : approval.status === 'expired'
-                  ? approval.setAside
-                  : pending && approval.always
-                    ? approval.alwaysNote
+          pending && approval.always && approval.alwaysNote
+            ? approval.alwaysNote
+            : pending && gate
+              ? 'It waits for you, and closes if the routine runs again first.'
+              : pending && skill
+                ? SKILL_OFFER_NOTE
+                : pending && paused && !plainDeny && !approval.settings && !approval.slackReply
+                  ? 'It paused here for you. Allow it and it picks up where it left off.'
+                  : approval.status === 'expired'
+                    ? approval.setAside
                     : undefined
         }
         actions={
