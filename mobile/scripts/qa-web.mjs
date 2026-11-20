@@ -4642,6 +4642,32 @@ async function main() {
     }
   }
 
+  if (phase('chat-spec')) {
+    // The user's bubble takes the agent's key colour (ink picked for contrast);
+    // the agent's bubble is a 4% / 6% tint at 15/20.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      for (const colorway of ['blue', 'mustard', 'sage', 'pink', 'graphite', 'forest']) {
+        await startMock(`--design-colorway=${colorway}`);
+        await page.goto(`${WEB}/chat/design`);
+        await sleep(5000);
+        await scrollToIncludes('Fix the release path')(page);
+        await sleep(600);
+        await screen(page, theme, {
+          name: `chat-spec-${colorway}`,
+          check: `Chat in ${colorway}: your bubble in the key colour with readable ink, the reply a quiet tint at 15/20`,
+        });
+        // Words in the box: Send turns into the key colour (muted while it's empty, above).
+        await page.type('Hello there', 'textarea');
+        await sleep(500);
+        await screen(page, theme, {
+          name: `chat-spec-${colorway}-send`,
+          check: `Composer in ${colorway} with text: the + at the left, the words, the dictation mic, one round Send arrow in the key colour with readable ink`,
+        });
+      }
+    }
+  }
+
   if (phase('nested-list')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);

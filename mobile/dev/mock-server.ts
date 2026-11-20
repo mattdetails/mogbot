@@ -222,6 +222,8 @@ export interface MockOptions {
   solo?: boolean;
   /** Catch up with exactly one decision (Ops' push) and one thing that happened (Acme Site). */
   catchUpOne?: boolean;
+  /** The Designer's key colour (a colourway id): the chat bubbles take it. */
+  designColorway?: string;
   /** Agents filed in folders made on the Mac (Website, Design, Ops). */
   folders?: boolean;
   /** How long a sign-in "on the Mac" takes before the card says it's connected. */
@@ -664,6 +666,9 @@ export function createMockServer(opts: MockOptions = {}) {
 
   const now = Date.now();
   const agents: Agent[] = seedAgents(now);
+  if (opts.designColorway) {
+    for (const a of agents) if (a.id === 'design') a.colorway = opts.designColorway;
+  }
   // Finance checks with you often, on its own; the rest follow the team.
   for (const a of agents) if (a.id === 'fin') a.independence = 'often';
   if (opts.bothEngines) {

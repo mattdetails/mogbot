@@ -317,36 +317,26 @@ describe('timeline', () => {
     expect(days[0].kind === 'day' && days[0].label).toMatch(/^Today /);
   });
 
-  it('still says it is working under a draft once a tool runs after the text (#26)', () => {
+  it('a reply lands whole: a draft is never drawn, and the working row stays', () => {
     const list = [msg('a', now - 60_000, { kind: 'user' })];
-    const running = agent({
-      status: {
-        state: 'working',
-        activity: 'Running tests',
-        since: now,
-        work: { startedAt: now, steps: [], fileCount: 0, current: { label: 'Running tests' } },
-      },
-    } as never);
-    const items = chatItems(running, list, [], { id: 'd', text: 'Let me check' }, now);
-    // Newest first: the working row under the draft.
-    expect(items[0]).toMatchObject({ kind: 'working' });
-    expect(items[1]).toMatchObject({ kind: 'draft' });
-    // Still writing (no tool running): the draft alone.
     const writing = agent({ status: { state: 'working', activity: null, since: now } });
-    expect(chatItems(writing, list, [], { id: 'd', text: 'Let me' }, now)[0]).toMatchObject({
-      kind: 'draft',
-    });
+    const items = chatItems(writing, list, [], { id: 'd', text: 'Let me check' }, now);
+    expect(items.some((i) => i.kind === 'draft')).toBe(false);
+    expect(items[0]).toMatchObject({ kind: 'working' });
+    // Once the message is there the working row goes with the state.
+    const done = chatItems(agent(), [...list, msg('d', now)], [], undefined, now);
+    expect(done[0]).toMatchObject({ kind: 'message', key: 'd' });
+    expect(done.some((i) => i.kind === 'working')).toBe(false);
   });
 
-  it('hands the list the same message rows while only the draft or the status changes', () => {
+  it('hands the list the same message rows while only the status changes', () => {
     const list = [msg('a', now - 120_000, { kind: 'user' }), msg('b', now - 60_000)];
-    const first = chatItems(agent(), list, [], { id: 'd', text: 'Dep' }, now);
+    const first = chatItems(agent(), list, [], undefined, now);
     const working = agent({ status: { state: 'working', activity: 'Reading', since: now } });
     const next = chatItems(working, list, [], { id: 'd', text: 'Deploying' }, now + 1_000);
-    // The draft row is new; every message row and time line is the very same object.
-    expect(next[0]).toMatchObject({ kind: 'draft', text: 'Deploying' });
-    expect(next.slice(1)).toHaveLength(first.length - 1);
-    next.slice(1).forEach((item, i) => expect(item).toBe(first[i + 1]));
+    expect(next[0]).toMatchObject({ kind: 'working' });
+    expect(next.slice(1)).toHaveLength(first.length);
+    next.slice(1).forEach((item, i) => expect(item).toBe(first[i]));
     // New messages, or another day: worked out again.
     const more = [...list, msg('c', now)];
     expect(chatItems(agent(), more, [], undefined, now)[0]).toMatchObject({ key: 'c' });
@@ -354,12 +344,6 @@ describe('timeline', () => {
     expect(tomorrow.find((i) => i.key === 'day:a')).toMatchObject({
       label: expect.stringMatching(/^Yesterday /),
     });
-  });
-
-  it('keeps the draft’s key when it becomes its message, so the row never remounts', () => {
-    const items = chatItems(agent(), [msg('r1', 1)], [], { id: 'r1', text: 'Deplo' }, 2);
-    expect(items.filter((i) => i.key === 'r1')).toHaveLength(1);
-    expect(items[0].kind).toBe('draft');
   });
 
   // The Mac answering a send must not change the rows: same key, same time

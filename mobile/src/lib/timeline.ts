@@ -123,17 +123,16 @@ export function chatItems(
   agent: Agent,
   messages: AgentMessage[],
   pending: PendingSend[],
-  draft: { id: string; text: string } | undefined,
+  // A reply lands whole: the streaming draft is never drawn, and the working
+  // row stays until the message itself arrives.
+  _draft: { id: string; text: string } | undefined,
   now = Date.now()
 ): Item[] {
   const out: Item[] = [];
-  // A reply being written in a room streams there, not here: this chat
-  // only says it's working, and folds the reply once it lands.
-  if (agent.status.room) draft = undefined;
   // A draft whose text block has ended while a tool runs still says it's
   // working (the newest row, under the draft), or the chat looks finished
   // (issue #26).
-  if ((!draft || agent.status.work?.current) && agent.status.state === 'working')
+  if (agent.status.state === 'working')
     out.push({
       kind: 'working',
       key: 'working',
@@ -142,7 +141,7 @@ export function chatItems(
     });
   // Waiting on a card of this chat: the same row says "Needs your OK on 12 emails",
   // with a real Review (the bar's job; one place per surface).
-  if (agent.status.state === 'waiting' && !draft) {
+  if (agent.status.state === 'waiting') {
     const asking = messages.filter((m) => m.approval?.status === 'pending');
     if (asking.length > 0) {
       out.push({
@@ -153,7 +152,6 @@ export function chatItems(
       });
     }
   }
-  if (draft) out.push({ kind: 'draft', key: draft.id, text: draft.text });
   const rows = messages.some((m) => m.room) ? foldRoomLines(messages, agent.copy?.id) : messages;
   const last = rows[rows.length - 1];
   out.push(
@@ -166,9 +164,7 @@ export function chatItems(
       now
     )
   );
-  // A draft that became its message keeps its key, so the row never remounts.
-  const skip = draft && messages.some((m) => m.id === draft.id) ? draft.id : undefined;
-  return out.concat(skip ? messageItems(rows, skip, now) : keptItems(messages, rows, agent, now));
+  return out.concat(keptItems(messages, rows, agent, now));
 }
 
 /**

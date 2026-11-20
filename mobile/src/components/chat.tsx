@@ -46,7 +46,8 @@ import { makeStyles, useColors } from '../lib/appearance';
 import { Attachments } from './attachments';
 import { LocalLinks } from './localLinks';
 import { useReveal } from '../lib/reveal';
-import { Markdown } from './Markdown';
+import { BubbleSize, Markdown } from './Markdown';
+import { useUserBubble } from '../lib/userBubble';
 import { Blocks } from './blocks/Blocks';
 import { Card, Line, TextAction } from './surfaces';
 import { Button, Icon, T } from './ui';
@@ -123,6 +124,7 @@ export const MessageRow = memo(function MessageRow({
 }) {
   const styles = useStyles();
   const colors = useColors();
+  const look = useUserBubble(agent);
   const hold = onLongPress && message.text.trim() ? () => onLongPress(message) : undefined;
   const canRevise = useCanRevise();
   const askForChanges = canRevise
@@ -182,16 +184,25 @@ export const MessageRow = memo(function MessageRow({
               delayLongPress={300}
               accessibilityRole="text"
               accessibilityHint={hold ? 'Hold for Copy, Quote and Select text' : undefined}
-              style={({ pressed }) => [styles.userBubble, pressed && styles.held]}
+              style={({ pressed }) => [
+                styles.userBubble,
+                { backgroundColor: look.fill },
+                pressed && styles.held,
+              ]}
             >
               {message.revises && (
-                <View style={[styles.bubbleQuote, { marginBottom: space.xs }]}>
-                  <T variant="small" color={colors.textOnBubbleUser} numberOfLines={2}>
+                <View
+                  style={[
+                    styles.bubbleQuote,
+                    { marginBottom: space.xs, borderLeftColor: look.ink },
+                  ]}
+                >
+                  <T variant="small" color={look.ink} numberOfLines={2}>
                     {revisingLabel(message.revises)}
                   </T>
                 </View>
               )}
-              <Bubble text={message.text} />
+              <Bubble text={message.text} ink={look.ink} />
             </Pressable>
           )}
           {!!viaLabel(message.via) && (
@@ -255,7 +266,9 @@ export const MessageRow = memo(function MessageRow({
             // A bubble, as yours is, on the other side: a quieter fill and the
             // small corner toward the agent.
             <View style={styles.agentBubble}>
-              <Prose id={message.id} text={message.text} />
+              <BubbleSize.Provider value>
+                <Prose id={message.id} text={message.text} />
+              </BubbleSize.Provider>
             </View>
           )}
           {!!message.localLinks?.length && (
@@ -409,13 +422,12 @@ export const MessageRow = memo(function MessageRow({
 });
 
 /** Your words, with any quoted passages set off above them. */
-function Bubble({ text }: { text: string }) {
-  const colors = useColors();
+function Bubble({ text, ink }: { text: string; ink: string }) {
   const styles = useStyles();
   const parts = splitQuotes(text);
   if (parts.length === 1 && parts[0].kind === 'text') {
     return (
-      <T color={colors.textOnBubbleUser} style={styles.bubbleText}>
+      <T color={ink} style={styles.bubbleText}>
         {text}
       </T>
     );
@@ -424,13 +436,13 @@ function Bubble({ text }: { text: string }) {
     <View style={{ gap: space.xs }}>
       {parts.map((p, i) =>
         p.kind === 'quote' ? (
-          <View key={i} style={styles.bubbleQuote}>
-            <T variant="small" color={colors.textOnBubbleUser} numberOfLines={4}>
+          <View key={i} style={[styles.bubbleQuote, { borderLeftColor: ink }]}>
+            <T variant="small" color={ink} numberOfLines={4}>
               {p.text}
             </T>
           </View>
         ) : (
-          <T key={i} color={colors.textOnBubbleUser} style={styles.bubbleText}>
+          <T key={i} color={ink} style={styles.bubbleText}>
             {p.text}
           </T>
         )
@@ -762,6 +774,8 @@ export function PendingRow({ pending }: { pending: PendingSend }) {
   const colors = useColors();
   const styles = useStyles();
   const macName = useApp((s) => s.credentials?.name) ?? comp.your;
+  const pendingAgent = useApp((s) => s.overview?.agents.find((a) => a.id === pending.agentId));
+  const look = useUserBubble(pendingAgent);
   const dim = pending.failed || pending.waiting || pending.tidying;
   const slow = useSlow(pending.ts);
   return (
@@ -776,8 +790,8 @@ export function PendingRow({ pending }: { pending: PendingSend }) {
         </View>
       )}
       {!!pending.text && (
-        <View style={[styles.userBubble, dim && { opacity: 0.6 }]}>
-          <Bubble text={pending.text} />
+        <View style={[styles.userBubble, { backgroundColor: look.fill }, dim && { opacity: 0.6 }]}>
+          <Bubble text={pending.text} ink={look.ink} />
         </View>
       )}
       {pending.refused && !!pending.reason && (
@@ -981,7 +995,7 @@ const useStyles = makeStyles((colors) => ({
   heldProse: { opacity: 0.7 },
   bubbleQuote: {
     borderLeftWidth: 2,
-    borderLeftColor: colors.textOnBubbleUser,
+    borderLeftColor: 'transparent',
     paddingLeft: space.sm,
   },
   meta: { marginRight: space.xs },
@@ -996,13 +1010,13 @@ const useStyles = makeStyles((colors) => ({
   agentRow: { gap: space.sm },
   agentBubble: {
     alignSelf: 'flex-start',
-    maxWidth: '85%',
-    // Grok Bot's: 7% of the reading ink over the page, quieter than yours.
+    maxWidth: composer.replyMax,
+    // 4% of the reading ink over the page in dark, 6% in light.
     backgroundColor: colors.surfaceBubbleAgent,
     borderRadius: composer.corner,
     borderBottomLeftRadius: composer.tail,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm + space['2xs'],
+    paddingHorizontal: composer.replyPadH,
+    paddingVertical: composer.replyPadV,
   },
 
   count: { fontVariant: ['tabular-nums'] },

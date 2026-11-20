@@ -156,8 +156,8 @@
 .agent-composer__send,
 .agent-composer__stop {
   border-radius: var(--radius-full);
-  background: var(--accent-user);
-  color: var(--accent-on-user);
+  background: var(--bubble-user-fill, var(--accent-user));
+  color: var(--bubble-user-ink, var(--accent-on-user));
 }
 
 .agent-composer__send:hover:not(:disabled),

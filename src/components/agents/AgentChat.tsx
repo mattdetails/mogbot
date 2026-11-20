@@ -25,6 +25,7 @@ import {
   useRef,
   useState,
   type ComponentProps,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
@@ -110,6 +111,11 @@ import {
 } from '../../../packages/companion-protocol/src/rewind';
 import { useQuoteSelection } from './useQuoteSelection';
 import { ReplyContext, type ReplyApi } from './ReplyContext';
+import {
+  bubbleColors,
+  colorwayOf as keyColorway,
+  keyLookFor,
+} from '../../../packages/companion-protocol/src';
 import { ReplyChip } from './ReplyChip';
 import { replyTargetOf, type ReplyRef } from '../../lib/replyTo';
 import { useCommands } from '../../commands/useCommands';
@@ -501,6 +507,12 @@ export const AgentChat = memo(function AgentChat({
 }: AgentChatProps) {
   // Everything in this conversation takes on the agent's colour.
   const accentScope = useAccentScope(agent.color);
+  // Your bubble: the key's face colour with the ink both desk and phone pick the
+  // same way (`bubbleColors`, shared), so a key never has different ink on each.
+  const bubbleVars = useMemo(() => {
+    const b = bubbleColors(keyColorway(keyLookFor(agent).colorway).face);
+    return { '--bubble-user-fill': b.fill, '--bubble-user-ink': b.ink } as CSSProperties;
+  }, [agent]);
   // The conversation on screen (`agentConversations`): its own lines, kept
   // under its own key. Unknown for a moment on first open, while the Mac
   // says which one the user was last in.
@@ -2112,6 +2124,7 @@ export const AgentChat = memo(function AgentChat({
                 data-takeover-terminal={terminalShown || undefined}
                 aria-label={`Conversation with ${agent.name}`}
                 {...accentScope}
+                style={{ ...accentScope.style, ...bubbleVars }}
                 {...dropHandlers}
               >
                 <ChatAnnouncer chatId={agent.id} messages={messages} agentName={agent.name} />

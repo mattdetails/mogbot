@@ -539,8 +539,8 @@
    An 18px corner with a 6px one toward you. */
 .agent-bubble--user {
   white-space: pre-wrap;
-  background: var(--accent-user);
-  color: var(--accent-on-user);
+  background: var(--bubble-user-fill, var(--accent-user));
+  color: var(--bubble-user-ink, var(--accent-on-user));
   border-radius: var(--radius-bubble);
   border-bottom-right-radius: var(--radius-bubble-tail);
 }
