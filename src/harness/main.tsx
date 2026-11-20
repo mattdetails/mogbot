@@ -85,6 +85,8 @@ declare global {
       commandMissing?: boolean;
       /** What the scenario's scripted steps did, in order. */
       steps?: string[];
+      /** Raise a toast (set by ToastProvider), for recording toast motion. */
+      toast?: (message: string, type?: 'success' | 'info' | 'error') => void;
     };
   }
 }

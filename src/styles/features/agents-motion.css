@@ -266,22 +266,14 @@
 
 /* ---------------------------------------------------- menus & modals */
 
-/* Agents' dropdowns (model, switcher, scheduled) open the way the app's
-   context menus do, with the same keyframes and tokens. */
+/* Agents' dropdowns (model, switcher, scheduled) open from their top-right
+   corner; the motion itself is every menu's (dropdown.css). */
 .ss-dropdown__menu:is(.agent-model-menu, .agent-schedule) {
   transform-origin: top right;
-  animation: ss-context-menu-enter var(--context-menu-animation-duration)
-    var(--context-menu-animation-easing) backwards;
 }
 
-/* The editor and import dialogs: the scrim fades, the dialog rises. */
-.modal-frame-overlay:has(> .modal-frame-content:is(.agent-editor, .agents-import)) {
-  animation: agents-motion-fade-in var(--transition-interaction) backwards;
-}
-
-.modal-frame-content:is(.agent-editor, .agents-import) {
-  animation: agents-motion-rise var(--agents-motion-enter) backwards;
-}
+/* Dialogs (the editor, import and every other) arrive and leave through
+   ModalFrame's own motion (modal-frame.css). */
 
 /* A search jumped here: the line's bubble rings in its agent's colour and
    fades, so the eye lands on it after the scroll. Kept under reduced motion
@@ -326,9 +318,6 @@
   .agent-chat__messages > [data-arrived],
   .agent-chat__footer .agent-chat__jump,
   .agents-list > *,
-  .ss-dropdown__menu:is(.agent-model-menu, .agent-schedule),
-  .modal-frame-overlay:has(> .modal-frame-content:is(.agent-editor, .agents-import)),
-  .modal-frame-content:is(.agent-editor, .agents-import),
   .agent-chat__row--working[data-entering],
   .agent-chat__row--working[data-leaving],
   .agent-working__activity[data-changed],

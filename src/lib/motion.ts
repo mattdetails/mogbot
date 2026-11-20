@@ -18,3 +18,16 @@ export function prefersReducedMotion(): boolean {
 export function scrollMotion(): ScrollBehavior {
   return prefersReducedMotion() ? 'auto' : 'smooth';
 }
+
+/**
+ * Whether an exit can be animated here: a real engine (not jsdom, whose
+ * elements have no Web Animations) and no Reduce Motion. Without one, a thing
+ * that closes simply unmounts, as it always did.
+ */
+export function canAnimateExit(): boolean {
+  return (
+    typeof Element !== 'undefined' &&
+    typeof Element.prototype.getAnimations === 'function' &&
+    !prefersReducedMotion()
+  );
+}

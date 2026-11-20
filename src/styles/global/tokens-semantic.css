@@ -192,6 +192,15 @@
   --motion-exit-screen: var(--duration-exit-screen) var(--ease-exit);
   --motion-move: var(--duration-spring-standard) var(--spring-standard);
   --motion-pop: var(--duration-spring-celebrate) var(--spring-celebrate);
+  /* How far and from what size (docs/MOTION.md, "Distances"), and the two
+     lengths a component sometimes needs on their own. */
+  --motion-travel-popover: var(--motion-popover-y);
+  --motion-travel-rise: var(--motion-rise-y);
+  --motion-scale-popover: var(--motion-popover-scale);
+  --motion-scale-modal: var(--motion-modal-scale);
+  --motion-scale-press: var(--motion-press-scale);
+  --motion-duration-arrive: var(--duration-arrive);
+  --motion-duration-exit: var(--duration-exit-quick);
 
   --shadow-button:
     0 var(--stroke-1) var(--space-02) var(--color-black-o75),
