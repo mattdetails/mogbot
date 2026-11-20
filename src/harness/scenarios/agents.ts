@@ -4218,6 +4218,22 @@ export const agentsScenarios: Scenario[] = [
     commands: CONVERSATIONS,
   },
   {
+    id: 'agents-conversations-compact',
+    title: 'Agents — a narrow window: the quiet name row, conversations from ⋯',
+    looksRightWhen:
+      'A 700px window with no sidebar. The header is the mode toggle, then the agent switcher as the quiet name row (Acme Site’s 24px key, its name — never its description — and its dot), then ⋯; no separate conversation button. ⋯ → Conversations has opened the conversation list (search, New conversation, Recent, Rename) inside the window.',
+    viewport: { width: 700, height: 800 },
+    openSelector: AGENTS_TAB,
+    requires: '.agent-conversations__menu',
+    steps: [
+      { click: '.agent-chat__switcher .agent-chat__title' },
+      { click: '[role="menuitem"]', text: 'Acme Site' },
+      { click: '.agent-chat__more' },
+      { click: '[role="menuitem"]', text: 'Conversations' },
+    ],
+    commands: CONVERSATIONS,
+  },
+  {
     id: 'agents-conversations-narrow',
     title: 'Agents — the conversation switcher open in a narrow window',
     looksRightWhen:
@@ -4309,7 +4325,8 @@ export const agentsScenarios: Scenario[] = [
     steps: [
       { click: '.agent-chat__switcher .agent-chat__title' },
       { click: '[role="menuitem"]', text: 'Acme Site' },
-      { click: '.agent-conversations__trigger' },
+      { click: '.agent-chat__more' },
+      { click: '[role="menuitem"]', text: 'Conversations' },
       { fill: '.ss-dropdown__search-input', value: 'invoice' },
     ],
     commands: CONVERSATIONS,
@@ -4327,7 +4344,8 @@ export const agentsScenarios: Scenario[] = [
     steps: [
       { click: '.agent-chat__switcher .agent-chat__title' },
       { click: '[role="menuitem"]', text: 'Acme Site' },
-      { click: '.agent-conversations__trigger' },
+      { click: '.agent-chat__more' },
+      { click: '[role="menuitem"]', text: 'Conversations' },
       { click: '[role="menuitem"]', text: 'Rename this conversation' },
     ],
     commands: CONVERSATIONS,

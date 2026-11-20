@@ -110,7 +110,7 @@ import {
 import { useQuoteSelection } from './useQuoteSelection';
 import { ReplyContext, type ReplyApi } from './ReplyContext';
 import { AgentMenu } from './AgentMenu';
-import { AgentTasksPanel, TaskLine } from './AgentTasksPanel';
+import { AgentTasksPanel } from './AgentTasksPanel';
 import {
   bubbleColors,
   colorwayOf as keyColorway,
@@ -183,6 +183,7 @@ import {
   showsStarters,
   agentKeyState,
   failedTurn,
+  hintDot,
   needsYou,
   ROUTINES_NEED_THE_COMPUTER,
 } from '../../lib/agents';
@@ -1899,11 +1900,12 @@ export const AgentChat = memo(function AgentChat({
     [versionsByResult, sendChanges]
   );
 
-  // Identity only: who this is. What it's doing is said once in the sidebar
-  // row and once in the conversation (a bar, the working line), never a third
-  // time up here. Its role sentence crowded the band and was cut at every
-  // width; it is the name's tooltip, and in the agent's sheet.
+  // A narrow window's header (compact): the agent switcher's button is the
+  // quiet name row too — key, name, hint dot — never the description, and no
+  // conversation button beside it (spec-header-dropdown.md). The role is the
+  // name's tooltip.
   const role = agent.role ? roleWithoutPath(agent.role) : '';
+  const compactDot = hintDot(agent);
   const title = (
     <>
       <AgentKey
@@ -1911,18 +1913,14 @@ export const AgentChat = memo(function AgentChat({
         name={agent.name}
         color={agent.color}
         state={agentKeyState(agent)}
-        size="md"
+        size="sm"
       />
-      <span className="agent-chat__who">
-        <h2 className="agent-chat__name" title={role || undefined}>
-          {agent.name}
-        </h2>
-        {agent.tasks && (agent.tasks.doing || agent.tasks.toDo > 0 || agent.tasks.waits > 0) ? (
-          <TaskLine tasks={agent.tasks} onOpen={() => setTasksOpen(true)} />
-        ) : (
-          role && <span className="agent-chat__subtitle">{role}</span>
-        )}
-      </span>
+      <h2 className="agent-chat__name" title={role || undefined}>
+        {agent.name}
+      </h2>
+      {compactDot && (
+        <span className="agent-chat__hint-dot" data-dot={compactDot} aria-hidden="true" />
+      )}
     </>
   );
 
@@ -2229,7 +2227,12 @@ export const AgentChat = memo(function AgentChat({
                     )}
                     <div className="agent-chat__actions">
                       {/* Compact: the title is the agent menu, so it sits with the actions. */}
-                      {compact && conversationSwitcher}
+                      {/* Narrow: no conversation button; ⋯ → Conversations opens its list here. */}
+                      {compact && (
+                        <span className="agent-chat__conversations-anchor">
+                          {conversationSwitcher}
+                        </span>
+                      )}
                       <ConversationPagePin agent={agent} conversation={viewing} />
                       {/* Nothing to schedule or pick a model for until Claude Code is here. */}
                       {engineReady && (

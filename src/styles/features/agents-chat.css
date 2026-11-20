@@ -339,14 +339,30 @@
   }
 }
 
-/* Narrowest (compact, a 400px window): the mode toggle and the actions leave
-   the switcher about 20px for a name, which showed "C…". The key says who it
-   is (the button's label and the composer still name it); the switcher keeps
-   its key and chevron. */
-@container agent-chat-header (max-width: 420px) {
-  .agent-chat__switcher .agent-chat__name {
-    display: none;
-  }
+/* Narrow (compact): the switcher is the quiet name row; with no description
+   or conversation button beside it the name has room, and it ellipsises
+   rather than leaving. The conversation list opens from ⋯, anchored here:
+   its own button is kept for the list's position but takes no room. */
+.agent-chat__switcher .agent-chat__key,
+.agent-chat__switcher .agent-key {
+  flex: none;
+}
+
+.agent-chat__conversations-anchor {
+  display: flex;
+  width: 0;
+  overflow: visible;
+}
+
+.agent-chat__conversations-anchor .agent-conversations__trigger {
+  position: absolute;
+  width: var(--border-width-default);
+  height: var(--border-width-default);
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  /* Hidden, not just clear: never a tab stop or a screen-reader button. */
+  visibility: hidden;
 }
 
 .agent-chat__scroll {
