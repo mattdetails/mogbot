@@ -196,15 +196,9 @@ export const agentsCatchUpScenarios: Scenario[] = [
   scenario(
     'hover',
     'a queue row hovered',
-    'The second row shows the hover surface (a step lighter than selected, no border); the selected row keeps its own surface and border.',
+    'The second row shows the hover surface, always a step below the selected row (selected is the selected surface with a strong border); the sub-line and age stay at least 4.5:1 on both. A real pointer move renders it.',
     withAsks(ASKS, HAPPENED),
-    {
-      steps: [
-        { wait: 600 },
-        { hover: '.agents-catchup__queue .agents-catchup__row:nth-of-type(2)' },
-        { wait: 400 },
-      ],
-    }
+    { pointAt: '.agents-catchup__queue .agents-catchup__row:nth-of-type(2)' }
   ),
   scenario(
     'focus',

@@ -358,6 +358,7 @@ async function capture({
   label,
   requires,
   sameColumn,
+  pointAt,
   viewport,
 }) {
   // `HARNESS_FORCE_WIDTH` re-captures every scenario at that width (a narrow
@@ -463,6 +464,22 @@ async function capture({
           )
           .catch(() => false))
       : false;
+
+    // `pointAt`: a real pointer move onto this element (CDP mouseMoved), so its
+    // :hover state renders. Synthetic events can't do that.
+    if (pointAt) {
+      const box = JSON.parse(
+        (await page
+          .eval(
+            `(() => { const el = document.querySelector(${JSON.stringify(pointAt)}); if (!el) return 'null'; const r = el.getBoundingClientRect(); return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); })()`
+          )
+          .catch(() => 'null')) ?? 'null'
+      );
+      if (box) {
+        await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x, y: box.y });
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    }
 
     // Capture a *stable* frame rather than whichever frame happened to be on
     // screen. Polling hooks re-render on their own schedule, so a single shot
@@ -734,7 +751,7 @@ async function main() {
   await waitFor(probe.page, 'window.__harness', 20_000, 'the harness module to load');
   const allScenarios = JSON.parse(
     await probe.page.eval(
-      'JSON.stringify(window.__harness.scenarios.map(s=>({id:s.id,title:s.title,looksRightWhen:s.looksRightWhen,clipSelector:s.clipSelector,openSelector:s.openSelector,requires:s.requires,sameColumn:s.sameColumn,command:s.command,viewport:s.viewport})))'
+      'JSON.stringify(window.__harness.scenarios.map(s=>({id:s.id,title:s.title,looksRightWhen:s.looksRightWhen,clipSelector:s.clipSelector,openSelector:s.openSelector,requires:s.requires,sameColumn:s.sameColumn,pointAt:s.pointAt,command:s.command,viewport:s.viewport})))'
     )
   );
   probe.page.close();
@@ -752,6 +769,7 @@ async function main() {
         openSelector: s.openSelector,
         requires: s.requires,
         sameColumn: s.sameColumn,
+        pointAt: s.pointAt,
         viewport: s.viewport,
         identity,
         label: s.id,

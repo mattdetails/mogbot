@@ -313,7 +313,8 @@
   :is(
     .agents-list__row.is-current,
     .agents-search__hit.is-current,
-    .agent-bubble--user,
+    .agents-catchup__row.is-selected,
+    button.agents-catchup__row:hover,
     .account-switcher__row[aria-current='page']
   ) {
   --text-secondary: var(--color-gray-300);

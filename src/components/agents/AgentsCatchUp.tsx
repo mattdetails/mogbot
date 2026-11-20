@@ -161,6 +161,12 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
       ? catchUpLeft(left > 0 ? left : items.length)
       : CATCH_UP.allClear;
 
+  // Got it: the summary is read; what is left is All clear.
+  const gotItNow = useCallback(() => {
+    setGotIt(true);
+    setPicked(null);
+  }, []);
+
   const move = useCallback(
     (by: number) => {
       const keys = [...items.map((i) => i.key), ...(happened.length > 0 ? ['summary'] : [])];
@@ -175,6 +181,15 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       if (e.key === 'Escape') return onClose();
+      if (
+        e.key === 'Enter' &&
+        summaryOpen &&
+        !(e.target as HTMLElement | null)?.closest('button')
+      ) {
+        e.preventDefault();
+        gotItNow();
+        return;
+      }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
       if (t?.closest('input, textarea, [contenteditable="true"]')) return;
@@ -188,7 +203,7 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, move]);
+  }, [onClose, move, summaryOpen, gotItNow]);
 
   const [queueOpen, setQueueOpen] = useState(false);
   const queue = (
@@ -266,10 +281,7 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
               happened={happened}
               onOpenAgent={onOpenAgent}
               onOpenInFlight={onOpenInFlight}
-              onGotIt={() => {
-                setGotIt(true);
-                setPicked(null);
-              }}
+              onGotIt={gotItNow}
             />
           ) : (
             <AllClear lastDecision={lastDecision} onOpenInFlight={onOpenInFlight} />
@@ -568,8 +580,6 @@ function Summary({
 }) {
   const shown = happened.slice(0, CATCH_UP_SUMMARY_ROWS);
   const rest = happened.length - shown.length;
-  const gotIt = useRef<HTMLButtonElement>(null);
-  useEffect(() => gotIt.current?.focus(), []);
   return (
     <section className="agents-catchup__card agents-catchup__summary" tabIndex={-1}>
       <div className="agents-catchup__who">
@@ -600,7 +610,7 @@ function Summary({
         </TextButton>
       )}
       <div className="agents-catchup__actions">
-        <Button ref={gotIt} tabIndex={0} variant="strong" width="fill" onClick={onGotIt}>
+        <Button tabIndex={0} variant="strong" width="fill" onClick={onGotIt}>
           {CATCH_UP.gotIt}
         </Button>
       </div>

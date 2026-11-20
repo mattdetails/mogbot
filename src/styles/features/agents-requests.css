@@ -531,15 +531,27 @@ button.agents-catchup__row {
   cursor: pointer;
 }
 
-button.agents-catchup__row:hover {
+/* Hover is always a step below selected, in both themes: selected is the
+   selected surface with a strong border (Designer's dark-theme token rule). */
+button.agents-catchup__row:hover:not(.is-selected) {
   background: var(--surface-control-hover);
 }
 
 .agents-catchup__row.is-selected {
-  background: var(--surface-control);
-  border-color: var(--border-default);
+  background: var(--surface-selected);
+  border-color: var(--border-strong);
 }
 
+/* An answered row lands in Done with a 150ms fade (none under reduced motion). */
+.agents-catchup__row.is-muted {
+  animation: agents-motion-fade-in 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agents-catchup__row.is-muted {
+    animation: none;
+  }
+}
 .agents-catchup__row:focus-visible,
 .agents-catchup__sum-row:focus-visible {
   outline: 2px solid var(--text-secondary);
@@ -591,7 +603,7 @@ button.agents-catchup__row:hover {
   height: var(--catchup-tile);
   margin: 0 var(--spacing-2xs);
   border-radius: var(--radius-8);
-  border: var(--border-width-default) solid var(--border-default);
+  border: var(--border-width-default) solid var(--border-strong);
   background: var(--surface-control);
   color: var(--text-secondary);
 }
@@ -792,10 +804,6 @@ button.agents-catchup__row:hover {
   color: var(--text-primary);
 }
 
-:root[data-theme='dark'] .agents-catchup kbd {
-  border-color: var(--border-strong);
-}
-
 .agents-catchup__summary .agents-catchup__who {
   padding-bottom: var(--spacing-xs);
 }
@@ -846,7 +854,7 @@ button.agents-catchup__row:hover {
   height: var(--catchup-ring);
   margin-bottom: 18px; /* css-ok: the spec's 18px under the ring */
   border-radius: var(--radius-full);
-  border: var(--border-width-default) solid var(--border-default);
+  border: var(--border-width-default) solid var(--border-strong);
   background: var(--surface-control);
   color: var(--text-secondary);
 }
