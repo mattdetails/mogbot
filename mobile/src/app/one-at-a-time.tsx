@@ -27,8 +27,8 @@ import {
   catchUpLeft,
   catchUpMore,
   catchUpOf,
-  catchUpThings,
   catchUpThingsNoDecisions,
+  catchUpThingsHead,
   previewText,
   type CatchUpEyebrow,
 } from '@shipstudio/companion-protocol';
@@ -88,8 +88,9 @@ import { highRisk } from '../lib/needsYou';
 import { useApp } from '../lib/store';
 import { progress as setupProgress } from '../lib/teamSetup';
 import {
-  heroMark,
   catchKeySize,
+  catchUp,
+  fonts,
   iconSize,
   lineHeight,
   radius,
@@ -106,8 +107,6 @@ const LOAD_WAIT_MS = 5000;
 const MOVE_ON_MS = 1600;
 /** Past this share of the width, a swipe left is Next. */
 const SWIPE_SHARE = 0.28;
-/** The big answer buttons: taller than a large button, for the thumb. */
-const BIG = space['2xl'] + space.xl;
 
 export default function CatchUp() {
   const styles = useStyles();
@@ -285,10 +284,10 @@ function PageHeader({ count, onBack }: { count: string; onBack: () => void }) {
   return (
     <View style={styles.header}>
       <IconButton name="chevron.left" label="Back" onPress={onBack} />
-      <T variant="headline" color={colors.textStrong} accessibilityRole="header">
+      <T color={colors.textStrong} accessibilityRole="header" style={styles.pageTitle}>
         {CATCH_UP.title}
       </T>
-      <T variant="label" color={colors.textMuted} accessibilityLabel={count}>
+      <T variant="label" color={colors.textMuted} accessibilityLabel={count} style={styles.count}>
         {count}
       </T>
     </View>
@@ -687,7 +686,12 @@ function UpNext({
           >
             <AgentKey id={agent.id} name={agent.name} color={agent.color} size={catchKeySize} />
             <View style={styles.grow}>
-              <T variant="small" color={colors.textStrong} numberOfLines={1}>
+              <T
+                variant="small"
+                color={colors.textStrong}
+                numberOfLines={1}
+                style={styles.rowTitle}
+              >
                 {titleOf(it, agent, chats[agent.id]?.messages)}
               </T>
               <T variant="caption" color={colors.textMuted} numberOfLines={1}>
@@ -696,9 +700,10 @@ function UpNext({
                   : kindOf(it, agent, chats[agent.id]?.messages)}
               </T>
             </View>
-            <T variant="label" color={colors.textMuted}>
+            <T variant="label" color={colors.textMuted} style={styles.rowAge}>
               {catchUpAge(it.ts)}
             </T>
+            <Icon name="chevron.right" size={iconSize.inline} color={colors.textMuted} />
           </Pressable>
         ))}
         {summaryCount > 0 && (
@@ -770,7 +775,7 @@ function Summary({
               {CATCH_UP.whileAway}
             </T>
             <T variant="label" color={colors.textMuted}>
-              {catchUpThings(rows.length)}
+              {catchUpThingsHead(rows.length)}
             </T>
           </View>
           {shownRows.map(({ item, agent }) => (
@@ -831,7 +836,7 @@ function AllClear({
         <View style={styles.check}>
           <Icon name="checkmark" size={iconSize.hero} color={colors.textSecondary} />
         </View>
-        <T variant="title" color={colors.textStrong} accessibilityRole="header">
+        <T color={colors.textStrong} accessibilityRole="header" style={styles.doneTitle}>
           {CATCH_UP.allClear}
         </T>
         <T color={colors.textSecondary} style={styles.doneText}>
@@ -850,12 +855,13 @@ const useStyles = makeStyles((colors) => ({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
     minHeight: 52,
-    paddingHorizontal: space.sm,
+    paddingHorizontal: space.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderSubtle,
   },
+  pageTitle: { fontSize: catchUp.title, fontFamily: fonts.semibold },
+  count: { marginLeft: catchUp.countGap },
   body: { flex: 1 },
   scroll: { padding: space.lg, gap: space.lg },
   // The open card: radius 16, padding 20, the control surface and its hairline.
@@ -871,15 +877,15 @@ const useStyles = makeStyles((colors) => ({
   name: { flex: 1 },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   eyebrowDot: { width: 7, height: 7, borderRadius: radius.pill },
-  eyebrowText: { letterSpacing: 1, textTransform: 'uppercase' },
+  eyebrowText: { letterSpacing: 1, textTransform: 'uppercase', fontSize: catchUp.eyebrow },
   read: { fontSize: type.read, lineHeight: lineHeight(type.read, READ_LINE) },
   stack: { gap: space.sm },
-  big: { minHeight: BIG },
+  big: { minHeight: catchUp.button },
   quiet: { flexDirection: 'row', gap: space.sm },
   quietAction: { flex: 1, minHeight: 44 },
   // Under the card: the rest of the queue, on a recessed surface.
   upNext: { gap: space.sm },
-  groupLabel: { letterSpacing: 1, paddingHorizontal: space.xs },
+  groupLabel: { letterSpacing: 1, paddingHorizontal: space.xs, fontSize: catchUp.eyebrow },
   rows: { gap: space['2xs'] },
   row: {
     flexDirection: 'row',
@@ -891,6 +897,8 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.surfacePanel,
   },
   grow: { flex: 1 },
+  rowTitle: { fontSize: catchUp.rowTitle },
+  rowAge: { fontSize: catchUp.rowAge },
   clockTile: {
     width: catchKeySize,
     height: catchKeySize,
@@ -929,14 +937,16 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: space.xl,
   },
   check: {
-    width: heroMark,
-    height: heroMark,
-    borderRadius: heroMark / 2,
+    width: catchUp.clearRing,
+    height: catchUp.clearRing,
+    borderRadius: radius.pill,
+    marginBottom: catchUp.clearGap - space.md,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceControl,
   },
-  doneText: { textAlign: 'center' },
+  doneTitle: { fontSize: catchUp.clearTitle, fontFamily: fonts.semibold },
+  doneText: { textAlign: 'center', fontSize: catchUp.clearBody },
 }));
 
 /** A throw while drawing stays on this screen, with the way back. */

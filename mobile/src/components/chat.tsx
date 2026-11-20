@@ -987,10 +987,11 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.surfaceBubbleUser,
     borderRadius: composer.corner,
     borderBottomRightRadius: composer.tail,
-    paddingHorizontal: space.md + space['2xs'],
-    paddingVertical: space.sm + space['2xs'],
+    paddingHorizontal: composer.replyPadH,
+    paddingVertical: composer.replyPadV,
   },
-  bubbleText: { fontSize: type.read, lineHeight: lineHeight(type.read, 1.4) },
+  // Both bubbles are 15 on a 20 line.
+  bubbleText: { fontSize: type.bubble, lineHeight: composer.line },
   held: { opacity: 0.85 },
   heldProse: { opacity: 0.7 },
   bubbleQuote: {

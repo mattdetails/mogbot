@@ -6,6 +6,8 @@
 
 export const BUBBLE_INK_LIGHT = '#ffffff';
 export const BUBBLE_INK_DARK = '#151413';
+/** The neutral dark keys' bubble in light. */
+export const BUBBLE_NEUTRAL_DARK = '#2c2c2a';
 /** WCAG AA for body text. */
 export const BUBBLE_MIN_CONTRAST = 4.5;
 
@@ -46,8 +48,16 @@ function mix(hex: string, toward: string, t: number): string {
  * where neither reaches 4.5:1 (a mid tone) is moved toward the winning ink's
  * opposite until one does, so the fill stays the key's own hue.
  */
-export function bubbleColors(face: string): { fill: string; ink: string; ratio: number } {
+export function bubbleColors(
+  face: string,
+  opts: { dark?: boolean } = {}
+): { fill: string; ink: string; ratio: number } {
   let fill = face;
+  // A neutral dark key (Graphite) reads as a soft near-black in light, not blue-grey;
+  // in dark it keeps its own face, which stands off the page.
+  const [r, g, b] = rgbOf(face);
+  if (!opts.dark && Math.max(r, g, b) - Math.min(r, g, b) <= 26 && luminance(face) < 0.2)
+    fill = BUBBLE_NEUTRAL_DARK;
   const best = (f: string) => {
     const w = contrastRatio(f, BUBBLE_INK_LIGHT);
     const d = contrastRatio(f, BUBBLE_INK_DARK);
@@ -56,8 +66,9 @@ export function bubbleColors(face: string): { fill: string; ink: string; ratio: 
   let pick = best(fill);
   if (pick.ratio < BUBBLE_MIN_CONTRAST) {
     const toward = pick.ink === BUBBLE_INK_LIGHT ? '#000000' : '#ffffff';
+    const from = fill;
     for (let t = 0.04; t <= 1 && pick.ratio < BUBBLE_MIN_CONTRAST; t += 0.04) {
-      fill = mix(face, toward, t);
+      fill = mix(from, toward, t);
       pick = best(fill);
     }
   }

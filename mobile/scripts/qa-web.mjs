@@ -214,8 +214,18 @@ async function portFree(port) {
 }
 
 let mock = null;
+/** What the app cached of the last mock's chats: gone, so a fresh Mac is seen fresh. */
+async function dropCaches(page) {
+  await page
+    .eval(
+      `Object.keys(localStorage).filter((k) => /cache-.*\\.json$/.test(k)).forEach((k) => localStorage.removeItem(k))`
+    )
+    .catch(() => {});
+}
 async function startMock(...flags) {
   await stop(mock);
+  // A fresh Mac each time when asked: what an earlier run answered is not remembered.
+  if (process.env.QA_FRESH_STATE) rmSync(mockState, { force: true, recursive: true });
   mock = run('mock', path.join(ROOT, 'node_modules/.bin/tsx'), [
     'dev/mock.ts',
     '--http',
@@ -4385,7 +4395,8 @@ async function main() {
   // it waits, then the reason, never a spinner forever.
   const link = await (await fetch(`${MOCK}/dev/link`)).text();
   const d = new URL(link.replace(/^[^:]+:\/\//, 'http://x/')).searchParams.get('d');
-  await prePairShots(page, d);
+  // The pairing screens take minutes (an unreachable host times out); `--no-pair` skips them.
+  if (!args.includes('--no-pair')) await prePairShots(page, d);
   if (phase('demo')) await demoShots(page);
 
   // Pair through the real confirm screen. The demo's shots end on the last
@@ -4604,31 +4615,62 @@ async function main() {
     for (const theme of THEMES) {
       await setTheme(page, theme);
       // Several: the first decision, the queue under it ("Up next · N") ending on the summary row.
-      await startMock();
+      await startMock('--catchup-several');
+      await dropCaches(page);
       await page.goto(`${WEB}/one-at-a-time`);
       await sleep(5000);
       await screen(page, theme, {
         name: 'catchup2-several',
         check: 'Header: back, “Catch up”, “1 of N”; the card (key, name, age, amber eyebrow, the ask), actions stacked (strong, outline, ghosts); “Up next · N” rows under it',
       });
-      // One decision and what happened after it: “1 left”, “Then · While you were away”.
-      await startMock('--catchup-one');
+      // Allow / Deny: Later through the default queue (bounded) to the first approval.
+      await startMock('--catchup-several');
+      await dropCaches(page);
       await page.goto(`${WEB}/one-at-a-time`);
-      await sleep(5000);
+      await page.waitFor(`/up next/i.test(document.body.innerText)`, 45000, 'the queue');
+      for (let i = 0; i < 12; i++) {
+        if (await page.eval(`document.body.innerText.includes('Deny')`)) break;
+        await page.clickText('Later').catch(() => {});
+        await sleep(700);
+      }
+      await sleep(600);
       await screen(page, theme, {
-        name: 'catchup2-two',
-        check: 'Two decisions: “1 of 2”, the card (flat, one container, the ask as its title), Up next · 1 with the kind under its title, then no summary row yet',
+        name: 'catchup2-allow',
+        check: 'An approval in front: Allow (strong, 48 tall, 15pt) and Deny (1pt outline), the ghosts under them, Up next below',
       });
-      // Deny the first: one decision is left.
-      await page.clickLabel('Deny').catch(() => {});
-      await sleep(1500);
+      // One decision and what happened after it: “1 left”, “Then · While you were away”.
+      await startMock('--catchup-one', '--catchup-several');
+      await dropCaches(page);
+      await page.goto(`${WEB}/one-at-a-time`);
+      // The second decision's chat loads after the first (Ops' push arrives a few seconds in):
+      // wait for the queue to settle, then answer it if it came, so the state is always “one left”.
+      await sleep(12000);
+      if (await page.eval(`document.body.innerText.includes('1 of 2')`)) {
+        await screen(page, theme, {
+          name: 'catchup2-two',
+          check: 'Two decisions: “1 of 2”, the card (flat, one container, the ask as its title), Up next · 1 with the kind under its title',
+        });
+        await page.clickText('Later');
+        await page.waitFor(`document.body.innerText.includes('Deny')`, 15000, 'the push');
+        await sleep(2500); // a card arms a moment after it arrives
+        await page.clickText('Deny');
+        await sleep(4000);
+      }
+      await page
+        .waitFor(`/\\bthen\\b/i.test(document.body.innerText)`, 30000, 'one decision left')
+        .catch(async (e) => {
+          console.log('[debug]', JSON.stringify((await page.text()).slice(0, 400)));
+          throw e;
+        });
+      await sleep(800);
       await screen(page, theme, {
         name: 'catchup2-one',
-        check: 'One decision: “1 left”, the card, then “Then” and the “While you were away” row (“1 thing, no decisions”)',
+        check: 'One decision: “1 left”, the card, then “Then” and the “While you were away” row (“N things, no decisions”)',
       });
       // Later on the only decision: on to the summary.
       await page.clickText('Later');
-      await sleep(1200);
+      await page.waitFor(`document.body.innerText.includes('Got it')`, 15000, 'the summary');
+      await sleep(600);
       await screen(page, theme, {
         name: 'catchup2-summary',
         check: 'Summary: header “Summary”; the card “While you were away” with a clock tile, its rows with the time at the right; Got it in a fixed bar',

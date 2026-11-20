@@ -19,6 +19,7 @@ mod channel;
 pub mod client;
 pub mod crypto;
 mod http;
+mod session;
 
 use hyper::HeaderMap;
 use serde::Serialize;
