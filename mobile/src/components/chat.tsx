@@ -18,6 +18,7 @@ import {
   draftOf,
   attachmentsOutsideBlocks,
   readBlocks,
+  STEP_IN_RETIRED_LINE,
   type Agent,
   type AgentMessage,
   type ResultRef,
@@ -350,6 +351,8 @@ const MessageRowBody = memo(function MessageRowBody({
       if (message.approval?.status === 'pending' && draftOf(message.approval)) {
         return <DraftCard message={message} agent={agent} onError={onError} />;
       }
+      // A card from the old agent browser's Step in: one muted line, nothing to answer.
+      if (message.approval?.stepIn) return <Line text={STEP_IN_RETIRED_LINE} />;
       return message.approval ? (
         <ApprovalCard
           message={message}

@@ -32,7 +32,6 @@ import {
   failureLine as sharedFailureLine,
   failurePill,
   previewText,
-  stepInOutcome,
 } from '@shipstudio/companion-protocol';
 import { drivenLine } from './bars';
 import { diffLineKind } from './diff';
@@ -762,13 +761,6 @@ const EXPIRY_OUTCOME = {
 } as const;
 
 /** An answered card in a line, as the desk words it (with the option picked on a session's question). */
-/** A step-in card on the phone: Step in happens at the Mac (worded once, with the desk). */
-export {
-  stepInAtComputer,
-  STEP_IN_FROM_HERE,
-  stepInOnYourComputer,
-  stepInOnPhone,
-} from '@shipstudio/companion-protocol';
 import { pairedComputer } from './computer';
 import { answeredWords } from '@shipstudio/companion-protocol';
 
@@ -779,10 +771,6 @@ export function cardOutcome(approval: Approval): string {
   if (approval.skill) {
     const said = skillOutcome(approval.status);
     if (said) return said;
-  }
-  // "Needs you in its browser": the desk's words.
-  if (approval.stepIn && (approval.status !== 'expired' || approval.setAside)) {
-    return stepInOutcome(approval);
   }
   // "Carry on with Codex?": Wait, Just this time or Always, as the desk says it.
   if (approval.crossover && approval.status !== 'expired') {

@@ -46,7 +46,6 @@ import { AgentRequestsBar } from './AgentRequests';
 import { AgentKey } from './AgentKey';
 import { AgentActionItems, GO_BACK_MENU, type AgentActions } from './AgentActions';
 import { TakeoverBanner, TakeoverTerminal } from './AgentTakeover';
-import { StepInBar } from './AgentStepIn';
 import { AgentLine, ConversationBar, ConversationBars } from './AgentCard';
 import { PhoneSigninBar } from './PhoneSigninBar';
 import {
@@ -1981,7 +1980,6 @@ export const AgentChat = memo(function AgentChat({
                 onAnswer={onAnswer}
                 arrived={arrived}
                 series={similar.get(m.id)}
-                ownChat
               />
             );
           case 'error':
@@ -2379,11 +2377,6 @@ export const AgentChat = memo(function AgentChat({
                       bars={[
                         // The phone is driving a tab in this Mac's Chrome: said in every conversation.
                         { id: 'phoneSignin', node: <PhoneSigninBar /> },
-                        // You're in its browser right now (Step in): Hand back from here.
-                        {
-                          id: 'stepIn',
-                          node: <StepInBar agent={agent} messages={allLines ?? []} />,
-                        },
                         {
                           id: 'waiting',
                           node: needsOk ? null : (

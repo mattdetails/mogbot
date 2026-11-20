@@ -7,7 +7,7 @@
  *   pair of answers. Anything risky (deleting for good, money, credentials,
  *   pushing, publishing, sending: `approval.risk`, decided on the Mac) or
  *   unclassified, anything longer, and every key, login, session question,
- *   step-in or three-way card, gets **Review** instead, which opens it in
+ *   three-way card, gets **Review** instead, which opens it in
  *   full. Nobody allows what they couldn't read, or something risky from a
  *   Lock Screen.
  * - **Allow needs the phone unlocked.** Every card that reaches you is above
@@ -196,7 +196,7 @@ const clip = (s: string) => (s.length > BODY_MAX ? `${s.slice(0, BODY_MAX - 1).t
  * Deny, and it blocks nothing, so there is no hurry to answer it there.
  */
 const opensOnly = (a: Approval) =>
-  !!(a.secret || a.login || a.prompt || a.connector || a.stepIn || a.crossover || a.skill);
+  !!(a.secret || a.login || a.prompt || a.connector || a.crossover || a.skill);
 
 function categoryOf(a: Approval): CategoryId {
   if (a.gate) return CATEGORY.gate;

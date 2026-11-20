@@ -894,20 +894,6 @@ async fn generate() -> String {
         call("agents.signinDone", json!({ "sessionId": "signin_0123" })).await,
     );
     out += &entry(
-        "agentsStepInBegin",
-        "Result<'agents.stepInBegin'>",
-        call(
-            "agents.stepInBegin",
-            json!({ "agentId": AGENT, "requestId": "q_step" }),
-        )
-        .await,
-    );
-    out += &entry(
-        "agentsStepInDone",
-        "Result<'agents.signinDone'>",
-        call("agents.signinDone", json!({ "sessionId": "stepin_0123" })).await,
-    );
-    out += &entry(
         "agentsLoginSaveKey",
         "Result<'agents.loginSaveKey'>",
         call(

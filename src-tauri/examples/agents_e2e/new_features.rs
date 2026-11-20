@@ -26,7 +26,7 @@
 //! - `nf-restart`: a routine paused at its OK card, the app restarted (a
 //!   second process on the same data, through the launch steps); Go ahead
 //!   then runs step 2 once
-//! - `nf-turn-end`, `nf-step-in`, `nf-account-pin`, `nf-slack`,
+//! - `nf-turn-end`, `nf-account-pin`, `nf-slack`,
 //!   `nf-crossover`: background helpers and blank turns, Step in, an agent
 //!   set to an account that's out, Slack against a local fake, and the
 //!   crossover card's Wait; see `nf_more.rs`
@@ -61,7 +61,6 @@ pub const SCENARIOS: [&str; 14] = [
     "nf-disk",
     "nf-restart",
     "nf-turn-end",
-    "nf-step-in",
     "nf-account-pin",
     "nf-slack",
     "nf-crossover",
@@ -84,7 +83,7 @@ const MARK: &str = "NEWFEAT ";
 fn limit(name: &str) -> Duration {
     let default = match name {
         "nf-quiet" => 480,
-        "nf-turn-end" | "nf-step-in" => 420,
+        "nf-turn-end" => 420,
         _ => 300,
     };
     Duration::from_secs(
@@ -243,7 +242,6 @@ pub async fn phase(h: &H, name: &str) {
             "nf-restart-a" => restart_a(h).await,
             "nf-restart-b" => restart_b(h).await,
             "nf-turn-end" => super::nf_more::turn_end(h).await,
-            "nf-step-in" => super::nf_more::step_in(h).await,
             "nf-account-pin" => super::nf_more::account_pin(h).await,
             "nf-slack" => super::nf_more::slack_scenario(h).await,
             "nf-crossover" => super::nf_more::crossover(h).await,

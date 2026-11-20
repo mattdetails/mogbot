@@ -4,55 +4,17 @@
  * per idea). Pure; no rendering.
  */
 
-import type { Approval, CheckInMark, StepInCard, UsageAccount } from './model';
+import type { CheckInMark, UsageAccount } from './model';
 import { formatWhenInline } from './schedule';
-import { yourComputer, type ComputerKind } from './computer';
 
-// --- Step in (`agents/step_in.rs`) ---------------------------------------
+// --- Step in (retired) ------------------------------------------------------
 
-/** The card's two answers at the Mac, and the bar's. */
-export const STEP_IN = 'Step in';
-export const STEP_IN_NOT_NOW = 'Not now';
-export const STEP_IN_HAND_BACK = 'Hand back';
-
-/** The phone's note on a step-in card: Step in happens at the Mac. */
-export const stepInOnYourComputer = (kind?: ComputerKind | null) =>
-  `Step in on ${yourComputer(kind)}: its tab opens there.`;
-
-/** The same note, worded for a Mac (the desk's older callers). */
-export const STEP_IN_ON_YOUR_MAC = stepInOnYourComputer('mac');
-
-/** The phone's note while the user is in the agent's tab at the Mac. */
-export const stepInAtComputer = (kind?: ComputerKind | null) =>
-  `You’re in its browser on ${yourComputer(kind)}. Hand back there.`;
-
-/** The same note, worded for a Mac. */
-export const STEP_IN_AT_MAC = stepInAtComputer('mac');
-
-/** The phone's note on a step-in card when this Mac lets the phone step in. */
-export const STEP_IN_FROM_HERE =
-  'Its tab shows here and you do it by touch. It never sees what you type, only where the page ends up.';
-
-/** The phone's note while some phone is in the agent's tab. */
-export const stepInOnPhone = (device: string, kind?: ComputerKind | null) =>
-  `${device} is in its browser. Hand back there, or on ${yourComputer(kind)}.`;
-
-/** "You're in Research's browser", or from which phone. */
-export function stepInBarTitle(agentName: string, onPhone?: string): string {
-  return onPhone ? `${onPhone} is in ${agentName}’s browser` : `You’re in ${agentName}’s browser`;
-}
-
-/** Under the title, muted: "login.microsoftonline.com · Verify your identity". */
-export function stepInSource(card: Pick<StepInCard, 'site' | 'pageTitle'>): string {
-  return card.pageTitle ? `${card.site} · ${card.pageTitle}` : card.site;
-}
-
-/** A step-in card once it's closed, in one line. */
-export function stepInOutcome(approval: Pick<Approval, 'status' | 'setAside'>): string {
-  if (approval.status === 'allowed') return 'Handed back';
-  if (approval.status === 'denied') return STEP_IN_NOT_NOW;
-  return approval.setAside ?? 'Expired';
-}
+/**
+ * An agent's own browser is gone, and with it Step in. A card from before
+ * that (it arrives closed, with a legacy `stepIn` object) is this one muted
+ * line on the desk and the phone: no Allow, no Deny, never a crash.
+ */
+export const STEP_IN_RETIRED_LINE = 'This sign-in used the old browser; ask again';
 
 // --- Accounts: "Use this one now" and "Runs on" ---------------------------
 

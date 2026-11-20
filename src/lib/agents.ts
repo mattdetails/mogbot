@@ -12,7 +12,6 @@ import type { AgentSecret, SecretRequest } from './agentSecrets';
 import type {
   AgentFolders,
   LocalLink,
-  StepInCard,
   Watch,
   WatchSource,
 } from '../../packages/companion-protocol/src/model';
@@ -700,8 +699,8 @@ export interface Approval {
   handoff?: HandoffCard;
   /** "OK to go on?" between a routine's steps: Allow is Go ahead, Deny is Stop here. */
   gate?: RoutineGate;
-  /** "<Agent> needs you in its browser: <reason>": Step in, Hand back, Not now (`lib/agentStepIn`). */
-  stepIn?: StepInCard;
+  /** LEGACY: a retired "needs you in its browser" card; drawn as one quiet line. */
+  stepIn?: Record<string, unknown>;
   /** "All your Claude Code accounts are out until 4:00 PM. Carry on with Codex until then?": Always (allow + always), Just this time (allow), Wait (deny). */
   crossover?: CrossoverAsk;
   /** "Run turns on “Personal” first?": a plain Allow / Deny; Allow makes the switch. Nothing waits on it. */

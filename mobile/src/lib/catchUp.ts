@@ -263,8 +263,6 @@ export function askAction(m: AgentMessage | undefined): AskAction {
   if (a.handoff) return { kind: 'answer', allow: 'Save to memory', deny: 'Ignore' };
   // "Save … as a skill?": the card's own Save / Not now, as in its chat and on the desk.
   if (a.skill) return { kind: 'answer', allow: SKILL_SAVE, deny: SKILL_NOT_NOW };
-  // Step in happens at the Mac: open the card, which says so.
-  if (a.stepIn) return { kind: 'open', label: 'Open' };
   // Three answers (Wait, Just this time, Always): the card in its chat has them.
   if (a.crossover) return { kind: 'open', label: 'Answer' };
   return { kind: 'answer', allow: 'Allow', deny: 'Deny' };

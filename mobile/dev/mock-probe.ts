@@ -3,7 +3,7 @@
  *
  * - Fifty agents, one with a very long name and role, one whose chat is a
  *   very long message each way.
- * - A step-in card ("needs you in its browser"): Step in is on the Mac only,
+ * - A retired step-in card (the old agent browser): one muted line, nothing to answer;
  *   and a plain Allow from the phone is refused with the Mac's words.
  * - A card that the desk answers while it's open on the phone, and an agent
  *   deleted on the desk while its card is open on the phone
@@ -32,9 +32,6 @@ const H = 60 * MIN;
 
 export const PROBE_LONG_NAME =
   'Regional Wholesale Partnerships and Stockist Onboarding Coordinator, Pacific Northwest';
-
-/** The Mac's words for a plain Allow on a step-in card (`agents::step_in::ON_YOUR_MAC`). */
-export const STEP_IN_ON_YOUR_MAC = 'Step in on your Mac: press Step in on the card there.';
 
 /** `failure::plain_other` for a network error mid-turn. */
 export const FAILED_OFFLINE =
@@ -155,13 +152,13 @@ export function addProbeAccount(
     );
   };
 
-  // A step-in card: the agent's own browser reached a sign-in only a person can finish.
+  // A retired step-in card (the old agent browser): an old stored card, closed, drawn as one muted line.
   put(
     base('browse', 'Browser Helper', 'Bookings on supplier portals', 'teal', {
-      pendingApprovals: 1,
-      status: { state: 'waiting', activity: null, since: now - 3 * MIN },
+      pendingApprovals: 0,
+      status: { state: 'idle', activity: null, since: now - 3 * MIN },
       lastActivityAt: now - 3 * MIN,
-      preview: 'Needs you in its browser',
+      preview: 'This sign-in used the old browser; ask again',
     }),
     [
       {
@@ -179,7 +176,7 @@ export function addProbeAccount(
             'Browser Helper needs you in its browser: enter the code the portal sent to your phone',
           detail:
             "Its tab on portal.northwind.example opens on this Mac for you to do this yourself; Hand back when you're done. It never sees what you type, only where the page ends up.",
-          status: 'pending',
+          status: 'expired',
           stepIn: {
             reason: 'enter the code the portal sent to your phone',
             site: 'portal.northwind.example',
