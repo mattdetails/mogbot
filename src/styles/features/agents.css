@@ -706,6 +706,29 @@ body[data-agent-dragging] .agents-list__group-empty::before {
   border-color: var(--text-muted);
 }
 
+/* Over this folder: the header and the row share the selected fill (the
+   folder is the target), the key place turns solid and says where it lands. */
+.agents-list__group-empty-over {
+  display: none;
+}
+
+.agents-list__group[data-drop-over] .agents-list__group-empty {
+  color: var(--text-primary);
+}
+
+.agents-list__group[data-drop-over] .agents-list__group-empty::before {
+  border-style: solid;
+  border-color: var(--text-secondary);
+}
+
+.agents-list__group[data-drop-over] .agents-list__group-empty-idle {
+  display: none;
+}
+
+.agents-list__group[data-drop-over] .agents-list__group-empty-over {
+  display: inline;
+}
+
 .agents-list__group-new {
   padding: var(--spacing-xs) var(--spacing-sm);
 }
