@@ -506,6 +506,15 @@ pub(super) async fn run_turn(
         .as_ref()
         .map(super::reach::ConfigFile::arg)
         .unwrap_or_default();
+    // The briefing goes in a 0600 file, never on argv (`claude::args`).
+    let prompt_file = match engine {
+        Engine::Claude => Some(super::reach::write_instructions(&system_prompt)?),
+        Engine::Codex | Engine::OpenCode => None,
+    };
+    let prompt_file_arg = prompt_file
+        .as_ref()
+        .map(super::reach::ConfigFile::arg)
+        .unwrap_or_default();
     let mut cmd = crate::utils::create_command(&binary);
     cmd.args(driver.args(&TurnSpec {
         model,
@@ -515,6 +524,7 @@ pub(super) async fn run_turn(
         url: &url,
         mcp_config: &mcp_config_arg,
         system_prompt: &system_prompt,
+        system_prompt_file: &prompt_file_arg,
         writable: &layout.add_dirs,
         protected: protected.as_deref(),
         access: Some(&access),
@@ -1477,6 +1487,12 @@ pub(super) async fn run_turn(
         // turn is picked up there, rather than ended with nothing.
         let kind = super::failure::describe_now(engine, &text).1.kind;
         if died_mid_turn(session_confirmed, kind) {
+            tracing::warn!(
+                "[Agents] {agent_id}'s {} process ended mid-turn: {}; {}",
+                engine.label(),
+                exit_description(&status),
+                crate::external_command::truncate_output(text.trim())
+            );
             return Ok(Ended::Died(text));
         }
         return Err(CommandError::expected(text));
@@ -1537,5 +1553,49 @@ impl Drop for ReadingWatch {
                 let _ = self.app.emit(EVENT_REGISTRY, ());
             }
         }
+    }
+}
+
+/// How a process ended, for the log: its exit code, or the signal that
+/// stopped it (SIGTERM from another agent's `pkill` looks like nothing else).
+pub(super) fn exit_description(status: &std::process::ExitStatus) -> String {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(sig) = status.signal() {
+            return format!("killed by signal {sig} ({})", signal_name(sig));
+        }
+    }
+    match status.code() {
+        Some(code) => format!("exit code {code}"),
+        None => "no exit status".to_string(),
+    }
+}
+
+fn signal_name(sig: i32) -> &'static str {
+    match sig {
+        1 => "SIGHUP",
+        2 => "SIGINT",
+        6 => "SIGABRT",
+        9 => "SIGKILL",
+        15 => "SIGTERM",
+        _ => "other",
+    }
+}
+
+#[cfg(test)]
+mod exit_tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn a_killed_engine_says_which_signal_and_an_exit_says_its_code() {
+        use std::os::unix::process::ExitStatusExt;
+        let killed = std::process::ExitStatus::from_raw(15);
+        assert_eq!(exit_description(&killed), "killed by signal 15 (SIGTERM)");
+        let killed = std::process::ExitStatus::from_raw(9);
+        assert_eq!(exit_description(&killed), "killed by signal 9 (SIGKILL)");
+        let exited = std::process::ExitStatus::from_raw(3 << 8);
+        assert_eq!(exit_description(&exited), "exit code 3");
     }
 }

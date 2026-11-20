@@ -27,7 +27,7 @@ const RUNS: &[&str] = &[
     "git worktree add -q ../fix-268 -B fix-268 origin/fix-268 && cd ../fix-268 && git merge --no-edit origin/main",
     "cd ~/Desktop/Projects/fix-268 && npm ci --silent >/tmp/x.log 2>&1; npm run build >/tmp/y.log",
     "(PORT=3268 npm start >/tmp/srv.log 2>&1 &) ; for i in $(seq 1 30); do curl -s -o /dev/null -w '%{http_code}' localhost:3268 && break; sleep 1; done",
-    "pkill -f 'next start'; sleep 1; echo done",
+    "lsof -ti :3268 | xargs kill; sleep 1; echo done",
     "cd ~/Desktop/Projects/fix-268 && cp ../site-marketing/.env.local .",
     "cp ../site-marketing/.env.local .",
     "grep -E '^NEXT_PUBLIC_[A-Z_]+=' ../repo/.env.local",
@@ -143,6 +143,30 @@ fn the_short_list_still_asks() {
     for c in ASKS {
         assert!(bash_asks(c, false), "should ask: {c}");
         assert!(bash_asks(c, true), "should ask from outside text: {c}");
+    }
+}
+
+#[test]
+fn killing_by_name_or_command_line_asks_and_killing_by_port_or_pid_runs() {
+    // Every engine's command line names the words an agent greps for.
+    for c in [
+        "pkill -f vite",
+        "pkill vite; sleep 1",
+        "killall node",
+        "cd ~/p && pkill -f harness && npm run dev",
+        "pgrep -f vite | xargs kill",
+        "kill $(pgrep -f 'next start')",
+        "kill -9 `pgrep -f astro`",
+    ] {
+        assert!(bash_asks(c, false), "should ask: {c}");
+        assert!(bash_asks(c, true), "should ask from outside text: {c}");
+    }
+    for c in [
+        "lsof -ti :3000 | xargs kill",
+        "kill 4242",
+        "kill -9 $(lsof -ti tcp:5173)",
+    ] {
+        assert!(!bash_asks(c, false), "should run: {c}");
     }
 }
 

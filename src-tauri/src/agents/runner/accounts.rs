@@ -437,7 +437,10 @@ pub(super) async fn run_on_engine(
             resumes = next;
             picking_up = true;
             update_mark(agent_id, |m| m.resumes = next);
-            tracing::warn!("[Agents] {agent_id}'s engine stopped mid-turn; picking it up");
+            tracing::warn!(
+                "[Agents] {agent_id}'s engine stopped mid-turn (resume {next}); picking it up: {}",
+                crate::external_command::truncate_output(detail.trim())
+            );
             let line = format!("Picked up after {} stopped unexpectedly", engine.label());
             let _ = record_in_turn(app, new_message(agent_id, MessageKind::Note, line));
             prompt = prompts::carry_on(&format!("{} stopped unexpectedly", engine.label()));

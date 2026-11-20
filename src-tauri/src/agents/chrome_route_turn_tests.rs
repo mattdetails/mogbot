@@ -91,6 +91,7 @@ fn args(driver: Driver, access: &TurnAccess) -> Vec<String> {
         url: "http://127.0.0.1:4321/mcp/agent",
         mcp_config: "/s/mcp.json",
         system_prompt: "be useful",
+        system_prompt_file: "/s/prompt.md",
         writable: &writable,
         protected: None,
         access: Some(access),

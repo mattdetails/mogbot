@@ -52,6 +52,9 @@ pub struct TurnSpec<'a> {
     /// Claude Code: the path of the turn's 0600 `--mcp-config` file.
     pub mcp_config: &'a str,
     pub system_prompt: &'a str,
+    /// Claude Code: the path of the turn's 0600 file holding `system_prompt`,
+    /// so the briefing never sits on its command line (`reach::write_instructions`).
+    pub system_prompt_file: &'a str,
     /// Folders it may work in without asking, besides its cwd.
     pub writable: &'a [String],
     /// Codex with permission profiles: the `.git` / `.shipstudio` folders
@@ -141,7 +144,7 @@ impl Driver {
                 spec.session,
                 spec.resuming,
                 spec.mcp_config,
-                spec.system_prompt,
+                spec.system_prompt_file,
                 spec.writable,
             ),
             // Model, session and instructions go in `thread/start` instead.
@@ -378,6 +381,7 @@ mod tests {
             url: "http://x",
             mcp_config: "/s/mcp.json",
             system_prompt: "be useful",
+            system_prompt_file: "/s/prompt.md",
             writable,
             protected: None,
             access: None,

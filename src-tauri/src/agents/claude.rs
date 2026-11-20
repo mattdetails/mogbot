@@ -9,13 +9,16 @@ use super::prompts;
 /// Every argument a turn's `claude` process gets. The prompt goes on stdin.
 /// `mcp_config` is the path of the turn's 0600 config file naming the agent
 /// bridge and its secret (`reach`): never the config itself, which `ps`
-/// would show to every account on the Mac.
+/// would show to every account on the Mac. `system_prompt_file` is the path of
+/// the turn's 0600 file holding the briefing (`--append-system-prompt-file`):
+/// the ~30 KB briefing on argv held "vite", "chrome", "node" and the app's
+/// name, so an agent's `pkill -f vite` stopped every other agent's engine.
 pub(super) fn args(
     model: Option<&str>,
     session_id: &str,
     resuming: bool,
     mcp_config: &str,
-    system_prompt: &str,
+    system_prompt_file: &str,
     add_dirs: &[String],
 ) -> Vec<String> {
     let mut args: Vec<String> = [
@@ -48,8 +51,8 @@ pub(super) fn args(
         mcp_config.to_string(),
         "--allowedTools".into(),
         format!("mcp__{}", prompts::SERVER_KEY),
-        "--append-system-prompt".into(),
-        system_prompt.to_string(),
+        "--append-system-prompt-file".into(),
+        system_prompt_file.to_string(),
     ]);
     for dir in add_dirs {
         args.extend(["--add-dir".to_string(), dir.clone()]);
@@ -119,10 +122,10 @@ pub(super) fn interactive_args(
     model: Option<&str>,
     session_id: &str,
     mcp_config: &str,
-    system_prompt: &str,
+    system_prompt_file: &str,
     add_dirs: &[String],
 ) -> Vec<String> {
-    let print = args(model, session_id, true, mcp_config, system_prompt, add_dirs);
+    let print = args(model, session_id, true, mcp_config, system_prompt_file, add_dirs);
     let mut out = Vec::with_capacity(print.len());
     let mut it = print.into_iter();
     while let Some(arg) = it.next() {
@@ -162,7 +165,7 @@ mod tests {
     #[test]
     fn a_turn_keeps_the_artifact_tool_that_reads_claude_ai_links() {
         let dirs = vec!["/u/home".to_string()];
-        let turn = args(None, "sid", false, "/s/mcp.json", "be you", &dirs);
+        let turn = args(None, "sid", false, "/s/mcp.json", "/s/prompt.md", &dirs);
         let deny = denied(&turn);
         assert!(!deny.is_empty(), "the deny list is still there");
         for rule in &deny {
@@ -180,9 +183,24 @@ mod tests {
     }
 
     #[test]
+    fn the_briefing_is_a_file_never_on_the_command_line() {
+        let dirs = vec!["/u/home".to_string()];
+        let turn = args(None, "sid", false, "/s/mcp.json", "/s/prompt.md", &dirs);
+        assert!(!turn.iter().any(|a| a == "--append-system-prompt"));
+        let at = turn
+            .iter()
+            .position(|a| a == "--append-system-prompt-file")
+            .unwrap();
+        assert_eq!(turn[at + 1], "/s/prompt.md");
+        // `pkill -f vite` matches argv: nothing there may be a briefing's size.
+        let total: usize = turn.iter().map(String::len).sum();
+        assert!(total < 2048, "argv is {total} bytes");
+    }
+
+    #[test]
     fn a_turn_cannot_message_other_claude_sessions_on_this_mac() {
         let dirs = vec!["/u/home".to_string()];
-        let turn = args(None, "sid", false, "/s/mcp.json", "be you", &dirs);
+        let turn = args(None, "sid", false, "/s/mcp.json", "/s/prompt.md", &dirs);
         let deny = denied(&turn).join(",");
         for tool in CROSS_SESSION_TOOLS {
             assert!(
@@ -196,8 +214,8 @@ mod tests {
     fn taking_over_runs_the_turns_own_command_line_minus_print() {
         let dirs = vec!["/u/home".to_string(), "/u/ShipStudio".to_string()];
         let config = "/s/agent-bridge/mcp-1.json";
-        let turn = args(Some("opus"), "sid", true, config, "be you", &dirs);
-        let mine = interactive_args(Some("opus"), "sid", config, "be you", &dirs);
+        let turn = args(Some("opus"), "sid", true, config, "/s/prompt.md", &dirs);
+        let mine = interactive_args(Some("opus"), "sid", config, "/s/prompt.md", &dirs);
 
         for flag in PRINT_ONLY {
             assert!(!mine.iter().any(|a| a == flag), "{flag} is print-only");
@@ -231,7 +249,7 @@ mod tests {
             pair("--allowedTools"),
             format!("mcp__{}", prompts::SERVER_KEY)
         );
-        assert_eq!(pair("--append-system-prompt"), "be you");
+        assert_eq!(pair("--append-system-prompt-file"), "/s/prompt.md");
         assert_eq!(pair("--model"), "opus");
         assert!(mine.contains(&"--chrome".to_string()));
         assert!(mine.contains(&crate::preview_isolation::claude_flag()));

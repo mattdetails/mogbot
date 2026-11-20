@@ -5,7 +5,7 @@
 //! the opposite of `autoallow`'s: not "can this be vouched for?" but "is this
 //! on the list of things that act as the user, outside this Mac, or on the
 //! Mac itself?". Anything not on the list runs: local git, builds, installs,
-//! dev servers, backgrounding, `pkill`, copying `.env` files between the
+//! dev servers, backgrounding, copying `.env` files between the
 //! user's projects, network reads, localhost requests, file work in the home.
 //!
 //! **Still asks** ([`asks`]):
@@ -21,6 +21,8 @@
 //! - Stripe in live mode, except reads
 //! - `curl`/`wget`/`http` that write (a write method, or a body) to a host
 //!   other than this Mac
+//! - `pkill`, `killall` and `pgrep … | xargs kill`: other agents' engines match
+//!   by name or command line; kill by port or PID instead
 //! - `sudo`/`su`/`doas`; `rm -r` outside the user's projects, the agents'
 //!   homes and temporary folders (and always of the home, `~/Library`, `/`)
 //! - writes to `~/.ssh`, shell profiles, launch agents, credential stores, the
@@ -1294,6 +1296,10 @@ fn ui_scripting(lower: &str) -> bool {
 fn command_asks_at(command: &str, ctx: &Ctx, outside: bool, depth: u8) -> bool {
     let lower = command.to_ascii_lowercase();
     if ui_scripting(&lower) {
+        return true;
+    }
+    // `kill $(pgrep -f x)` and `pgrep -f x | xargs kill` are `pkill -f`.
+    if lower.contains("pgrep") && lower.contains("kill") {
         return true;
     }
     // `osascript` reading its script from a here-document or a pipe: the
@@ -3234,6 +3240,13 @@ fn program(prog: &str, args: &[&str], ctx: &Ctx, outside: bool, known: bool) -> 
         }
     }
     if moves_away(prog, args, ctx) {
+        return true;
+    }
+    // Killing by name or command line. Every engine carries its whole
+    // briefing on its command line, so `pkill -f vite` once stopped every
+    // other agent's turn mid-way (20 Nov 2026). Killing one PID, or whatever
+    // holds one port (`lsof -ti :3000 | xargs kill`), stays free.
+    if matches!(prog, "pkill" | "killall") {
         return true;
     }
     if ctx.full_send {

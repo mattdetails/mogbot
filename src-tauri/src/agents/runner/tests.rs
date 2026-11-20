@@ -330,7 +330,7 @@ fn an_unbound_agents_command_line_is_unchanged() {
         "sid",
         true,
         "http://x",
-        &prompt,
+        "/s/prompt.md",
         &layout.add_dirs,
     );
     let expected: Vec<String> = [
@@ -354,8 +354,8 @@ fn an_unbound_agents_command_line_is_unchanged() {
         "http://x",
         "--allowedTools",
         "mcp__app",
-        "--append-system-prompt",
-        &prompt,
+        "--append-system-prompt-file",
+        "/s/prompt.md",
         "--add-dir",
         "/u/ShipStudio",
         "--add-dir",

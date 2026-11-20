@@ -87,6 +87,8 @@ struct Driving {
     _access: super::broker::Access,
     /// Claude Code's config file holding it, removed with it.
     _mcp_config: Option<super::reach::ConfigFile>,
+    /// The 0600 file holding its briefing, so it never sits on argv.
+    _prompt_file: Option<super::reach::ConfigFile>,
     /// The account it runs on, held: removing it waits for the hand-back.
     _account: super::wallet::InUse,
 }
@@ -151,6 +153,8 @@ pub struct Context<'a> {
     pub codex_servers: &'a [String],
     /// With the secrets section, as a turn's.
     pub system_prompt: &'a str,
+    /// Claude Code: the path of the 0600 file holding `system_prompt`.
+    pub system_prompt_file: &'a str,
     pub layout: &'a super::project::Layout,
     pub path: String,
     pub secrets: Vec<(String, String)>,
@@ -167,7 +171,7 @@ pub fn spawn_for(ctx: &Context) -> Spawn {
             ctx.model,
             ctx.session,
             ctx.mcp_config,
-            ctx.system_prompt,
+            ctx.system_prompt_file,
             &ctx.layout.add_dirs,
         ),
         Engine::Codex => {
@@ -482,6 +486,14 @@ async fn open(
     super::wallet::prepare(&account);
     super::transcript::ensure(&account, &layout.cwd, &home, session);
     let account_env = super::wallet::env_for(&account);
+    let prompt_file = match agent.engine {
+        Engine::Claude => Some(super::reach::write_instructions(&system_prompt)?),
+        Engine::Codex | Engine::OpenCode => None,
+    };
+    let prompt_file_arg = prompt_file
+        .as_ref()
+        .map(super::reach::ConfigFile::arg)
+        .unwrap_or_default();
     let spawn = spawn_for(&Context {
         engine: agent.engine,
         model: agent.model.as_deref(),
@@ -492,6 +504,7 @@ async fn open(
         protected: protected.as_deref(),
         codex_servers: &codex_servers,
         system_prompt: &system_prompt,
+        system_prompt_file: &prompt_file_arg,
         layout: &layout,
         path: crate::utils::get_extended_path(),
         // The agent's secrets, and the account it last ran on (never named
@@ -555,6 +568,7 @@ async fn open(
             transcript,
             _access: access,
             _mcp_config: mcp_config,
+            _prompt_file: prompt_file,
             _account: held,
         },
     );
@@ -947,6 +961,7 @@ mod tests {
             protected: None,
             codex_servers: &[],
             system_prompt: "you are Finance",
+            system_prompt_file: "/s/agent-bridge/mcp-p1.md",
             layout,
             path: "/opt/bin:/usr/bin".into(),
             secrets: vec![("STRIPE_KEY".into(), "sk_x".into())],
@@ -973,7 +988,7 @@ mod tests {
                 Some("m1"),
                 "sess-1",
                 "/s/agent-bridge/mcp-a1.json",
-                "you are Finance",
+                "/s/agent-bridge/mcp-p1.md",
                 &l.add_dirs
             )
         );
