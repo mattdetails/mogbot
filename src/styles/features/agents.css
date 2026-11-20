@@ -492,8 +492,11 @@
   align-items: center;
   gap: var(--spacing-sm);
   width: 100%;
+  width: calc(100% - 2 * var(--spacing-sm));
   height: var(--control-height-standard);
-  padding: 0 var(--spacing-md) 0 var(--spacing-sm);
+  margin: var(--spacing-xs) var(--spacing-sm) 0;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--radius-lg);
   font: inherit;
   font-size: var(--font-size-body-sm);
   font-weight: var(--font-weight-label);
@@ -502,7 +505,6 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
 }
 
 .agents-list__hidden-toggle:hover {
@@ -511,7 +513,7 @@
 
 .agents-list__hidden-toggle:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--accent-focus);
+  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--focus-ring);
 }
 
 /* The chevron sits in a key-wide box, so the label starts on the names'
@@ -664,9 +666,12 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  width: 100%;
+  /* On the rows' inset, with no hairline: the header is a label, not a row. */
+  width: calc(100% - 2 * var(--spacing-sm));
   height: var(--control-height-standard);
-  padding: 0 var(--spacing-md) 0 var(--spacing-sm);
+  margin: var(--spacing-xs) var(--spacing-sm) 0;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--radius-lg);
   font: inherit;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-label);
@@ -675,7 +680,6 @@
   cursor: pointer;
   background: none;
   border: none;
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
 }
 
 .agents-list__group-toggle:hover {
@@ -684,7 +688,7 @@
 
 .agents-list__group-toggle:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--accent-focus);
+  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--focus-ring);
 }
 
 .agents-list__group-toggle[aria-expanded='true'] .agents-list__hidden-chevron {
@@ -703,8 +707,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A dragged agent over a group it can join. */
-.agents-list__group[data-drop-over] {
+/* A dragged agent over a group it can join: its header and its empty place
+   take the selected fill, each on the rows' inset. */
+.agents-list__group[data-drop-over]
+  > :is(.agents-list__group-toggle, .agents-list__group-empty),
+.agents-list__group[data-drop-over] .agents-list__group-empty {
   background: var(--surface-selected);
 }
 
@@ -716,10 +723,10 @@
   align-items: center;
   gap: var(--spacing-sm);
   height: var(--size-agents-list-row);
-  margin: 0;
-  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
+  margin: 0 var(--spacing-sm) var(--spacing-2xs);
+  padding: var(--spacing-sm);
   color: var(--text-muted);
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
 }
 
 .agents-list__group-empty::before {
@@ -728,7 +735,7 @@
   width: var(--agent-key-size-md);
   height: var(--agent-key-size-md);
   border: var(--border-width-default) dashed var(--border-strong);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-card);
 }
 
 /* While an agent is dragged, the empty place reads as where it can land. */
