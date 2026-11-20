@@ -632,6 +632,9 @@ pub fn run() {
             // Workflows & Inbox
             commands::agents::agents_overview,
             commands::agents::agents_task_board,
+            commands::agents::agents_task_add,
+            commands::agents::agents_task_move,
+            commands::agents::agents_task_drop,
             commands::agents::agents_missions,
             commands::agents::agents_mission_act,
             commands::agents::agents_mission_setup,

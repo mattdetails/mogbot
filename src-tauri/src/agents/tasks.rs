@@ -574,6 +574,78 @@ pub fn unseen(recent: &[Task]) -> usize {
         .count()
 }
 
+/// The user's own "Add a task" (desk and phone sheets): a line in Next in
+/// their words, as the agent would have added it.
+pub fn user_add(agent_id: &str, title: &str) -> Result<Task, String> {
+    let (id, _) = add(agent_id, title, Source::User, None);
+    if id.is_empty() {
+        return Err("Type what to add first.".into());
+    }
+    find(agent_id, &id).ok_or_else(|| "That line couldn't be saved.".to_string())
+}
+
+/// The order of one group's lines (open ones in the same state, oldest
+/// first, as the list shows them) and where `id` is in it. Pure.
+pub fn group_position(tasks: &[Task], id: &str) -> Option<(usize, Vec<usize>)> {
+    let at = tasks
+        .iter()
+        .position(|t| t.id == id || (id.len() >= 3 && t.id.starts_with(id)))?;
+    if !tasks[at].state.is_open() {
+        return None;
+    }
+    let state = tasks[at].state;
+    let mut group: Vec<usize> = (0..tasks.len())
+        .filter(|i| tasks[*i].state == state)
+        .collect();
+    group.sort_by_key(|i| (tasks[*i].created_at, *i));
+    let pos = group.iter().position(|i| *i == at)?;
+    Some((pos, group))
+}
+
+/// Move one open line a place up or down in its group (the user's own
+/// reorder). `Ok(false)`: it is already at that end. Order is `created_at`,
+/// so the two neighbours swap places.
+pub fn move_line(agent_id: &str, id: &str, up: bool) -> Result<bool, String> {
+    edit(agent_id, |tasks| swap_in(tasks, id, up))
+}
+
+/// [`move_line`] on a list already held. Pure.
+pub fn swap_in(tasks: &mut [Task], id: &str, up: bool) -> Result<bool, String> {
+    let Some((pos, group)) = group_position(tasks, id) else {
+        return Err(format!("No open task {id} on this list."));
+    };
+    let other = match (up, pos) {
+        (true, 0) => return Ok(false),
+        (true, p) => group[p - 1],
+        (false, p) if p + 1 >= group.len() => return Ok(false),
+        (false, p) => group[p + 1],
+    };
+    let me = group[pos];
+    let (a, b) = (tasks[me].created_at, tasks[other].created_at);
+    // Equal stamps can't be swapped: step past the neighbour instead.
+    let (mine, theirs) = if a == b {
+        if up {
+            (b - 1, b)
+        } else {
+            (b + 1, b)
+        }
+    } else {
+        (b, a)
+    };
+    tasks[me].created_at = mine;
+    tasks[other].created_at = theirs;
+    tasks[me].bump();
+    tasks[other].bump();
+    Ok(true)
+}
+
+/// The user's own Drop: closed with a reason (what they gave, else "Dropped
+/// by you"), kept in the list for the day.
+pub fn drop_line(agent_id: &str, id: &str, reason: Option<&str>) -> Result<String, String> {
+    let why = reason.map(str::trim).filter(|r| !r.is_empty());
+    set(agent_id, id, State::Dropped, Some(why.unwrap_or("Dropped by you")))
+}
+
 /// Link a line to the message that asked for it.
 pub fn link_ask(agent_id: &str, id: &str, msg: &str) {
     edit(agent_id, |tasks| {

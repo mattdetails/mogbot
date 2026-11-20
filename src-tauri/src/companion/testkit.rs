@@ -2212,6 +2212,30 @@ impl Backend for Stub {
         Ok(json!({ "on": on, "at": at, "always": always }))
     }
 
+    async fn task_add(&self, agent_id: &str, title: &str) -> Result<Value, CommandError> {
+        Ok(json!({ "id": "new1", "title": title, "source": "user", "state": "next",
+            "createdAt": 1_762_675_400_000_i64, "updatedAt": 1_762_675_400_000_i64,
+            "chased": 0, "lastChasedAt": 0, "agentId": agent_id }))
+    }
+
+    async fn task_move(
+        &self,
+        _agent_id: &str,
+        task_id: &str,
+        _up: bool,
+    ) -> Result<Value, CommandError> {
+        Ok(json!(task_id != "end"))
+    }
+
+    async fn task_drop(
+        &self,
+        _agent_id: &str,
+        _task_id: &str,
+        _reason: Option<&str>,
+    ) -> Result<Value, CommandError> {
+        Ok(json!(true))
+    }
+
     async fn tasks(&self, agent_id: &str) -> Result<Value, CommandError> {
         Ok(json!({
             "agentId": agent_id,

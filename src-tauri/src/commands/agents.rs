@@ -133,6 +133,62 @@ pub async fn agents_missions() -> Result<Vec<agents::missions::Mission>, Command
     blocking(|| Ok(agents::missions::list())).await
 }
 
+/// The task list's own actions, the user's (desk row and phone sheet): add a
+/// line in Next, move one a place in its group, drop one with a reason.
+#[tauri::command]
+#[tracing::instrument(skip(app, title))]
+pub async fn agents_task_add(
+    app: AppHandle,
+    agent_id: String,
+    title: String,
+) -> Result<agents::tasks::Task, CommandError> {
+    store::get(&agent_id)?;
+    let task = blocking(move || {
+        agents::tasks::user_add(&agent_id, &title).map_err(CommandError::expected)
+    })
+    .await?;
+    let _ = app.emit(runner::EVENT_REGISTRY, ());
+    Ok(task)
+}
+
+#[tauri::command]
+#[tracing::instrument(skip(app))]
+pub async fn agents_task_move(
+    app: AppHandle,
+    agent_id: String,
+    task_id: String,
+    up: bool,
+) -> Result<bool, CommandError> {
+    store::get(&agent_id)?;
+    let moved = blocking(move || {
+        agents::tasks::move_line(&agent_id, &task_id, up).map_err(CommandError::expected)
+    })
+    .await?;
+    if moved {
+        let _ = app.emit(runner::EVENT_REGISTRY, ());
+    }
+    Ok(moved)
+}
+
+#[tauri::command]
+#[tracing::instrument(skip(app, reason))]
+pub async fn agents_task_drop(
+    app: AppHandle,
+    agent_id: String,
+    task_id: String,
+    reason: Option<String>,
+) -> Result<bool, CommandError> {
+    store::get(&agent_id)?;
+    blocking(move || {
+        agents::tasks::drop_line(&agent_id, &task_id, reason.as_deref())
+            .map(|_| ())
+            .map_err(CommandError::expected)
+    })
+    .await?;
+    let _ = app.emit(runner::EVENT_REGISTRY, ());
+    Ok(true)
+}
+
 /// The set-up screen's "Save for later" and "Start": the user's own call
 /// (`agents::missions_run::act` with `save`, `start`, `discard`).
 #[tauri::command]

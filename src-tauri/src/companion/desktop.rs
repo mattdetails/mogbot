@@ -827,6 +827,39 @@ impl Backend for DesktopBackend {
         json(load)
     }
 
+    async fn task_add(&self, agent_id: &str, title: &str) -> Result<Value, CommandError> {
+        json(cmd::agents_task_add(self.app.clone(), agent_id.to_string(), title.to_string()).await?)
+    }
+
+    async fn task_move(
+        &self,
+        agent_id: &str,
+        task_id: &str,
+        up: bool,
+    ) -> Result<Value, CommandError> {
+        json(
+            cmd::agents_task_move(self.app.clone(), agent_id.to_string(), task_id.to_string(), up)
+                .await?,
+        )
+    }
+
+    async fn task_drop(
+        &self,
+        agent_id: &str,
+        task_id: &str,
+        reason: Option<&str>,
+    ) -> Result<Value, CommandError> {
+        json(
+            cmd::agents_task_drop(
+                self.app.clone(),
+                agent_id.to_string(),
+                task_id.to_string(),
+                reason.map(str::to_string),
+            )
+            .await?,
+        )
+    }
+
     async fn end_of_day(&self) -> Result<Value, CommandError> {
         json(cmd::agents_end_of_day().await?)
     }

@@ -108,6 +108,9 @@ pub const METHODS: &[&str] = &[
     "agents.morningBrief",
     "agents.setMorningBrief",
     "agents.tasks",
+    "agents.taskAdd",
+    "agents.taskMove",
+    "agents.taskDrop",
     "agents.endOfDay",
     "agents.setEndOfDay",
     "agents.missions",
@@ -836,6 +839,19 @@ pub trait Backend: Send + Sync + 'static {
     /// (Doing, Next, Waiting, Stuck), the last few closed, what it is doing
     /// now and whether it is overloaded. Read-only.
     async fn tasks(&self, agent_id: &str) -> Result<Value, CommandError>;
+    /// `agents_task_add`: the user's own new line in Next. Answers the task.
+    async fn task_add(&self, agent_id: &str, title: &str) -> Result<Value, CommandError>;
+    /// `agents_task_move`: a line a place up or down in its group. Answers
+    /// whether it moved (false at the end).
+    async fn task_move(&self, agent_id: &str, task_id: &str, up: bool)
+        -> Result<Value, CommandError>;
+    /// `agents_task_drop`: close a line with a reason; it stays for the day.
+    async fn task_drop(
+        &self,
+        agent_id: &str,
+        task_id: &str,
+        reason: Option<&str>,
+    ) -> Result<Value, CommandError>;
     /// `agents_end_of_day`: the end-of-day check-in, on or off and its time
     /// (minutes after midnight).
     async fn end_of_day(&self) -> Result<Value, CommandError>;
@@ -2183,6 +2199,18 @@ pub fn audit_detail(method: &str, params: &Value) -> String {
             ),
             _ => "end-of-day check-in: off".to_string(),
         },
+        "agents.taskAdd" => format!("{} tasks: add {}", field("agentId"), preview(field("title"))),
+        "agents.taskMove" => format!(
+            "{} tasks: move {} {}",
+            field("agentId"),
+            preview(field("taskId")),
+            preview(field("direction"))
+        ),
+        "agents.taskDrop" => format!(
+            "{} tasks: drop {}",
+            field("agentId"),
+            preview(field("taskId"))
+        ),
         "agents.missions.setup" => format!("mission set-up: {}", preview(field("action"))),
         "agents.missions.act" => format!(
             "mission {}: {}",
@@ -2877,6 +2905,37 @@ async fn run(
                 return Err(bad_params("Tasks takes an agentId."));
             }
             Ok(b.tasks(agent_id).await?)
+        }
+        "agents.taskAdd" | "agents.taskMove" | "agents.taskDrop" => {
+            let agent_id = params.get("agentId").and_then(Value::as_str).unwrap_or("");
+            if agent_id.is_empty() || agent_id.len() > 64 {
+                return Err(bad_params("Task changes take an agentId."));
+            }
+            let word = |k: &str, max: usize| {
+                params
+                    .get(k)
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty() && s.chars().count() <= max)
+            };
+            if method == "agents.taskAdd" {
+                let Some(title) = word("title", 400) else {
+                    return Err(bad_params("Add a task takes a `title` (up to 400 characters)."));
+                };
+                return Ok(b.task_add(agent_id, title).await?);
+            }
+            let Some(task_id) = word("taskId", 64) else {
+                return Err(bad_params("This takes a `taskId`."));
+            };
+            if method == "agents.taskMove" {
+                let up = match params.get("direction").and_then(Value::as_str) {
+                    Some("up") => true,
+                    Some("down") => false,
+                    _ => return Err(bad_params("`direction` is up or down.")),
+                };
+                return Ok(b.task_move(agent_id, task_id, up).await?);
+            }
+            Ok(b.task_drop(agent_id, task_id, word("reason", 200)).await?)
         }
         "agents.endOfDay" => Ok(b.end_of_day().await?),
         "agents.setEndOfDay" => {

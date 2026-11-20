@@ -1456,6 +1456,13 @@ export const sendAgentMessage = (
     writtenAt,
     replyTo,
   });
+/** The task list's own actions, the user's: add a line in Next, move one a place in its group, drop one (with a reason, else "Dropped by you"). */
+export const addAgentTask = (agentId: string, title: string) =>
+  invoke<AgentTask>('agents_task_add', { agentId, title });
+export const moveAgentTask = (agentId: string, taskId: string, up: boolean) =>
+  invoke<boolean>('agents_task_move', { agentId, taskId, up });
+export const dropAgentTask = (agentId: string, taskId: string, reason?: string) =>
+  invoke<boolean>('agents_task_drop', { agentId, taskId, reason });
 export const inspectFiles = (paths: string[]) =>
   invoke<FileInfo[]>('agents_inspect_files', { paths });
 /** Open an attachment in its default app, or with `reveal`, show it in Finder. */
@@ -2873,6 +2880,7 @@ import type { ResultCard, ResultRef } from '../../packages/companion-protocol/sr
 import type { ReplyKind, ReplyRef } from '../../packages/companion-protocol/src/model';
 export type { ReplyKind, ReplyRef };
 import type { StepInCard, TaskCounts } from '../../packages/companion-protocol/src/model';
+import type { AgentTask } from '../../packages/companion-protocol/src/tasks';
 export type { TaskCounts };
 import type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type { BlockSet } from '../../packages/companion-protocol/src/blocks';

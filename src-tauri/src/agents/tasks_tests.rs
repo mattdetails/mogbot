@@ -448,3 +448,59 @@ fn the_assign_source_is_written_as_assigned() {
         "\"assigned\""
     );
 }
+
+fn lines(n: usize) -> Vec<Task> {
+    (0..n)
+        .map(|i| {
+            let mut t = task(&format!("line {i}"), None, 100 + i as i64);
+            t.id = format!("id{i}");
+            t
+        })
+        .collect()
+}
+
+fn order(tasks: &[Task]) -> Vec<String> {
+    let mut v: Vec<&Task> = tasks.iter().collect();
+    v.sort_by_key(|t| t.created_at);
+    v.iter().map(|t| t.id.clone()).collect()
+}
+
+#[test]
+fn a_line_moves_a_place_up_or_down_within_its_group_and_stops_at_the_ends() {
+    let mut l = lines(3);
+    assert_eq!(swap_in(&mut l, "id1", true), Ok(true));
+    assert_eq!(order(&l), ["id1", "id0", "id2"]);
+    assert_eq!(swap_in(&mut l, "id1", true), Ok(false), "already first");
+    assert_eq!(swap_in(&mut l, "id2", false), Ok(false), "already last");
+    assert_eq!(swap_in(&mut l, "id1", false), Ok(true));
+    assert_eq!(order(&l), ["id0", "id1", "id2"]);
+    // Both lines that traded places changed, so a stale update on either is refused.
+    assert_eq!(l[0].current_version(), 3);
+    assert_eq!(l[2].current_version(), 1);
+}
+
+#[test]
+fn moving_only_trades_with_the_same_group_and_never_a_closed_line() {
+    let mut l = lines(4);
+    l[1].state = State::Waiting;
+    l[3].state = State::Done;
+    // id0 and id2 are the Next group; the waiting and done lines are skipped.
+    assert_eq!(swap_in(&mut l, "id2", true), Ok(true));
+    assert_eq!(order(&l)[..3], ["id2", "id1", "id0"].map(String::from));
+    assert!(swap_in(&mut l, "id3", true).is_err(), "a done line isn't reordered");
+    assert!(swap_in(&mut l, "nope", true).is_err());
+    // A waiting line alone in its group has nowhere to go.
+    assert_eq!(swap_in(&mut l, "id1", true), Ok(false));
+}
+
+#[test]
+fn lines_made_in_the_same_millisecond_still_move() {
+    let mut l = lines(3);
+    for t in &mut l {
+        t.created_at = 500;
+    }
+    // Order among equals is the list's own; moving the last up must put it before the middle one.
+    assert_eq!(swap_in(&mut l, "id2", true), Ok(true));
+    let o = order(&l);
+    assert!(o.iter().position(|x| x == "id2") < o.iter().position(|x| x == "id1"), "{o:?}");
+}
