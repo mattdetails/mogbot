@@ -145,4 +145,21 @@ export const agentsReplyScenarios: Scenario[] = [
     ),
     { viewport: { width: 440, height: 800 }, requires: '.agent-reply-pill' }
   ),
+  scenario(
+    'flash',
+    'jumping to the original',
+    'After clicking the pill the original message is scrolled into view (it pulses once for 600ms, so the pulse itself is gone by the time of the shot; none under reduced motion).',
+    chat(
+      msg('user', 'Yes, send them at 9 am.', 6, {
+        agentId: ID,
+        replyTo: {
+          id: 'orig-ask',
+          name: 'you',
+          excerpt: 'Draft intros for the 12 leads from Native OS.',
+          kind: 'message',
+        },
+      })
+    ),
+    { steps: [{ click: '.agent-reply-pill' }], requires: '.agent-reply-pill' }
+  ),
 ];

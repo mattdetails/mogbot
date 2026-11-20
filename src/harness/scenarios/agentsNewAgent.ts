@@ -51,7 +51,19 @@ export const agentsNewAgentScenarios: Scenario[] = [
     'icons',
     'the Icons side',
     'Icons is selected: a search field with its count, category chips, Recently used and Featured; the preview shows the icon.',
-    [{ click: '[role="radio"][aria-checked]' }]
+    [{ wait: 600 }, { click: '.agent-look__wears button:nth-of-type(2)' }, { wait: 800 }]
+  ),
+  scenario(
+    'icon-search',
+    'searching the icons',
+    'On Icons, a search for “bot” replaces Recently used and Featured with “Matches for “bot””; the count at the right of the field shows how many.',
+    [
+      { wait: 600 },
+      { click: '.agent-look__wears button:nth-of-type(2)' },
+      { wait: 800 },
+      { fill: '.new-agent [aria-label="Search icons"]', value: 'bot' },
+      { wait: 400 },
+    ]
   ),
   scenario(
     'counter',
