@@ -175,13 +175,28 @@ pub fn clean_title(t: &str) -> Option<String> {
     (one.chars().count() >= 3).then(|| clip(one, TITLE_MAX))
 }
 
+/// Whether the turn just closed a line that is this ask.
+pub fn already_closed(closed: &[Task], title: &str) -> bool {
+    closed.iter().any(|t| tasks::likeness(&t.title, title) >= tasks::SAME)
+}
+
 /// Apply the verdict to `agent_id`'s list. It adds lines (linked to the
 /// message that asked) and parks Next or Doing lines as Waiting; nothing
 /// else, whatever was answered.
-pub fn apply(agent_id: &str, ask_msg: Option<&str>, v: &Verdict, open: &[Task]) -> Applied {
+pub fn apply(
+    agent_id: &str,
+    ask_msg: Option<&str>,
+    v: &Verdict,
+    open: &[Task],
+    closed: &[Task],
+) -> Applied {
     let mut done = Applied::default();
     for line in v.add.iter().take(MAX_ADDS) {
         let Some(title) = clean_title(&line.title) else { continue };
+        // An ask the turn itself just closed isn't reopened as new.
+        if already_closed(closed, &title) {
+            continue;
+        }
         let (id, existed) = tasks::add(agent_id, &title, tasks::Source::User, None);
         if id.is_empty() || existed {
             continue;
@@ -196,7 +211,8 @@ pub fn apply(agent_id: &str, ask_msg: Option<&str>, v: &Verdict, open: &[Task]) 
         if !matches!(t.state, State::Next | State::Doing) || w.on.trim().is_empty() {
             continue;
         }
-        if tasks::set(agent_id, &t.id, State::Waiting, Some(w.on.trim())).is_ok() {
+        // Only the line as it was read: one changed since is left alone.
+        if tasks::set_checked(agent_id, &t.id, State::Waiting, Some(w.on.trim()), Some(t.current_version())).is_ok() {
             done.waited += 1;
         }
     }
@@ -260,8 +276,16 @@ async fn keep(app: &AppHandle, agent_id: &str, user_said: &str, since: i64) -> R
         _ => super::draft::run_claude(&binary, &text, Some(CHEAP_CLAUDE.to_string())).await,
     }
     .map_err(|e| e.to_string())?;
+    // The "Task list" usage line: a call, whatever it answered.
+    let _ = store::update(agent_id, |a| {
+        a.usage.record(
+            &super::usage::UsageTotals { list_checks: 1, ..Default::default() },
+            super::usage::today(),
+        );
+    });
     let verdict = parse(&answer).ok_or("the answer wasn't JSON")?;
-    let did = apply(agent_id, ask_msg.as_deref(), &verdict, &open);
+    let closed = tasks::closed_at_or_after(agent_id, since);
+    let did = apply(agent_id, ask_msg.as_deref(), &verdict, &open, &closed);
     if did != Applied::default() {
         let _ = tauri::Emitter::emit(app, super::runner::EVENT_REGISTRY, ());
     }

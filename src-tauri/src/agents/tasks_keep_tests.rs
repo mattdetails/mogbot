@@ -99,3 +99,12 @@ fn only_next_or_doing_lines_can_be_parked_and_nothing_is_ever_closed() {
     assert_eq!(v, Verdict::default(), "unknown fields are ignored, never obeyed");
     let _ = line("ab12cd34", State::Next);
 }
+
+#[test]
+fn an_ask_closed_in_the_same_turn_is_not_added_again() {
+    let mut done = tasks::new_task_for_tests("Draft the Globex intro email", State::Done);
+    done.updated_at = 5;
+    assert!(already_closed(&[done.clone()], "Draft the Globex intro"));
+    assert!(!already_closed(&[done], "Chase the Initech invoice"));
+    assert!(!already_closed(&[], "Anything at all here"));
+}

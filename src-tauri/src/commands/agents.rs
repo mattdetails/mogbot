@@ -506,9 +506,7 @@ pub(crate) async fn send_in(
     if let Some(id) = reply_to.filter(|r| !r.trim().is_empty()) {
         let (log_of, name) = (agent_id.clone(), recipient.name.clone());
         message.reply_to = tokio::task::spawn_blocking(move || {
-            store::messages(&log_of, usize::MAX)
-                .ok()
-                .and_then(|log| agents::reply::build(&log, id.trim(), &name))
+            agents::reply::find_in_log(&log_of, id.trim(), &name)
         })
         .await
         .map_err(agents::err_other)?;

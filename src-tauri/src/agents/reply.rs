@@ -79,10 +79,16 @@ fn domain_of(text: &str) -> Option<String> {
 /// chat; `None` for an id that isn't there.
 pub fn build(log: &[AgentMessage], id: &str, agent_name: &str) -> Option<ReplyRef> {
     let m = log.iter().find(|m| m.id == id)?;
-    let name = if m.kind == MessageKind::User {
-        "you".to_string()
-    } else {
-        agent_name.to_string()
+    // Who said it: the user, a teammate that messaged this agent, a quiet
+    // note of the app's, or this agent.
+    let name = match m.kind {
+        MessageKind::User => "you".to_string(),
+        MessageKind::FromAgent => m
+            .peer
+            .as_ref()
+            .map_or_else(|| "a teammate".to_string(), |p| p.name.clone()),
+        MessageKind::Note => "a note".to_string(),
+        _ => agent_name.to_string(),
     };
     let (kind, said) = if let Some(card) = &m.result {
         (ReplyKind::Card, card.title.clone())
@@ -109,9 +115,28 @@ pub fn build(log: &[AgentMessage], id: &str, agent_name: &str) -> Option<ReplyRe
     })
 }
 
+/// The reference to message `id` in `agent_id`'s log, reading back a page at
+/// a time until it is found rather than the whole log up front.
+pub fn find_in_log(agent_id: &str, id: &str, agent_name: &str) -> Option<ReplyRef> {
+    let mut limit = 200;
+    loop {
+        let log = super::store::messages(agent_id, limit).ok()?;
+        if let Some(r) = build(&log, id, agent_name) {
+            return Some(r);
+        }
+        // The whole log was read and it isn't there.
+        if log.len() < limit {
+            return None;
+        }
+        limit = limit.saturating_mul(8);
+    }
+}
+
 /// What the agent is told above the user's words.
 pub fn prompt_line(r: &ReplyRef) -> String {
-    format!("Replying to {}: \"{}\"", r.name, r.excerpt)
+    // The quoted words can't close the quote and pose as the reply's own.
+    let say = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("Replying to {}: \"{}\"", say(&r.name), say(&r.excerpt))
 }
 
 #[cfg(test)]

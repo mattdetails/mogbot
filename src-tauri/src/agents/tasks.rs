@@ -112,6 +112,8 @@ pub fn update_schema() -> serde_json::Value {
             "id": { "type": "string", "description": "The line's id from list." },
             "state": { "type": "string", "enum": ["doing", "next", "waiting", "done", "dropped"] },
             "note": { "type": "string", "description": "For waiting: what it waits on. For dropped: why." },
+            "delivered_msg": { "type": "string", "description": "With state done: the id of the message of yours that delivered it (default: your last one)." },
+            "archived": { "type": "boolean", "description": "Archive one of your finished lines (a Done or Dropped one)." },
             "version": { "type": "integer", "description": "The line's version as `tasks list` showed it; a changed line refuses a stale update." }
         },
         "required": ["id", "state"]
@@ -149,6 +151,9 @@ pub enum Source {
     User,
     /// Another agent's `message_agent` request.
     Agent,
+    /// A line another agent put here with `task_assign`: never closed by
+    /// answering that agent (`settle`), and counted apart from its asks.
+    Assigned,
     /// The agent's own step.
     Own,
 }
@@ -179,10 +184,16 @@ pub struct Task {
     pub version: u32,
     /// The message that asked (the user's, or the one that brought it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ask_msg: Option<String>,
+    pub asked_msg: Option<String>,
     /// The agent's message that delivered it, set when it is marked done.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub done_msg: Option<String>,
+    pub delivered_msg: Option<String>,
+    /// The user has looked at it since it finished. Only the user sets it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub seen: bool,
+    /// Moved out of Done (after 3 days, or by hand). Never deleted.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub archived: bool,
 }
 
 impl Task {
@@ -348,8 +359,10 @@ fn new_task(title: String, source: Source, from: Option<AgentRef>, now: i64) -> 
         chased: 0,
         last_chased_at: 0,
         version: 1,
-        ask_msg: None,
-        done_msg: None,
+        asked_msg: None,
+        delivered_msg: None,
+        seen: false,
+        archived: false,
     }
 }
 
@@ -362,24 +375,35 @@ pub fn add(agent_id: &str, title: &str, source: Source, from: Option<AgentRef>) 
         return (String::new(), false);
     }
     let now = store::now_ms();
-    edit(agent_id, |tasks| {
-        if let Some(t) = tasks.iter_mut().find(|t| {
-            t.state.is_open()
-                && t.from.as_ref().map(|f| &f.id) == from.as_ref().map(|f| &f.id)
-                && likeness(&t.title, &title) >= SAME
-        }) {
-            t.updated_at = now;
-            if t.state == State::Stuck {
-                t.state = State::Next;
-            }
-            t.bump();
-            return (t.id.clone(), true);
+    edit(agent_id, |tasks| add_in(tasks, title, source, from, now))
+}
+
+/// [`add`] on a list already held: an open line of the same kind from the
+/// same sender and alike in words is bumped, not doubled.
+fn add_in(
+    tasks: &mut Vec<Task>,
+    title: String,
+    source: Source,
+    from: Option<AgentRef>,
+    now: i64,
+) -> (String, bool) {
+    if let Some(t) = tasks.iter_mut().find(|t| {
+        t.state.is_open()
+            && t.source == source
+            && t.from.as_ref().map(|f| &f.id) == from.as_ref().map(|f| &f.id)
+            && likeness(&t.title, &title) >= SAME
+    }) {
+        t.updated_at = now;
+        if t.state == State::Stuck {
+            t.state = State::Next;
         }
-        let t = new_task(title, source, from, now);
-        let id = t.id.clone();
-        tasks.push(t);
-        (id, false)
-    })
+        t.bump();
+        return (t.id.clone(), true);
+    }
+    let t = new_task(title, source, from, now);
+    let id = t.id.clone();
+    tasks.push(t);
+    (id, false)
 }
 
 /// Another agent's `message_agent` request, delivered to `target`.
@@ -405,13 +429,18 @@ pub fn failed(helper_id: &str, asker_id: &str, why: &str) {
     settle(helper_id, asker_id, State::Stuck, Some(clip(why, 200)));
 }
 
+/// Whether answering `asker_id` closes this line: an open `message_agent`
+/// ask from them, never a line they assigned.
+pub fn settles(t: &Task, asker_id: &str) -> bool {
+    t.state.is_open()
+        && t.source == Source::Agent
+        && t.from.as_ref().is_some_and(|f| f.id == asker_id)
+}
+
 fn settle(helper_id: &str, asker_id: &str, state: State, note: Option<String>) {
     let now = store::now_ms();
     edit(helper_id, |tasks| {
-        for t in tasks
-            .iter_mut()
-            .filter(|t| t.state.is_open() && t.from.as_ref().is_some_and(|f| f.id == asker_id))
-        {
+        for t in tasks.iter_mut().filter(|t| settles(t, asker_id)) {
             t.state = state;
             t.updated_at = now;
             t.note = note.clone();
@@ -468,7 +497,7 @@ pub fn set_checked(
                 t.updated_at = now;
                 t.bump();
                 if state == State::Done {
-                    t.done_msg = delivered;
+                    t.delivered_msg = delivered;
                 }
                 match state {
                     State::Waiting => t.waiting_on = note.map(|n| clip(n, 120)),
@@ -498,11 +527,55 @@ pub fn stale_text(t: &Task, said: u32) -> String {
     )
 }
 
+/// Lines closed (done or dropped) at or after `since`: what a turn just finished.
+pub fn closed_at_or_after(agent_id: &str, since: i64) -> Vec<Task> {
+    read(agent_id)
+        .into_iter()
+        .filter(|t| !t.state.is_open() && t.updated_at >= since)
+        .collect()
+}
+
+/// `task_update`'s extras on a line: the message that delivered it, and
+/// archiving it (a finished line only). Never `seen`: only the user sets that.
+pub fn annotate(
+    agent_id: &str,
+    id: &str,
+    delivered: Option<&str>,
+    archive: bool,
+) -> Result<(), String> {
+    edit(agent_id, |tasks| {
+        let Some(t) = tasks.iter_mut().find(|t| t.id == id || (id.len() >= 3 && t.id.starts_with(id))) else {
+            return Err(format!("No task {id} on your list."));
+        };
+        if archive && t.state.is_open() {
+            return Err("Only a finished line can be archived.".into());
+        }
+        if let Some(m) = delivered {
+            if t.state == State::Done {
+                t.delivered_msg = Some(m.to_string());
+            }
+        }
+        if archive {
+            t.archived = true;
+        }
+        t.bump();
+        Ok(())
+    })
+}
+
+/// Finished lines the user hasn't looked at yet.
+pub fn unseen(recent: &[Task]) -> usize {
+    recent
+        .iter()
+        .filter(|t| t.state == State::Done && !t.seen && !t.archived)
+        .count()
+}
+
 /// Link a line to the message that asked for it.
 pub fn link_ask(agent_id: &str, id: &str, msg: &str) {
     edit(agent_id, |tasks| {
-        if let Some(t) = tasks.iter_mut().find(|t| t.id == id && t.ask_msg.is_none()) {
-            t.ask_msg = Some(msg.to_string());
+        if let Some(t) = tasks.iter_mut().find(|t| t.id == id && t.asked_msg.is_none()) {
+            t.asked_msg = Some(msg.to_string());
         }
     });
 }
@@ -610,11 +683,16 @@ pub fn counts_of(agent_id: &str, working: Option<String>) -> Option<Counts> {
     counts(&open_of(agent_id), working.as_deref())
 }
 
-/// Open lines `from_id` has put on `agent_id`'s list.
-pub fn assigned_by(agent_id: &str, from_id: &str) -> usize {
-    open_of(agent_id)
+/// Open lines `from_id` has assigned on a list (`tasks`), not counting its
+/// `message_agent` asks.
+fn assigned_in(tasks: &[Task], from_id: &str) -> usize {
+    tasks
         .iter()
-        .filter(|t| t.from.as_ref().is_some_and(|f| f.id == from_id))
+        .filter(|t| {
+            t.state.is_open()
+                && t.source == Source::Assigned
+                && t.from.as_ref().is_some_and(|f| f.id == from_id)
+        })
         .count()
 }
 
@@ -655,7 +733,13 @@ pub fn assigned_line(caller_name: &str, target_name: &str, title: &str) -> Strin
 /// it or sets it waiting (`state`), with the reason. `None` for a line that
 /// wasn't another agent's, or any other state.
 pub fn hand_back_body(task: &Task, state: &str, why: &str) -> Option<String> {
-    if task.source != Source::Agent || task.from.is_none() {
+    // Only a real change goes back: a line already waiting says nothing twice.
+    if (state == "waiting" && task.state == State::Waiting)
+        || (state == "dropped" && task.state == State::Dropped)
+    {
+        return None;
+    }
+    if task.source != Source::Assigned || task.from.is_none() {
         return None;
     }
     let what = match state {
@@ -666,27 +750,43 @@ pub fn hand_back_body(task: &Task, state: &str, why: &str) -> Option<String> {
     Some(format!("Handed back: \"{}\" — {what}. {why}", task.title))
 }
 
-/// `task_assign`'s write: a line on `target`'s list from `caller`, with the
-/// optional note. Returns its id and whether it was already open.
-pub fn assign(target_id: &str, caller: &store::Agent, title: &str, note: Option<&str>) -> (String, bool) {
-    let (id, dup) = add(
-        target_id,
-        title,
-        Source::Agent,
-        Some(AgentRef {
-            id: caller.id.clone(),
-            name: caller.name.clone(),
-        }),
-    );
-    if let (false, false, Some(n)) = (id.is_empty(), dup, note) {
-        let note = clip(n, 200);
-        edit(target_id, |tasks| {
-            if let Some(t) = tasks.iter_mut().find(|t| t.id == id) {
-                t.note = Some(note);
-            }
-        });
+/// `task_assign`'s write, checked and made in one step under the list's
+/// lock, so parallel calls can't both pass the cap. Returns the line's id
+/// and whether it was already open.
+pub fn assign(
+    target: &store::Agent,
+    caller: &store::Agent,
+    title: &str,
+    note: Option<&str>,
+    outside: bool,
+    hop_ok: bool,
+) -> Result<(String, bool), String> {
+    let title = title_of(title);
+    if title.is_empty() {
+        return Err("`title` is empty.".into());
     }
-    (id, dup)
+    let now = store::now_ms();
+    let from = AgentRef {
+        id: caller.id.clone(),
+        name: caller.name.clone(),
+    };
+    edit(&target.id, |tasks| {
+        check_assign(
+            &caller.id,
+            &target.id,
+            &target.name,
+            outside,
+            hop_ok,
+            assigned_in(tasks, &caller.id),
+        )?;
+        let (id, dup) = add_in(tasks, title, Source::Assigned, Some(from), now);
+        if let (false, Some(n)) = (dup, note) {
+            if let Some(t) = tasks.iter_mut().find(|t| t.id == id) {
+                t.note = Some(clip(n, 200));
+            }
+        }
+        Ok((id, dup))
+    })
 }
 
 /// The line of `agent_id`'s list that `id` (or an unambiguous prefix) names.
@@ -919,8 +1019,14 @@ pub fn run_update(caller: &store::Agent, args: &serde_json::Value) -> Result<Str
 }
 
 fn list_text(l: &Load, now: i64) -> String {
+    let fresh = unseen(&l.recent);
+    let tail = if fresh > 0 {
+        format!("\n{fresh} finished the user hasn't looked at yet.")
+    } else {
+        String::new()
+    };
     if l.open.is_empty() {
-        return format!("{}: nothing open.", l.name);
+        return format!("{}: nothing open.{tail}", l.name);
     }
     let mut out = format!("{}: {} open", l.name, l.open.len());
     if let Some(w) = &l.overloaded_why {
@@ -944,6 +1050,7 @@ fn list_text(l: &Load, now: i64) -> String {
             }
         ));
     }
+    out.push_str(&tail);
     out
 }
 

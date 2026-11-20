@@ -1891,6 +1891,8 @@ export interface UsageTotals {
   checks?: number;
   /** Checks that reported a cost. */
   pricedChecks?: number;
+  /** The end-of-turn task-list keeper's calls: the "Task list" usage line. Newer Macs only. */
+  listChecks?: number;
 }
 
 export interface UsageSummary {
