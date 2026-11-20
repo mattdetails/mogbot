@@ -826,6 +826,8 @@ export interface AgentMessage {
   result?: ResultCard;
   /** On a user message: "Ask for changes" on this result. */
   revises?: ResultRef;
+  /** On a user message: the message it replies to (`agents/reply.rs`). */
+  replyTo?: ReplyRef;
   /** On a `note` (an `error` in older logs): a take-over's terminal closed by itself, its last lines after a blank line; not a turn's failure, so no Retry. */
   takeover?: boolean;
   /**
@@ -1437,7 +1439,9 @@ export const sendAgentMessage = (
   /** The conversation on screen; absent, the one the user is in on the Mac. */
   conversation?: string,
   /** When the user wrote it (ms): a typed yes answers only a card open then. */
-  writtenAt: number = Date.now()
+  writtenAt: number = Date.now(),
+  /** Reply: the id of the message this one answers. */
+  replyTo?: string
 ) =>
   invoke<AgentMessage>('agents_send', {
     agentId,
@@ -1447,6 +1451,7 @@ export const sendAgentMessage = (
     revises,
     conversation,
     writtenAt,
+    replyTo,
   });
 export const inspectFiles = (paths: string[]) =>
   invoke<FileInfo[]>('agents_inspect_files', { paths });
@@ -2862,6 +2867,8 @@ export {
 } from '../../packages/companion-protocol/src/quotes';
 
 import type { ResultCard, ResultRef } from '../../packages/companion-protocol/src/results';
+import type { ReplyKind, ReplyRef } from '../../packages/companion-protocol/src/model';
+export type { ReplyKind, ReplyRef };
 import type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type {

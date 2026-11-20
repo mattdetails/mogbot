@@ -220,6 +220,12 @@ export interface MockOptions {
    * minutes after pairing, and the shortest list Home can have.
    */
   solo?: boolean;
+  /** Catch up with exactly one decision (Ops' push) and one thing that happened (Acme Site). */
+  catchUpOne?: boolean;
+  /** Something happened while away, with no ask: the queue ends on "While you were away". */
+  catchUpSeveral?: boolean;
+  /** The Designer's key colour (a colourway id): the chat bubbles take it. */
+  designColorway?: string;
   /** Agents filed in folders made on the Mac (Website, Design, Ops). */
   folders?: boolean;
   /** How long a sign-in "on the Mac" takes before the card says it's connected. */
@@ -669,6 +675,9 @@ export function createMockServer(opts: MockOptions = {}) {
 
   const now = Date.now();
   const agents: Agent[] = seedAgents(now);
+  if (opts.designColorway) {
+    for (const a of agents) if (a.id === 'design') a.colorway = opts.designColorway;
+  }
   // Finance checks with you often, on its own; the rest follow the team.
   for (const a of agents) if (a.id === 'fin') a.independence = 'often';
   if (opts.bothEngines) {
@@ -1917,6 +1926,31 @@ export function createMockServer(opts: MockOptions = {}) {
   ]);
   const agent = (id: string) => agents.find((a) => a.id === id);
   seedShared(now);
+  if (opts.catchUpOne) {
+    for (const a of agents) {
+      if (a.id === 'ops') {
+        a.pendingApprovals = 1;
+        a.unread = 0;
+      } else if (a.id === 'site') {
+        a.pendingApprovals = 0;
+        a.unread = 1;
+        a.preview = 'Hero copy is updated on staging.';
+      } else {
+        a.pendingApprovals = 0;
+        a.unread = 0;
+        a.hidden = true;
+      }
+    }
+  }
+  if (opts.catchUpSeveral) {
+    const quiet = agents.find((a) => a.id === 'brief');
+    if (quiet) {
+      quiet.hidden = false;
+      quiet.unread = 1;
+      quiet.lastActivityAt = now - 20 * 60_000;
+      quiet.preview = 'The weekly numbers are ready.';
+    }
+  }
   // A Mac just set up has only the Chief: the others are seeded (their
   // fixtures refer to each other) and then left out of what the phone sees.
   if (opts.solo) {
@@ -2929,7 +2963,7 @@ export function createMockServer(opts: MockOptions = {}) {
       return convList(agentId);
     },
     'agents.page': (p) =>
-      pages.get(String(p.agentId), p.conversationId ? String(p.conversationId) : undefined),
+      pages.get(asText(p.agentId), p.conversationId ? asText(p.conversationId) : undefined),
     'agents.pageVersion': (p) => pages.version(String(p.agentId), Number(p.version)),
     'agents.pagePin': (p) => pages.pin(String(p.agentId), p.pinned === true),
     // `rewind::rewind`: the lines from the message on folded, never deleted; refused mid-turn.
@@ -3984,7 +4018,7 @@ export function createMockServer(opts: MockOptions = {}) {
       return methods['agents.usagePlan']!({}, c);
     },
     'agents.spare.add': (p, c) => {
-      const text = String(p.text ?? '').trim();
+      const text = asText(p.text ?? '').trim();
       if (!text) return fail({ type: 'Validation', field: 'text', reason: 'Say what to do.' });
       spareAdded.push({
         id: `spare-${spareAdded.length + 1}`,
@@ -4108,7 +4142,7 @@ export function createMockServer(opts: MockOptions = {}) {
         const draft: MockMission = {
           ...missionBase,
           id: typeof d.id === 'string' ? d.id : `m-${missions.length + 1}`,
-          goal: String(d.goal ?? ''),
+          goal: asText(d.goal ?? ''),
           state: 'draft',
           startedAt: Date.now(),
           criteria: ((d.criteria as { text: string }[]) ?? []).map((c, i) => ({
@@ -4117,7 +4151,30 @@ export function createMockServer(opts: MockOptions = {}) {
             kind: 'check' as const,
             status: 'not_started' as const,
           })),
-          shares: [],
+          shares: (
+            (d.shares as {
+              engine: 'claude' | 'codex' | 'opencode';
+              percent?: number;
+              hours?: number;
+            }[]) ?? []
+          ).map((s) =>
+            s.hours !== undefined
+              ? {
+                  engine: s.engine,
+                  kind: 'time' as const,
+                  pct: 0,
+                  usedPct: 0,
+                  capMs: s.hours * H,
+                  spentMs: 0,
+                }
+              : {
+                  engine: s.engine,
+                  kind: 'usage' as const,
+                  pct: s.percent ?? 0,
+                  usedPct: 0,
+                  spentMs: 0,
+                }
+          ),
         };
         missions = [draft, ...missions.filter((x) => x.id !== draft.id)];
       } else if (p.action === 'start' && typeof d.id === 'string') {
@@ -4144,7 +4201,7 @@ export function createMockServer(opts: MockOptions = {}) {
     },
     // As the router does: `on` and `at` (0 to 1439) required.
     'agents.setMorningBrief': (p) => {
-      const at = p.at as unknown;
+      const at = p.at;
       if (
         typeof p.on !== 'boolean' ||
         !Number.isInteger(at) ||
@@ -4204,7 +4261,7 @@ export function createMockServer(opts: MockOptions = {}) {
     },
     'agents.endOfDay': () => endOfDay,
     'agents.setEndOfDay': (p) => {
-      const at = p.at as unknown;
+      const at = p.at;
       if (
         typeof p.on !== 'boolean' ||
         !Number.isInteger(at) ||
@@ -4396,7 +4453,7 @@ export function createMockServer(opts: MockOptions = {}) {
     }),
     // "Describe the agent you want" (router.rs `agents.draft`): the fixture's draft.
     'agents.draft': (p) => {
-      if (String(p.description ?? '').trim().length < 8)
+      if (asText(p.description ?? '').trim().length < 8)
         return fail({
           type: 'Validation',
           field: 'description',
@@ -4530,7 +4587,7 @@ export function createMockServer(opts: MockOptions = {}) {
       }
       if (
         input.effort !== undefined &&
-        !['', 'low', 'medium', 'high'].includes(String(input.effort))
+        !['', 'low', 'medium', 'high'].includes(asText(input.effort))
       ) {
         return fail({
           type: 'Validation',
@@ -4557,7 +4614,7 @@ export function createMockServer(opts: MockOptions = {}) {
         a.icon = input.icon;
       }
       if (input.boundKey !== undefined) {
-        const key = normalizeBoundKey(String(input.boundKey));
+        const key = normalizeBoundKey(asText(input.boundKey));
         if (!key)
           return fail({
             type: 'Validation',
@@ -5020,7 +5077,7 @@ export function createMockServer(opts: MockOptions = {}) {
         if (result instanceof Promise) {
           const id = frame.id;
           void result.then(
-            (value) => send(c, { t: 'res', id, ok: true, result: value } as ServerFrame),
+            (value: unknown) => send(c, { t: 'res', id, ok: true, result: value } as ServerFrame),
             (error: unknown) => {
               const e: WireError =
                 error instanceof Failure ? error.wire : { type: 'Other', message: String(error) };
@@ -5945,6 +6002,21 @@ function seedMessages(a: Agent, now: number): AgentMessage[] {
     });
   } else if (a.id === 'design') {
     add({ ts: now - 30 * 60_000, kind: 'user', text: 'Export the new icon set to the site.' });
+    // A reply that is only a nested list (Julian's iPhone, 19 Nov: empty circles, no words).
+    add({
+      ts: now - 31 * 60_000,
+      kind: 'agent',
+      text: [
+        '1. Fix the release path',
+        '   - Tag the commit that went green',
+        '   - Publish only after CI passes on it',
+        '   - Keep the generated files in step',
+        '2. Make the checks boring',
+        '   - One list of checks for CI and pre-push',
+        '   - Split the accessibility run in four',
+        '   - Pin Windows to a fixed image',
+      ].join('\n'),
+    });
     add({
       ts: now - 28 * 60_000,
       kind: 'agent',
@@ -6439,4 +6511,11 @@ function parseWhen(
     return { nextAt: d.getTime() };
   }
   return fail(`I can't read "${raw.trim()}" as a time.`);
+}
+
+/** A request field as text: what `String(x)` gave for a string, number or boolean, without printing an object as `[object Object]`. */
+function asText(v: unknown): string {
+  return typeof v === 'object' && v !== null
+    ? JSON.stringify(v)
+    : String(v as string | number | boolean | null | undefined);
 }

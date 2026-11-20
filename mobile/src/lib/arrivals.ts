@@ -56,7 +56,9 @@ export function useArrivedKeys(
   newestFirst = true
 ): ReadonlySet<string> {
   const state = useRef<ArrivalState>(emptyArrivals());
+  // eslint-disable-next-line react-hooks/refs -- a ref the render owns, read and written outside React state on purpose (gesture and arrival bookkeeping)
   return useMemo(() => {
+    // eslint-disable-next-line react-hooks/refs -- a ref the render owns, read and written outside React state on purpose (gesture and arrival bookkeeping)
     if (ready) state.current = noteArrivals(state.current, keys, newestFirst);
     return state.current.arrived;
   }, [keys, ready, newestFirst]);

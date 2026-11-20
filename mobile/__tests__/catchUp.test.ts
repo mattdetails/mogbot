@@ -13,6 +13,9 @@ import {
   cardMessages,
   current,
   isDone,
+  jumpTo,
+  later,
+  upNext,
   progressOf,
   startQueue,
   syncQueue,
@@ -246,7 +249,6 @@ describe('a card', () => {
 
 describe('a card the Mac says is already answered', () => {
   it('closes every cached copy, so Catch up stops showing it', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { closeCard, emptySync } = require('../src/lib/sync') as typeof import('../src/lib/sync');
     const card = {
       id: 'm1',
@@ -259,5 +261,23 @@ describe('a card the Mac says is already answered', () => {
     const out = closeCard(s, 'r1');
     expect(out.chats.a1?.messages[0].approval?.status).toBe('expired');
     expect(closeCard(out, 'r1')).toBe(out);
+  });
+});
+
+describe('Later and jumping (Catch up, direction 2)', () => {
+  const item = (key: string) => ({ key, kind: 'reply' as const, agentId: 'a', ts: 1 });
+  it('Later sends the card to the end, never dropping it', () => {
+    const q = later(startQueue([item('a'), item('b'), item('c')]));
+    expect(q.items.map((i) => i.key)).toEqual(['b', 'c', 'a']);
+    expect(q.at).toBe(0);
+  });
+  it('Later on the last card moves on, as Next', () => {
+    const q = later(advance(startQueue([item('a'), item('b')])));
+    expect(isDone(q)).toBe(true);
+  });
+  it('a jump makes the chosen card the open one and keeps the other next', () => {
+    const q = jumpTo(startQueue([item('a'), item('b'), item('c')]), 'c');
+    expect(q.items.map((i) => i.key)).toEqual(['c', 'a', 'b']);
+    expect(upNext(q).map((i) => i.key)).toEqual(['a', 'b']);
   });
 });

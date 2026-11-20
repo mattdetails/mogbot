@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useSyncExternalStore } from 'react';
-import { readPage, type ConversationPage, type PageVersion } from '@shipstudio/companion-protocol';
+import { readPage, type ConversationPage } from '@shipstudio/companion-protocol';
 import { call, canCall } from './session';
 
 const key = (agentId: string, conversation: string) => `${agentId}#${conversation}`;
@@ -66,7 +66,7 @@ export const pageVersion = (agentId: string, conversation: string, version: numb
     agentId,
     conversationId: conversation,
     version,
-  }) as Promise<PageVersion | null>;
+  });
 
 /** The page last read for a conversation, or null: what a rewind's confirm names. */
 export const pageOf = (agentId: string, conversation: string) =>

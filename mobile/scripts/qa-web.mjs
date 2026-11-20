@@ -23,6 +23,8 @@
  *   pnpm qa:web --phases net             # requests the Mac sees and React renders: cold start, tabs, chats, reconnect, a streaming reply (not in the default run)
  *   pnpm qa:web --phases reconnecting    # the Mac going away under an open app (not in the default run)
  *   pnpm qa:web --phases project-preview # a project's picture on its card: empty, phone, desktop (not in the default run)
+ *   pnpm qa:web --phases catchup-dir2    # Catch up, direction 2: one left, several, summary, all clear (not in the default run)
+ *   pnpm qa:web --phases nested-list     # a reply that is only a nested list (not in the default run)
  *   pnpm qa:web --phases dictation-words # Settings → Dictation words: the list, and Remove (not in the default run)
  *   pnpm qa:web --phases quiet-drops     # a short drop shows nothing; a 4-minute one shows the bar (not in the default run)
  *   pnpm qa:web --phases link-down       # the connection bar: away, back, the Mac's app stuck or closing (not in the default run)
@@ -212,8 +214,18 @@ async function portFree(port) {
 }
 
 let mock = null;
+/** What the app cached of the last mock's chats: gone, so a fresh Mac is seen fresh. */
+async function dropCaches(page) {
+  await page
+    .eval(
+      `Object.keys(localStorage).filter((k) => /cache-.*\\.json$/.test(k)).forEach((k) => localStorage.removeItem(k))`
+    )
+    .catch(() => {});
+}
 async function startMock(...flags) {
   await stop(mock);
+  // A fresh Mac each time when asked: what an earlier run answered is not remembered.
+  if (process.env.QA_FRESH_STATE) rmSync(mockState, { force: true, recursive: true });
   mock = run('mock', path.join(ROOT, 'node_modules/.bin/tsx'), [
     'dev/mock.ts',
     '--http',
@@ -1181,6 +1193,82 @@ const PROBE = [
     ready: 'Start mission',
     check:
       'A saved draft reopened on its summary card: the goal, two criteria, “Codex: about 40% of its week”, then Start mission, Save for later and, if Start is off, the reason in a muted line',
+  },
+  {
+    // Real taps through the phone's set-up: with no criterion Start is off,
+    // says why, and a tap on it does nothing.
+    name: 'probe-mission-new-start-off',
+    route: '/mission-new',
+    ready: 'What do you want to be true?',
+    check:
+      'The summary card with a goal and no criterion: Start mission is dimmed, Save for later is on, and the muted line says “Add what counts as done”',
+    act: async (page) => {
+      await page.type('Clean up the support inbox', 'textarea');
+      for (let i = 0; i < 5; i++) {
+        await page.clickText('Next');
+        await sleep(500);
+      }
+      await page.waitFor(`document.body.innerText.includes('Save for later')`, 10_000, 'the summary');
+      const off = await page.eval(`(() => {
+        const el = [...document.querySelectorAll('body *')].filter((e) => e.innerText?.trim() === 'Start mission').pop();
+        let n = el;
+        while (n) {
+          if (n.getAttribute?.('aria-disabled') === 'true' || n.disabled) return true;
+          n = n.parentElement;
+        }
+        return false;
+      })()`);
+      if (!off) throw new Error('Start mission was not disabled with no criterion');
+      if (!(await page.eval(`document.body.innerText.includes('Add what counts as done')`))) {
+        throw new Error('no reason line under the buttons');
+      }
+      await page.clickText('Start mission').catch(() => {});
+      await sleep(600);
+      if (!(await page.eval(`document.body.innerText.includes('Save for later')`))) {
+        throw new Error('a tap on a disabled Start left the summary');
+      }
+    },
+  },
+  {
+    // Save for later, then reopen the draft from the list: the fields come back.
+    name: 'probe-mission-new-save-reopen',
+    route: '/mission-new',
+    ready: 'What do you want to be true?',
+    check:
+      'A draft saved and reopened from the Missions list: the summary card has the goal “Answer the easy support emails” and the criterion “Inbox under 20 unread”, Start mission on, no reason line',
+    act: async (page) => {
+      await page.type('Answer the easy support emails', 'textarea');
+      await page.clickText('Next');
+      await sleep(500);
+      await page.clickText('Add what counts as done');
+      await sleep(500);
+      await page.type('Inbox under 20 unread', 'input[aria-label="Criterion 1"]');
+      for (let i = 0; i < 4; i++) {
+        await page.clickText('Next');
+        await sleep(500);
+      }
+      await page.waitFor(`document.body.innerText.includes('Save for later')`, 10_000, 'the summary');
+      if (await page.eval(`document.body.innerText.includes('Add a goal') || document.body.innerText.includes('Add what counts as done')`)) {
+        throw new Error('Start was offered a reason with a goal, a criterion and a share');
+      }
+      await page.clickText('Save for later');
+      await sleep(1200);
+      await page.goto(`${WEB}/missions`);
+      await page.waitFor(`document.body.innerText.includes('Draft ·')`, 15_000, 'the draft row');
+      await page.clickWhere(
+        `() => [...document.querySelectorAll('body *')].filter((e) => e.innerText?.trim().startsWith('Draft ·') && e.innerText.includes('Answer the easy') && e.getBoundingClientRect().width).pop()`,
+        'the draft row'
+      );
+      await page.waitFor(`document.body.innerText.includes('Start mission')`, 15_000, 'the summary again');
+      if (await page.eval(`document.body.innerText.includes('Choose how much usage to spend')`)) {
+        throw new Error('the reopened draft lost its usage share');
+      }
+      for (const want of ['Answer the easy support emails', 'Inbox under 20 unread', 'about 30% of its week']) {
+        if (!(await page.eval(`document.body.innerText.includes(${JSON.stringify(want)})`))) {
+          throw new Error(`the reopened draft lost "${want}"`);
+        }
+      }
+    },
   },
   {
     name: 'probe-mission-done',
@@ -4307,7 +4395,8 @@ async function main() {
   // it waits, then the reason, never a spinner forever.
   const link = await (await fetch(`${MOCK}/dev/link`)).text();
   const d = new URL(link.replace(/^[^:]+:\/\//, 'http://x/')).searchParams.get('d');
-  await prePairShots(page, d);
+  // The pairing screens take minutes (an unreachable host times out); `--no-pair` skips them.
+  if (!args.includes('--no-pair')) await prePairShots(page, d);
   if (phase('demo')) await demoShots(page);
 
   // Pair through the real confirm screen. The demo's shots end on the last
@@ -4520,6 +4609,120 @@ async function main() {
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
     await sleep(4000);
     await each(FIRST_RUN);
+  }
+
+  if (phase('catchup-dir2')) {
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      // Several: the first decision, the queue under it ("Up next · N") ending on the summary row.
+      await startMock('--catchup-several');
+      await dropCaches(page);
+      await page.goto(`${WEB}/one-at-a-time`);
+      await sleep(5000);
+      await screen(page, theme, {
+        name: 'catchup2-several',
+        check: 'Header: back, “Catch up”, “1 of N”; the card (key, name, age, amber eyebrow, the ask), actions stacked (strong, outline, ghosts); “Up next · N” rows under it',
+      });
+      // Allow / Deny: Later through the default queue (bounded) to the first approval.
+      await startMock('--catchup-several');
+      await dropCaches(page);
+      await page.goto(`${WEB}/one-at-a-time`);
+      await page.waitFor(`/up next/i.test(document.body.innerText)`, 45000, 'the queue');
+      for (let i = 0; i < 12; i++) {
+        if (await page.eval(`document.body.innerText.includes('Deny')`)) break;
+        await page.clickText('Later').catch(() => {});
+        await sleep(700);
+      }
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'catchup2-allow',
+        check: 'An approval in front: Allow (strong, 48 tall, 15pt) and Deny (1pt outline), the ghosts under them, Up next below',
+      });
+      // One decision and what happened after it: “1 left”, “Then · While you were away”.
+      await startMock('--catchup-one', '--catchup-several');
+      await dropCaches(page);
+      await page.goto(`${WEB}/one-at-a-time`);
+      // The second decision's chat loads after the first (Ops' push arrives a few seconds in):
+      // wait for the queue to settle, then answer it if it came, so the state is always “one left”.
+      await sleep(12000);
+      if (await page.eval(`document.body.innerText.includes('1 of 2')`)) {
+        await screen(page, theme, {
+          name: 'catchup2-two',
+          check: 'Two decisions: “1 of 2”, the card (flat, one container, the ask as its title), Up next · 1 with the kind under its title',
+        });
+        await page.clickText('Later');
+        await page.waitFor(`document.body.innerText.includes('Deny')`, 15000, 'the push');
+        await sleep(2500); // a card arms a moment after it arrives
+        await page.clickText('Deny');
+        await sleep(4000);
+      }
+      await page
+        .waitFor(`/\\bthen\\b/i.test(document.body.innerText)`, 30000, 'one decision left')
+        .catch(async (e) => {
+          console.log('[debug]', JSON.stringify((await page.text()).slice(0, 400)));
+          throw e;
+        });
+      await sleep(800);
+      await screen(page, theme, {
+        name: 'catchup2-one',
+        check: 'One decision: “1 left”, the card, then “Then” and the “While you were away” row (“N things, no decisions”)',
+      });
+      // Later on the only decision: on to the summary.
+      await page.clickText('Later');
+      await page.waitFor(`document.body.innerText.includes('Got it')`, 15000, 'the summary');
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'catchup2-summary',
+        check: 'Summary: header “Summary”; the card “While you were away” with a clock tile, its rows with the time at the right; Got it in a fixed bar',
+      });
+      await page.clickText('Got it');
+      await sleep(1200);
+      await screen(page, theme, {
+        name: 'catchup2-clear',
+        check: 'All clear: a ring with a check, “All clear”, “Nothing needs you.”, one outline “What’s in flight”',
+      });
+    }
+  }
+
+  if (phase('chat-spec')) {
+    // The user's bubble takes the agent's key colour (ink picked for contrast);
+    // the agent's bubble is a 4% / 6% tint at 15/20.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      for (const colorway of ['blue', 'mustard', 'sage', 'pink', 'graphite', 'forest']) {
+        await startMock(`--design-colorway=${colorway}`);
+        await page.goto(`${WEB}/chat/design`);
+        await sleep(5000);
+        await scrollToIncludes('Fix the release path')(page);
+        await sleep(600);
+        await screen(page, theme, {
+          name: `chat-spec-${colorway}`,
+          check: `Chat in ${colorway}: your bubble in the key colour with readable ink, the reply a quiet tint at 15/20`,
+        });
+        // Words in the box: Send turns into the key colour (muted while it's empty, above).
+        await page.type('Hello there', 'textarea');
+        await sleep(500);
+        await screen(page, theme, {
+          name: `chat-spec-${colorway}-send`,
+          check: `Composer in ${colorway} with text: the + at the left, the words, the dictation mic, one round Send arrow in the key colour with readable ink`,
+        });
+      }
+    }
+  }
+
+  if (phase('nested-list')) {
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock();
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(5000);
+      await scrollToIncludes('Fix the release path')(page);
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'nested-list',
+        check: 'A reply that is only a nested list: the numbers, the bullets and every line of text, on the bubble’s full width',
+      });
+    }
   }
 
   if (phase('cards-tonight')) {

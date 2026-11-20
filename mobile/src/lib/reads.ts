@@ -63,6 +63,7 @@ export function createReads(now: () => number = Date.now, slots = READ_SLOTS): R
       try {
         out = run();
       } catch (e) {
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- passes on whatever the call threw, unchanged
         out = Promise.reject(e);
       }
       return out.finally(done);

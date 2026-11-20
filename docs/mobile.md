@@ -664,18 +664,25 @@ request, the diff and the photo viewer push over them. At
   at a time, full screen. Setting up your team first, then every request
   this phone can answer (oldest first). What only happened (an agent's new
   result, a routine's run, a failed turn) isn't a decision, so it isn't a card:
-  it is the one last card, "You're caught up", listing it under "While you were
-  away" (a tap opens that chat). A card is the agent, what it said since
-  you last spoke (up to three messages, markdown and pictures as in the
-  chat) and the request, with Deny · Allow as two big buttons at the bottom (Open chat and Later quiet above them; Allow is always black and white, never red: a risky request is told apart by its warning icon; the card's own
-  answers hidden, the same 400 ms arming); a login, a key or a task's
-  question has one action instead ("Sign in", "Enter key", "Answer") that
-  opens it in its chat. **Open chat** opens the agent's chat at the card, and back
-  returns to the same card; **Later** or a swipe left moves it on, and it
-  comes back the next time you catch up. Swiping right
-  never allows: an Allow can't be undone and a swipe could land on it by
-  accident. "5 left" and a thin bar; success haptic on Allow,
-  light on Next. A card on screen counts as read (`setOpenChat`). Passed
+  it is the summary, "While you were away" (below). A card (design: Catch up direction 2,
+  `app/one-at-a-time.tsx`) is the agent with its age, the amber eyebrow ("Needs your OK",
+  "Didn't finish", "Needs your input"), what it said since you last spoke (up to three
+  messages, markdown and pictures as in the chat) and the request, with its actions stacked
+  full width under it: the strong answer (Allow, never red; a risky request is told apart by
+  its warning icon), the outline one (Deny), then Open chat and Later as quiet buttons (the
+  card's own answers hidden, the same 400 ms arming). A login, a key or a task's question has
+  one strong action ("Sign in", "Enter key", "Answer") that opens it in its chat. Under the
+  card, **Up next · N** (or "Then" when only the summary follows): the rest of the queue, tap
+  to jump. **Later** (or a swipe left) sends the card to the end of the queue with a muted
+  "Later" tag and never drops it; on the last card it moves on. The header counts "1 of N"
+  ("1 left" with one). Done with the decisions, the **summary**: "While you were away", its
+  rows (up to six, then "+ N more") with the time at the right, and Got it in a fixed bar;
+  then **All clear** ("Nothing needs you.", "Last decision: 2:02 pm." only when this phone
+  answered one, and "What's in flight"). Words and order are `CATCH_UP` in
+  `packages/companion-protocol/src/catchUpWords.ts`, shared with the desk. Swiping right
+  never allows: an Allow can't be undone and a swipe could land on it by accident. Success
+  haptic on Allow, light on Later. `pnpm qa:web --phases catchup-dir2` shoots the states.
+  A card on screen counts as read (`setOpenChat`). Passed
   cards stay counted, cards ahead answered or read elsewhere drop out, new
   ones join the end; the card in front of you, answered on the desk or
   expired, says so for a beat and moves on. Done: "You're caught up" and Done,

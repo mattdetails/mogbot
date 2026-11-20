@@ -50,7 +50,7 @@ describe('the sign-in screen', () => {
     try {
       const view = await render(<SignInFromPhone />);
       expect(ps.signinBegin).toHaveBeenLastCalledWith('qa', 'req_1', undefined, 'oauth');
-      view.unmount();
+      void view.unmount();
     } finally {
       delete searchParams.connect;
     }

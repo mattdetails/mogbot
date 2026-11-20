@@ -139,8 +139,11 @@ export function AccountSwitcher({
   collapsed,
   open = false,
   onOpen,
+  line = false,
 }: {
   collapsed: boolean;
+  /** The foot's one line: a short bar, then "28% · refills in 1d", no icon (beside the gear). */
+  line?: boolean;
   /** The Usage view is what's showing. */
   open?: boolean;
   /** Show the Usage view. */
@@ -164,6 +167,7 @@ export function AccountSwitcher({
   // Said as what is used, its bar filling with use (`glanceUsed`).
   const used = glanceUsed(glance);
   const label = `Usage: ${used.detail}`;
+  const asLine = line && !collapsed;
 
   const row = (
     <Button
@@ -171,7 +175,7 @@ export function AccountSwitcher({
       width="fill"
       className={`remote-indicator account-switcher__row usage-glance${
         collapsed ? ' remote-indicator--compact' : ''
-      }`}
+      }${asLine ? ' usage-glance--line' : ''}`}
       aria-label={`${label}. Show usage and accounts`}
       aria-current={open ? 'page' : undefined}
       data-testid="account-switcher"
@@ -179,14 +183,33 @@ export function AccountSwitcher({
       data-quiet={quiet || undefined}
       data-tone={used.tone}
       onClick={() => onOpen?.()}
-      leftIcon={<FooterRowIcon icon={<ActivityIcon size={14} />} status={glanceStatus(glance)} />}
+      leftIcon={
+        asLine ? undefined : (
+          <FooterRowIcon icon={<ActivityIcon size={14} />} status={glanceStatus(glance)} />
+        )
+      }
     >
-      {!collapsed && quiet && (
+      {asLine && (
+        <span className="usage-glance__body">
+          {quiet ? (
+            <span className="usage-glance__label">Usage</span>
+          ) : (
+            <>
+              <UsedBar used={used} />
+              <span className="usage-glance__headline">
+                <span className="usage-glance__figure">{used.figure.replace(/ used$/, '')}</span>
+                {used.refill && <span className="usage-glance__count"> · {used.refill}</span>}
+              </span>
+            </>
+          )}
+        </span>
+      )}
+      {!collapsed && !asLine && quiet && (
         <span className="usage-glance__body">
           <span className="usage-glance__label">Usage</span>
         </span>
       )}
-      {!collapsed && !quiet && (
+      {!collapsed && !asLine && !quiet && (
         <span className="usage-glance__body">
           {/* "8% used · refills in 6d": the figure, then when it refills. */}
           <span className="usage-glance__headline">

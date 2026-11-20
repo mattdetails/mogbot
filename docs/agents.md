@@ -6773,7 +6773,7 @@ cards.
   (`folders::file` refuses it). Each folder is a folding header (chevron,
   name, count) with its rows in the attention order; a dragged row or the
   row's menu (Move to …, Remove from folder) files an agent; an empty folder
-  holds one agent-sized place (a dashed key, "Drag an agent here", one row tall); a header's menu has Rename…, New folder…, the
+  holds one agent-sized place (a dashed key, "Drag an agent here", one row tall; with an agent dragged over the folder, header and row share the selected fill, the key turns solid and it says "Drop to move here"); a header's menu has Rename…, New folder…, the
   pinned choice and Remove folder (its agents go to "Not in a folder").
   **Pinned agents** sit in a "Pinned" section above the folders, or first in
   their own folder (the header menu or ⌘K → Show pinned agents in their
@@ -8024,3 +8024,7 @@ The draft card's title and account line are read, never guessed (`draftTitle`, `
 ## The working indicator
 
 One row at the end of the chat (`AgentWorkingIndicator`; the phone's `LiveStep`): the agent's key and one phrase from the step the Mac observed, never a new model call (`indicatorWords` in `packages/companion-protocol/src/workIndicator.ts`, shared). "Working on it" only before any step; the step's own words otherwise; "3 of 8" only when the step reports `progress` (a newer Mac field, not computed here); the timer from 8s (`formatDuration`); no new step or sign of life for a minute reads "Still working" without the shimmer; a chat with a waiting card says "Needs your OK on N" with a real Review (`needsOkLine`, `okWhat`) and the bar above the composer stands down. 40px tall (`--agents-working-height`), 10px under the last bubble or card (`--agents-working-gap`), phrases swap in over 150ms (`--agents-working-swap`). Harness scenarios `agents-working-*` (and `-390`). Bubbles: yours `--surface-inverse`/`--text-on-inverse`, the agent's `color-mix(text-primary 7%)`, `--radius-bubble` 18 with a 6px tail (`--radius-bubble-tail`); the phone's `surfaceBubbleUser`, `textOnBubbleUser`, `surfaceBubbleAgent`, `composer.tail`.
+
+### Reply to a message (`agents/reply.rs`)
+
+`agents.send` / `agents_send` take an optional `replyTo`: the id of the message being answered. The Mac fills `replyTo` `{ id, name, excerpt, kind }` on the stored user message from its own log (name "you" for the user's, else the agent's; excerpt at most 200 characters cut on a word, or the name/domain of an attachment, file or link, or a card's title; kind `message`, `attachment`, `file`, `link` or `card`). An unknown id sends with no reply. The turn is told `Replying to <name>: "<excerpt>"` above the user's words, never in the chat log text. Rewind and fork keep the lines (and their `replyTo`); Edit and resend sends the stored `replyTo.id` again. `welcome.features` lists `messages.reply`.

@@ -113,7 +113,7 @@ export default function Viewer() {
   const doShare = async () => {
     setSharing(true);
     try {
-      const file = uri ?? (await download({ agentId: shown!.agentId, path: shown!.file.path }));
+      const file = uri ?? (await download({ agentId: shown.agentId, path: shown.file.path }));
       await share(file, shown?.file.mime ?? mime);
     } catch (e) {
       setError(describeError(e));

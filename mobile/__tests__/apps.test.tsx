@@ -43,7 +43,7 @@ jest.mock('../src/lib/haptics', () => ({
 const choices: { title?: string; labels: string[]; run: (i: number) => void }[] = [];
 jest.mock('../src/components/menu', () => ({
   choose: (title: string, cs: { label: string; run: () => void }[]) =>
-    choices.push({ title, labels: cs.map((c) => c.label), run: (i: number) => cs[i]!.run() }),
+    choices.push({ title, labels: cs.map((c) => c.label), run: (i: number) => cs[i].run() }),
 }));
 const calls: [string, unknown][] = [];
 let mockOverview: AppsOverview;
@@ -67,7 +67,6 @@ jest.mock('../src/lib/logins', () => ({
   webBrowserModule: () => null,
 }));
 
-// eslint-disable-next-line import/first
 import Apps from '../src/app/apps';
 
 const fixture = real.agentsApps as AppsOverview;
@@ -158,7 +157,7 @@ describe('the apps screen', () => {
     await render(<Apps />);
     await screen.findByText('Linear · sam@acme.com');
     // The second connection's "Who can use it" (Linear's).
-    await fireEvent.press(screen.getAllByText('Who can use it')[1]!);
+    await fireEvent.press(screen.getAllByText('Who can use it')[1]);
     expect(screen.getByText('Which agents can use it?')).toBeTruthy();
     // Starts on what it has: both ticked, and full because someone has it.
     expect(screen.getByText('Every change asks you on a card first.')).toBeTruthy();
@@ -176,12 +175,12 @@ describe('the apps screen', () => {
   it('asks before Remove, and says what removing does', async () => {
     await render(<Apps />);
     await screen.findByText('Linear · sam@acme.com');
-    await fireEvent.press(screen.getAllByText('Remove')[1]!);
+    await fireEvent.press(screen.getAllByText('Remove')[1]);
     expect(choices).toHaveLength(1);
-    expect(choices[0]!.title).toBe('Remove Linear?');
-    expect(choices[0]!.labels).toEqual(['Remove']);
+    expect(choices[0].title).toBe('Remove Linear?');
+    expect(choices[0].labels).toEqual(['Remove']);
     expect(calls.some(([m]) => m === 'agents.appsRemove')).toBe(false);
-    choices[0]!.run(0);
+    choices[0].run(0);
     await waitFor(() =>
       expect(calls).toContainEqual(['agents.appsRemove', { connectionId: 'c2' }])
     );

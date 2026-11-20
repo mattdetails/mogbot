@@ -102,7 +102,7 @@ function Cartesian({ block, width }: { block: ChartBlock; width: number }) {
   const isBar = block.chart === 'bar';
   const surface = colors.surfacePanel;
   const tip = at == null ? null : tooltipAt(block, at);
-  const tipX = at == null ? 0 : model.xs[at]!;
+  const tipX = at == null ? 0 : model.xs[at];
   const tipLeft = Math.max(0, Math.min(width - chartSize.tooltip, tipX - chartSize.tooltip / 2));
   return (
     <View
@@ -206,8 +206,8 @@ function Cartesian({ block, width }: { block: ChartBlock; width: number }) {
             ))}
             {at != null && s.points[at] && (
               <Circle
-                cx={s.points[at]!.x}
-                cy={s.points[at]!.y}
+                cx={s.points[at].x}
+                cy={s.points[at].y}
                 r={chartSize.dot}
                 fill={seriesColor(colors, s.slot)}
                 stroke={surface}
@@ -250,7 +250,7 @@ function Cartesian({ block, width }: { block: ChartBlock; width: number }) {
 function endPoints(points: ({ x: number; y: number } | null)[]): { x: number; y: number }[] {
   const real = points.filter((p): p is { x: number; y: number } => !!p);
   if (!real.length) return [];
-  return [real[real.length - 1]!];
+  return [real[real.length - 1]];
 }
 
 function PieChart({ block, width }: { block: ChartBlock; width: number }) {

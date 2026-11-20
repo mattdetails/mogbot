@@ -25,7 +25,15 @@ jest.mock('../src/components/ui', () => {
   const { Text, Pressable, View } = jest.requireActual('react-native');
   return {
     tap: jest.fn(),
-    Section: ({ title, footer, children }: { title: string; footer?: string; children: unknown }) => (
+    Section: ({
+      title,
+      footer,
+      children,
+    }: {
+      title: string;
+      footer?: string;
+      children: unknown;
+    }) => (
       <View>
         <Text>{title}</Text>
         {children as never}
@@ -58,7 +66,7 @@ describe('quiet hours on the phone', () => {
   it('shows what the Mac has, and sets a night or off from the sheet', async () => {
     await render(<QuietHoursSetting />);
     expect(await screen.findByText('22:00–07:00')).toBeTruthy();
-    fireEvent.press(screen.getAllByText('Quiet hours')[1]);
+    void fireEvent.press(screen.getAllByText('Quiet hours')[1]);
     const [title, choices] = mockChoose.mock.calls[0] as [
       string,
       { label: string; run: () => void }[],

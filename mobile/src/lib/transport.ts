@@ -697,6 +697,7 @@ export class DirectTransport implements Transport {
     // channel's handshake; from there it's the same frames as on Tailscale.
     const ws = (relay
       ? new RelaySocket(url, {
+          session: true,
           fingerprint: this.opts.pinned.fingerprint,
           random: this.random,
           WebSocketImpl: Impl,

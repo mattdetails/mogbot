@@ -430,7 +430,15 @@ describe('pairing', () => {
     // second goes straight through.
     const stalling: typeof fetch = (input, init) => {
       calls += 1;
-      if (calls === 1 && String(input).endsWith('/v1/identity')) {
+      if (
+        calls === 1 &&
+        (typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+        ).endsWith('/v1/identity')
+      ) {
         return new Promise((_, reject) =>
           init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
         );
@@ -500,6 +508,6 @@ describe('a picked photo read as standard base64', () => {
     expect(b64).toMatch(/[+/=]/);
     expect(fromBase64Url(b64)).toBeNull(); // what every relayed photo hit
     const wrapped = b64.replace(/(.{76})/g, '$1\n');
-    expect(Array.from(fromBase64Url(standardToUrl(wrapped))!)).toEqual(Array.from(bytes));
+    expect(Array.from(fromBase64Url(standardToUrl(wrapped)))).toEqual(Array.from(bytes));
   });
 });

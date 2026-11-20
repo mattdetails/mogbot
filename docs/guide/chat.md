@@ -3,7 +3,7 @@ title: The chat
 order: 9
 ---
 
-Every message is a bubble. Yours is strong and inverted (near-white on dark, near-black on light) on the right; your agent's is a quiet tint of the text colour on the left. Each has a small square corner at the bottom toward whoever spoke. Cards (results, approvals, tables and charts) keep their own frames and are not bubbles.
+Every message is a bubble. On the phone, yours takes the agent's key colour, on the right, with white or near-black words, whichever reads better (at least 4.5 to 1); your agent's is a quiet tint of the text colour (4% in dark, 6% in light) on the left, up to 560 wide. A reply arrives whole, not word by word; the working line stays until all of it is there. Each has a small square corner at the bottom toward whoever spoke. Cards (results, approvals, tables and charts) keep their own frames and are not bubbles.
 
 ## When your agent is busy
 

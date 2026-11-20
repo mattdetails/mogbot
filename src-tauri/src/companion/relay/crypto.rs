@@ -63,6 +63,40 @@ pub fn login_auth(identity: &Identity, nonce: &str) -> Option<String> {
 pub struct PhoneHello {
     pub v: u32,
     pub e: String,
+    /// 1: the phone keeps sessions (docs/relay.md, "Sessions").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub s: Option<u32>,
+    /// A phone coming back to a session it had.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resume: Option<ResumeProof>,
+}
+
+/// What a returning phone proves: it holds the session's resume key.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResumeProof {
+    pub sid: String,
+    /// The last Mac→phone sequence the phone took.
+    pub rx: u64,
+    /// Grows with every attempt; a replayed hello can't reuse one.
+    pub k: u64,
+    pub mac: String,
+}
+
+/// `HMAC-SHA256(resume key, "resume\n<hello e>\n<sid>\n<rx>\n<k>")`, base64url.
+pub fn resume_mac(key: &[u8; 32], e: &str, sid: &str, rx: u64, k: u64) -> String {
+    let key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, key);
+    let msg = format!("resume\n{e}\n{sid}\n{rx}\n{k}");
+    B64.encode(ring::hmac::sign(&key, msg.as_bytes()).as_ref())
+}
+
+/// Whether `proof` is valid for this hello under `key` (constant time).
+pub fn resume_mac_ok(key: &[u8; 32], e: &str, proof: &ResumeProof) -> bool {
+    let Ok(given) = B64.decode(&proof.mac) else {
+        return false;
+    };
+    let key = ring::hmac::Key::new(ring::hmac::HMAC_SHA256, key);
+    let msg = format!("resume\n{e}\n{}\n{}\n{}", proof.sid, proof.rx, proof.k);
+    ring::hmac::verify(&key, msg.as_bytes(), &given).is_ok()
 }
 
 /// The Mac's answer. Field order is the wire's (`v`, `e`, `publicKey`,
@@ -74,6 +108,9 @@ pub struct MacAnswer {
     pub e: String,
     pub public_key: String,
     pub signature: String,
+    /// 1: answered a hello that offered sessions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub s: Option<u32>,
 }
 
 /// One direction's key and counter.
@@ -130,6 +167,8 @@ impl Direction {
 pub struct Keys {
     pub phone_to_mac: [u8; 32],
     pub mac_to_phone: [u8; 32],
+    /// Proves a returning phone held this channel (`okm[64..96]`).
+    pub resume: [u8; 32],
 }
 
 struct Len(usize);
@@ -146,15 +185,17 @@ pub fn derive(shared: &[u8; 32], transcript: &str) -> Option<Keys> {
     let prk = salt.extract(shared);
     let info = format!("{PAIRING_SCHEME} relay v1");
     let info = [info.as_bytes()];
-    let okm = prk.expand(&info, Len(64)).ok()?;
-    let mut out = [0u8; 64];
+    let okm = prk.expand(&info, Len(96)).ok()?;
+    let mut out = [0u8; 96];
     okm.fill(&mut out).ok()?;
     let mut keys = Keys {
         phone_to_mac: [0; 32],
         mac_to_phone: [0; 32],
+        resume: [0; 32],
     };
     keys.phone_to_mac.copy_from_slice(&out[..32]);
-    keys.mac_to_phone.copy_from_slice(&out[32..]);
+    keys.mac_to_phone.copy_from_slice(&out[32..64]);
+    keys.resume.copy_from_slice(&out[64..]);
     Some(keys)
 }
 
@@ -176,6 +217,13 @@ pub struct MacChannel {
     pub incoming: Direction,
     /// Payloads to the phone.
     pub outgoing: Direction,
+    /// This channel's resume key (docs/relay.md, "Sessions").
+    pub resume: [u8; 32],
+    /// The phone offered sessions, and the answer said so.
+    pub sessions: bool,
+    /// The proof the phone's hello carried, and its `e`, for the Mac to check.
+    pub proof: Option<ResumeProof>,
+    pub phone_e: String,
 }
 
 /// The Mac's answer to a phone's hello (its first payload), with a fresh
@@ -201,10 +249,15 @@ pub fn mac_answer(
         e: mac_e,
         public_key: proof.public_key,
         signature: proof.signature,
+        s: (hello.s == Some(1)).then_some(1),
     };
     let channel = MacChannel {
         incoming: Direction::new(&keys.phone_to_mac)?,
         outgoing: Direction::new(&keys.mac_to_phone)?,
+        resume: keys.resume,
+        sessions: hello.s == Some(1),
+        proof: hello.resume.clone(),
+        phone_e: hello.e.clone(),
     };
     Some((serde_json::to_vec(&answer).ok()?, channel))
 }
@@ -228,6 +281,19 @@ pub mod phone {
         format!("{{\"v\":1,\"e\":\"{e}\"}}")
     }
 
+    /// A hello offering sessions, and (when `back` is `(sid, rx, k, key)`)
+    /// a proof of the session it comes back to.
+    pub fn hello_session(secret: &StaticSecret, back: Option<(&str, u64, u64, &[u8; 32])>) -> String {
+        let e = B64.encode(PublicKey::from(secret).as_bytes());
+        let resume = back.map(|(sid, rx, k, key)| ResumeProof {
+            sid: sid.to_string(),
+            rx,
+            k,
+            mac: resume_mac(key, &e, sid, rx, k),
+        });
+        serde_json::to_string(&PhoneHello { v: 1, e, s: Some(1), resume }).unwrap()
+    }
+
     /// The phone's directions (`outgoing` = phoneToMac), once the answer
     /// checks out against the pinned fingerprint.
     pub fn finish(secret: &StaticSecret, answer: &[u8], pinned: &str) -> Option<MacChannel> {
@@ -247,6 +313,10 @@ pub mod phone {
         Some(MacChannel {
             incoming: Direction::new(&keys.mac_to_phone)?,
             outgoing: Direction::new(&keys.phone_to_mac)?,
+            resume: keys.resume,
+            sessions: answer.s == Some(1),
+            proof: None,
+            phone_e,
         })
     }
 }

@@ -125,6 +125,7 @@ export function relayRequest(
       socket.onopen = socket.onmessage = socket.onclose = socket.onerror = null;
       socket.close();
       if (answer) resolve(answer);
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- passes on whatever the socket reported, unchanged
       else reject(error);
     };
     const touch = () => {
@@ -150,7 +151,7 @@ export function relayRequest(
       touch();
       let frame: RelayHttpResponse | RelayHttpBody;
       try {
-        frame = JSON.parse(String(ev.data));
+        frame = JSON.parse(String(ev.data)) as RelayHttpResponse | RelayHttpBody;
       } catch {
         return;
       }
@@ -245,8 +246,8 @@ export function relayFetch(url: string, deps: RelayHttpDeps) {
     return {
       status: res.status,
       ok: res.status >= 200 && res.status < 300,
-      json: async () => JSON.parse(dec.decode(res.body)) as unknown,
-      text: async () => dec.decode(res.body),
+      json: () => new Promise<unknown>((ok) => ok(JSON.parse(dec.decode(res.body)))), // a bad body rejects, as it did when this was async
+      text: () => Promise.resolve(dec.decode(res.body)),
     };
   };
 }

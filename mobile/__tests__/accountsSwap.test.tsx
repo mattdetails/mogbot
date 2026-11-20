@@ -31,6 +31,7 @@ jest.mock('../src/lib/usePolling', () => {
   return {
     usePolling: (fn: () => Promise<unknown>) => {
       mockPoll.read = fn;
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- the mock polls once, like the real hook on mount
       return useEffect(() => void fn(), []);
     },
   };

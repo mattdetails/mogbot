@@ -186,6 +186,7 @@ export default function CatchUp() {
     const waiting = new Set(groups.map((g) => g.agentId));
     const fresh = sinceItems(overview.agents, chats, since, waiting);
     if (fresh.length > 0) return { happened: fresh, recent: false };
+    // eslint-disable-next-line react-hooks/purity -- the clock is read in render on purpose; it only feeds a label that is re-read on the next render
     const day = sinceItems(overview.agents, chats, Date.now() - FIRST_LOOK_MS, waiting);
     return { happened: day.slice(0, RECENT_MAX), recent: true };
   }, [overview, chats, since, groups]);
@@ -398,7 +399,9 @@ function rowWords(
       return card?.approval
         ? [
             card.approval.title,
-            item.kind === 'mac' ? `Review it on ${pairedComputer().your}` : askingLine(card.approval),
+            item.kind === 'mac'
+              ? `Review it on ${pairedComputer().your}`
+              : askingLine(card.approval),
           ]
         : ['Needs your OK', ''];
     case 'keep': {

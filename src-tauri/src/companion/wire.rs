@@ -340,6 +340,10 @@ pub const FEATURE_LIVE_WORK: &str = "work.live";
 /// for changes", `agents/results.rs`).
 pub const MAC_FEATURE_REVISE_RESULTS: &str = "results.revise";
 
+/// `welcome.features`: `agents.send` takes `replyTo` (a message's id) and
+/// a message carries `replyTo` (`agents/reply.rs`).
+pub const MAC_FEATURE_REPLY: &str = "messages.reply";
+
 /// `welcome.features`: agents carry their "When…" routines as `watches`
 /// (`agents/watch.rs`), which the phone shows read-only.
 pub const MAC_FEATURE_WHEN_ROUTINES: &str = "routines.when";
@@ -436,6 +440,7 @@ pub const MAC_FEATURE_DICTATION: &str = "dictation.transcribe";
 /// Everything `welcome.features` lists.
 pub const MAC_FEATURES: &[&str] = &[
     MAC_FEATURE_REVISE_RESULTS,
+    MAC_FEATURE_REPLY,
     MAC_FEATURE_WHEN_ROUTINES,
     MAC_FEATURE_ROOMS,
     MAC_FEATURE_LOGINS,

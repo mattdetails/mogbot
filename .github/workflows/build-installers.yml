@@ -100,6 +100,11 @@ jobs:
           workspaces: './src-tauri -> target'
           key: installers-${{ matrix.artifact }}
 
+      - name: Name the MSVC assembler for CMake (whisper.cpp)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/ci-msvc-asm.ps1
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 

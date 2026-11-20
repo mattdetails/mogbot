@@ -25,7 +25,7 @@ describe('first-open starters', () => {
     await render(<Starters starters={STARTERS} onSend={onSend} />);
     for (const s of STARTERS) expect(screen.getByText(s.text)).toBeTruthy();
     expect(screen.getAllByTestId('starter-connect')).toHaveLength(1);
-    fireEvent.press(screen.getByText('Plan my week'));
+    void fireEvent.press(screen.getByText('Plan my week'));
     expect(onSend).toHaveBeenCalledWith('Plan my week');
   });
 
