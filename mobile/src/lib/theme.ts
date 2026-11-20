@@ -162,7 +162,7 @@ const dark: Palette = {
   surfaceBubble: '#3a3835',
   surfaceBubbleUser: '#f4f2ee',
   textOnBubbleUser: '#151413',
-  surfaceBubbleAgent: 'rgba(214, 210, 202, 0.07)',
+  surfaceBubbleAgent: 'rgba(214, 210, 202, 0.04)',
   textStrong: '#ffffff',
   // A reply is read in near-white with a warm cast: a whole reply in the
   // chrome's grey read dim next to Grok's and iMessage's bodies.
@@ -244,7 +244,7 @@ const light: Palette = {
   surfaceBubble: '#f1efeb',
   surfaceBubbleUser: '#1c1c1c',
   textOnBubbleUser: '#ffffff',
-  surfaceBubbleAgent: 'rgba(28, 28, 28, 0.07)',
+  surfaceBubbleAgent: 'rgba(28, 28, 28, 0.06)',
   // The desk's ink (--color-ink-900, -800, -700, -600, -525).
   textStrong: '#1c1c1c',
   textBody: '#2c2a27',
@@ -588,6 +588,10 @@ export const composer = {
   corner: 18,
   /** The small corner toward the speaker (yours bottom-right, the agent's bottom-left). */
   tail: 6,
+  /** A reply's bubble: 7 above and below, 12 either side, never wider than 560. */
+  replyPadV: 7,
+  replyPadH: 12,
+  replyMax: 560,
   /** The field's 17pt text (`type.field`) on a 22pt line. */
   fieldLine: 22,
   /** Above and below the text, so one line is 48. */
@@ -803,6 +807,8 @@ export const baseType = {
   field: 17,
   subhead: 16,
   read: 17,
+  /** An agent's bubble: 15 on the composer's 20 line. */
+  bubble: 15,
   /** A reply's top heading: a step over `title`, so a `#` reads over a `##`. */
   heading: 20,
   title: 18,

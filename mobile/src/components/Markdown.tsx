@@ -22,6 +22,7 @@ import { splitMentions } from '../lib/rooms';
 import { makeStyles, useColors } from '../lib/appearance';
 import {
   alpha,
+  composer,
   fonts,
   lineHeight,
   radius,
@@ -499,10 +500,12 @@ const bodyOf = (colors: Palette) => ({
   color: colors.textBody,
 });
 
-const useStyles = makeStyles((colors) => ({
+const useBaseStyles = makeStyles((colors) => ({
   // A paragraph apart: a blank line's worth of air between blocks, as Grok sets a reply.
   root: { gap: space.lg },
   p: bodyOf(colors),
+  // In an agent's bubble (15 on a 20 line).
+  pBubble: { ...bodyOf(colors), fontSize: type.bubble, lineHeight: composer.line },
   heading: { fontFamily: fonts.semibold, color: colors.textStrong, marginTop: space.md },
   strong: { fontFamily: fonts.semibold, color: colors.textStrong },
   em: { fontStyle: 'italic' },
@@ -592,3 +595,13 @@ const useStyles = makeStyles((colors) => ({
   cell: { ...bodyOf(colors), fontSize: type.small, lineHeight: lineHeight(type.small, 1.45) },
   figures: { textAlign: 'right', fontVariant: ['tabular-nums'] },
 }));
+
+/** True inside an agent's bubble: its words are set at the bubble's size. */
+export const BubbleSize = createContext(false);
+
+function useStyles() {
+  const base = useBaseStyles();
+  const bubble = useContext(BubbleSize);
+  return useMemo(() => (bubble ? { ...base, p: base.pBubble } : base), [base, bubble]);
+}
+

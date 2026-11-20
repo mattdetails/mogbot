@@ -52,6 +52,7 @@
  * as the Mac keeps them.
  */
 
+import { useUserBubble } from '../lib/userBubble';
 import {
   MAC_FEATURES,
   MAX_ATTACHMENTS,
@@ -441,6 +442,7 @@ export function Composer({
   const waitingOnYou = needsYou(agent);
   // Offline, Send still works: it waits for the Mac in the outbox.
   const canSend = hasContent && !blocked;
+  const bubble = useUserBubble(agent);
   // Driven on the Mac: it waits for the hand-back there, and nothing here interrupts it.
   const driven = Boolean(agent.takeover);
   const offerNow = mode === 'queue' && connected && !waitingOnYou && !driven;
@@ -1008,11 +1010,12 @@ export function Composer({
               disabled={!canSend}
               onPress={dictationSend}
               tone="inverse"
+              fill={bubble.fill}
             >
               <Icon
                 name="arrow.up"
                 size={iconSize.button}
-                color={colors.textOnBubbleUser}
+                color={canSend ? bubble.ink : colors.textOnBubbleUser}
                 fallback={<T color={colors.textOnBubbleUser}>↑</T>}
               />
             </RoundButton>
@@ -1065,11 +1068,12 @@ export function Composer({
               onPress={() => submit(false)}
               // Dimmed until there's something to send, as Claude's own.
               tone="inverse"
+              fill={bubble.fill}
             >
               <Icon
                 name="arrow.up"
                 size={iconSize.button}
-                color={colors.textOnBubbleUser}
+                color={canSend ? bubble.ink : colors.textOnBubbleUser}
                 fallback={<T color={colors.textOnBubbleUser}>↑</T>}
               />
             </RoundButton>
@@ -1421,6 +1425,7 @@ export function RoundButton({
   onLongPress,
   onPressOut,
   tone,
+  fill,
   children,
 }: {
   label: string;
@@ -1432,6 +1437,8 @@ export function RoundButton({
   /** The finger came off, or slid away past `HOLD_CANCEL_DISTANCE`. */
   onPressOut?: (e: GestureResponderEvent) => void;
   tone: 'accent' | 'inverse' | 'quiet' | 'off';
+  /** An inverse button's own fill once it can act (Send in the agent's key colour). */
+  fill?: string;
   children: ReactNode;
 }) {
   const colors = useColors();
@@ -1465,7 +1472,7 @@ export function RoundButton({
           ];
           // Not `interactive` glass: its own touch handling on iOS 26 took the
           // touch from the Pressable now and then, and a tap on Send did nothing.
-          // Send is neutral, never the agent's colour: the inverse circle, as your bubble.
+          // Send is muted until there's something to send, then the agent's key colour, as your bubble.
           return tone === 'accent' ? (
             <Glass tint={accent.accent} style={look}>
               {children}
@@ -1477,7 +1484,7 @@ export function RoundButton({
                 {
                   backgroundColor:
                     tone === 'inverse'
-                      ? colors.surfaceBubbleUser
+                      ? (!disabled && fill) || colors.surfaceBubbleUser
                       : tone === 'quiet'
                         ? colors.surfaceSelected
                         : 'transparent',
