@@ -247,6 +247,12 @@ export interface Methods {
        * Send only to a Mac whose `welcome.features` has `results.revise`.
        */
       revises?: string;
+      /**
+       * Reply: the id of the message this one answers; the Mac fills the quote
+       * (`replyTo` on the stored message). An unknown id sends with no reply.
+       * Send only to a Mac whose `welcome.features` has `messages.reply`.
+       */
+      replyTo?: string;
       /** The conversation on screen; absent, the one the user is in on the Mac. */
       conversation?: string;
       /**

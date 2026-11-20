@@ -317,6 +317,7 @@ impl Backend for DesktopBackend {
                 extras.revises,
                 extras.conversation,
                 extras.written_at,
+                extras.reply_to,
             )
             .await?,
         )
