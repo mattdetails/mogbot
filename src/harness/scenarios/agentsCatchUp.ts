@@ -5,6 +5,7 @@
  * (`designs/catchup-page/mock-desk-*.html`, 1200×700).
  */
 
+import { emit } from '@tauri-apps/api/event';
 import type { Scenario } from '../types';
 import { AGENTS_TAB, agent, msg, overview } from './agents';
 
@@ -103,8 +104,48 @@ function build(
   };
 }
 
-const withAsks = (asks: Ask[], extra: ReturnType<typeof agent>[] = []) =>
-  build([...asks.map(asker), ...extra], Object.fromEntries(asks.map((a) => [a.id, [approval(a)]])));
+/**
+ * The asks, answerable: Allow marks the card allowed, drops the agent's
+ * pending count and tells the app, as the Mac does, so a row can move to Done.
+ */
+function withAsks(asks: Ask[], extra: ReturnType<typeof agent>[] = [], autoAnswerMs = 0) {
+  const lines: Record<string, ReturnType<typeof msg>[]> = Object.fromEntries(
+    asks.map((a) => [a.id, [approval(a)]])
+  );
+  const answered = new Set<string>();
+  const answerOne = (id: string, allow: boolean) => {
+    const was = lines[id]?.[0];
+    if (!was) return;
+    answered.add(id);
+    const next = {
+      ...was,
+      approval: {
+        ...((was as { approval?: object }).approval ?? {}),
+        status: allow ? 'allowed' : 'denied',
+      },
+    };
+    lines[id] = [next];
+    void emit('agents://message', next);
+    void emit('agents://registry', {});
+  };
+  let timer = false;
+  const agents = () =>
+    [...asks.map(asker), ...extra].map((a) =>
+      answered.has(a.id) ? { ...a, pendingApprovals: 0 } : a
+    );
+  return {
+    agents_overview: () => {
+      if (autoAnswerMs && !timer) {
+        timer = true;
+        asks.forEach((a, i) => setTimeout(() => answerOne(a.id, true), autoAnswerMs + i * 300));
+      }
+      return overview(agents());
+    },
+    agents_messages: (args: Record<string, unknown>) => lines[String(args.agentId)] ?? [],
+    agents_answer_approval: (args: Record<string, unknown>) =>
+      answerOne(String(args.agentId), !!args.allow),
+  };
+}
 
 const scenario = (
   id: string,
@@ -192,15 +233,6 @@ export const agentsCatchUpScenarios: Scenario[] = [
     'The summary row is selected and the header says “Summary”. The card: a clock tile, “While you were away” and “6 things · no decisions”; six 52px rows with a key, one sentence and its time at the right, hairlines between; one strong Got it.',
     build(HAPPENED),
     {}
-  ),
-  scenario(
-    'summary-after-done',
-    'answered rows in Done, the summary open',
-    'After the last decision is answered the queue starts with a muted “DONE · 3” (each row ends in a check), “THEN” has the summary row, and the pane shows the summary (“Summary” in the header).',
-    withAsks(ASKS, HAPPENED),
-    {
-      steps: [{ click: '[data-allow]' }, { click: '[data-allow]' }, { click: '[data-allow]' }],
-    }
   ),
   scenario(
     'all-clear',

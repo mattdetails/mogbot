@@ -447,7 +447,7 @@ async function capture({
     // styles in CSS px, to measure a screen against its mock instead of by eye.
     if (process.env.HARNESS_MEASURE) {
       const sels = process.env.HARNESS_MEASURE.split(';').filter(Boolean);
-      const probe = `JSON.stringify(${JSON.stringify(sels)}.map((sel) => [...document.querySelectorAll(sel)].slice(0, 8).map((el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); const n = (v) => Math.round(v * 100) / 100; return { sel, x: n(r.left), y: n(r.top), w: n(r.width), h: n(r.height), fs: cs.fontSize, fw: cs.fontWeight, lh: cs.lineHeight, color: cs.color, bg: cs.backgroundColor, radius: cs.borderRadius, pad: cs.padding, gap: cs.gap }; })))`;
+      const probe = `JSON.stringify(${JSON.stringify(sels)}.map((sel) => [...document.querySelectorAll(sel)].slice(0, 8).map((el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); const n = (v) => Math.round(v * 100) / 100; return { sel, x: n(r.left), y: n(r.top), w: n(r.width), h: n(r.height), fs: cs.fontSize, fw: cs.fontWeight, lh: cs.lineHeight, color: cs.color, bg: cs.backgroundColor, radius: cs.borderRadius, pad: cs.padding, gap: cs.gap, text: (el.textContent || '').slice(0, 90) }; })))`;
       console.log(`measure ${label ?? file}: ${await page.eval(probe).catch((e) => String(e))}`);
     }
 
