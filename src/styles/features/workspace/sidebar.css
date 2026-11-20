@@ -1054,3 +1054,8 @@
   right: auto;
   left: auto;
 }
+
+/* Narrow: the shortcut chip goes, so the placeholder never runs under it. */
+.workspace-sidebar.is-narrow .workspace-sidebar-filter-shortcut {
+  display: none;
+}

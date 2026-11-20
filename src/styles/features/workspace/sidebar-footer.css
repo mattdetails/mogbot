@@ -332,3 +332,10 @@
   > .workspace-sidebar-footer-lead {
   visibility: hidden;
 }
+
+/* Narrow: New agent keeps its whole label; the folder and room halves are in
+   the palette and the list's menu, so they give the room back. */
+.workspace-sidebar.is-narrow .agents-foot__new > .agents-list__new-folder,
+.workspace-sidebar.is-narrow .agents-foot__new > .agents-list__new-room {
+  display: none;
+}

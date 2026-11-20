@@ -119,6 +119,8 @@ interface AgentsSidebarProps {
   /** Group conversations, each with its members as they are now. */
   rooms: { room: Room; members: Agent[] }[];
   roomActions: RoomActions;
+  /** First run: the hint under the Chief's row starts a first agent. */
+  onNew?: () => void;
 }
 
 function subtitle(agent: Agent): ReactNode {
@@ -144,8 +146,11 @@ function subtitle(agent: Agent): ReactNode {
   if (agent.status.state === 'working') return <AgentWorkingLine agent={agent} inRow />;
   const failure = failedTurn(agent);
   if (failure) return failureLine(failure, previewText(agent.preview), agent.engine);
-  return previewText(agent.preview) ?? '';
+  return previewText(agent.preview) ?? (agent.isMain ? FIRST_LINE : '');
 }
+
+/** The Chief's row before it has said anything else (the stored greeting's first line). */
+const FIRST_LINE = 'Hi. Tell me what you want to get done.';
 
 /**
  * Waiting on you or a turn that didn't finish: the state as a pill and the
@@ -302,7 +307,6 @@ export function CatchUpRow({
   collapsed: boolean;
   onOpen: () => void;
 }) {
-  if (collapsed) return null;
   const shown = waiting.slice(0, 2).map((a) => a.name);
   const more = waiting.length - shown.length;
   const who = more > 0 ? `${shown.join(', ')}, +${more}` : shown.join(', ');
@@ -316,6 +320,10 @@ export function CatchUpRow({
     >
       <span className="agents-catchup-row__tile" aria-hidden="true">
         <CollaboratorsIcon size={14} />
+        {/* The rail has no line to read: the count rides the tile's corner. */}
+        {collapsed && count > 0 && (
+          <span className="agents-catchup-row__count">{count > 99 ? '99+' : count}</span>
+        )}
       </span>
       <span className="agents-list__text">
         <span className="agents-list__name">
@@ -350,6 +358,7 @@ export function AgentsSidebar({
   actions,
   rooms,
   roomActions,
+  onNew,
 }: AgentsSidebarProps) {
   // Optional sections: by project, or the folders you make (none until the first).
   const grouping = useAgentGroups();
@@ -516,6 +525,18 @@ export function AgentsSidebar({
             </button>
           )}
           {showHidden && hidden.map(row)}
+          {/* First run: only the Chief. Say where the team starts. */}
+          {onNew && agents.length === 1 && agents[0].isMain && (
+            <div className="agents-list__first-run">
+              <p className="agents-list__first-run-title">Your team starts here</p>
+              <p className="agents-list__first-run-copy">
+                Ask the Chief for a first agent, or make one yourself.
+              </p>
+              <Button variant="strong" onClick={onNew}>
+                New agent
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>
@@ -738,6 +759,8 @@ const AgentRow = memo(function AgentRow({
               <AgentMark agent={unread ? agent : { ...agent, unread: 0 }} />
             </span>
           </span>
+          {/* The rail's amber dot: this one needs you (the key alone said it with a glow). */}
+          {needsYou(agent) && <span className="agents-list__rail-needs" aria-hidden="true" />}
         </button>
       </ContextMenuTrigger>
       <ContextMenuContent aria-label={`Actions for ${agent.name}`}>

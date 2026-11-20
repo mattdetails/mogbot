@@ -293,6 +293,8 @@ interface Props {
   onSwitchAccount?: () => void;
 }
 
+/** Under this width (px) the sidebar is narrow: no excerpts, amber dots for tags. */
+const SIDEBAR_NARROW_BELOW = 240;
 const SECTION_STORAGE_KEY = 'ship-studio:workspace-sidebar:collapsed';
 const PROJECT_EXPAND_STORAGE_KEY = 'ship-studio:workspace-sidebar:expanded-projects';
 
@@ -496,9 +498,9 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
   const bugReportModal = useModal('bugReport');
   const featureRequestModal = useModal('featureRequest');
   const changelogModal = useModal('changelog');
-  // 219, not 214: kept from when the top row carried more buttons, so a saved
-  // width and the default still match.
-  const [sidebarWidth, setSidebarWidth] = useState(219);
+  // 260 is the design's default width; below SIDEBAR_NARROW_BELOW the list
+  // drops its excerpts and turns its tags into dots (`.is-narrow`).
+  const [sidebarWidth, setSidebarWidth] = useState(260);
   const sidebarProjectSettingsModal = useModal('sidebarProjectSettings');
   const sidebarProjectRenameModal = useModal('sidebarProjectRename');
   const { showToast } = useOptionalToast();
@@ -1830,7 +1832,9 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
   return (
     <>
       <aside
-        className={`workspace-sidebar${isSidebarHidden ? ' is-hidden' : ''}`}
+        className={`workspace-sidebar${isSidebarHidden ? ' is-hidden' : ''}${
+          !isSidebarHidden && sidebarWidth < SIDEBAR_NARROW_BELOW ? ' is-narrow' : ''
+        }`}
         aria-label="Processes"
         style={sidebarStyle}
       >

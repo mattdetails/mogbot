@@ -10,7 +10,7 @@
  * @module components/agents/AgentsSearchBox
  */
 
-import { useRef, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { SearchIcon } from '@/components/icons';
 import { SearchField } from '../primitives/SearchField';
 import { AgentsSearchResults, moveHitFocus } from './AgentsSearchResults';
@@ -31,9 +31,19 @@ interface AgentsSearchBoxProps {
   className?: string;
   /** In the popover: leaving it empty puts it away. */
   closeOnBlur?: boolean;
+  placeholder?: string;
 }
 
-export function AgentsSearchBox({ search, field, className, closeOnBlur }: AgentsSearchBoxProps) {
+/** Under this width (px) the search field says just "Search". */
+const SHORT_PLACEHOLDER_BELOW = 190;
+
+export function AgentsSearchBox({
+  search,
+  field,
+  className,
+  closeOnBlur,
+  placeholder = 'Search conversations',
+}: AgentsSearchBoxProps) {
   return (
     <SearchField
       ref={field}
@@ -41,7 +51,7 @@ export function AgentsSearchBox({ search, field, className, closeOnBlur }: Agent
       className={className}
       value={search.query}
       onChange={search.setQuery}
-      placeholder="Search conversations"
+      placeholder={placeholder}
       aria-label="Search conversations"
       clearLabel="Clear search"
       onKeyDown={(e) => {
@@ -94,9 +104,23 @@ export function AgentsTopSearch({
       </button>
     );
   }
+  // At a narrow sidebar the placeholder is one word, so it never runs short.
+  const [wrap, setWrap] = useState<HTMLDivElement | null>(null);
+  const [short, setShort] = useState(false);
+  useEffect(() => {
+    if (!wrap || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setShort(wrap.clientWidth < SHORT_PLACEHOLDER_BELOW));
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, [wrap]);
   return (
-    <div className="agents-top-search" role="search">
-      <AgentsSearchBox search={search} field={field} className="agents-top-search__field" />
+    <div ref={setWrap} className="agents-top-search" role="search">
+      <AgentsSearchBox
+        search={search}
+        field={field}
+        className="agents-top-search__field"
+        placeholder={short ? 'Search' : undefined}
+      />
       {!search.query && (
         <span className="workspace-sidebar-filter-shortcut agents-top-search__kbd" aria-hidden>
           {kbd('mod', 'F')}
