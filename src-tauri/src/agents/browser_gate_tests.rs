@@ -1486,8 +1486,10 @@ fn replay_recorded_cards() {
             let input = c["in"].clone();
             let title = c["title"].as_str().unwrap();
             let host = title.rsplit(" on ").next().unwrap_or("");
-            let mut p = Page::default();
-            p.url = Some(format!("https://{host}/"));
+            let mut p = Page {
+                url: Some(format!("https://{host}/")),
+                ..Page::default()
+            };
             if let Some(r) = input.get("ref").and_then(|v| v.as_str()) {
                 if let Some(l) = title.split('“').nth(1).and_then(|s| s.split('”').next()) {
                     p.refs.insert(r.to_string(), format!("button \"{l}\""));
@@ -1527,8 +1529,10 @@ fn unleashed_lets_recorded_chrome_clicks_through() {
     // position and by label that don't pay or delete for good.
     let input = json!({"x": 800, "y": 110, "tab": 1});
     for host in ["linkedin.com", "app.slack.com", "github.com"] {
-        let mut p = Page::default();
-        p.url = Some(format!("https://{host}/"));
+        let p = Page {
+            url: Some(format!("https://{host}/")),
+            ..Page::default()
+        };
         assert_eq!(
             gate_user_chrome_with(true, Level::FullSend, &agent(), "click", &input, false, &p),
             Gate::Allow,

@@ -2046,7 +2046,7 @@ pub(crate) fn receive_history_state(
         .total
         .chars
         .saturating_sub(t.draft.proposals[i].history.as_ref().map_or(0, |h| h.chars));
-    t.conversations = t.conversations + got.kept;
+    t.conversations += got.kept;
     t.draft.proposals[i].history = Some(got.total.clone());
     t.last_at = now;
     let source = t.source.clone();

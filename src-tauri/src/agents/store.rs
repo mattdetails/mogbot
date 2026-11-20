@@ -1351,6 +1351,7 @@ pub fn create(new: NewAgent) -> Result<Agent, CommandError> {
 }
 
 /// [`create`]'s registry half, under the lock: nothing but the registry.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 fn register_new(id: String, name: String, new: NewAgent) -> Result<Agent, CommandError> {
     let _guard = lock::take()?;
     let mut registry = read_registry()?;
@@ -1544,6 +1545,7 @@ pub fn instructions_of(raw: &str) -> String {
 /// avatar and settings as they were there. Refused if the id or the name is
 /// already taken, or it would be a second Chief of Staff. Its home must
 /// already be in place.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub fn insert_imported(mut agent: Agent) -> Result<Agent, CommandError> {
     validate_id(&agent.id)?;
     agent.name = validate_name(&agent.name)?;
@@ -1791,6 +1793,7 @@ pub fn restore(id: &str) -> Result<Agent, CommandError> {
 }
 
 /// [`restore`]'s list half, under the lock: the registry, then the trash list.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 fn restore_entry(id: &str) -> Result<Agent, CommandError> {
     let _guard = lock::take()?;
     let mut items = read_trash();

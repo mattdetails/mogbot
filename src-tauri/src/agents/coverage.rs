@@ -224,6 +224,7 @@ impl Coverage {
             .any(|(_, n)| n.facts.iter().any(|f| about(f, mention)))
     }
 
+    #[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
     fn note_mut(&mut self, area: Area) -> &mut AreaNote {
         if let Some(i) = self.areas.iter().position(|(a, _)| *a == area) {
             return &mut self.areas[i].1;

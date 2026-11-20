@@ -296,7 +296,7 @@ pub fn pace(samples: &[Sample], window: &QuotaWindow, now: i64) -> Option<Pace> 
     points.sort_by_key(|p| p.0);
     // The current reading is the last point when it's newer than every
     // sample (a repeat isn't kept as a sample, but time has still passed).
-    let newer = points.last().map_or(true, |p| window.observed_at > p.0);
+    let newer = points.last().is_none_or(|p| window.observed_at > p.0);
     if newer && window.observed_at >= since && window.observed_at <= now {
         points.push((window.observed_at, used_now));
     }

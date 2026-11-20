@@ -37,7 +37,7 @@ pub fn pick(doers: &[Engine], ready: &[Engine]) -> Option<Engine> {
         .iter()
         .filter(can)
         .find(|e| !doers.contains(e))
-        .or_else(|| ready.iter().filter(can).next())
+        .or_else(|| ready.iter().find(can))
         .copied()
 }
 

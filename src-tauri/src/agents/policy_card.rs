@@ -332,11 +332,10 @@ pub struct GrantChange {
 impl GrantChange {
     /// Taking away, or down to read: less room, so no card.
     pub fn lowers(&self) -> bool {
-        match (self.before, self.access) {
-            (_, None) => true,
-            (Some(Access::Full), Some(Access::Read)) => true,
-            _ => false,
-        }
+        matches!(
+            (self.before, self.access),
+            (_, None) | (Some(Access::Full), Some(Access::Read))
+        )
     }
 }
 

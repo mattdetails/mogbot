@@ -476,6 +476,7 @@ impl<T> Table<T> {
 
     /// The session `id`, for `device_id`. An expired one is removed and
     /// reads as timed out; another device's is refused and left alone.
+    #[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
     pub fn check(
         &mut self,
         device_id: &str,

@@ -196,7 +196,7 @@ fn strip_leading(line: &str) -> String {
         // (a typographic apostrophe is three bytes: count chars instead).
         let n = p.chars().count();
         let rest: String = s.chars().skip(n).collect();
-        let rest = rest.trim_start_matches(|c: char| c == ',' || c == '!' || c == ':' || c == '-');
+        let rest = rest.trim_start_matches([',', '!', ':', '-']);
         let rest = rest.trim().to_string();
         if rest.is_empty() {
             break;

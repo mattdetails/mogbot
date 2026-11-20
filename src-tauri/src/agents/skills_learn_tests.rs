@@ -149,7 +149,7 @@ fn secrets_and_personal_details_never_reach_a_skill() {
     }
     assert!(all.contains("[removed: an email address]"));
     assert!(removed >= 4, "{removed}");
-    assert_eq!(removed_line(removed).is_some(), true);
+    assert!(removed_line(removed).is_some());
     assert_eq!(removed_line(0), None);
 }
 

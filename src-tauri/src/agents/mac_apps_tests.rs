@@ -670,6 +670,7 @@ fn message_text_is_read_from_newer_macos_archived_bodies() {
 /// nothing and reads no app's data.
 #[cfg(target_os = "macos")]
 #[test]
+#[allow(clippy::disallowed_methods)] // a local process in a test or a bounded local read; no network
 fn every_script_compiles() {
     let dir = tempfile::tempdir().unwrap();
     let mut scripts: Vec<(String, String)> = TOOLS

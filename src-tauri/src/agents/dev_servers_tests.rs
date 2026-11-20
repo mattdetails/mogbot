@@ -137,5 +137,5 @@ fn what_runs_under_the_engine_is_noted_per_turn() {
     assert!(seen.contains_key(&51));
     assert!(!seen.contains_key(&60));
     begin("a-noted");
-    assert!(state().seen.get("a-noted").is_none());
+    assert!(!state().seen.contains_key("a-noted"));
 }

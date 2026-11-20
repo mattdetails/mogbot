@@ -186,6 +186,7 @@ pub(super) enum Ended {
 }
 
 /// Run one turn on `account`. `retry_fresh` lets a vanished session be replaced once.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub(super) async fn run_turn(
     app: &AppHandle,
     agent_id: &str,

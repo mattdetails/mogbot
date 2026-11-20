@@ -433,6 +433,7 @@ fn id_of(block: &Value) -> &str {
 
 /// `file` with `update` applied, or why not. `None` when nothing changes.
 /// Pure: the caller writes it.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub fn apply(
     file: Option<&PageFile>,
     conversation: &str,
@@ -684,6 +685,7 @@ pub fn change_words(c: &Changes) -> String {
 }
 
 /// What a card asks before a turn answering outside text changes the page.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub fn card(before: Option<&PageFile>, after: &PageFile) -> (String, String) {
     let current = after.current().expect("an applied page has a version");
     let title = if before.and_then(PageFile::current).is_some() {
@@ -775,6 +777,7 @@ pub fn version(
 }
 
 /// Apply an update and keep it. `Ok(None)`: nothing changed.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub fn update(
     agent_id: &str,
     conversation: &str,

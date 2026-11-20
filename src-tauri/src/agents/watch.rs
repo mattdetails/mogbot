@@ -1537,7 +1537,7 @@ async fn claude_check(
         Ok(f) => f,
         Err(e) => return (Err(format!("Couldn't set up the check: {e}")), None),
     };
-    let mut cmd = crate::utils::create_command(&binary);
+    let mut cmd = crate::utils::create_command(binary);
     // Sealed to this one connector's read tools: see `watch_seal`.
     cmd.args(watch_seal::args(&connector, &config_file.arg()));
     runner::strip_session_env(&mut cmd);

@@ -640,7 +640,7 @@ fn dow_num(s: &str) -> Option<usize> {
 }
 
 fn minutes_words(minutes: u64) -> String {
-    if minutes >= 60 && minutes % 60 == 0 {
+    if minutes >= 60 && minutes.is_multiple_of(60) {
         match minutes / 60 {
             1 => "every hour".into(),
             h => format!("every {h} hours"),

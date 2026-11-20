@@ -2023,6 +2023,7 @@ async fn show(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: &
 /// block id, every version kept, beside the chat log. The conversation is
 /// the one the turn runs in (a routine's own, when a routine runs). A turn
 /// answering outside text changes it only after a card.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 async fn page(app: &AppHandle, caller: &store::Agent, turn: Option<u64>, args: &Value) -> Value {
     use super::page;
     let mut update = match page::parse(args) {
@@ -3340,6 +3341,7 @@ async fn wait_on_card(
 }
 
 /// Whether a card asking for `key` is still up in the agent's chat.
+#[cfg_attr(not(test), allow(dead_code))] // used by tests; kept for the card paths that come back
 pub(super) fn open_card_for(agent_id: &str, key: &str) -> bool {
     open_card_id_for(agent_id, key).is_some()
 }

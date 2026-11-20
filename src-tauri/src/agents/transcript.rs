@@ -569,9 +569,9 @@ mod tests {
         assert!(ensure_in(Engine::Claude, &roots, &work, &cwd, &home, SID).unwrap());
         assert_eq!(std::fs::read_to_string(at(&work)).unwrap(), "a\nb\nc\n");
         // The backup keeps the longer one, too.
-        back_up_in(Engine::Claude, &[mac.clone()], &home, SID).unwrap();
+        back_up_in(Engine::Claude, std::slice::from_ref(&mac), &home, SID).unwrap();
         write(&at(&mac), "c\n");
-        back_up_in(Engine::Claude, &[mac.clone()], &home, SID).unwrap();
+        back_up_in(Engine::Claude, std::slice::from_ref(&mac), &home, SID).unwrap();
         assert_eq!(
             std::fs::read_to_string(home.join(DIR).join(format!("{SID}.jsonl"))).unwrap(),
             "a\nb\nc\n"

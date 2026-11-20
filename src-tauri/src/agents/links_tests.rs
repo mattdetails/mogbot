@@ -11,6 +11,7 @@ struct Fixture {
     outside: PathBuf,
 }
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 fn fixture() -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().canonicalize().unwrap();
@@ -197,7 +198,8 @@ fn bold_and_unleashed_ask_for_a_write_a_link_carries_out_of_the_project() {
             panic!("{rel}: not redirected");
         };
         // Unleashed asks only for money now, so this is Bold's rule.
-        for level in [Level::GoHard] {
+        {
+            let level = Level::GoHard;
             // As written, it passed: the gap.
             assert!(
                 auto(level, false, tool, &written, &ctx).is_some(),

@@ -431,6 +431,7 @@ pub fn settle_at_turn_end(run: &Run, turn_started: i64) -> Option<RunState> {
 
 /// The turn ended (runner): close the agent's run, and say so when it
 /// stopped without a report.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub fn turn_ended(app: &AppHandle, agent_id: &str, turn_started: i64) {
     let ended = {
         let mut all = runs();

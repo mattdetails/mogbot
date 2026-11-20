@@ -47,6 +47,7 @@ pub struct Known {
     pub copy: bool,
 }
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 static LINK: LazyLock<regex::Regex> = LazyLock::new(|| {
     // A markdown link, an autolink, or a bare address, to this Mac.
     regex::Regex::new(

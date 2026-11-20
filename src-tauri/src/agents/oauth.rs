@@ -206,6 +206,7 @@ pub async fn discover(server_url: &str) -> Result<Discovered, CommandError> {
 
 /* ----------------------------------------------------------------- PKCE */
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 fn random_b64(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     getrandom::getrandom(&mut buf).expect("the OS random source");

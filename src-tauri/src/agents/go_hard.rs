@@ -2826,6 +2826,7 @@ pub fn moves_data_off_mac(command: &str, ctx: &Ctx) -> bool {
 
 /// The command a line of words runs, past leading assignments, shell
 /// keywords and wrappers (`env`, `eval`, `xargs`, `timeout`…).
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub(super) fn unwrapped<'a, 'b>(mut rest: &'a [&'b str]) -> &'a [&'b str] {
     loop {
         match rest.first() {
@@ -3177,7 +3178,7 @@ fn vercel_request_asks(args: &[&str]) -> bool {
     let pos = vercel_words(args);
     let path = pos.get(1..).unwrap_or(&[]).join(" ").to_ascii_lowercase();
     let env_segment = path
-        .split(|c: char| matches!(c, '/' | '?' | '&' | '=' | ' ' | '.'))
+        .split(['/', '?', '&', '=', ' ', '.'])
         .any(|s| matches!(s, "env" | "envs"));
     let sensitive = env_segment
         || [
@@ -4467,7 +4468,7 @@ pub fn script_sends(input: &Value, level: super::independence::Level) -> bool {
         .iter()
         .any(|w| l.contains(w))
     });
-    let enter_sends = !(search_box && !message_box);
+    let enter_sends = !search_box || message_box;
     literals.iter().any(|l| {
         let l = l.to_ascii_lowercase();
         let spaced: String = l

@@ -379,7 +379,6 @@ fn an_unbound_agents_command_line_is_unchanged() {
         *a = crate::preview_isolation::claude_flag();
     }
     // The shell deny rules follow the file-tool ones, in the same list.
-    let mut expected = expected;
     let at = expected
         .iter()
         .position(|a| *a == crate::preview_isolation::claude_flag())

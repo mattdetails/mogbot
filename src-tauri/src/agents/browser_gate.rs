@@ -677,27 +677,6 @@ fn opens_thread(name: &str) -> bool {
     }
 }
 
-/// What a delete or close button can take with it for good.
-const ACCOUNT_THINGS: &[&str] = &[
-    "account",
-    "repository",
-    "repo",
-    "project",
-    "workspace",
-    "organization",
-    "organisation",
-    "team",
-    "database",
-    "site",
-    "domain",
-    "server",
-    "bucket",
-    "app",
-    "store",
-    "channel",
-    "profile",
-];
-
 /// A control that spends money or deletes something that doesn't come back
 /// (an account, a repository, a project): it asks at every level, "Full
 /// send" included.
@@ -981,7 +960,7 @@ pub fn own_media_in(
     // every picture on this computer the agent's own: then only its home counts.
     let user_home = dirs::home_dir().and_then(|h| real(&h));
     let projects = projects
-        .and_then(|p| real(p))
+        .and_then(&real)
         .filter(|p| user_home.as_ref().is_none_or(|h| !h.starts_with(p)));
     let mut paths = Vec::new();
     for key in ["paths", "path", "filePath", "file"] {

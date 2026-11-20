@@ -259,7 +259,9 @@ mod tests {
 
     /// What the runner does, minus the UI: every draft shown, and every
     /// complete text block with the id it is recorded under.
-    fn replay(sample: &str) -> (Vec<(String, String)>, Vec<(String, String)>) {
+    type Pairs = Vec<(String, String)>;
+
+    fn replay(sample: &str) -> (Pairs, Pairs) {
         let mut drafts = Drafts::default();
         let mut next = ids();
         let (mut shown, mut recorded) = (Vec::new(), Vec::new());

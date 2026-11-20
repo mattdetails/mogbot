@@ -117,6 +117,7 @@ fn grants() -> std::sync::MutexGuard<'static, HashMap<String, Caller>> {
 pub const BRIDGE_SECRET_LABEL: &str = "bridge secret";
 
 /// 256 bits from the OS, as hex.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub fn new_secret() -> String {
     let mut bytes = [0u8; 32];
     getrandom::getrandom(&mut bytes).expect("the OS random number generator is unavailable");

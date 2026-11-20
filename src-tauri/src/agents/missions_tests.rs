@@ -250,7 +250,7 @@ fn the_chief_is_told_only_of_open_missions() {
         m.state = State::Done;
         m
     };
-    assert!(briefing(&[done.clone()]).is_none());
+    assert!(briefing(std::slice::from_ref(&done)).is_none());
     let mut paused = mission(vec![Share::usage(Engine::Claude, 30.0)]);
     paused.state = State::PausedCap;
     let b = briefing(&[done, paused]).unwrap();

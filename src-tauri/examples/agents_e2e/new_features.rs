@@ -50,7 +50,7 @@ use store::{ApprovalStatus, MessageKind};
 
 use super::{approvals, ensure, log, no_errors, of_kind, Check, H};
 
-pub const SCENARIOS: [&str; 14] = [
+pub const SCENARIOS: [&str; 13] = [
     "nf-draft",
     "nf-steps",
     "nf-follow-up",

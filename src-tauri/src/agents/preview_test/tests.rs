@@ -111,7 +111,7 @@ fn a_copy_with_the_same_id_but_another_folder_is_not_trusted() {
     let open = task_copy("c1", "/p/.worktrees/elsewhere");
     let mut m = message("m1", MessageKind::Changes);
     m.changes = Some(changes("/p/harbor-bakery", Some(("c1", "/p/.worktrees/x"))));
-    assert_eq!(target_path(&m, Some(&open)).unwrap().2, false);
+    assert!(!target_path(&m, Some(&open)).unwrap().2);
 }
 
 #[test]
@@ -136,7 +136,7 @@ fn a_project_that_left_the_list_is_refused() {
     let none = |_: &str| None;
     let e = resolve(&agent(None), &m, &[], none, none).unwrap_err();
     assert!(e.contains("isn't one of your projects"), "{e}");
-    let ok = resolve(&agent(None), &m, &[project.clone()], none, |_| Some(4123)).unwrap();
+    let ok = resolve(&agent(None), &m, std::slice::from_ref(&project), none, |_| Some(4123)).unwrap();
     assert_eq!(
         (ok.path.as_str(), ok.port, ok.running, ok.copy),
         (project.as_str(), Some(4123), false, false)

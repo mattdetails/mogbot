@@ -341,8 +341,8 @@ fn heredocs(command: &str) -> Vec<(usize, String)> {
         let mut rest = line;
         while let Some(at) = rest.find("<<") {
             let after = &rest[at + 2..];
-            if after.starts_with('<') {
-                rest = &after[1..];
+            if let Some(more) = after.strip_prefix('<') {
+                rest = more;
                 continue;
             }
             let after = after.trim_start_matches('-').trim_start();
@@ -539,7 +539,7 @@ fn command_texts(out: &mut Texts, command: &str, ctx: Option<&Ctx>) {
             push(out, &words.join(" "));
             continue;
         }
-        if !words_send(words) && !(prog == "osascript") {
+        if !words_send(words) && (prog != "osascript") {
             continue;
         }
         let mut i = 0;
@@ -560,7 +560,7 @@ fn command_texts(out: &mut Texts, command: &str, ctx: Option<&Ctx>) {
                         }
                     }
                 }
-            } else if FILE_FLAGS.contains(&flag) && !(prog == "curl") {
+            } else if FILE_FLAGS.contains(&flag) && (prog != "curl") {
                 if let Some(v) = value {
                     read_file(out, v, ctx);
                 }

@@ -127,7 +127,7 @@ fn rewinding_folds_what_came_after_and_never_rewrites_the_log() {
             "Rewritten around pricing.",
             FIRST,
         );
-        note_turn(&a.id, &[m1.clone()], Branch::Blank);
+        note_turn(&a.id, std::slice::from_ref(&m1), Branch::Blank);
         note_turn(&a.id, std::slice::from_ref(&m2), fork_at("s1", "e1"));
         store::update(&a.id, |x| x.session_id = Some("s2".into())).unwrap();
         let log_before =
@@ -218,7 +218,7 @@ fn forking_makes_a_conversation_from_what_came_before_and_leaves_the_original() 
         say(&a.id, MessageKind::Agent, "Plan v1.", FIRST);
         let m2 = say(&a.id, MessageKind::User, "Now cut the budget", FIRST);
         say(&a.id, MessageKind::Agent, "Budget cut.", FIRST);
-        note_turn(&a.id, &[m1.clone()], Branch::Blank);
+        note_turn(&a.id, std::slice::from_ref(&m1), Branch::Blank);
         note_turn(&a.id, std::slice::from_ref(&m2), fork_at("s1", "e1"));
         store::update(&a.id, |x| x.session_id = Some("s2".into())).unwrap();
 

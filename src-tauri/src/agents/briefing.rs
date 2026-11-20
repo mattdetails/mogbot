@@ -130,7 +130,7 @@ pub fn keep(agent_id: &str, prompt: &str, instructions: Option<&str>, now: i64) 
             instructions: instructions
                 .map(str::trim)
                 .filter(|t| !t.is_empty())
-                .map(|t| clip(t)),
+                .map(clip),
         };
         let mut value = serde_json::to_value(&briefing).ok()?;
         secrets::redact_value(&mut value);

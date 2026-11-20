@@ -214,7 +214,8 @@ pub(super) fn delegated(agent_id: &str) -> bool {
 /// says goes back up, however deep the chain (each level noted as it asks).
 /// Written when the request is sent, replaced by the next one between the
 /// same two; in memory only, like `owed`.
-pub(super) static ONWARD: LazyLock<Mutex<HashMap<(String, String), Vec<AgentRef>>>> =
+type OnwardMap = HashMap<(String, String), Vec<AgentRef>>;
+pub(super) static ONWARD: LazyLock<Mutex<OnwardMap>> =
     LazyLock::new(Default::default);
 
 /// `asker`'s turn is sending `helper` a request: whoever that turn owes an

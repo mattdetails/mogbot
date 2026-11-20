@@ -16,12 +16,14 @@ const LAUNCH: &str = "C0LAUNCH";
 const SELF_DM: &str = "D0SELF";
 const SAM_DM: &str = "D0SAM";
 
+type Calls = Vec<(String, Vec<(String, String)>)>;
+
 #[derive(Default)]
 struct Fake {
     history: Mutex<HashMap<String, Vec<Value>>>,
     replies: Mutex<HashMap<(String, String), Vec<Value>>>,
     fail: Mutex<HashMap<String, ApiError>>,
-    calls: Mutex<Vec<(String, Vec<(String, String)>)>>,
+    calls: Mutex<Calls>,
     next_ts: Mutex<u64>,
     /// Display names other than Sam's and Robin's, by user id.
     display: Mutex<HashMap<String, String>>,

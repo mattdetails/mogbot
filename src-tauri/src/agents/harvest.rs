@@ -54,12 +54,14 @@ pub const MAX_ADDITION_CHARS: usize = 4_000;
 /// refusing a whole chunk for one key would lose everything else in it.
 pub fn mask_secrets(text: &str) -> (String, usize) {
     use std::sync::LazyLock;
+    #[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
     static PRIVATE_KEY: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(
             r"(?s)-----BEGIN[^-\n]*PRIVATE KEY-----.*?(-----END[^-\n]*PRIVATE KEY-----|\z)",
         )
         .expect("valid regex")
     });
+    #[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
     static PASSWORD: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(
             r#"(?i)(password\s*[:=]|password is |passcode\s*:|pin\s*:)(\s*)([^\s\[\$][^\s]{3,})"#,

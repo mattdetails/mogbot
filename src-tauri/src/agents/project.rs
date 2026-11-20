@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn parses_numstat_and_status_by_path() {
-        let numstat = "3\t1\tsrc/a b.ts\0-\t-\tlogo.png\0010\t0\tnew.md\0";
+        let numstat = "3\t1\tsrc/a b.ts\0-\t-\tlogo.png\x00010\t0\tnew.md\0";
         let names = "M\0src/a b.ts\0A\0logo.png\0A\0new.md\0";
         let files = parse(numstat, names);
         assert_eq!(files.len(), 3);
@@ -443,6 +443,7 @@ mod tests {
         assert_eq!(files[2].added, Some(10));
     }
 
+    #[allow(clippy::disallowed_methods)] // a local process in a test or a bounded local read; no network
     fn sh(dir: &Path, args: &[&str]) {
         let ok = Command::new("git")
             .current_dir(dir)

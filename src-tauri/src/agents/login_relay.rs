@@ -143,6 +143,7 @@ impl<T> Table<T> {
     /// expired, and the redirect and `state` are the ones this Mac made. The
     /// sign-in is spent by any answer from its own device, right or wrong:
     /// a code is tried once.
+    #[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
     pub fn take(
         &mut self,
         flow_id: &str,
@@ -252,6 +253,7 @@ pub struct PhoneBegin {
     pub redirect_uri: String,
 }
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub(crate) fn new_flow_id() -> String {
     use base64::Engine as _;
     let mut buf = [0u8; 24];

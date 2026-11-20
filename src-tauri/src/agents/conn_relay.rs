@@ -63,6 +63,7 @@ fn full(data: impl Into<Bytes>) -> Body {
         .boxed()
 }
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 fn plain(status: StatusCode, text: &'static str) -> Response<Body> {
     Response::builder()
         .status(status)
@@ -72,6 +73,7 @@ fn plain(status: StatusCode, text: &'static str) -> Response<Body> {
 }
 
 /// A tool call's refusal as its result, so the agent reads why.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 fn refused(id: &Value, why: &str) -> Response<Body> {
     let v = json!({
         "jsonrpc": "2.0",
@@ -85,6 +87,7 @@ fn refused(id: &Value, why: &str) -> Response<Body> {
         .unwrap()
 }
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 fn rpc_error(id: &Value, message: &str) -> Response<Body> {
     let v = json!({ "jsonrpc": "2.0", "id": id, "error": { "code": -32000, "message": message } });
     Response::builder()

@@ -62,7 +62,7 @@ pub fn may_run(agent_id: &str, now: i64) -> bool {
 pub fn awaiting_user(last_reply: &str) -> bool {
     let t = last_reply
         .trim()
-        .trim_end_matches(|c: char| matches!(c, '"' | '”' | '’' | ')' | '*' | '_' | '`' | ' '));
+        .trim_end_matches(['"', '”', '’', ')', '*', '_', '`', ' ']);
     t.ends_with('?')
 }
 

@@ -610,16 +610,14 @@ pub fn tick(app: &tauri::AppHandle) {
             if let Change::PausedAtCap(e) = change {
                 let text = pause_text(&next, e);
                 next.push_event("Mission", &text, now);
-                if let Ok(chief) = store::list().map(|a| a.into_iter().find(|x| x.is_main)) {
-                    if let Some(chief) = chief {
-                        let mut msg = super::runner::new_message(
-                            &chief.id,
-                            store::MessageKind::Agent,
-                            text.clone(),
-                        );
-                        msg.blocks = pause_blocks(&next, &text);
-                        let _ = super::runner::record(&app, msg);
-                    }
+                if let Ok(Some(chief)) = store::list().map(|a| a.into_iter().find(|x| x.is_main)) {
+                    let mut msg = super::runner::new_message(
+                        &chief.id,
+                        store::MessageKind::Agent,
+                        text.clone(),
+                    );
+                    msg.blocks = pause_blocks(&next, &text);
+                    let _ = super::runner::record(&app, msg);
                 }
             }
             let _ = put(next);

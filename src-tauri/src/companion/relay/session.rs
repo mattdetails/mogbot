@@ -76,6 +76,7 @@ impl Session {
         })
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn rx(&self) -> u64 {
         self.rx
     }
@@ -228,7 +229,7 @@ fn registry() -> &'static Mutex<Registry> {
 /// on a new socket, park now".
 pub fn go_live(session: &Session) -> mpsc::Receiver<()> {
     let (tx, rx) = mpsc::channel(1);
-    registry().lock().unwrap().live.insert(
+    registry().lock().unwrap_or_else(|e| e.into_inner()).live.insert(
         session.sid.clone(),
         Live {
             yield_tx: tx,
@@ -242,7 +243,7 @@ pub fn go_live(session: &Session) -> mpsc::Receiver<()> {
 
 /// This channel ended without parking.
 pub fn forget(sid: &str) {
-    registry().lock().unwrap().live.remove(sid);
+    registry().lock().unwrap_or_else(|e| e.into_inner()).live.remove(sid);
 }
 
 /// Keep the session for [`GRACE`].
@@ -254,7 +255,7 @@ pub fn park(
 ) {
     let sid = session.sid.clone();
     let generation = {
-        let mut r = registry().lock().unwrap();
+        let mut r = registry().lock().unwrap_or_else(|e| e.into_inner());
         r.live.remove(&sid);
         r.next += 1;
         let generation = r.next;
@@ -273,7 +274,7 @@ pub fn park(
     tracing::info!("[Relay] a phone's session is waiting for it to come back");
     tokio::spawn(async move {
         tokio::time::sleep(GRACE).await;
-        let mut r = registry().lock().unwrap();
+        let mut r = registry().lock().unwrap_or_else(|e| e.into_inner());
         if r.parked
             .get(&sid)
             .is_some_and(|p| p.generation == generation)
@@ -291,7 +292,7 @@ pub async fn claim(e: &str, proof: &ResumeProof) -> Option<Parked> {
     let mut asked = false;
     loop {
         {
-            let mut r = registry().lock().unwrap();
+            let mut r = registry().lock().unwrap_or_else(|e| e.into_inner());
             if let Some(p) = r.parked.get(&proof.sid) {
                 if !p.session.accepts(e, proof) {
                     return None;

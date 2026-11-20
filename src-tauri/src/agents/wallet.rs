@@ -2363,7 +2363,7 @@ mod tests {
             assert!(hold(&work, "planner").is_none());
             // Its folder and sign-in are still there for the turns on it.
             assert!(forgotten(&k).is_empty());
-            assert_eq!(read().removing, [k.clone()]);
+            assert_eq!(read().removing, std::slice::from_ref(&k));
 
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()

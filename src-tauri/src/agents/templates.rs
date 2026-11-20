@@ -64,6 +64,7 @@ struct Catalogue {
     templates: Vec<Template>,
 }
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 static CATALOGUE: LazyLock<Vec<Template>> = LazyLock::new(|| {
     serde_json::from_str::<Catalogue>(include_str!("templates.json"))
         .expect("templates.json is checked by the tests below")

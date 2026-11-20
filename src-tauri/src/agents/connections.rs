@@ -623,7 +623,7 @@ pub fn reads_only(tool_name: &str) -> bool {
         "lookup", "retrieve", "whoami", "me", "count",
     ];
     let first = t
-        .split(|c: char| c == '_' || c == '-' || c == '.')
+        .split(['_', '-', '.'])
         .next()
         .unwrap_or("");
     // camelCase: "getIssue", "listChannels".

@@ -128,6 +128,8 @@ impl H {
             None,
             None,
             conversation.map(String::from),
+            None,
+            None,
         )
         .await
         .map_err(|e| format!("send failed: {e}"))
@@ -744,12 +746,7 @@ fn accounts_have_room() {
 async fn failover(h: &H) -> Check {
     accounts_have_room();
     let spare = agents::wallet::add(Engine::Claude, "Spare").map_err(|e| e.to_string())?;
-    app_lib::commands::accounts::store_claude_token(
-        &spare.id,
-        "fake-token",
-        Some("spare@example.com"),
-    )
-    .map_err(|e| e.to_string())?;
+    // (Storing a token for the spare is gone with `store_claude_token`; the scenario runs on the account as added.)
     let a = h.agent("Thrifty");
     let result = async {
         h.send(
@@ -1198,8 +1195,6 @@ async fn brief(h: &H) -> Check {
 async fn failover_after_acting(h: &H) -> Check {
     accounts_have_room();
     let spare = agents::wallet::add(Engine::Claude, "Second").map_err(|e| e.to_string())?;
-    app_lib::commands::accounts::store_claude_token(&spare.id, "fake-token-2", None)
-        .map_err(|e| e.to_string())?;
     let a = h.agent("Doer");
     let result = async {
         h.send(&a.id, &fake(json!([{"say": "warming up {turn}"}])))
@@ -2057,6 +2052,8 @@ async fn revise(h: &H) -> Check {
         None,
         None,
         Some(first.id.clone()),
+        None,
+        None,
         None,
     )
     .await

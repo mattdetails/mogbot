@@ -22,6 +22,7 @@
 //!    (`signed_out` in the user's Chrome, `browser: "chrome"`, or with no
 //!    Chrome) does it get a card, which offers "Sign in from here" first.
 //!    A plain Deny on an import's quiet card doesn't stop the user's Chrome.
+//!
 //! 4b. **A teammate already has it** through the app (a working connection
 //!    granted to them, or its connector in their engine;
 //!    `team_reach::holders`): the Chief is told to hand the work to them
@@ -280,9 +281,7 @@ pub fn decide(agent: &Agent, r: &LoginRequest, tried: &Tried, here: &Here, team:
     if let Some(no) = team
         .iter()
         .filter(|_| !here.user_named)
-        .filter(|s| same(s) && s.status == ApprovalStatus::Denied)
-        .filter(|s| turned_on.is_none_or(|on| s.at > on))
-        .last()
+        .filter(|s| same(s) && s.status == ApprovalStatus::Denied).rfind(|s| turned_on.is_none_or(|on| s.at > on))
     {
         // A plain no on a card an import raised (a setup ask, for an agent
         // nobody was working with yet) said "don't connect it", not "never

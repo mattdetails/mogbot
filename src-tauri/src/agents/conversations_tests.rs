@@ -465,7 +465,7 @@ fn a_routine_can_be_moved_to_another_conversation() {
         assert_eq!(moved.routines.get("r1"), Some(&c));
         assert_eq!(routine_in(&a.id, "r1"), c);
         let back = move_routine(&a.id, "r1", FIRST).unwrap();
-        assert!(back.routines.get("r1").is_none());
+        assert!(!back.routines.contains_key("r1"));
         assert_eq!(routine_in(&a.id, "r1"), FIRST);
         assert!(move_routine(&a.id, "r1", "gone").is_err());
         assert!(move_routine(&a.id, "nope", &c).is_err());

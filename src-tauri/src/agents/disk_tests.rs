@@ -22,6 +22,7 @@ fn npm_package(dir: &Path) {
     );
 }
 
+#[allow(clippy::disallowed_methods)] // a local process in a test or a bounded local read; no network
 fn git(dir: &Path, args: &[&str]) {
     let ok = Command::new("git")
         .args(["-c", "user.email=t@example.test", "-c", "user.name=t"])
@@ -279,6 +280,7 @@ fn a_link_out_of_the_home_is_never_followed() {
 }
 
 #[test]
+#[allow(clippy::disallowed_methods)] // a local process in a test or a bounded local read; no network
 fn prune_removes_ignored_dependencies_and_keeps_everything_else() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path();

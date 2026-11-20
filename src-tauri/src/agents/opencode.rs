@@ -188,7 +188,8 @@ pub struct Model {
     pub local: bool,
 }
 
-static MODELS: LazyLock<Mutex<Option<(Vec<Model>, Instant)>>> = LazyLock::new(Default::default);
+type ModelCache = Option<(Vec<Model>, Instant)>;
+static MODELS: LazyLock<Mutex<ModelCache>> = LazyLock::new(Default::default);
 
 /// The models from the last look (see [`refresh`]); empty before one.
 pub fn listed() -> Vec<Model> {

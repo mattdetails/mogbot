@@ -119,11 +119,13 @@ impl Removed {
 
 /* -------------------------------------------------------------- scrub */
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 static EMAIL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}\b").expect("regex")
 });
 /// A path under someone's home folder, where a path starts: after a space,
 /// a quote or a bracket, never inside a web address ("example.com/home/").
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 static PATH: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(concat!(
         r#"(?i)(^|[\s"'`(\[<=,;:])"#,
@@ -135,6 +137,7 @@ static PATH: LazyLock<Regex> = LazyLock::new(|| {
     ))
     .expect("regex")
 });
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 static PHONE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\+\d[\d ().-]{6,}\d|\(?\b\d{3}\)?[ .-]\d{3}[ .-]\d{4}\b").expect("regex")
 });

@@ -339,6 +339,7 @@ mod tests {
 /// the lock screen). Claude in Chrome asks for each new site in a small
 /// window in Chrome, which no one can answer then: every call times out.
 /// Seen 2026-11-14: an agent retried Gmail for half an hour on a locked Mac.
+#[allow(clippy::disallowed_methods)] // a quick local ioreg read, bounded by the OS, not a network call
 pub fn screen_locked() -> bool {
     #[cfg(target_os = "macos")]
     {

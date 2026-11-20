@@ -1788,6 +1788,7 @@ mod tests {
         assert_eq!(porcelain_path(""), None);
     }
 
+    #[allow(clippy::disallowed_methods)] // a local process in a test or a bounded local read; no network
     fn sh(dir: &Path, args: &[&str]) -> String {
         let out = Command::new("git")
             .current_dir(dir)
@@ -1803,6 +1804,7 @@ mod tests {
         String::from_utf8_lossy(&out.stdout).trim().to_string()
     }
 
+    #[allow(clippy::disallowed_methods)] // a local process in a test or a bounded local read; no network
     fn try_sh(dir: &Path, args: &[&str]) -> bool {
         Command::new("git")
             .current_dir(dir)
@@ -2214,6 +2216,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // the test lock serialises the shared registry on purpose
     async fn a_bound_agent_keeps_one_copy_across_turns_and_a_question_costs_nothing() {
         let (_dir, root, repo) = project();
         let home = tempfile::tempdir().unwrap();
@@ -2307,6 +2310,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // the test lock serialises the shared registry on purpose
     async fn any_number_of_agents_can_have_a_copy_of_one_project() {
         let (_dir, root, repo) = project();
         let home = tempfile::tempdir().unwrap();
@@ -2604,6 +2608,7 @@ mod tests {
     /// Rebinding an agent while its copy is open: refused up front, and a
     /// turn bound elsewhere never wipes or strands the old copy.
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // the test lock serialises the shared registry on purpose
     async fn rebinding_never_wipes_or_strands_an_open_copy() {
         let (_d, root, repo) = project();
         let (_d2, _root2, other) = project_named("other");
@@ -2730,6 +2735,7 @@ mod tests {
     /// with a live key in it and a big file are never committed, and the
     /// card lists each with why.
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // the test lock serialises the shared registry on purpose
     async fn secrets_dependencies_and_big_files_are_never_auto_committed() {
         let (_d, root, repo) = project();
         std::fs::remove_file(repo.join(".gitignore")).unwrap();
@@ -2868,6 +2874,7 @@ mod tests {
     /// The launch sweep leaves the user's own worktrees alone, and tidies a
     /// copy no agent holds only after committing its work.
     #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // the test lock serialises the shared registry on purpose
     async fn the_sweep_never_loses_an_orphaned_copys_work() {
         let (_d, root, repo) = project();
         let home = tempfile::tempdir().unwrap();

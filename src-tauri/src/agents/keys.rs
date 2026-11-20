@@ -60,6 +60,7 @@ struct Spec {
     icon_synonyms: HashMap<String, Vec<String>>,
 }
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 static SPEC: LazyLock<Spec> = LazyLock::new(|| {
     serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -91,6 +92,7 @@ struct Pack {
     synonyms: HashMap<String, Vec<String>>,
 }
 
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 static PACK: LazyLock<Pack> = LazyLock::new(|| {
     let index: PackIndex = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

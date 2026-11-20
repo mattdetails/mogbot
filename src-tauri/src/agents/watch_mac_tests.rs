@@ -410,6 +410,7 @@ fn access_is_read_from_the_folders_alone() {
 
 /// Build a fixture database with `sqlite3`, as the real reader would find it.
 #[cfg(target_os = "macos")]
+#[allow(clippy::disallowed_methods)] // a local process in a test or a bounded local read; no network
 fn fixture_db(dir: &Path, name: &str, sql: &str) -> PathBuf {
     let db = dir.join(name);
     let out = std::process::Command::new("/usr/bin/sqlite3")

@@ -98,7 +98,8 @@ fn a_grant_covers_each_listed_action_once_and_nothing_more() {
     let m = mac();
     let id = "plan-test-listed";
     grant(id, &owners_plan(), NOW);
-    for level in [Level::GoHard] {
+    {
+        let level = Level::GoHard;
         assert!(covers(
             id,
             level,

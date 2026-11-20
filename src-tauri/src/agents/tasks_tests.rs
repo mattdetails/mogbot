@@ -141,7 +141,7 @@ fn the_board_names_jobs_load_and_whos_free() {
 fn one_line_is_doing_at_a_time_and_a_drop_needs_a_reason() {
     let a = task("one", None, 0);
     let b = task("two", None, 0);
-    let mut tasks = vec![a, b];
+    let mut tasks = [a, b];
     tasks[0].state = State::Doing;
     // The pure part of `set`: promoting another demotes the first.
     for other in tasks.iter_mut().filter(|t| t.state == State::Doing) {

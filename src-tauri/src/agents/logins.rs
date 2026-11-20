@@ -2356,6 +2356,7 @@ fn card_state(a: &Approval) -> CardState {
 /// Every login card waiting (and, with `since`, those answered since then,
 /// for the progress line), one row per service: the screen that gives the
 /// whole team what it needs in one place.
+#[allow(clippy::expect_used, clippy::unwrap_used)] // an invariant checked at this site, a static pattern or an OS call that cannot fail
 pub fn team(since: Option<i64>) -> TeamLogins {
     let flows: HashMap<String, Flow> = FLOWS
         .lock()

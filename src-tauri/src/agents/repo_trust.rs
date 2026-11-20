@@ -145,6 +145,7 @@ pub fn named_in(args: &[&str]) -> Option<String> {
 }
 
 /// The working directory's `origin`.
+#[allow(clippy::disallowed_methods)] // a local git read in a directory that exists, no network
 fn origin_of(cwd: &Path) -> Option<String> {
     let out = std::process::Command::new("git")
         .args(["-C"])

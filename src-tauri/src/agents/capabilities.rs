@@ -295,6 +295,7 @@ mod tests {
     /// little Haiku quota and needs Claude Code signed in.
     #[test]
     #[ignore = "runs real Claude Code; run deliberately with --ignored"]
+    #[allow(clippy::disallowed_methods)] // a local process in a test or a bounded local read; no network
     fn a_real_headless_turn_lists_chrome() {
         let Some(binary) = crate::commands::claude::find_validated_binary("claude", "--version")
         else {

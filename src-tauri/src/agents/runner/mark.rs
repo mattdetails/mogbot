@@ -161,6 +161,7 @@ pub(super) fn clear_mark(agent_id: &str) {
 }
 
 /// The next pick-up a cut-off turn gets, if it has one left.
+#[cfg_attr(not(test), allow(dead_code))] // used by tests; kept for the card paths that come back
 pub(super) fn next_pickup(resumes: u8) -> Option<u8> {
     (resumes < MAX_RESUMES).then(|| resumes + 1)
 }

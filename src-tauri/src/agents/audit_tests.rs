@@ -71,8 +71,8 @@ fn nasty_string(rng: &mut Rng) -> String {
 /// sometimes a value swapped for another JSON type.
 fn mutate(v: &Value, rng: &mut Rng) -> Value {
     match v {
-        Value::String(_) if rng.next() % 3 == 0 => Value::String(nasty_string(rng)),
-        Value::Number(_) if rng.next() % 5 == 0 => rng
+        Value::String(_) if rng.next().is_multiple_of(3) => Value::String(nasty_string(rng)),
+        Value::Number(_) if rng.next().is_multiple_of(5) => rng
             .pick(&[
                 json!(-1),
                 json!(0),
@@ -85,10 +85,10 @@ fn mutate(v: &Value, rng: &mut Rng) -> Value {
         Value::Object(o) => {
             let mut out = serde_json::Map::new();
             for (k, x) in o {
-                if rng.next() % 17 == 0 {
+                if rng.next().is_multiple_of(17) {
                     continue; // drop a field
                 }
-                let x = if rng.next() % 13 == 0 {
+                let x = if rng.next().is_multiple_of(13) {
                     rng.pick(&[
                         json!(null),
                         json!([]),
@@ -285,7 +285,7 @@ fn an_interrupted_long_routine_prompt_is_truncated_so_tickets_go_by_id() {
 fn msg(agent_id: &str, i: usize, approval: bool) -> AgentMessage {
     let mut m = super::runner::new_message(
         agent_id,
-        if i % 2 == 0 {
+        if i.is_multiple_of(2) {
             MessageKind::User
         } else {
             MessageKind::Agent

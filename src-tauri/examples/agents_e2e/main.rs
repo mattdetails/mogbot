@@ -177,6 +177,9 @@ impl H {
             None,
             // Where the user is (`conversations::current`).
             None,
+            // When it was written, and the message it replies to.
+            None,
+            None,
         )
         .await
         .map_err(|e| format!("send failed: {e}"))

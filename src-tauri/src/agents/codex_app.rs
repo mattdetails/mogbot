@@ -159,6 +159,7 @@ pub fn args(url: &str, writable: &[String], protected: Option<&[PathBuf]>) -> Ve
 
 /// What the runner does with one message from the app-server.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)] // one value per event, never stored in bulk
 pub enum Out {
     Step(Step),
     /// Write this to the app-server.

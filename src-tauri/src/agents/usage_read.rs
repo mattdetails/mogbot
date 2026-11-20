@@ -495,7 +495,7 @@ pub async fn read_claude(account: &Account, url: &str, now: i64) -> Answer {
         // model turn, then read the sign-in again.
         refresh_claude_login(account, now).await;
         match claude_login_for(account).await {
-            Ok(l) if !l.expires_at.is_some_and(|e| e - EXPIRY_SLACK_MS <= now) => login = l,
+            Ok(l) if l.expires_at.is_none_or(|e| e - EXPIRY_SLACK_MS > now) => login = l,
             _ => {
                 return Answer::CantRead(
                     "Its sign-in needs refreshing by Claude Code; it reads again after a turn"
