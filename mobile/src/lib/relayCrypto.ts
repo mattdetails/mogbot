@@ -32,7 +32,13 @@ export interface RelayKeys {
 }
 
 export function deriveKeys(shared: Uint8Array, transcript: string): RelayKeys {
-  const okm = hkdf(sha256, shared, sha256(enc.encode(transcript)), enc.encode(`${PAIRING_SCHEME} relay v1`), 64);
+  const okm = hkdf(
+    sha256,
+    shared,
+    sha256(enc.encode(transcript)),
+    enc.encode(`${PAIRING_SCHEME} relay v1`),
+    64
+  );
   return { phoneToMac: okm.slice(0, 32), macToPhone: okm.slice(32, 64) };
 }
 
@@ -95,7 +101,7 @@ export function finishHandshake(
 ): Channel | null {
   let reply: { v?: unknown; e?: unknown; publicKey?: unknown; signature?: unknown };
   try {
-    reply = JSON.parse(dec.decode(answer));
+    reply = JSON.parse(dec.decode(answer)) as typeof reply;
   } catch {
     return null;
   }

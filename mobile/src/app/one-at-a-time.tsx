@@ -21,6 +21,7 @@ import {
   CATCH_UP,
   CATCH_UP_EYEBROW,
   CATCH_UP_SUMMARY_ROWS,
+  catchUpAge,
   catchUpAllClearBody,
   catchUpGroup,
   catchUpLeft,
@@ -56,17 +57,10 @@ import { AgentKey } from '../components/AgentKey';
 import { ApprovalCard, useArmed } from '../components/ApprovalCard';
 import { MessageRow } from '../components/chat';
 import { RowBoundary } from '../components/RowBoundary';
-import { Card, Line } from '../components/surfaces';
+import { Card, FlatCardContext, Line } from '../components/surfaces';
 import { Button, Icon, IconButton, T } from '../components/ui';
 import { AgentAccent } from '../lib/accent';
-import {
-  askingLine,
-  engineName,
-  failedTurn,
-  failureLine,
-  formatAgo,
-  needsLine,
-} from '../lib/agents';
+import { askingLine, engineName, failedTurn, failureLine, needsLine } from '../lib/agents';
 import { makeStyles, useColors } from '../lib/appearance';
 import {
   askAction,
@@ -95,7 +89,7 @@ import { useApp } from '../lib/store';
 import { progress as setupProgress } from '../lib/teamSetup';
 import {
   heroMark,
-  keySize,
+  catchKeySize,
   iconSize,
   lineHeight,
   radius,
@@ -354,6 +348,10 @@ function Shown({
   const gallery = useMemo(() => chatGallery(shown), [shown]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | 'allow' | 'deny'>(null);
+  // A card taller than the screen puts its actions in a bar under it (latched: moving them
+  // out shrinks the card, which must not move them back).
+  const [tall, setTall] = useState(false);
+  const [viewport, setViewport] = useState(0);
   // Answered from here: it moves on at once, so "answered elsewhere" is never said of it.
   const mine = useRef(false);
   const once = useInFlight();
@@ -437,6 +435,74 @@ function Shown({
         ? 'Already answered · moving on'
         : 'No longer waiting · moving on';
 
+  // Stacked, full width: the strong answer, the outline one, then the quiet ones. In the
+  // card, or (a card taller than the screen) in a bar under it, so Allow is never off screen.
+  const actions = (
+    <View style={styles.stack}>
+      {pending && action.kind === 'answer' ? (
+        <Animated.View
+          entering={FadeIn.duration(400)}
+          pointerEvents={armed ? 'auto' : 'none'}
+          style={styles.stack}
+        >
+          <Button
+            title={action.allow}
+            // Allow is black and white, never a colour: a risky one is told
+            // apart by the danger line above it, not by turning Allow red.
+            variant="answer"
+            size="large"
+            flat
+            busy={busy === 'allow'}
+            disabled={!!busy || !connected}
+            onPress={() => void answer(true)}
+            accessibilityHint={card?.approval?.detail || undefined}
+            style={styles.big}
+          />
+          <Button
+            title={action.deny}
+            variant="outline"
+            size="large"
+            busy={busy === 'deny'}
+            disabled={!!busy || !connected}
+            onPress={() => void answer(false)}
+            style={styles.big}
+          />
+        </Animated.View>
+      ) : (
+        <Button
+          title={
+            pending && action.kind === 'open'
+              ? action.label
+              : item.kind === 'setup'
+                ? 'Continue'
+                : CATCH_UP.openChat
+          }
+          variant="answer"
+          size="large"
+          flat
+          onPress={() => onChat(card?.id)}
+          style={styles.big}
+        />
+      )}
+      <View style={styles.quiet}>
+        {!chatIsMain && pending && action.kind === 'answer' && (
+          <Button
+            title={CATCH_UP.openChat}
+            variant="ghost"
+            onPress={() => onChat(card?.id)}
+            style={styles.quietAction}
+          />
+        )}
+        <Button
+          title={CATCH_UP.later}
+          variant="ghost"
+          onPress={goLater}
+          style={styles.quietAction}
+        />
+      </View>
+    </View>
+  );
+
   return (
     <Animated.View
       entering={FadeInRight.duration(260)}
@@ -444,129 +510,100 @@ function Shown({
       style={[styles.body, slide]}
       {...pan.panHandlers}
     >
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.cardWrap}>
-          <View style={styles.who}>
-            <AgentKey id={agent.id} name={agent.name} color={agent.color} size={keySize.md} />
-            <T variant="small" color={colors.textStrong} numberOfLines={1} style={styles.name}>
-              {agent.name}
-            </T>
-            <T variant="label" color={colors.textMuted} numberOfLines={1}>
-              {formatAgo(card?.ts ?? agent.lastActivityAt)}
-            </T>
-          </View>
-          {eyebrow && (
-            <View style={styles.eyebrow}>
-              <View style={[styles.eyebrowDot, { backgroundColor: colors.accentWarning }]} />
-              <T variant="caption" color={colors.textSecondary} style={styles.eyebrowText}>
-                {CATCH_UP_EYEBROW[eyebrow]}
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        onLayout={(e) => setViewport(e.nativeEvent.layout.height)}
+        onContentSizeChange={(_, h) => {
+          if (viewport > 0 && h > viewport) setTall(true);
+        }}
+      >
+        <FlatCardContext.Provider value>
+          <View style={styles.cardWrap}>
+            <View style={styles.who}>
+              <AgentKey id={agent.id} name={agent.name} color={agent.color} size={catchKeySize} />
+              <T variant="small" color={colors.textStrong} numberOfLines={1} style={styles.name}>
+                {agent.name}
+              </T>
+              <T variant="label" color={colors.textMuted} numberOfLines={1}>
+                {catchUpAge(card?.ts ?? agent.lastActivityAt)}
               </T>
             </View>
-          )}
-          <GalleryContext.Provider value={gallery}>
-            {shown.map((m) => (
-              <RowBoundary key={m.id} resetKey={m}>
-                <MessageRow message={m} agent={agent} queued={false} onError={setError} />
-              </RowBoundary>
-            ))}
-          </GalleryContext.Provider>
-          {item.kind === 'reply' && shown.length === 0 && !!agent.preview && (
-            <T color={colors.textBody} style={styles.read}>
-              {previewText(agent.preview)}
-            </T>
-          )}
-          {status && <Line text={status} />}
-          {item.kind === 'setup' && (
-            <Card icon="list.bullet" title={SETUP_TITLE}>
-              <T variant="small" color={colors.textSecondary}>
-                {`${setup ? `${setupProgress(setup)} · ` : ''}in ${agent.name}’s chat`}
+            {eyebrow && (
+              <View style={styles.eyebrow}>
+                <View style={[styles.eyebrowDot, { backgroundColor: colors.accentWarning }]} />
+                <T variant="caption" color={colors.textSecondary} style={styles.eyebrowText}>
+                  {CATCH_UP_EYEBROW[eyebrow]}
+                </T>
+              </View>
+            )}
+            {card?.approval && shown.length > 0 && (
+              // The ask is the hierarchy: what it said is plain words, not a bubble in a box.
+              <T color={colors.textSecondary} numberOfLines={4}>
+                {previewText(shown.filter((m) => m.kind === 'agent').slice(-1)[0]?.text ?? '')}
               </T>
-            </Card>
-          )}
-          {card?.approval &&
-            (action.kind === 'answer' ? (
-              <ApprovalCard
-                message={card}
-                approval={card.approval}
-                agent={agent}
-                onError={setError}
-                answers={false}
-                // A risky request is read in full before it's allowed.
-                full={highRisk(card.approval)}
-              />
-            ) : (
-              <Card icon={askIcon(card.approval)} title={card.approval.title}>
+            )}
+            <GalleryContext.Provider value={gallery}>
+              {(card?.approval ? [] : shown).map((m) => (
+                <RowBoundary key={m.id} resetKey={m}>
+                  <MessageRow message={m} agent={agent} queued={false} onError={setError} />
+                </RowBoundary>
+              ))}
+            </GalleryContext.Provider>
+            {item.kind === 'reply' && shown.length === 0 && !!agent.preview && (
+              <T color={colors.textBody} style={styles.read}>
+                {previewText(agent.preview)}
+              </T>
+            )}
+            {status && <Line text={status} />}
+            {item.kind === 'setup' && (
+              <Card icon="list.bullet" title={SETUP_TITLE}>
                 <T variant="small" color={colors.textSecondary}>
-                  {askingLine(card.approval)}
+                  {`${setup ? `${setupProgress(setup)} · ` : ''}in ${agent.name}’s chat`}
                 </T>
               </Card>
-            ))}
-          {moved && (
-            <Animated.View entering={FadeIn.duration(150)}>
-              <Line text={movedLine} />
-            </Animated.View>
-          )}
-          {!!error && (
-            <T variant="small" color={colors.accentErrorLight} accessibilityLiveRegion="polite">
-              {error}
-            </T>
-          )}
-          {pending && !connected && (
-            <T variant="small" color={colors.textSecondary}>
-              Answer it once {comp.your} is back. It stays open until then.
-            </T>
-          )}
-          {/* Stacked, full width: the strong answer, the outline one, then the quiet ones. */}
-          <View style={styles.stack}>
-            {pending && action.kind === 'answer' ? (
-              <Animated.View entering={FadeIn.duration(400)} pointerEvents={armed ? 'auto' : 'none'} style={styles.stack}>
-                <Button
-                  title={action.allow}
-                  // Allow is black and white, never a colour: a risky one is told
-                  // apart by the danger line above it, not by turning Allow red.
-                  variant="answer"
-                  size="large"
-                  busy={busy === 'allow'}
-                  disabled={!!busy || !connected}
-                  onPress={() => void answer(true)}
-                  accessibilityHint={card?.approval?.detail || undefined}
-                  style={styles.big}
-                />
-                <Button
-                  title={action.deny}
-                  variant="outline"
-                  size="large"
-                  busy={busy === 'deny'}
-                  disabled={!!busy || !connected}
-                  onPress={() => void answer(false)}
-                  style={styles.big}
-                />
-              </Animated.View>
-            ) : (
-              <Button
-                title={pending && action.kind === 'open' ? action.label : item.kind === 'setup' ? 'Continue' : CATCH_UP.openChat}
-                variant="answer"
-                size="large"
-                onPress={() => onChat(card?.id)}
-                style={styles.big}
-              />
             )}
-            <View style={styles.quiet}>
-              {!chatIsMain && pending && action.kind === 'answer' && (
-                <Button
-                  title={CATCH_UP.openChat}
-                  variant="ghost"
-                  onPress={() => onChat(card?.id)}
-                  style={styles.quietAction}
+            {card?.approval &&
+              (action.kind === 'answer' ? (
+                <ApprovalCard
+                  message={card}
+                  approval={card.approval}
+                  agent={agent}
+                  onError={setError}
+                  answers={false}
+                  // A risky request is read in full before it's allowed.
+                  full={highRisk(card.approval)}
                 />
-              )}
-              <Button title={CATCH_UP.later} variant="ghost" onPress={goLater} style={styles.quietAction} />
-            </View>
+              ) : (
+                <Card icon={askIcon(card.approval)} title={card.approval.title}>
+                  <T variant="small" color={colors.textSecondary}>
+                    {askingLine(card.approval)}
+                  </T>
+                </Card>
+              ))}
+            {moved && (
+              <Animated.View entering={FadeIn.duration(150)}>
+                <Line text={movedLine} />
+              </Animated.View>
+            )}
+            {!!error && (
+              <T variant="small" color={colors.accentErrorLight} accessibilityLiveRegion="polite">
+                {error}
+              </T>
+            )}
+            {pending && !connected && (
+              <T variant="small" color={colors.textSecondary}>
+                Answer it once {comp.your} is back. It stays open until then.
+              </T>
+            )}
+            {!tall && actions}
           </View>
-        </View>
+        </FlatCardContext.Provider>
         {footer}
         <View style={{ height: Math.max(bottom, space.lg) }} />
       </ScrollView>
+      {tall && (
+        <View style={[styles.bar, { paddingBottom: Math.max(bottom, space.md) }]}>{actions}</View>
+      )}
     </Animated.View>
   );
 }
@@ -578,9 +615,24 @@ const askIcon = (a: Approval) =>
 /** The card's title in the queue: the ask itself, in the chat's own words. */
 function titleOf(item: CatchItem, agent: Agent, messages: AgentMessage[] | undefined): string {
   if (item.kind === 'setup') return SETUP_TITLE;
-  const approval = item.messageId ? messages?.find((m) => m.id === item.messageId)?.approval : undefined;
+  const approval = item.messageId
+    ? messages?.find((m) => m.id === item.messageId)?.approval
+    : undefined;
   if (approval) return approval.title;
   return previewText(agent.preview) || 'Something new';
+}
+
+/** What kind of ask a queue row is: the words under its title (not the agent's name again). */
+function kindOf(item: CatchItem, agent: Agent, messages: AgentMessage[] | undefined): string {
+  if (item.kind === 'setup') return CATCH_UP_EYEBROW.needsInput;
+  const approval = item.messageId
+    ? messages?.find((m) => m.id === item.messageId)?.approval
+    : undefined;
+  if (approval?.login) return CATCH_UP.needsSignIn;
+  if (approval?.secret || approval?.connector || approval?.prompt)
+    return CATCH_UP_EYEBROW.needsInput;
+  if (approval) return CATCH_UP_EYEBROW.needsOk;
+  return failedTurn(agent) ? CATCH_UP_EYEBROW.didntFinish : agent.name;
 }
 
 /** The rest of the queue under the card: "Up next · 2", or "Then" when only the summary follows. */
@@ -607,10 +659,18 @@ function UpNext({
     .map((it) => ({ it, agent: agents.find((a) => a.id === it.agentId) }))
     .filter((r): r is { it: CatchItem; agent: Agent } => !!r.agent);
   if (rows.length === 0 && summaryCount === 0) return null;
-  const label = rows.length > 0 ? catchUpGroup(CATCH_UP.upNext, rows.length) : CATCH_UP.then;
+  // The count is what the header's "1 of N" counts: decisions, not offers, and not the open card.
+  const counted = rows.filter((r) => !r.it.offer).length;
+  const label =
+    rows.length > 0 ? catchUpGroup(CATCH_UP.upNext, counted || rows.length) : CATCH_UP.then;
   return (
     <View style={styles.upNext}>
-      <T variant="caption" color={colors.textMuted} style={styles.groupLabel} accessibilityRole="header">
+      <T
+        variant="caption"
+        color={colors.textMuted}
+        style={styles.groupLabel}
+        accessibilityRole="header"
+      >
         {label.toUpperCase()}
       </T>
       <View style={styles.rows}>
@@ -625,17 +685,19 @@ function UpNext({
             }}
             style={({ pressed }) => [styles.row, pressed && PRESSED]}
           >
-            <AgentKey id={agent.id} name={agent.name} color={agent.color} size={keySize.md} />
+            <AgentKey id={agent.id} name={agent.name} color={agent.color} size={catchKeySize} />
             <View style={styles.grow}>
               <T variant="small" color={colors.textStrong} numberOfLines={1}>
                 {titleOf(it, agent, chats[agent.id]?.messages)}
               </T>
               <T variant="caption" color={colors.textMuted} numberOfLines={1}>
-                {laterKeys.has(it.key) ? `${agent.name} · ${CATCH_UP.later}` : agent.name}
+                {laterKeys.has(it.key)
+                  ? `${kindOf(it, agent, chats[agent.id]?.messages)} · ${CATCH_UP.later}`
+                  : kindOf(it, agent, chats[agent.id]?.messages)}
               </T>
             </View>
             <T variant="label" color={colors.textMuted}>
-              {formatAgo(it.ts)}
+              {catchUpAge(it.ts)}
             </T>
           </Pressable>
         ))}
@@ -719,7 +781,7 @@ function Summary({
               onPress={() => onOpen(agent.id)}
               style={({ pressed }) => [styles.summaryRow, pressed && PRESSED]}
             >
-              <AgentKey id={agent.id} name={agent.name} color={agent.color} size={keySize.md} />
+              <AgentKey id={agent.id} name={agent.name} color={agent.color} size={catchKeySize} />
               <T variant="small" color={colors.textStrong} numberOfLines={2} style={styles.grow}>
                 {previewText(agent.preview) || 'Something new'}
               </T>
@@ -736,7 +798,14 @@ function Summary({
         </View>
       </ScrollView>
       <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, space.md) }]}>
-        <Button title={CATCH_UP.gotIt} variant="answer" size="large" onPress={onGotIt} style={styles.big} />
+        <Button
+          title={CATCH_UP.gotIt}
+          variant="answer"
+          size="large"
+          flat
+          onPress={onGotIt}
+          style={styles.big}
+        />
       </View>
     </View>
   );
@@ -823,8 +892,8 @@ const useStyles = makeStyles((colors) => ({
   },
   grow: { flex: 1 },
   clockTile: {
-    width: keySize.md,
-    height: keySize.md,
+    width: catchKeySize,
+    height: catchKeySize,
     borderRadius: radius.inner,
     alignItems: 'center',
     justifyContent: 'center',

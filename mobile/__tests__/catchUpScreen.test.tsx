@@ -116,12 +116,12 @@ describe('Catch up', () => {
       jest.advanceTimersByTime(500);
     });
     await act(async () => {
-      fireEvent.press(screen.getByText('Allow'));
+      void fireEvent.press(screen.getByText('Allow'));
     });
     expect(mockAnswer).toHaveBeenCalledWith('site', 's1', true, false);
 
     // Review opens the risky one in full.
-    fireEvent.press(screen.getByText('Review'));
+    void fireEvent.press(screen.getByText('Review'));
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/request',
       params: { agent: 'ops', id: 'o1' },
@@ -155,7 +155,7 @@ describe('Catch up', () => {
     ]);
     await render(<CatchUp />);
     expect(screen.getByText('All caught up')).toBeTruthy();
-    fireEvent.press(screen.getByText('Go to Agents'));
+    void fireEvent.press(screen.getByText('Go to Agents'));
     expect(mockNavigate).toHaveBeenCalledWith('/agents');
   });
 });

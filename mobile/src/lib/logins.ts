@@ -96,6 +96,7 @@ type WebBrowserModule = typeof import('expo-web-browser');
 function webBrowser(): WebBrowserModule | null {
   if (Platform.OS !== 'web' && !requireOptionalNativeModule('ExpoWebBrowser')) return null;
   // Loaded only once it's known to be there: importing it without its native half throws.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- a lazy require: a static import throws where the native half is missing
   return require('expo-web-browser') as WebBrowserModule;
 }
 

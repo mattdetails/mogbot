@@ -48,13 +48,12 @@ frontend() {
   if [ -z "${CI_NO_MOBILE:-}" ]; then mobile; fi
 }
 
-# The phone app (mobile/): CI never checked it before 1.0.25. Lint is run and
-# shown but doesn't fail the run yet: it has hundreds of findings from before
-# this step existed (mostly the type-aware rules), to be worked down.
+# The phone app (mobile/): CI never checked it before 1.0.25. Lint blocks: the
+# findings from before this step existed are cleared.
 mobile() {
   step 'Mobile install' pnpm --dir mobile install --frozen-lockfile --ignore-scripts
   step 'Mobile type check' pnpm --dir mobile run typecheck
-  step 'Mobile lint (reported, not blocking yet)' bash -c 'pnpm --dir mobile run lint || echo "(mobile lint findings: not blocking yet)"; true'
+  step 'Mobile lint' pnpm --dir mobile run lint
   step 'Mobile tests' pnpm --dir mobile exec jest --ci
 }
 

@@ -126,7 +126,7 @@ export default function Projects() {
           />
         }
       >
-        <RefreshStatus outcome={outcome} onRetry={onRefresh} onDismiss={dismiss} />
+        <RefreshStatus outcome={outcome} onRetry={() => void onRefresh()} onDismiss={dismiss} />
         <DemoCard />
         <ConnectionBar style={styles.bar} />
         {/* The link first: a Mac that's away isn't one that needs updating. */}

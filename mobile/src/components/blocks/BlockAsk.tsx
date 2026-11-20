@@ -202,7 +202,7 @@ const isoDay = (d: Date) =>
 
 const dayOf = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y!, (m ?? 1) - 1, d ?? 1);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
 };
 
 export function BlockForm({ block, answering }: { block: FormBlock; answering: Answering }) {

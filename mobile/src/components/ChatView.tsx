@@ -292,6 +292,7 @@ export function ChatView({
   const [target, setTarget] = useState<string | null>(null);
   // The rows on screen: "Needs your OK ↓" says nothing while its card is one of them.
   const [inView, setInView] = useState<ReadonlySet<string>>(NO_KEYS);
+  // eslint-disable-next-line react-hooks/refs -- a ref the render owns, read and written outside React state on purpose (gesture and arrival bookkeeping)
   const onViewable = useRef<NonNullable<FlatListProps<Item>['onViewableItemsChanged']>>(
     ({ viewableItems }) => setInView(new Set(viewableItems.map((v) => v.key)))
   ).current;
@@ -633,7 +634,7 @@ export function ChatView({
                   {
                     label: c.confirm,
                     run: () =>
-                      rewindConversation(id, here, m.id).catch((e: unknown) =>
+                      void rewindConversation(id, here, m.id).catch((e: unknown) =>
                         showError(describeError(e))
                       ),
                   },
@@ -650,7 +651,7 @@ export function ChatView({
                   {
                     label: c.confirm,
                     run: () =>
-                      forkConversation(id, here, m.id).catch((e: unknown) =>
+                      void forkConversation(id, here, m.id).catch((e: unknown) =>
                         showError(describeError(e))
                       ),
                   },

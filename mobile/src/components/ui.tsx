@@ -208,6 +208,7 @@ export function Button({
   busy = false,
   icon,
   style,
+  flat = false,
   disabled,
   onPress,
   lines = 1,
@@ -221,6 +222,8 @@ export function Button({
   style?: StyleProp<ViewStyle>;
   /** A choice someone must read in full (a session's options) wraps instead of truncating. */
   lines?: number;
+  /** No keycap: a solid fill, no lit edge or shadow (Catch up's buttons). */
+  flat?: boolean;
 }) {
   const colors = useColors();
   const styles = useStyles();
@@ -241,7 +244,7 @@ export function Button({
   // side in the fill's own shade, and a press that travels down by what the
   // side gives up (no scale, so the label never shrinks). Disabled sits flat.
   const depth = depthOf(colors);
-  const key = filled && !off;
+  const key = filled && !off && !flat;
   return (
     <Pressable
       accessibilityRole="button"

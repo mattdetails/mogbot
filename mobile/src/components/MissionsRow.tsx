@@ -29,6 +29,7 @@ export function MissionsRow() {
     <View style={styles.wrap}>
       <Pressable
         accessibilityRole="button"
+        // eslint-disable-next-line react-hooks/purity -- the clock is read in render on purpose; it only feeds a label that is re-read on the next render
         accessibilityLabel={`Missions: ${first.goal}. ${stateWord(first, Date.now())}`}
         onPress={() => router.push('/missions')}
         style={({ pressed }) => [styles.row, pressed && PRESSED]}
@@ -45,6 +46,7 @@ export function MissionsRow() {
             color={warn ? colors.accentWarning : colors.textMuted}
             numberOfLines={1}
           >
+            {/* eslint-disable-next-line react-hooks/purity -- the clock is read in render on purpose; it only feeds a label that is re-read on the next render */}
             {stateWord(first, Date.now())} · {metCount(first)} of {first.criteria.length} met
           </T>
         </View>

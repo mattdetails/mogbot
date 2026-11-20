@@ -82,25 +82,25 @@ it('changes the mode, adds to the list and starts it from the phone', async () =
   const onChanged = jest.fn();
   await render(<UsagePlanControls inventory={inventory()} onChanged={onChanged} />);
   await act(async () => {
-    fireEvent.press(screen.getByText('Use it all'));
+    void fireEvent.press(screen.getByText('Use it all'));
   });
   expect(mockCall).toHaveBeenCalledWith('agents.usage.setMode', { mode: 'use_it_all' });
   expect(onChanged).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'use_it_all' }));
 
   await act(async () => {
-    fireEvent.changeText(
+    void fireEvent.changeText(
       screen.getByLabelText('Add to your ideas for leftover usage'),
       '  Tidy the docs '
     );
   });
   await act(async () => {
-    fireEvent.press(screen.getByText('Add'));
+    void fireEvent.press(screen.getByText('Add'));
   });
   expect(mockCall).toHaveBeenCalledWith('agents.spare.add', { text: 'Tidy the docs' });
   expect(screen.getByText('Added to your ideas for leftover usage.')).toBeTruthy();
 
   await act(async () => {
-    fireEvent.press(screen.getByText('Give agents something to do'));
+    void fireEvent.press(screen.getByText('Give agents something to do'));
   });
   expect(mockCall).toHaveBeenCalledWith('agents.spare.spendNow', {});
   expect(
@@ -111,7 +111,7 @@ it('changes the mode, adds to the list and starts it from the phone', async () =
 it('choosing the mode already in force sends nothing', async () => {
   await render(<UsagePlanControls inventory={inventory({ mode: 'save' })} onChanged={jest.fn()} />);
   await act(async () => {
-    fireEvent.press(screen.getByText('Save'));
+    void fireEvent.press(screen.getByText('Save'));
   });
   expect(mockCall).not.toHaveBeenCalled();
   expect(screen.getByText(/^Save my limits: Routines wait/)).toBeTruthy();

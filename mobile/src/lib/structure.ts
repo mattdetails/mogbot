@@ -24,9 +24,11 @@ export function shareStructure<T>(prev: Json, next: T): T {
     const ids = next.map(idOf);
     const byId =
       ids.every((id) => id !== null) && prev.every((p) => idOf(p) !== null)
-        ? new Map(prev.map((p) => [idOf(p), p]))
+        ? new Map<string | null, unknown>(prev.map((p: unknown) => [idOf(p), p]))
         : null;
-    const out = next.map((n, i) => shareStructure(byId ? byId.get(ids[i]) : prev[i], n));
+    const out: unknown[] = next.map((n: unknown, i) =>
+      shareStructure<unknown>(byId ? byId.get(ids[i]) : (prev as unknown[])[i], n)
+    );
     return (out.length === prev.length && out.every((o, i) => o === prev[i]) ? prev : out) as T;
   }
   if (isObject(next) && isObject(prev)) {

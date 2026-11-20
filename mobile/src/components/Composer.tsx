@@ -310,7 +310,7 @@ export function Composer({
     vocabulary,
     onLevel,
     improve,
-    discard: discardFile,
+    discard: (uri) => void discardFile(uri),
   });
   // Tapping the words while it tidies: edit them meanwhile (the better words won't overwrite you).
   const [editingTidy, setEditingTidy] = useState(false);

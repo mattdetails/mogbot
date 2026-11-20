@@ -51,6 +51,7 @@ export function IndependenceSlider({
   const index = INDEPENDENCE_LEVELS.indexOf(shown);
 
   const live = useRef({ value, disabled, onChange, width });
+  // eslint-disable-next-line react-hooks/refs -- a ref the render owns, read and written outside React state on purpose (gesture and arrival bookkeeping)
   live.current = { value, disabled, onChange, width };
 
   const commit = (level: AgentIndependence) => {
@@ -77,6 +78,7 @@ export function IndependenceSlider({
 
   const pan = useMemo(
     () =>
+      // eslint-disable-next-line react-hooks/refs -- a ref the render owns, read and written outside React state on purpose (gesture and arrival bookkeeping)
       PanResponder.create({
         onStartShouldSetPanResponder: () => !live.current.disabled,
         // Sideways is the slider's; up and down stay the screen's scroll.
@@ -92,7 +94,7 @@ export function IndependenceSlider({
         },
         onPanResponderTerminate: () => setDragging(null),
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     []
   );
 
@@ -104,7 +106,11 @@ export function IndependenceSlider({
 
   return (
     <View style={[styles.wrap, disabled && styles.off]}>
-      <View style={styles.ends} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View
+        style={styles.ends}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
         <T variant="caption" color={colors.textMuted} maxFontSizeMultiplier={chromeScale}>
           {INDEPENDENCE_ENDS.low}
         </T>
@@ -119,7 +125,12 @@ export function IndependenceSlider({
         accessible
         accessibilityRole="adjustable"
         accessibilityLabel={INDEPENDENCE_TITLE}
-        accessibilityValue={{ min: 0, max: LAST, now: index, text: independenceValueText(shown, comp.kind) }}
+        accessibilityValue={{
+          min: 0,
+          max: LAST,
+          now: index,
+          text: independenceValueText(shown, comp.kind),
+        }}
         accessibilityState={{ disabled }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(e) => {

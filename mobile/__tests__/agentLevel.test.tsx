@@ -45,7 +45,6 @@ function Label({ agent }: { agent: { independence?: AgentIndependence } }) {
   return <Text>{useAgentLevelLabel(agent) ?? 'none'}</Text>;
 }
 
-
 /** Answers Unleashed's warning with its confirm button. */
 async function confirmUnleashed(alert: jest.SpyInstance) {
   const call = alert.mock.calls.find((c) => c[0] === 'Turn on Unleashed?');
@@ -92,7 +91,7 @@ describe('one agent’s level on the phone', () => {
     );
     expect(screen.getByText('Careful')).toBeTruthy();
     expect(screen.getByTestId('independence-slider').props.accessibilityValue.now).toBe(0);
-    fireEvent.press(screen.getByText('Use the team’s (Bold)'));
+    void fireEvent.press(screen.getByText('Use the team’s (Bold)'));
     expect(mockCall).toHaveBeenCalledWith('agents.setAgentIndependence', {
       agentId: 'a1',
       level: 'team',
@@ -134,11 +133,7 @@ describe('one agent’s level on the phone', () => {
     expect(
       screen.getByText('Does local work on this computer; asks before anything leaves it.')
     ).toBeTruthy();
-    expect(
-      screen.getByText(
-        /^Always asks before spending money\./
-      )
-    ).toBeTruthy();
+    expect(screen.getByText(/^Always asks before spending money\./)).toBeTruthy();
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     await fireEvent(slider, 'accessibilityAction', { nativeEvent: { actionName: 'increment' } });
     expect(mockCall).not.toHaveBeenCalledWith('agents.setIndependence', expect.anything());

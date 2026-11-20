@@ -140,7 +140,7 @@ export function OnItsOwnList({ agentId }: { agentId: string }) {
         setBusy(null);
       }
     },
-    [agentId]
+    [agentId, setView]
   );
 
   if (!served) return null;

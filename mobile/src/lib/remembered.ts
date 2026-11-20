@@ -50,6 +50,7 @@ export function useRemembered<T>(name: string): [T | null, (value: T | null) => 
     value: recall<T>(key),
   }));
   const keyRef = useRef(key);
+  // eslint-disable-next-line react-hooks/refs -- a ref the render owns, read and written outside React state on purpose (gesture and arrival bookkeeping)
   keyRef.current = key;
   useEffect(() => {
     if (state.key !== key) setState({ key, value: recall<T>(key) });

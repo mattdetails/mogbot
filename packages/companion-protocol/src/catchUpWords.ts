@@ -33,6 +33,8 @@ export const CATCH_UP = {
   /** The empty queue's one row. */
   nothingWaiting: 'Nothing waiting',
   nothingNeedsYou: 'Nothing needs you.',
+  /** A queue row's kind, where the eyebrow would be too long for it. */
+  needsSignIn: 'Needs sign-in',
 } as const;
 
 /** What a decision is, over its title: the amber dot's words. */
@@ -79,3 +81,19 @@ export const CATCH_UP_SUMMARY_ROWS = 6;
 
 /** "+ 3 more" under a long summary. */
 export const catchUpMore = (n: number): string => `+ ${catchUpCount(n)} more`;
+
+/**
+ * A queue row's age, in the short style (no "ago"): `now`, `12m`, `1h`, `20h`,
+ * `3d`, and a plain date ("Nov 18") from a week on.
+ */
+export function catchUpAge(ts: number, now: number = Date.now()): string {
+  const s = Math.max(0, Math.round((now - ts) / 1000));
+  if (s < 60) return 'now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}

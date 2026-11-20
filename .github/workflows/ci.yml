@@ -208,8 +208,10 @@ jobs:
   # cut a -win release tag.
   windows-check:
     name: Windows Checks
-    # Pinned: windows-latest moved to the VS 18 image, where whisper's cmake
-    # configure fails at random (CMAKE_ASM_COMPILER "not a full path").
+    # Pinned while the VS 2026 image (windows-latest) is unproven here: on it
+    # whisper's cmake configure failed every time on its assembler lookup, which
+    # scripts/ci-msvc-asm.ps1 now answers (see that file). To unpin, change this to
+    # windows-latest and push once to prove the step.
     runs-on: windows-2022
     needs: [config-integrity]
     # Tests alone took ~38 min in run 43497996791; the no-bundle build after
@@ -255,6 +257,11 @@ jobs:
         uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: './src-tauri -> target'
+
+      - name: Name the MSVC assembler for CMake (whisper.cpp)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/ci-msvc-asm.ps1
 
       - name: Install dependencies
         run: pnpm install

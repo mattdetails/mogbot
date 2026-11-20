@@ -63,6 +63,7 @@ export function withTimeout<T>(p: Promise<T>, ms: number, message: string): Prom
       },
       (e) => {
         clearTimeout(timer);
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- passes on whatever the wrapped promise rejected with
         reject(e);
       }
     );

@@ -110,7 +110,7 @@ describe('a tested card on the phone', () => {
     // The strip waits for its width, then shows one page per screenshot.
     expect(screen.queryByTestId('result-test-strip')).toBeNull();
     await act(async () => {
-      fireEvent(screen.getByTestId('result-test'), 'layout', {
+      void fireEvent(screen.getByTestId('result-test'), 'layout', {
         nativeEvent: { layout: { width: 320, height: 400, x: 0, y: 0 } },
       });
     });
@@ -149,7 +149,7 @@ describe('a tested card on the phone', () => {
     });
     await show();
     await act(async () => {
-      fireEvent.press(screen.getByText('Watch live'));
+      void fireEvent.press(screen.getByText('Watch live'));
     });
     expect(mockWatchLive).toHaveBeenCalledWith(agent().id, 'run1');
     expect(mockOpenHere).toHaveBeenCalledWith('https://mac.example.ts.net:47464/__mogbot-watch/t');
@@ -163,7 +163,7 @@ describe('a tested card on the phone', () => {
     const onError = jest.fn();
     await show(tested, onError);
     await act(async () => {
-      fireEvent.press(screen.getByText('Watch live'));
+      void fireEvent.press(screen.getByText('Watch live'));
     });
     expect(mockOpenHere).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledWith(

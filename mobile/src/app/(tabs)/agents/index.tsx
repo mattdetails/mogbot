@@ -222,7 +222,8 @@ export default function Agents() {
     if (home.chief) add(home.chief);
     // In the folders made on the Mac, when there are any (the desk's sidebar).
     for (const section of homeSections(home, overview.folders)) {
-      if (section.title) out.push({ kind: 'header', key: `h-${section.key}`, title: section.title });
+      if (section.title)
+        out.push({ kind: 'header', key: `h-${section.key}`, title: section.title });
       section.agents.forEach(add);
     }
     const hidden = home.hidden;
@@ -350,7 +351,7 @@ export default function Agents() {
       }
       ListHeaderComponent={
         <>
-          <RefreshStatus outcome={outcome} onRetry={onRefresh} onDismiss={dismiss} />
+          <RefreshStatus outcome={outcome} onRetry={() => void onRefresh()} onDismiss={dismiss} />
           <DemoCard />
           <ConnectionBar style={styles.connection} />
           <Refused />
@@ -434,7 +435,10 @@ export default function Agents() {
           {/* Under the translucent bar (and iPad's tab bar in it): padded by the
               header's height, as the list is by its own inset (lib/navigation.ts). */}
           <View
-            style={[styles.splitChat, { paddingRight: insets.right, paddingTop: HEADER_OVERLAYS ? headerHeight : 0 }]}
+            style={[
+              styles.splitChat,
+              { paddingRight: insets.right, paddingTop: HEADER_OVERLAYS ? headerHeight : 0 },
+            ]}
           >
             {shown ? (
               <AgentAccent agentId={shown}>
@@ -503,7 +507,9 @@ function SectionHeader({
   const label = live || !asOf ? title : `${title} · as of ${formatAgo(asOf)}`;
   return (
     // A label belongs to the rows under it: close below, a clear gap above.
-    <View style={[styles.section, !first && styles.sectionNext, underCard && styles.sectionUnderCard]}>
+    <View
+      style={[styles.section, !first && styles.sectionNext, underCard && styles.sectionUnderCard]}
+    >
       <T
         variant="caption"
         color={colors.textMuted}
@@ -551,8 +557,8 @@ function Refused() {
       </T>
       {removed ? (
         <T color={colors.textSecondary}>
-          That happens when this phone is removed on {comp.the}, or its pairings are reset. Your agents
-          and their chats are still on {comp.the}: pair again to pick up where you left off.
+          That happens when this phone is removed on {comp.the}, or its pairings are reset. Your
+          agents and their chats are still on {comp.the}: pair again to pick up where you left off.
         </T>
       ) : refusal?.message ? (
         <T color={colors.textSecondary}>{refusal.message}</T>

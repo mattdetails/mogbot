@@ -21,7 +21,7 @@
  * the rest are `outline`; `danger` only for what destroys work.
  */
 
-import { useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -63,6 +63,21 @@ const CARD_GLIDE = Platform.OS === 'web' ? undefined : LinearTransition.duration
 
 /** What the card's icon is tinted with: muted by default, warning only for real risk. */
 export type CardTone = 'warning' | 'error';
+
+/**
+ * Inside a screen that is itself the card (Catch up): the chat's cards drop
+ * their own surface, border, shadow and padding, so there is one container,
+ * not a box in a box.
+ */
+export const FlatCardContext = createContext(false);
+const FLAT = {
+  backgroundColor: 'transparent',
+  borderWidth: 0,
+  boxShadow: 'none',
+  paddingHorizontal: 0,
+  paddingVertical: 0,
+  marginHorizontal: 0,
+} as const;
 
 export function Card({
   icon,
@@ -117,6 +132,7 @@ export function Card({
 }) {
   const colors = useColors();
   const styles = useCardStyles();
+  const flat = useContext(FlatCardContext);
   const tint =
     tone === 'warning'
       ? colors.accentWarning
@@ -127,7 +143,7 @@ export function Card({
     <Animated.View
       layout={glide ? CARD_GLIDE : undefined}
       onLayout={onLayout}
-      style={[styles.card, quiet && styles.cardQuiet, style]}
+      style={[styles.card, quiet && styles.cardQuiet, flat && FLAT, style]}
       testID={testID}
       accessibilityLabel={accessibilityLabel}
     >

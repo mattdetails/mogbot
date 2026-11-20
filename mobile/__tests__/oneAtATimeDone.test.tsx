@@ -105,13 +105,13 @@ it('Later on the last card goes to the summary, then Got it ends on “All clear
   // With one decision and what happened after it, the queue says "Then".
   expect(screen.getByText('THEN')).toBeTruthy();
   await act(async () => {
-    fireEvent.press(screen.getByText('Later'));
+    void fireEvent.press(screen.getByText('Later'));
   });
   expect(screen.getByText('Summary')).toBeTruthy();
   expect(screen.getByText('While you were away')).toBeTruthy();
   expect(screen.getByText('Inbox sweep ran')).toBeTruthy();
   await act(async () => {
-    fireEvent.press(screen.getByText('Got it'));
+    void fireEvent.press(screen.getByText('Got it'));
   });
   expect(screen.getAllByText('All clear').length).toBeGreaterThan(0);
   expect(screen.getByText('Nothing needs you.')).toBeTruthy();

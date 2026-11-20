@@ -17,7 +17,6 @@ import appConfig, {
   withUploadSigning,
 } from '../app.config';
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const brand = require('../../brand.json') as { companion: { bundleId: string } };
 
 function withEnv<T>(env: Record<string, string | undefined>, fn: () => T): T {
@@ -60,7 +59,6 @@ describe('the store build', () => {
       { COMPANION_STORE_BUILD: '1', COMPANION_BUNDLE_ID: `${brand.companion.bundleId}.abc123` },
       () => {
         jest.isolateModules(() => {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
           const fresh = require('../app.config') as typeof import('../app.config');
           expect(() => fresh.default()).toThrow(/store build uses brand.json/);
         });
@@ -181,8 +179,10 @@ android {
 `;
     const out = withUploadSigning(template);
     expect(out).toContain(UPLOAD_SIGNING_MARK);
-    expect(out).toContain("findProperty(k) ?: System.getenv(k)");
-    expect(out).toContain('signingConfig companionUploadKey ? signingConfigs.upload : signingConfigs.debug');
+    expect(out).toContain('findProperty(k) ?: System.getenv(k)');
+    expect(out).toContain(
+      'signingConfig companionUploadKey ? signingConfigs.upload : signingConfigs.debug'
+    );
     // The debug build type keeps the debug key.
     expect(out).toMatch(/debug \{\n\s*signingConfig signingConfigs\.debug/);
     // No password or path is ever written into the file.
@@ -197,6 +197,8 @@ describe('the Android namespace', () => {
   it('keeps the package but makes the Java package keyword-free', () => {
     expect(androidNamespace(brand.companion.bundleId)).toBe('io.native_.mogbot.companion');
     expect(androidNamespace('com.example.app')).toBe('com.example.app');
-    expect(androidNamespace('io.native.mogbot.companion.self')).toBe('io.native_.mogbot.companion.self');
+    expect(androidNamespace('io.native.mogbot.companion.self')).toBe(
+      'io.native_.mogbot.companion.self'
+    );
   });
 });

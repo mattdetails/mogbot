@@ -205,16 +205,16 @@ describe('every kind', () => {
   });
 
   it('names a churn rise as bad: down is good there', async () => {
-    await draw(message([ALL[3]!]), null);
+    await draw(message([ALL[3]]), null);
     const tiles = screen.getAllByTestId('metric-tile');
-    expect(tiles[1]!.props.accessibilityLabel).toContain('bad');
-    expect(tiles[0]!.props.accessibilityLabel).toContain('good');
+    expect(tiles[1].props.accessibilityLabel).toContain('bad');
+    expect(tiles[0].props.accessibilityLabel).toContain('good');
   });
 });
 
 describe('a table', () => {
   it('sorts by a header, numbers as numbers, blanks last', async () => {
-    await draw(message([ALL[2]!]), null);
+    await draw(message([ALL[2]]), null);
     const amounts = () =>
       screen.getAllByTestId('table-row').map((r) => {
         const texts: string[] = [];
@@ -400,15 +400,15 @@ describe('answers', () => {
     const r = replies('yes, ship it.');
     await draw(message([CHOICES]), r.value);
     const buttons = screen.getAllByTestId('block-choice');
-    expect(buttons[0]!.props.accessibilityState).toMatchObject({ selected: true });
-    expect(buttons[1]!.props.accessibilityState).toMatchObject({ selected: false, disabled: true });
+    expect(buttons[0].props.accessibilityState).toMatchObject({ selected: true });
+    expect(buttons[1].props.accessibilityState).toMatchObject({ selected: false, disabled: true });
     await fireEvent.press(screen.getByText('Not yet'));
     expect(r.reply).not.toHaveBeenCalled();
   });
 
   it('are read-only where the chat can’t answer (a room)', async () => {
     await draw(message([CHOICES]), null);
-    expect(screen.getAllByTestId('block-choice')[0]!.props.accessibilityState).toMatchObject({
+    expect(screen.getAllByTestId('block-choice')[0].props.accessibilityState).toMatchObject({
       disabled: true,
     });
   });
@@ -434,7 +434,7 @@ describe('answers', () => {
       r.value
     );
     expect(screen.getByText('Recommended')).toBeTruthy();
-    await fireEvent.press(screen.getAllByTestId('comparison-pick')[1]!);
+    await fireEvent.press(screen.getAllByTestId('comparison-pick')[1]);
     expect(r.reply).toHaveBeenCalledWith('fin', 'Netlify', false);
   });
 });
@@ -522,8 +522,8 @@ describe('the chat’s answers', () => {
  */
 describe('a turn’s blocks, as the Mac sent them', () => {
   const list = turn.messages.map((m) => asMessage(m)!);
-  const shown = list[0]!;
-  const answer = list[1]!;
+  const shown = list[0];
+  const answer = list[1];
 
   it('draws every block', async () => {
     expect(readBlocks(shown)!.items.map((b) => b.kind)).toEqual([
@@ -549,7 +549,7 @@ describe('a turn’s blocks, as the Mac sent them', () => {
   it('a tap sends exactly the words the Mac then kept as the answer', async () => {
     const r = replies();
     await draw(shown, r.value);
-    await fireEvent.press(screen.getAllByTestId('block-choice')[1]!);
+    await fireEvent.press(screen.getAllByTestId('block-choice')[1]);
     expect(r.reply).toHaveBeenCalledWith(shown.agentId, answer.text, false);
   });
 
@@ -559,8 +559,8 @@ describe('a turn’s blocks, as the Mac sent them', () => {
     const r = { reply: jest.fn(), answerOf: (id: string) => answers.get(id) ?? null };
     await draw(shown, r);
     const buttons = screen.getAllByTestId('block-choice');
-    expect(buttons[1]!.props.accessibilityState).toMatchObject({ selected: true });
-    await fireEvent.press(buttons[0]!);
+    expect(buttons[1].props.accessibilityState).toMatchObject({ selected: true });
+    await fireEvent.press(buttons[0]);
     expect(r.reply).not.toHaveBeenCalled();
   });
 });
