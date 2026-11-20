@@ -219,7 +219,7 @@ async fn serve(
     } else if keys.sessions {
         sess = Session::new(keys.resume);
     }
-    let mut yield_rx = sess.as_ref().map(|s| session::go_live(&s.sid));
+    let mut yield_rx = sess.as_ref().map(|s| session::go_live(s));
     if let Some(s) = &sess {
         if !seal_out(&mut keys, ch, out, s.sess(resumed).as_bytes()).await {
             session::forget(&s.sid);

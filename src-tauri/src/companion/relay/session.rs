@@ -165,9 +165,7 @@ impl Session {
 
     /// Whether `proof` is this session's phone, and not an old attempt replayed.
     fn accepts(&self, e: &str, proof: &ResumeProof) -> bool {
-        proof.k > self.last_k
-            && (resume_mac_ok(&self.key, e, proof)
-                || self.prev_key.is_some_and(|k| resume_mac_ok(&k, e, proof)))
+        proof_ok(&self.key, self.prev_key, self.last_k, e, proof)
     }
 
     /// The new channel's key replaces the current one.
@@ -175,6 +173,25 @@ impl Session {
         self.prev_key = Some(std::mem::replace(&mut self.key, key));
         self.last_k = k;
     }
+}
+
+fn proof_ok(
+    key: &[u8; 32],
+    prev: Option<[u8; 32]>,
+    last_k: u64,
+    e: &str,
+    proof: &ResumeProof,
+) -> bool {
+    proof.k > last_k
+        && (resume_mac_ok(key, e, proof) || prev.is_some_and(|k| resume_mac_ok(&k, e, proof)))
+}
+
+/// A live channel: how to tell it to let go, and what proves its phone is back.
+struct Live {
+    yield_tx: mpsc::Sender<()>,
+    key: [u8; 32],
+    prev: Option<[u8; 32]>,
+    last_k: u64,
 }
 
 /// A channel's handler and state while its phone is away.
@@ -189,7 +206,7 @@ pub struct Parked {
 struct Registry {
     parked: HashMap<String, Parked>,
     /// Live session channels, told to let go when the phone is back already.
-    live: HashMap<String, mpsc::Sender<()>>,
+    live: HashMap<String, Live>,
     next: u64,
 }
 
@@ -206,9 +223,17 @@ fn registry() -> &'static Mutex<Registry> {
 
 /// A channel serving this session: the receiver says "the phone is back
 /// on a new socket, park now".
-pub fn go_live(sid: &str) -> mpsc::Receiver<()> {
+pub fn go_live(session: &Session) -> mpsc::Receiver<()> {
     let (tx, rx) = mpsc::channel(1);
-    registry().lock().unwrap().live.insert(sid.to_string(), tx);
+    registry().lock().unwrap().live.insert(
+        session.sid.clone(),
+        Live {
+            yield_tx: tx,
+            key: session.key,
+            prev: session.prev_key,
+            last_k: session.last_k,
+        },
+    );
     rx
 }
 
@@ -268,8 +293,12 @@ pub async fn claim(e: &str, proof: &ResumeProof) -> Option<Parked> {
                 return r.parked.remove(&proof.sid);
             }
             if !asked {
-                if let Some(tx) = r.live.get(&proof.sid) {
-                    let _ = tx.try_send(());
+                if let Some(l) = r.live.get(&proof.sid) {
+                    // Only a phone that proves it holds the session moves its channel.
+                    if !proof_ok(&l.key, l.prev, l.last_k, e, proof) {
+                        return None;
+                    }
+                    let _ = l.yield_tx.try_send(());
                     asked = true;
                 }
             }

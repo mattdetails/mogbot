@@ -1029,6 +1029,18 @@ async fn a_phone_that_lost_its_socket_picks_its_session_back_up() {
     // A proof from the wrong key is the same.
     let forged = SessionPhone::connect(&url, &fingerprint, Some((&back.sid, 0, 9, [0u8; 32]))).await;
     assert!(!forged.resumed);
+    // Neither attempt moved the live session: it is still connected and answers.
+    back.send(json!({ "t": "req", "id": 9, "method": "rooms.list", "params": {} }))
+        .await;
+    let mut still = false;
+    for _ in 0..8 {
+        let f = back.next().await;
+        if f["t"] == "res" && f["id"] == 9 {
+            still = f["ok"] == true;
+            break;
+        }
+    }
+    assert!(still, "a forged proof leaves the live session alone");
 }
 
 #[tokio::test]
