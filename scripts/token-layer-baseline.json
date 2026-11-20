@@ -321,12 +321,6 @@
       "reason": "Transitional migration-alias consumer; replace with the canonical semantic role."
     },
     {
-      "path": "src/styles/features/agents-composer.css",
-      "token": "--radius-full",
-      "count": 2,
-      "reason": "Transitional migration-alias consumer; replace with the canonical semantic role."
-    },
-    {
       "path": "src/styles/features/agents-dialogs.css",
       "token": "--font-weight-medium",
       "count": 1,
