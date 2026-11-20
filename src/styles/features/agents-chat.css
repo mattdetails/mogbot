@@ -46,7 +46,6 @@
   column-gap: var(--spacing-sm);
   height: var(--agents-header-height);
   padding: 0 var(--agents-column-inset);
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
 }
 
 .agent-chat__header > * {
@@ -145,6 +144,22 @@
    to a 3px dot beside a one-letter name. */
 .agent-chat__switcher-chevron {
   flex: none;
+}
+
+.agent-chat__who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The agent's one-line description under its name (it becomes the task line
+   when there is open work): muted, one line, no fill or border. */
+.agent-chat__subtitle {
+  overflow: hidden;
+  font-size: var(--catchup-meta-size);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .agent-chat__name {

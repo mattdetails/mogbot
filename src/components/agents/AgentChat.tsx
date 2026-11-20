@@ -1098,6 +1098,8 @@ export const AgentChat = memo(function AgentChat({
   const onGoBack = useStableEvent((action: GoBackAction, message: AgentMessage) => {
     if (action === 'edit') {
       setEditing(message);
+      // The reply it answered goes again with the edit (the line shows it).
+      setReplying(message.replyTo ?? null);
       typeStarter(message.text);
       return;
     }
@@ -1730,17 +1732,20 @@ export const AgentChat = memo(function AgentChat({
       const target = editing;
       const files = staged;
       const quoted = quotes;
+      const replied = replying ?? target.replyTo ?? null;
       setEditing(null);
+      setReplying(null);
       setDraft('');
       setQuotes([]);
       if (files.length) attachments.setItems([]);
       void rewindConversation(agent.id, viewing ?? FIRST_CONVERSATION, target.id).then(
         () => {
           if (files.length) void sendWithFiles(typed, quoted, files, false);
-          else sendText(withQuotes(quoted, typed));
+          else sendText(withQuotes(quoted, typed), false, replied ? { replyTo: replied } : {});
         },
         (error: unknown) => {
           setEditing(target);
+          setReplying(replied);
           setDraft(typed);
           setQuotes(quoted);
           if (files.length) attachments.setItems(files);
@@ -1786,6 +1791,7 @@ export const AgentChat = memo(function AgentChat({
   const interruptNow = useStableEvent(() => void interrupt());
   const cancelEditing = useCallback(() => {
     setEditing(null);
+    setReplying(null);
     setDraft('');
   }, [setDraft]);
   const askForChanges = useStableEvent((ref: ResultRef) => {
@@ -1839,9 +1845,12 @@ export const AgentChat = memo(function AgentChat({
         state={agentKeyState(agent)}
         size="md"
       />
-      <h2 className="agent-chat__name" title={role || undefined}>
-        {agent.name}
-      </h2>
+      <span className="agent-chat__who">
+        <h2 className="agent-chat__name" title={role || undefined}>
+          {agent.name}
+        </h2>
+        {role && <span className="agent-chat__subtitle">{role}</span>}
+      </span>
     </>
   );
 

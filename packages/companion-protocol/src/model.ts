@@ -1538,19 +1538,6 @@ export interface AgentSecret extends SecretRequest {
   lastUsedAt?: number;
 }
 
-/** What a reply points at: its kind says how the chip and the quote word it. */
-export type ReplyKind = 'message' | 'attachment' | 'file' | 'link' | 'card';
-
-/** What a sent reply carries about its original. */
-export interface ReplyRef {
-  id: string;
-  /** Who wrote the original: an agent's name, or "you". */
-  name: string;
-  /** One line of the original, already worded for its kind ("File · intros.pdf"). */
-  excerpt: string;
-  kind: ReplyKind;
-}
-
 export interface AgentMessage {
   id: string;
   agentId: string;
@@ -1584,7 +1571,7 @@ export interface AgentMessage {
   result?: ResultCard;
   /** On a user message: "Ask for changes" on this result. */
   revises?: ResultRef;
-  /** A reply: the message this one answers (the Mac stores it; the desk and phone quote it). */
+  /** On a user message: the message it replies to, filled by the Mac from its own log. */
   replyTo?: ReplyRef;
   /** On a `note` (an `error` from older Macs): a take-over's terminal closed by itself; not a turn's failure. */
   takeover?: boolean;
@@ -2546,4 +2533,21 @@ export interface AgentReachSettings {
   browserSites?: string[];
   /** Claude Code apps kept from its turns, by name there. */
   blockedApps?: string[];
+}
+
+/** What kind of thing a reply answers; the clients word it ("Attachment · name", "Link · domain"). */
+export type ReplyKind = 'message' | 'attachment' | 'file' | 'link' | 'card';
+
+/**
+ * The message a reply answers, as it was when the reply was sent
+ * (`agents/reply.rs`): the Mac fills it from the stored original.
+ */
+export interface ReplyRef {
+  /** The original's id. */
+  id: string;
+  /** "you" for the user's own message, otherwise the agent's name. */
+  name: string;
+  /** The original's text (at most 200 characters, cut on a word); an attachment, file or link's name or domain; a card's title. */
+  excerpt: string;
+  kind: ReplyKind;
 }

@@ -61,6 +61,7 @@ export const agentsBubbleScenarios: Scenario[] = COLORS.map(
           `${NAMES[color] ?? color[0].toUpperCase() + color.slice(1)} agent`,
           {
             color,
+            role: 'Drafts and sends the intro emails.',
             minutesAgo: 4,
             preview: 'On it. Staging redeploys in a minute.',
           }
@@ -70,3 +71,13 @@ export const agentsBubbleScenarios: Scenario[] = COLORS.map(
     },
   })
 );
+
+/** A wide window: the chat is one 720px column, centred; the header's content sits at its edges, the header has no border. */
+export const agentsWideScenario: Scenario = {
+  ...agentsBubbleScenarios[4],
+  id: 'agents-wide',
+  title: 'Agents — a wide window (1700px)',
+  looksRightWhen:
+    'The messages and the box share one 720px column, centred beside the sidebar. The header has no border or fill; its key (36px), name and the muted one-line description sit at the column’s left edge and the ⋯ at its right edge. Nothing runs to the window’s edges.',
+  viewport: { width: 1700, height: 900 },
+};

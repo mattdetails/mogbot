@@ -747,7 +747,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 3
     },
     {
       "name": "--catchup-key-row",
@@ -5675,7 +5675,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 990
+      "consumerCount": 991
     },
     {
       "name": "--text-faint",
@@ -5763,7 +5763,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 228
+      "consumerCount": 227
     },
     {
       "name": "--border-strong",
@@ -5795,7 +5795,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 381
+      "consumerCount": 380
     },
     {
       "name": "--border-width-emphasis",
@@ -7195,7 +7195,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 990
+      "consumerCount": 991
     },
     {
       "name": "--text-faint",
@@ -7275,7 +7275,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 228
+      "consumerCount": 227
     },
     {
       "name": "--border-strong",

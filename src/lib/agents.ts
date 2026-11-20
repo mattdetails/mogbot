@@ -826,7 +826,7 @@ export interface AgentMessage {
   result?: ResultCard;
   /** On a user message: "Ask for changes" on this result. */
   revises?: ResultRef;
-  /** A reply: the message this one answers (`lib/replyTo.ts`); the Mac stores it. */
+  /** On a user message: the message it replies to (`agents/reply.rs`). */
   replyTo?: ReplyRef;
   /** On a `note` (an `error` in older logs): a take-over's terminal closed by itself, its last lines after a blank line; not a turn's failure, so no Retry. */
   takeover?: boolean;
@@ -1440,11 +1440,10 @@ export const sendAgentMessage = (
   conversation?: string,
   /** When the user wrote it (ms): a typed yes answers only a card open then. */
   writtenAt: number = Date.now(),
-  /** A reply: the id of the message this one answers. */
+  /** Reply: the id of the message this one answers. */
   replyTo?: string
 ) =>
   invoke<AgentMessage>('agents_send', {
-    replyTo,
     agentId,
     text,
     attachments: attachments.length ? attachments : undefined,
@@ -1452,6 +1451,7 @@ export const sendAgentMessage = (
     revises,
     conversation,
     writtenAt,
+    replyTo,
   });
 export const inspectFiles = (paths: string[]) =>
   invoke<FileInfo[]>('agents_inspect_files', { paths });
@@ -2858,9 +2858,6 @@ export function peerGroupLabel(messages: AgentMessage[]): string {
   return messages[0].kind === 'sent_to_agent' ? 'Messaged' : 'Message from';
 }
 
-export type { ReplyRef, ReplyKind } from './replyTo';
-import type { ReplyRef } from './replyTo';
-
 // Quotes are shared with the phone, which must write and read the same format.
 export {
   quoteText,
@@ -2870,6 +2867,8 @@ export {
 } from '../../packages/companion-protocol/src/quotes';
 
 import type { ResultCard, ResultRef } from '../../packages/companion-protocol/src/results';
+import type { ReplyKind, ReplyRef } from '../../packages/companion-protocol/src/model';
+export type { ReplyKind, ReplyRef };
 import type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type {
