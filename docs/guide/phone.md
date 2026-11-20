@@ -36,7 +36,7 @@ and if it doesn't load says so and keeps trying while it's on screen.
 
 ## Pair your phone
 
-1. **On your computer:** click **Pair your phone** at the bottom of the sidebar (or open
+1. **On your computer:** click the **gear** at the foot of the sidebar and choose **Pair your phone** (or open
    **Settings → Phone**). The app walks you through each step, including turning on phone access
    and, if you're not signed in, Tailscale on both devices. Then it shows a code.
 2. **On your phone:** open the app and tap **Scan the code**. It asks "Pair with *your computer's name*?"

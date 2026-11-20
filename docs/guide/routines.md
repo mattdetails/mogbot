@@ -11,7 +11,7 @@ was closed runs once when you reopen it, marked late. It never runs once per mis
 ## On a schedule
 
 Ask in plain words, to the agent or the Chief: "Every weekday at 8am, send me a summary of X".
-Or use the **Routines** button in the chat header, then **New routine**:
+Or open the agent's **⋯** menu (top of its chat), choose **Routines**, then **New routine**:
 
 - **How often:** Every day, Weekdays, Weekly, Monthly, Every few hours, or Once.
 - **At:** the time.
@@ -27,7 +27,7 @@ than every 30 minutes.
 Each routine can be paused, edited, cancelled, or run now with **Run now** (which doesn't move its
 next time). **Past runs** shows what came of the last 10.
 
-To see every agent's routines in one list, use **Routines** in the sidebar. **Pause all
+To see every agent's routines in one list, open the **gear** at the foot of the sidebar and choose **Routines**. **Pause all
 routines…** and **Resume all routines…** are there too.
 
 If a run fails for a temporary reason (a usage limit, the network), it's tried again a few times
