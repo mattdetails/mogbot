@@ -304,7 +304,7 @@
 
 .compact-tab.has-attention .compact-tab-dot {
   background: var(--accent-warning);
-  animation: compact-tab-pulse 1.6s ease-in-out infinite;
+  animation: compact-tab-pulse var(--motion-pulse) infinite;
 }
 
 @keyframes compact-tab-pulse {

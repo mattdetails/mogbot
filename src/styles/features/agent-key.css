@@ -16,7 +16,7 @@
  *   face and spills onto the surface under the key in the key's own colour.
  * - Live: lit and still (the same backlight and spill, no breathing).
  * - Needs your OK (the loudest): sitting proud, its face deepened further,
- *   the legend backlit amber-gold with a wide glow, pulsing (1.6s).
+ *   the legend backlit amber-gold with a wide glow, pulsing (--motion-pulse, 1.6s).
  * At a glance (the squint test, harness-keys.html?only=squint): working is
  * pressed and softly lit, free is at rest and unlit, needs-you is raised and
  * bright amber; paused is grey and sunk. Each still differs with Reduce
@@ -151,9 +151,8 @@
   --agent-key-size-sm: calc(var(--spacing-lg) * 1.25);
   --agent-key-size-xs: var(--spacing-lg);
 
-  /* Motion, the site's timings. */
-  --agent-key-pulse: 1.6s;
-  --agent-key-breathe: 2.4s;
+  /* Motion, the site's timings. Its loops are the shared --motion-pulse
+     and --motion-breathe. */
   --agent-key-travel: 180ms;
   --agent-key-socket-in: 500ms;
   --agent-key-seat: 750ms;
@@ -555,7 +554,7 @@
   pointer-events: none;
   background: radial-gradient(closest-side, var(--agent-key-ask-spill), transparent);
   filter: blur(max(3px, calc(9 * var(--agent-key-u))));
-  animation: agent-key-pulse var(--agent-key-pulse) ease-in-out infinite;
+  animation: agent-key-pulse var(--motion-pulse) infinite;
 }
 .agent-key[data-state='needsOk'] .agent-key__face::after {
   content: '';
@@ -572,7 +571,7 @@
   --agent-key-d: var(--agent-key-floor);
 }
 .agent-key[data-state='working']::before {
-  animation: agent-key-breathe var(--agent-key-breathe) ease-in-out infinite;
+  animation: agent-key-breathe var(--motion-breathe) infinite;
 }
 .agent-key[data-state='working'] .agent-key__face::after {
   content: '';
@@ -581,7 +580,7 @@
   border-radius: inherit;
   pointer-events: none;
   background: radial-gradient(60% 60% at 50% 50%, var(--agent-key-breath), transparent 70%);
-  animation: agent-key-breathe var(--agent-key-breathe) ease-in-out infinite;
+  animation: agent-key-breathe var(--motion-breathe) infinite;
 }
 /* Its legend's glow breathes, low to high and back. Animating the filter
    itself repainted the key on the main thread every frame (most of an idle
@@ -606,12 +605,12 @@
   .agent-key[data-state='working'] .agent-key__glow[data-glow='low'] {
     filter: drop-shadow(0 0 1px var(--agent-key-lit-core))
       drop-shadow(0 0 var(--agent-key-glow-low) var(--agent-key-lit-halo-low));
-    animation: agent-key-glow-out var(--agent-key-breathe) ease-in-out infinite;
+    animation: agent-key-glow-out var(--motion-breathe) infinite;
   }
   .agent-key[data-state='working'] .agent-key__glow[data-glow='high'] {
     filter: drop-shadow(0 0 1px var(--agent-key-lit-core-bright))
       drop-shadow(0 0 var(--agent-key-glow-high) var(--agent-key-lit-halo-high));
-    animation: agent-key-glow-in var(--agent-key-breathe) ease-in-out infinite;
+    animation: agent-key-glow-in var(--motion-breathe) infinite;
   }
 }
 
@@ -630,7 +629,7 @@
   stroke: var(--agent-key-ask);
   filter: drop-shadow(0 0 1px var(--agent-key-ask-core))
     drop-shadow(0 0 var(--agent-key-glow-high) var(--agent-key-ask-halo));
-  animation: agent-key-pulse var(--agent-key-pulse) ease-in-out infinite;
+  animation: agent-key-pulse var(--motion-pulse) infinite;
 }
 .agent-key[data-state='needsOk'] .agent-key__sub {
   color: var(--agent-key-ask);

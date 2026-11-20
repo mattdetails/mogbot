@@ -26,6 +26,10 @@ export const MOTION_DURATION = {
   exitScreen: 200,
   /** Reduce Motion: long enough that transitionend/animationend still fire. */
   reduced: 0.01,
+  /** One beat of a loop that asks for attention: needs your OK, a skeleton, the busy glow. */
+  pulse: 1600,
+  /** One breath of a loop that says "working", slower and calmer than a pulse. */
+  breathe: 2400,
 } as const;
 
 /** cubic-bezier control points. */
@@ -40,6 +44,8 @@ export const MOTION_EASE = {
   press: [0.3, 0.7, 0.4, 1],
   /** Colour and opacity changes with no travel. */
   standard: [0.25, 0.1, 0.25, 1],
+  /** A loop (pulse, breathe): eases both ways, so the turn-around never jolts. */
+  loop: [0.42, 0, 0.58, 1],
 } as const;
 
 /**
@@ -91,7 +97,10 @@ export const HAPTICS = {
   copied: 'success',
   paired: 'success',
   failed: 'error',
-} as const satisfies Record<string, 'select' | 'light' | 'medium' | 'success' | 'warning' | 'error'>;
+} as const satisfies Record<
+  string,
+  'select' | 'light' | 'medium' | 'success' | 'warning' | 'error'
+>;
 
 export type MotionSpring = keyof typeof MOTION_SPRING;
 
@@ -110,8 +119,7 @@ export function springEasing(name: MotionSpring, points = 24): string {
     if (z >= 1) return 1 - (1 + omega * t) * Math.exp(-omega * t);
     const wd = omega * Math.sqrt(1 - z * z);
     return (
-      1 -
-      Math.exp(-z * omega * t) * (Math.cos(wd * t) + ((z * omega) / wd) * Math.sin(wd * t))
+      1 - Math.exp(-z * omega * t) * (Math.cos(wd * t) + ((z * omega) / wd) * Math.sin(wd * t))
     );
   };
   const out: string[] = [];

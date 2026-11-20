@@ -41,6 +41,8 @@ describe('motion tokens', () => {
     expect(token('duration-exit-quick')).toContain(`${MOTION_DURATION.exitQuick}ms`);
     expect(token('duration-exit-screen')).toContain(`${MOTION_DURATION.exitScreen}ms`);
     expect(token('duration-reduced')).toContain(`${MOTION_DURATION.reduced}ms`);
+    expect(token('duration-pulse')).toContain(`${MOTION_DURATION.pulse}ms`);
+    expect(token('duration-breathe')).toContain(`${MOTION_DURATION.breathe}ms`);
   });
 
   it('curves match', () => {
@@ -48,6 +50,7 @@ describe('motion tokens', () => {
     expect(token('ease-exit')).toContain(cubicBezier(MOTION_EASE.exit));
     expect(token('ease-move')).toContain(cubicBezier(MOTION_EASE.move));
     expect(token('ease-press')).toContain(cubicBezier(MOTION_EASE.press));
+    expect(token('ease-loop')).toContain(cubicBezier(MOTION_EASE.loop));
   });
 
   it('springs match, as linear() and as durations', () => {

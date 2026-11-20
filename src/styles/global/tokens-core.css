@@ -273,6 +273,9 @@
   --duration-exit-screen: 200ms;
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --ease-move: cubic-bezier(0.2, 0, 0, 1);
+  --duration-pulse: 1600ms;
+  --duration-breathe: 2400ms;
+  --ease-loop: cubic-bezier(0.42, 0, 0.58, 1);
   /* Springs: fall back to the move curve where linear() isn't supported
      (older WebKitGTK); overridden below where it is. */
   --spring-snappy: var(--ease-move);

@@ -86,22 +86,21 @@ describe('AgentKey', () => {
     }
   });
 
-  it('animates only what needs it, with the site’s timings, and nothing with Reduce Motion', () => {
+  it('animates only what needs it, with the site’s timings and the shared loops, and nothing with Reduce Motion', () => {
     const animations = [...css.matchAll(/animation:\s*([^;]+);/g)].map((m) => m[1]);
     expect(animations.filter((a) => a !== 'none').sort()).toEqual(
       [
-        'agent-key-breathe var(--agent-key-breathe) ease-in-out infinite',
-        'agent-key-breathe var(--agent-key-breathe) ease-in-out infinite',
-        'agent-key-glow-in var(--agent-key-breathe) ease-in-out infinite',
-        'agent-key-glow-out var(--agent-key-breathe) ease-in-out infinite',
-        'agent-key-pulse var(--agent-key-pulse) ease-in-out infinite',
-        'agent-key-pulse var(--agent-key-pulse) ease-in-out infinite',
+        'agent-key-breathe var(--motion-breathe) infinite',
+        'agent-key-breathe var(--motion-breathe) infinite',
+        'agent-key-glow-in var(--motion-breathe) infinite',
+        'agent-key-glow-out var(--motion-breathe) infinite',
+        'agent-key-pulse var(--motion-pulse) infinite',
+        'agent-key-pulse var(--motion-pulse) infinite',
         'agent-key-seat var(--agent-key-seat) var(--agent-key-ease-arrive) both',
         'agent-key-socket-in var(--agent-key-socket-in) var(--agent-key-ease-arrive) both',
       ].sort()
     );
-    expect(css).toMatch(/--agent-key-pulse: 1\.6s;/);
-    expect(css).toMatch(/--agent-key-breathe: 2\.4s;/);
+    // The loops are the motion system's (1.6s pulse, 2.4s breath; motionTokens.test.ts).
     // Keyframes move only opacity, translate and (on the legend) filter.
     const frames = [...css.matchAll(/@keyframes [\w-]+ \{([\s\S]*?)\n\}/g)].map((m) => m[1]);
     for (const f of frames) {

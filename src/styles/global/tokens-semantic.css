@@ -192,6 +192,10 @@
   --motion-exit-screen: var(--duration-exit-screen) var(--ease-exit);
   --motion-move: var(--duration-spring-standard) var(--spring-standard);
   --motion-pop: var(--duration-spring-celebrate) var(--spring-celebrate);
+  /* Loops, one cycle each (with `infinite`): a pulse asks for attention, a
+     breath says "working". Opacity or transform only; Reduce Motion stops them. */
+  --motion-pulse: var(--duration-pulse) var(--ease-loop);
+  --motion-breathe: var(--duration-breathe) var(--ease-loop);
   /* How far and from what size (docs/MOTION.md, "Distances"), and the two
      lengths a component sometimes needs on their own. */
   --motion-travel-popover: var(--motion-popover-y);
