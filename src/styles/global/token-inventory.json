@@ -603,7 +603,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 3
     },
     {
       "name": "--agents-user-bubble-max",
@@ -611,7 +611,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 2
     },
     {
       "name": "--size-new-agent-width",

@@ -1176,9 +1176,10 @@
   white-space: nowrap;
 }
 
-.agent-reply-line__cancel {
+.agent-reply-line .agent-reply-line__cancel.button--icon-only {
   flex: none;
   width: var(--agents-reply-cancel);
+  min-width: var(--agents-reply-cancel);
   height: var(--agents-reply-cancel);
   margin-right: var(--spacing-2xs);
 }
@@ -1186,7 +1187,8 @@
 /* What a sent reply answers: a one-line outlined pill directly above the
    bubble, outside it, against the bubble's right edge (4px gap). */
 .agent-reply-pill {
-  max-width: 100%;
+  /* Hugs its text, up to the bubble's own cap, against the bubble's right edge. */
+  max-width: min(80%, var(--agents-user-bubble-max), calc(100% - 82px));
   padding: var(--spacing-3xs) var(--spacing-md);
   padding-block: 3px; /* css-ok: the spec's 3px */
   overflow: hidden;
