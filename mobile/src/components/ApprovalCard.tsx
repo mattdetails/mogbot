@@ -293,9 +293,10 @@ export function ApprovalCard({
   // Behind ⋯: the broader answer, and a denial with a note. One row of
   // answers under the thumb, never a second line of them.
   const noAlways = cantAlwaysAllow(approval);
-  const alwaysOption = approval.always && !noAlways
-    ? [{ label: `Always allow ${approval.always.label}`, run: () => void answer(true, true) }]
-    : [];
+  const alwaysOption =
+    approval.always && !noAlways
+      ? [{ label: `Always allow ${approval.always.label}`, run: () => void answer(true, true) }]
+      : [];
   const more = [...alwaysOption, { label: 'Deny with a note…', run: () => setNoting(true) }];
 
   // "<source> sent what it knows": Ignore / Save to memory, nothing else.
@@ -467,7 +468,12 @@ export function ApprovalCard({
       )}
       {/* What Always allow would cover (or why it can't be): one sentence, under it, whatever else the note says. */}
       {!!approval.always && !!approval.alwaysNote && !consent && !gate && !crossover && (
-        <T variant="caption" color={colors.textMuted} style={{ textAlign: 'center' }} testID="always-note">
+        <T
+          variant="caption"
+          color={colors.textMuted}
+          style={{ textAlign: 'center' }}
+          testID="always-note"
+        >
           {approval.alwaysNote}
         </T>
       )}
@@ -1063,7 +1069,6 @@ export function Receipt({
     <Animated.View entering={FadeIn.duration(200)} layout={LinearTransition.duration(200)}>
       <Line
         icon={glyph}
-        tone={status === 'allowed' ? 'success' : undefined}
         lead={word}
         text={title}
         testID="receipt"

@@ -214,8 +214,18 @@ async function portFree(port) {
 }
 
 let mock = null;
+/** What the app cached of the last mock's chats: gone, so a fresh Mac is seen fresh. */
+async function dropCaches(page) {
+  await page
+    .eval(
+      `Object.keys(localStorage).filter((k) => /cache-.*\\.json$/.test(k)).forEach((k) => localStorage.removeItem(k))`
+    )
+    .catch(() => {});
+}
 async function startMock(...flags) {
   await stop(mock);
+  // A fresh Mac each time when asked: what an earlier run answered is not remembered.
+  if (process.env.QA_FRESH_STATE) rmSync(mockState, { force: true, recursive: true });
   mock = run('mock', path.join(ROOT, 'node_modules/.bin/tsx'), [
     'dev/mock.ts',
     '--http',
@@ -840,6 +850,45 @@ const tablesReadDown = async (page) => {
   if (stacked < 3) throw new Error(`expected 3 stacked tables, found ${stacked}`);
 };
 
+/**
+ * Press on the message whose words start with `start`, drag it `dx` to the right and
+ * either hold there (for a shot mid-swipe) or let go. A finger, in steps.
+ */
+const dragMessage = async (page, start, dx, { release = true } = {}) => {
+  const box = await page.eval(`(() => {
+    const want = ${JSON.stringify(start)};
+    const el = [...document.querySelectorAll('body *')]
+      .filter((e) => (e.innerText ?? '').trim().startsWith(want) && e.children.length === 0)
+      .pop();
+    if (!el) return null;
+    el.scrollIntoView({ block: 'center' });
+    const r = el.getBoundingClientRect();
+    return { x: r.x + Math.min(r.width / 2, 60), y: r.y + r.height / 2 };
+  })()`);
+  if (!box) throw new Error(`No message to drag: ${start}`);
+  const at = (type, x, buttons) =>
+    page.send('Input.dispatchMouseEvent', {
+      type,
+      x,
+      y: box.y,
+      button: 'left',
+      buttons,
+      clickCount: 1,
+    });
+  await at('mouseMoved', box.x, 0);
+  await at('mousePressed', box.x, 1);
+  for (let i = 1; i <= 10; i++) {
+    await at('mouseMoved', box.x + (dx * i) / 10, 1);
+    await sleep(25);
+  }
+  await sleep(300);
+  if (release) {
+    await at('mouseReleased', box.x + dx, 0);
+    await sleep(700);
+  }
+  return box;
+};
+
 /** Long-press the message whose words start with `start`, as a finger held on it. */
 const holdMessage = async (page, start) => {
   const box = await page.eval(`(() => {
@@ -1198,7 +1247,11 @@ const PROBE = [
         await page.clickText('Next');
         await sleep(500);
       }
-      await page.waitFor(`document.body.innerText.includes('Save for later')`, 10_000, 'the summary');
+      await page.waitFor(
+        `document.body.innerText.includes('Save for later')`,
+        10_000,
+        'the summary'
+      );
       const off = await page.eval(`(() => {
         const el = [...document.querySelectorAll('body *')].filter((e) => e.innerText?.trim() === 'Start mission').pop();
         let n = el;
@@ -1237,8 +1290,16 @@ const PROBE = [
         await page.clickText('Next');
         await sleep(500);
       }
-      await page.waitFor(`document.body.innerText.includes('Save for later')`, 10_000, 'the summary');
-      if (await page.eval(`document.body.innerText.includes('Add a goal') || document.body.innerText.includes('Add what counts as done')`)) {
+      await page.waitFor(
+        `document.body.innerText.includes('Save for later')`,
+        10_000,
+        'the summary'
+      );
+      if (
+        await page.eval(
+          `document.body.innerText.includes('Add a goal') || document.body.innerText.includes('Add what counts as done')`
+        )
+      ) {
         throw new Error('Start was offered a reason with a goal, a criterion and a share');
       }
       await page.clickText('Save for later');
@@ -1249,11 +1310,19 @@ const PROBE = [
         `() => [...document.querySelectorAll('body *')].filter((e) => e.innerText?.trim().startsWith('Draft ·') && e.innerText.includes('Answer the easy') && e.getBoundingClientRect().width).pop()`,
         'the draft row'
       );
-      await page.waitFor(`document.body.innerText.includes('Start mission')`, 15_000, 'the summary again');
+      await page.waitFor(
+        `document.body.innerText.includes('Start mission')`,
+        15_000,
+        'the summary again'
+      );
       if (await page.eval(`document.body.innerText.includes('Choose how much usage to spend')`)) {
         throw new Error('the reopened draft lost its usage share');
       }
-      for (const want of ['Answer the easy support emails', 'Inbox under 20 unread', 'about 30% of its week']) {
+      for (const want of [
+        'Answer the easy support emails',
+        'Inbox under 20 unread',
+        'about 30% of its week',
+      ]) {
         if (!(await page.eval(`document.body.innerText.includes(${JSON.stringify(want)})`))) {
           throw new Error(`the reopened draft lost "${want}"`);
         }
@@ -4385,7 +4454,8 @@ async function main() {
   // it waits, then the reason, never a spinner forever.
   const link = await (await fetch(`${MOCK}/dev/link`)).text();
   const d = new URL(link.replace(/^[^:]+:\/\//, 'http://x/')).searchParams.get('d');
-  await prePairShots(page, d);
+  // The pairing screens take minutes (an unreachable host times out); `--no-pair` skips them.
+  if (!args.includes('--no-pair')) await prePairShots(page, d);
   if (phase('demo')) await demoShots(page);
 
   // Pair through the real confirm screen. The demo's shots end on the last
@@ -4604,40 +4674,77 @@ async function main() {
     for (const theme of THEMES) {
       await setTheme(page, theme);
       // Several: the first decision, the queue under it ("Up next · N") ending on the summary row.
-      await startMock();
+      await startMock('--catchup-several');
+      await dropCaches(page);
       await page.goto(`${WEB}/one-at-a-time`);
       await sleep(5000);
       await screen(page, theme, {
         name: 'catchup2-several',
-        check: 'Header: back, “Catch up”, “1 of N”; the card (key, name, age, amber eyebrow, the ask), actions stacked (strong, outline, ghosts); “Up next · N” rows under it',
+        check:
+          'Header: back, “Catch up”, “1 of N”; the card (key, name, age, amber eyebrow, the ask), actions stacked (strong, outline, ghosts); “Up next · N” rows under it',
+      });
+      // Allow / Deny: Later through the default queue (bounded) to the first approval.
+      await startMock('--catchup-several');
+      await dropCaches(page);
+      await page.goto(`${WEB}/one-at-a-time`);
+      await page.waitFor(`/up next/i.test(document.body.innerText)`, 45000, 'the queue');
+      for (let i = 0; i < 12; i++) {
+        if (await page.eval(`document.body.innerText.includes('Deny')`)) break;
+        await page.clickText('Later').catch(() => {});
+        await sleep(700);
+      }
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'catchup2-allow',
+        check:
+          'An approval in front: Allow (strong, 48 tall, 15pt) and Deny (1pt outline), the ghosts under them, Up next below',
       });
       // One decision and what happened after it: “1 left”, “Then · While you were away”.
-      await startMock('--catchup-one');
+      await startMock('--catchup-one', '--catchup-several');
+      await dropCaches(page);
       await page.goto(`${WEB}/one-at-a-time`);
-      await sleep(5000);
-      await screen(page, theme, {
-        name: 'catchup2-two',
-        check: 'Two decisions: “1 of 2”, the card (flat, one container, the ask as its title), Up next · 1 with the kind under its title, then no summary row yet',
-      });
-      // Deny the first: one decision is left.
-      await page.clickLabel('Deny').catch(() => {});
-      await sleep(1500);
+      // The second decision's chat loads after the first (Ops' push arrives a few seconds in):
+      // wait for the queue to settle, then answer it if it came, so the state is always “one left”.
+      await sleep(12000);
+      if (await page.eval(`document.body.innerText.includes('1 of 2')`)) {
+        await screen(page, theme, {
+          name: 'catchup2-two',
+          check:
+            'Two decisions: “1 of 2”, the card (flat, one container, the ask as its title), Up next · 1 with the kind under its title',
+        });
+        await page.clickText('Later');
+        await page.waitFor(`document.body.innerText.includes('Deny')`, 15000, 'the push');
+        await sleep(2500); // a card arms a moment after it arrives
+        await page.clickText('Deny');
+        await sleep(4000);
+      }
+      await page
+        .waitFor(`/\\bthen\\b/i.test(document.body.innerText)`, 30000, 'one decision left')
+        .catch(async (e) => {
+          console.log('[debug]', JSON.stringify((await page.text()).slice(0, 400)));
+          throw e;
+        });
+      await sleep(800);
       await screen(page, theme, {
         name: 'catchup2-one',
-        check: 'One decision: “1 left”, the card, then “Then” and the “While you were away” row (“1 thing, no decisions”)',
+        check:
+          'One decision: “1 left”, the card, then “Then” and the “While you were away” row (“N things, no decisions”)',
       });
       // Later on the only decision: on to the summary.
       await page.clickText('Later');
-      await sleep(1200);
+      await page.waitFor(`document.body.innerText.includes('Got it')`, 15000, 'the summary');
+      await sleep(600);
       await screen(page, theme, {
         name: 'catchup2-summary',
-        check: 'Summary: header “Summary”; the card “While you were away” with a clock tile, its rows with the time at the right; Got it in a fixed bar',
+        check:
+          'Summary: header “Summary”; the card “While you were away” with a clock tile, its rows with the time at the right; Got it in a fixed bar',
       });
       await page.clickText('Got it');
       await sleep(1200);
       await screen(page, theme, {
         name: 'catchup2-clear',
-        check: 'All clear: a ring with a check, “All clear”, “Nothing needs you.”, one outline “What’s in flight”',
+        check:
+          'All clear: a ring with a check, “All clear”, “Nothing needs you.”, one outline “What’s in flight”',
       });
     }
   }
@@ -4668,6 +4775,152 @@ async function main() {
     }
   }
 
+  if (phase('reply')) {
+    // Reply to a message: the pills on sent replies, the swipe (mid-pull, armed), the line in the box.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--replies');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(6000);
+      await page.eval(FIND_SCROLLER);
+      await page.eval(
+        'window.__qaScroller && (window.__qaScroller.scrollTop = window.__qaScroller.scrollHeight)'
+      );
+      await sleep(800);
+      await screen(page, theme, {
+        name: 'reply-sent',
+        check:
+          'Sent replies: a one-line outlined pill above each bubble, outside it (quoting the agent’s words, yours, a picture as “Attachment · icons@2x.png”); the last says “Message not available”',
+      });
+      // Tap the pill: the original is found and lit once.
+      await page.clickText('Here’s the sheet before I copy it over.');
+      await sleep(1200);
+      await screen(page, theme, {
+        name: 'reply-jump',
+        check: 'After tapping a pill: the chat scrolled to the original and it glows once',
+      });
+      // Long-press: Reply is the first item of the sheet.
+      await holdMessage(page, 'Is this the right sheet?').catch(() => {});
+      await screen(page, theme, {
+        name: 'reply-menu',
+        check:
+          'Long-press on a message: the sheet starts with Reply, then Copy, Quote, Select text',
+      });
+      // Reply from the sheet: the line is set in the box, then cancelled with its ×.
+      await page.clickText('Reply');
+      await sleep(900);
+      await screen(page, theme, {
+        name: 'reply-set',
+        check:
+          'Reply set from the menu: one outlined 32-tall line at the top of the box with the first words of the original and a ×; the box grew by that line',
+      });
+      await page.clickWhere(
+        `() => document.querySelector('[aria-label="Cancel reply"]')`,
+        'the reply’s ×'
+      );
+      await sleep(600);
+      await screen(page, theme, {
+        name: 'reply-cancelled',
+        check: 'Reply cancelled with the ×: the line is gone and the box is a single line again',
+      });
+      // Mid-pull: under 48 the circle is outlined, the bubble follows the finger.
+      await dragMessage(page, 'Is this the right sheet?', 40, { release: false });
+      await screen(page, theme, {
+        name: 'reply-swipe',
+        check:
+          'Mid swipe at 40: the bubble pulled right, the arrow circle outlined (not yet filled)',
+      });
+      await page.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x: 10,
+        y: 10,
+        button: 'left',
+        buttons: 0,
+        clickCount: 1,
+      });
+      await sleep(600);
+      await dragMessage(page, 'Is this the right sheet?', 110, { release: false });
+      await screen(page, theme, {
+        name: 'reply-armed',
+        check: 'Past the threshold: the circle filled in the inverse colour with its arrow',
+      });
+      await page.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x: 200,
+        y: 10,
+        button: 'left',
+        buttons: 0,
+        clickCount: 1,
+      });
+      await sleep(900);
+      await screen(page, theme, {
+        name: 'reply-set-swipe',
+        check: 'Reply set by the swipe: the same line at the top of the box',
+      });
+      await page.type('The second one, please.', 'textarea');
+      await sleep(400);
+      await screen(page, theme, {
+        name: 'reply-typed',
+        check:
+          'Reply set and a message typed: the line on top, the words under it, Send in the agent’s colour',
+      });
+      await page.clickLabel('Send');
+      await sleep(2500);
+      await screen(page, theme, {
+        name: 'reply-sent-new',
+        check:
+          'The reply just sent: its pill sits above your new bubble, the box is back to one line',
+      });
+    }
+  }
+
+  if (phase('tasks')) {
+    // The task line under the name, the ⋯ menu's Tasks row, and the list: full, then empty.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--tasks');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(7000);
+      await screen(page, theme, {
+        name: 'tasks-header',
+        check:
+          'The header: key, name, and under it the task line (a dot, what it is doing, “· 4 to do · 1 waits” with the waits amber, a chevron); no pill',
+      });
+      await page.clickLabel('More');
+      await sleep(900);
+      await screen(page, theme, {
+        name: 'tasks-menu',
+        check:
+          'The ⋯ menu: Tasks is the first row with “1 waits · 4 to do” under it, then Usage, Conversations, About',
+      });
+      await page.clickText('Tasks');
+      await sleep(1500);
+      await screen(page, theme, {
+        name: 'tasks-sheet',
+        check:
+          'The task list sheet: Doing, Next, Waits on you (amber, “since … · on Dana’s reply”), Done today (struck, muted), marks per state, “4 to do” under the title',
+      });
+      await startMock('--tasks-empty');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(7000);
+      await screen(page, theme, {
+        name: 'tasks-header-idle',
+        check:
+          'Nothing open and not working: the muted line under the name is the agent’s role again',
+      });
+      await page.goto(`${WEB}/tasks?id=design`);
+      await sleep(5000);
+      await screen(page, theme, {
+        name: 'tasks-empty',
+        check:
+          'The empty list: “Nothing on the list” and “Nothing on the list. Ask for something and it lands here.”',
+      });
+    }
+  }
+
   if (phase('nested-list')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);
@@ -4678,7 +4931,8 @@ async function main() {
       await sleep(600);
       await screen(page, theme, {
         name: 'nested-list',
-        check: 'A reply that is only a nested list: the numbers, the bullets and every line of text, on the bubble’s full width',
+        check:
+          'A reply that is only a nested list: the numbers, the bullets and every line of text, on the bubble’s full width',
       });
     }
   }
@@ -4690,10 +4944,22 @@ async function main() {
       await page.goto(`${WEB}/chat/design`);
       await sleep(5000);
       for (const [name, text, check] of [
-        ['card-cp-path', 'Exported 24 icons. I need to copy them into the site repo.', 'The copy card under it: the title names where it goes, the whole path wrapped in the command'],
-        ['card-risk-note', 'Deletes this folder and everything in it. It can’t be undone.', 'A risky call: the warning icon, the command, the Mac’s one-line why under it, the always-allow sentence as the card note'],
+        [
+          'card-cp-path',
+          'Exported 24 icons. I need to copy them into the site repo.',
+          'The copy card under it: the title names where it goes, the whole path wrapped in the command',
+        ],
+        [
+          'card-risk-note',
+          'Deletes this folder and everything in it. It can’t be undone.',
+          'A risky call: the warning icon, the command, the Mac’s one-line why under it, the always-allow sentence as the card note',
+        ],
         ['card-folded-phone', 'Allowed on your phone', 'A folded card: “Allowed on your phone”'],
-        ['card-folded-lock', 'Allowed from the Lock Screen', 'A folded card: “Allowed from the Lock Screen”'],
+        [
+          'card-folded-lock',
+          'Allowed from the Lock Screen',
+          'A folded card: “Allowed from the Lock Screen”',
+        ],
         ['card-folded-rule', 'Declined by your rule', 'A folded card: “Declined by your rule”'],
       ]) {
         await scrollToIncludes(text)(page);
@@ -4713,7 +4979,8 @@ async function main() {
       await sleep(600);
       await screen(page, theme, {
         name: 'dictation-words',
-        check: 'Settings → Dictation words: two typed words (“Added on your Mac”) and two learned (“Learned from your fixes · heard as …”), the footer',
+        check:
+          'Settings → Dictation words: two typed words (“Added on your Mac”) and two learned (“Learned from your fixes · heard as …”), the footer',
       });
       await page.clickText('Tailscale');
       await sleep(600);

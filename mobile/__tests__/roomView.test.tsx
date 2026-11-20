@@ -19,6 +19,7 @@ import { agent } from './helpers';
 const mockSend = jest.fn((..._args: unknown[]) => Promise.resolve());
 const mockPush = jest.fn();
 
+jest.mock('react-native-gesture-handler', () => require('./gestureStub').gestureHandler());
 jest.mock('expo-router', () => {
   const { useEffect } = jest.requireActual<typeof import('react')>('react');
   return {

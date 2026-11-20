@@ -9,6 +9,7 @@ import type { AgentMessage } from '@shipstudio/companion-protocol';
 import { render, screen } from '@testing-library/react-native';
 import { agent, msg } from './helpers';
 
+jest.mock('react-native-gesture-handler', () => require('./gestureStub').gestureHandler());
 jest.mock('react-native-reanimated', () => {
   const { View, FlatList } = jest.requireActual<typeof import('react-native')>('react-native');
   const preset: Record<string, unknown> = {};

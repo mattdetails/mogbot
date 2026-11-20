@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import {
   alpha,
+  catchUp,
   chromeScale,
   depthOf,
   fonts,
@@ -239,7 +240,8 @@ export function Button({
   const c: ButtonColors = filled
     ? { bg: a.accent, pressed: a.pressed, fg: a.onAccent }
     : buttonColorsOf(colors)[variant];
-  const height = size === 'large' ? 50 : size === 'compact' ? 32 : 44;
+  // Flat (Catch up's): 48 tall, 15pt, a 12 corner, a 1pt outline.
+  const height = flat ? catchUp.button : size === 'large' ? 50 : size === 'compact' ? 32 : 44;
   // Primary and the answer are keycaps, as on the desk: a lit edge, a short
   // side in the fill's own shade, and a press that travels down by what the
   // side gives up (no scale, so the label never shrinks). Disabled sits flat.
@@ -258,6 +260,7 @@ export function Button({
         styles.button,
         {
           minHeight: height,
+          ...(flat && { borderWidth: StyleSheet.hairlineWidth }),
           paddingHorizontal: size === 'compact' ? space.md : space.lg,
           backgroundColor: pressed ? c.pressed : c.bg,
           borderColor: c.border ?? 'transparent',
@@ -281,7 +284,10 @@ export function Button({
             color={c.fg}
             numberOfLines={lines}
             maxFontSizeMultiplier={lines > 1 ? 2 : chromeScale}
-            style={lines > 1 ? { flexShrink: 1, paddingVertical: space.sm } : undefined}
+            style={[
+              flat && { fontSize: catchUp.buttonText },
+              lines > 1 ? { flexShrink: 1, paddingVertical: space.sm } : undefined,
+            ]}
           >
             {title}
           </T>

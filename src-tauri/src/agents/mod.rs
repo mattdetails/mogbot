@@ -168,6 +168,7 @@ pub mod reach;
 pub mod recipe;
 pub mod remember;
 pub mod repo_trust;
+pub mod reply;
 pub mod results;
 pub mod review;
 pub mod rewind;
@@ -295,6 +296,7 @@ fn greet(agent_id: &str) {
         fresh: false,
         result: None,
         revises: None,
+        reply_to: None,
         takeover: false,
         room: None,
         decide: Vec::new(),

@@ -571,7 +571,7 @@ export class DirectTransport implements Transport {
       }
       this.send({ t: 'presence', foreground });
       // A socket that sat in the background may be dead without knowing it.
-      if (cameForward) this.probe();
+      if (cameForward) this.retryNow();
     } else if (foreground) {
       // Someone is looking now: the calm moment starts over, and so do the tries.
       if (cameForward && this.troubleSince) {
@@ -592,7 +592,11 @@ export class DirectTransport implements Transport {
    */
   retryNow() {
     if (this.closed || this.refused) return;
-    if (this.ready) return this.probe();
+    if (this.ready) {
+      // A relay session waiting out its own backoff goes now too.
+      (this.ws as unknown as { nudge?: () => void } | null)?.nudge?.();
+      return this.probe();
+    }
     if (this.ws) {
       if (Date.now() - this.triedAt < FRESH_TRY_MS) return;
       // The try in flight is stuck on its route: the next one goes elsewhere.
@@ -697,6 +701,7 @@ export class DirectTransport implements Transport {
     // channel's handshake; from there it's the same frames as on Tailscale.
     const ws = (relay
       ? new RelaySocket(url, {
+          session: true,
           fingerprint: this.opts.pinned.fingerprint,
           random: this.random,
           WebSocketImpl: Impl,

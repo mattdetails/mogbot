@@ -1,5 +1,5 @@
 import { bubbleColors, colorwayOf, keyLookFor } from '@shipstudio/companion-protocol';
-import { useColors } from './appearance';
+import { useAppearance, useColors } from './appearance';
 
 /**
  * Your bubble in an agent's chat: that agent's key colour, its words in
@@ -8,9 +8,11 @@ import { useColors } from './appearance';
  */
 export function useUserBubble(agent?: { name: string } | null) {
   const colors = useColors();
+  const dark = useAppearance() === 'dark';
   if (!agent) return { fill: colors.surfaceBubbleUser, ink: colors.textOnBubbleUser };
   const b = bubbleColors(
-    colorwayOf(keyLookFor(agent as Parameters<typeof keyLookFor>[0]).colorway).face
+    colorwayOf(keyLookFor(agent as Parameters<typeof keyLookFor>[0]).colorway).face,
+    { dark }
   );
   return { fill: b.fill, ink: b.ink };
 }

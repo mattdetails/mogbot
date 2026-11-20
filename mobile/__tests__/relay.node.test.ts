@@ -131,6 +131,53 @@ describe('over the relay', () => {
     t.close();
   });
 
+  it('a socket the path killed comes back as the same session: no new hello, nothing lost', async () => {
+    const { token } = mock.issueToken();
+    mock.setDirect(false);
+    const { t, events, states } = open(mock, routes(), token);
+    await until(() => t.state.kind === 'connected');
+    await until(() => events.some((e) => e.type === 'sync.caughtUp'));
+    const opened = relay().opened;
+    const seen = states.length;
+    relay().dropAll();
+    // A request made while the socket is down waits for the new one and is answered.
+    const overview = await t.request('agents.overview', {});
+    expect(overview.agents.length).toBeGreaterThan(0);
+    expect(relay().opened).toBeGreaterThan(opened);
+    // The transport never noticed: it stayed connected, on the same route.
+    expect(states.slice(seen).every((s) => s.kind === 'connected')).toBe(true);
+    expect(t.state).toMatchObject({ kind: 'connected', route: 'relay' });
+    // And again, and the answers still come back in order.
+    relay().dropAll();
+    const [a, b] = await Promise.all([
+      t.request('agents.overview', {}),
+      t.request('agents.overview', {}),
+    ]);
+    expect(a.agents.length).toBe(b.agents.length);
+    t.close();
+  });
+
+  it('a network change or coming forward retries the session at once, not after its backoff', async () => {
+    const { token } = mock.issueToken();
+    mock.setDirect(false);
+    const { t, events, states } = open(mock, routes(), token);
+    await until(() => t.state.kind === 'connected');
+    await until(() => events.some((e) => e.type === 'sync.caughtUp'));
+    const opened = relay().opened;
+    const seen = states.length;
+    relay().dropAll();
+    // What session.ts does on a NetInfo change: well inside the first 1 s backoff.
+    await new Promise((r) => setTimeout(r, 150));
+    t.retryNow();
+    await until(() => relay().opened > opened, 700);
+    // Still the same link to the app: nothing was shown for the short drop.
+    await until(() => t.state.kind === 'connected');
+    expect(states.slice(seen).every((s) => s.kind === 'connected')).toBe(true);
+    const overview = await t.request('agents.overview', {});
+    expect(overview.agents.length).toBeGreaterThan(0);
+    t.close();
+  });
+
   it('uploads and downloads files through it, in pieces, ending as a file URI', async () => {
     const { token } = mock.issueToken();
     const files = memoryFiles();

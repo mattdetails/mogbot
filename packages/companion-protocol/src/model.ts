@@ -1577,6 +1577,8 @@ export interface AgentMessage {
   result?: ResultCard;
   /** On a user message: "Ask for changes" on this result. */
   revises?: ResultRef;
+  /** On a user message: the message it replies to, filled by the Mac from its own log. */
+  replyTo?: ReplyRef;
   /** On a `note` (an `error` from older Macs): a take-over's terminal closed by itself; not a turn's failure. */
   takeover?: boolean;
   /**
@@ -2537,6 +2539,23 @@ export interface AgentReachSettings {
   browserSites?: string[];
   /** Claude Code apps kept from its turns, by name there. */
   blockedApps?: string[];
+}
+
+/** What kind of thing a reply answers; the clients word it ("Attachment · name", "Link · domain"). */
+export type ReplyKind = 'message' | 'attachment' | 'file' | 'link' | 'card';
+
+/**
+ * The message a reply answers, as it was when the reply was sent
+ * (`agents/reply.rs`): the Mac fills it from the stored original.
+ */
+export interface ReplyRef {
+  /** The original's id. */
+  id: string;
+  /** "you" for the user's own message, otherwise the agent's name. */
+  name: string;
+  /** The original's text (at most 200 characters, cut on a word); an attachment, file or link's name or domain; a card's title. */
+  excerpt: string;
+  kind: ReplyKind;
 }
 
 /** What the header's quiet line says of one agent (`agents/tasks.rs`, `Counts`). */

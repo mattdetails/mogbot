@@ -102,6 +102,9 @@ import {
 import { useAccent } from '../lib/accent';
 import { chatKeyFor, conversationsOffered, jumpStep } from '../lib/conversations';
 import { getApp, useApp, useServed } from '../lib/store';
+import { replyRefFor } from '../lib/reply';
+import { TASK_WORDS, taskLine, taskMenuLine } from '@shipstudio/companion-protocol';
+import { ReplyContext, type ReplyActions } from './Reply';
 import { chipLabel } from '../lib/agentControls';
 import { SETUP_KEY, chatItems, isRowFor, sentAt, withSetupCard, type Item } from '../lib/timeline';
 import { setupAnchor, shows as showsSetup } from '../lib/teamSetup';
@@ -593,6 +596,31 @@ export function ChatView({
     [lift]
   );
 
+  // Reply: the Mac fills the quote from its own log (`messages.reply`); a Mac without it offers none.
+  const canReply = useServed('agents.send', MAC_FEATURES.replyToMessage);
+  const replyActions = useMemo<ReplyActions | null>(() => {
+    if (!canReply) return null;
+    return {
+      onReply: (messageId) => {
+        const m = getApp().chats[chatKey ?? id]?.messages.find((x) => x.id === messageId);
+        const ref = m
+          ? replyRefFor(m, getApp().overview?.agents.find((a) => a.id === id)?.name ?? '')
+          : null;
+        if (!ref) return;
+        setComposer(id, { replying: ref });
+        setFocusKey((k) => k + 1);
+      },
+      onJump: (messageId) => {
+        if (!itemsRef.current.some((i) => isRowFor(i, messageId))) return false;
+        haptic.select();
+        setTarget(messageId);
+        setTimeout(() => setTarget((t) => (t === messageId ? null : t)), 2000);
+        return true;
+      },
+      has: (messageId) => !!getApp().chats[chatKey ?? id]?.messages.some((x) => x.id === messageId),
+    };
+  }, [canReply, chatKey, id]);
+
   const onMessageAction = useCallback(
     (m: AgentMessage) => {
       haptic.select();
@@ -614,9 +642,18 @@ export function ChatView({
       // The time it was sent lives here, not under every bubble.
       showActions(
         sentAt(m.ts),
-        messageActions(m, remember, canReadAloud(), canGoBack() && m.kind === 'user'),
+        messageActions(
+          m,
+          remember,
+          canReadAloud(),
+          canGoBack() && m.kind === 'user',
+          canReply && !!replyRefFor(m, state.agentName)
+        ),
         (action: MessageAction) => {
           switch (action) {
+            case 'reply':
+              replyActions?.onReply(m.id);
+              break;
             case 'edit':
               if (blocked('edit')) break;
               setComposer(id, {
@@ -684,7 +721,7 @@ export function ChatView({
         }
       );
     },
-    [id, router, showError, viewing]
+    [id, router, showError, viewing, canReply, replyActions]
   );
 
   // A reply read aloud stops when its chat closes.
@@ -714,6 +751,7 @@ export function ChatView({
   );
 
   const controlsNow = useControlsNow(agent);
+  const tasksNow = agent?.tasks ? taskMenuLine(agent.tasks) : undefined;
 
   // The working row's Review: the first waiting card, its answers in reach.
   const reviewNeeds = useCallback(() => {
@@ -740,8 +778,8 @@ export function ChatView({
   }
 
   // Embedded (beside the list) the title takes the row's flex, not the bar's budget.
-  const header = <Header agent={agent} buttons={0} />;
   const openSheet = () => router.push({ pathname: '/agent/[id]', params: { id } });
+  const header = <Header agent={agent} buttons={0} onOpen={openSheet} />;
   const openUsage = () => router.push({ pathname: '/usage', params: { id } });
   const openConversations = () => router.push({ pathname: '/conversations', params: { id } });
   // Which conversation this is lives in the ⋯ menu, as Conversations' subtitle
@@ -753,17 +791,20 @@ export function ChatView({
     ring?.percent,
     offered,
     conversationNow,
-    controlsNow
+    controlsNow,
+    tasksNow
   );
   const openMore = () =>
     showActions(undefined, moreActions, (a) =>
-      a === 'usage'
-        ? openUsage()
-        : a === 'conversations'
-          ? openConversations()
-          : a === 'controls'
-            ? openControls()
-            : openSheet()
+      a === 'tasks'
+        ? router.push({ pathname: '/tasks', params: { id } })
+        : a === 'usage'
+          ? openUsage()
+          : a === 'conversations'
+            ? openConversations()
+            : a === 'controls'
+              ? openControls()
+              : openSheet()
     );
   const urgentBelow =
     !follow.pinned &&
@@ -775,13 +816,7 @@ export function ChatView({
     <View style={{ flex: 1 }}>
       {embedded ? (
         <View style={styles.embeddedHeader}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={openSheet}
-            style={({ pressed }) => [{ flex: 1 }, pressed && PRESSED]}
-          >
-            {header}
-          </Pressable>
+          <View style={{ flex: 1 }}>{header}</View>
           {TALK_OFFERED && (
             <IconButton
               name="waveform"
@@ -823,150 +858,152 @@ export function ChatView({
             }}
           />
         )}
-        <BlockRepliesContext.Provider value={blockReplies}>
-          <PathContext.Provider value={openPath}>
-            <GalleryContext.Provider value={gallery}>
-              <PaneContext.Provider value={pane}>
-                <Animated.FlatList
-                  ref={list}
-                  inverted
-                  data={items}
-                  keyExtractor={(i) => i.key}
-                  // No itemLayoutAnimation: on iOS a row's glide left the pictures
-                  // inside it unpainted (result cards drew as blank space, never
-                  // on the web build, where it was always off). docs/mobile.md.
-                  onLayout={(e: LayoutChangeEvent) => setListHeight(e.nativeEvent.layout.height)}
-                  // Let go to read back: the rows on screen hold still while the
-                  // newest grows or arrives below them. Following: none, so the
-                  // inverted list keeps the newest line on the composer.
-                  maintainVisibleContentPosition={holdFor(follow)}
-                  renderItem={({ item, index }) => (
-                    <ItemView
-                      item={item}
-                      // Lines one after another sit at the Line gap, not a paragraph apart.
-                      afterLine={
-                        index + 1 < items.length
-                          ? isLineItem(items[index + 1])
-                          : !!chat?.loaded && !chat.more
-                      }
-                      agent={agent}
-                      liveCopyCard={liveCopyCard}
-                      newestResult={newestResult}
-                      latestFailure={latestFailure}
-                      onError={showError}
-                      onLongPress={onMessageAction}
-                      onToggleFold={toggleFold}
-                      onReview={reviewNeeds}
-                      lit={!!target && isRowFor(item, target)}
-                      arrived={arrived.has(item.key)}
-                    />
-                  )}
-                  onScrollToIndexFailed={(info) => {
-                    // Not measured yet: get near it, then try again once it's laid out,
-                    // where it was wanted. Always centring here put a tall card's
-                    // Deny · Allow below the pane: the chat "scrolled above the card".
-                    const viewPosition = wantedPosition.current;
-                    list.current?.scrollToOffset({
-                      offset: info.averageItemLength * info.index,
-                      animated: false,
-                    });
-                    setTimeout(
-                      () =>
-                        list.current?.scrollToIndex({
-                          index: info.index,
-                          viewPosition,
-                          animated: true,
-                        }),
-                      120
-                    );
-                  }}
-                  renderScrollComponent={renderScroll}
-                  contentContainerStyle={[
-                    styles.content,
-                    { paddingLeft: space.lg + side.left, paddingRight: space.lg + side.right },
-                  ]}
-                  keyboardDismissMode="interactive"
-                  keyboardShouldPersistTaps="handled"
-                  onEndReached={older}
-                  onEndReachedThreshold={0.6}
-                  onViewableItemsChanged={onViewable}
-                  viewabilityConfig={VIEWABILITY}
-                  onScrollBeginDrag={() => {
-                    touch.current = touched(touch.current, 'dragStart');
-                  }}
-                  onScrollEndDrag={() => {
-                    touch.current = touched(touch.current, 'dragEnd');
-                  }}
-                  onMomentumScrollBegin={() => {
-                    touch.current = touched(touch.current, 'momentumStart');
-                  }}
-                  onMomentumScrollEnd={() => {
-                    touch.current = touched(touch.current, 'momentumEnd');
-                  }}
-                  onScroll={(e) => {
-                    // The offset and its inset from the same instant (lib/follow).
-                    const inset = insetFor(
-                      e.nativeEvent.contentInset?.top,
-                      insetTop.current,
-                      Platform.OS === 'ios'
-                    );
-                    insetTop.current = inset;
-                    const d = fromEnd(e.nativeEvent.contentOffset.y, inset);
-                    distance.current = d;
-                    const byUser = byFinger(touch.current);
-                    // Bail-outs keep these from re-rendering on every event.
-                    setFollow((now) => scrolled(now, d, newestRef.current, byUser));
-                    setFar(d > FAR);
-                  }}
-                  scrollEventThrottle={32}
-                  initialNumToRender={16}
-                  maxToRenderPerBatch={12}
-                  windowSize={13}
-                  // Inverted: the header sits at the newest end, under the welcome.
-                  ListHeaderComponent={
-                    firstOpen && agent.starters ? (
-                      <Starters
-                        starters={agent.starters}
-                        onSend={(text) => {
-                          haptic.light();
-                          send(agent.id, text).catch((e: unknown) => showError(describeError(e)));
-                        }}
+        <ReplyContext.Provider value={replyActions}>
+          <BlockRepliesContext.Provider value={blockReplies}>
+            <PathContext.Provider value={openPath}>
+              <GalleryContext.Provider value={gallery}>
+                <PaneContext.Provider value={pane}>
+                  <Animated.FlatList
+                    ref={list}
+                    inverted
+                    data={items}
+                    keyExtractor={(i) => i.key}
+                    // No itemLayoutAnimation: on iOS a row's glide left the pictures
+                    // inside it unpainted (result cards drew as blank space, never
+                    // on the web build, where it was always off). docs/mobile.md.
+                    onLayout={(e: LayoutChangeEvent) => setListHeight(e.nativeEvent.layout.height)}
+                    // Let go to read back: the rows on screen hold still while the
+                    // newest grows or arrives below them. Following: none, so the
+                    // inverted list keeps the newest line on the composer.
+                    maintainVisibleContentPosition={holdFor(follow)}
+                    renderItem={({ item, index }) => (
+                      <ItemView
+                        item={item}
+                        // Lines one after another sit at the Line gap, not a paragraph apart.
+                        afterLine={
+                          index + 1 < items.length
+                            ? isLineItem(items[index + 1])
+                            : !!chat?.loaded && !chat.more
+                        }
+                        agent={agent}
+                        liveCopyCard={liveCopyCard}
+                        newestResult={newestResult}
+                        latestFailure={latestFailure}
+                        onError={showError}
+                        onLongPress={onMessageAction}
+                        onToggleFold={toggleFold}
+                        onReview={reviewNeeds}
+                        lit={!!target && isRowFor(item, target)}
+                        arrived={arrived.has(item.key)}
                       />
-                    ) : chiefFirst ? (
-                      <ChiefStarters
-                        onPick={(idea) => {
-                          haptic.select();
-                          // Typed in for you to finish: nothing goes until you press Send.
-                          setComposer(agent.id, { text: idea.text });
-                          setFocusKey((k) => k + 1);
-                        }}
-                      />
-                    ) : undefined
-                  }
-                  ListFooterComponent={
-                    chat?.loaded && !chat.more ? (
-                      <Line text={`Start of your conversation with ${agent.name}`} />
-                    ) : chat?.loaded ? (
-                      <View style={styles.start}>{loadingOlder && <Spinner />}</View>
-                    ) : undefined
-                  }
-                  ListEmptyComponent={
-                    chat?.loaded ? undefined : (
-                      <View style={[styles.start, { transform: [{ scaleY: -1 }] }]}>
-                        {live ? (
-                          <Spinner />
-                        ) : (
-                          // Nothing saved for this chat and the Mac away: why, and what to do.
-                          <LinkProblem what="Your conversations" macName={macName} />
-                        )}
-                      </View>
-                    )
-                  }
-                />
-              </PaneContext.Provider>
-            </GalleryContext.Provider>
-          </PathContext.Provider>
-        </BlockRepliesContext.Provider>
+                    )}
+                    onScrollToIndexFailed={(info) => {
+                      // Not measured yet: get near it, then try again once it's laid out,
+                      // where it was wanted. Always centring here put a tall card's
+                      // Deny · Allow below the pane: the chat "scrolled above the card".
+                      const viewPosition = wantedPosition.current;
+                      list.current?.scrollToOffset({
+                        offset: info.averageItemLength * info.index,
+                        animated: false,
+                      });
+                      setTimeout(
+                        () =>
+                          list.current?.scrollToIndex({
+                            index: info.index,
+                            viewPosition,
+                            animated: true,
+                          }),
+                        120
+                      );
+                    }}
+                    renderScrollComponent={renderScroll}
+                    contentContainerStyle={[
+                      styles.content,
+                      { paddingLeft: space.lg + side.left, paddingRight: space.lg + side.right },
+                    ]}
+                    keyboardDismissMode="interactive"
+                    keyboardShouldPersistTaps="handled"
+                    onEndReached={older}
+                    onEndReachedThreshold={0.6}
+                    onViewableItemsChanged={onViewable}
+                    viewabilityConfig={VIEWABILITY}
+                    onScrollBeginDrag={() => {
+                      touch.current = touched(touch.current, 'dragStart');
+                    }}
+                    onScrollEndDrag={() => {
+                      touch.current = touched(touch.current, 'dragEnd');
+                    }}
+                    onMomentumScrollBegin={() => {
+                      touch.current = touched(touch.current, 'momentumStart');
+                    }}
+                    onMomentumScrollEnd={() => {
+                      touch.current = touched(touch.current, 'momentumEnd');
+                    }}
+                    onScroll={(e) => {
+                      // The offset and its inset from the same instant (lib/follow).
+                      const inset = insetFor(
+                        e.nativeEvent.contentInset?.top,
+                        insetTop.current,
+                        Platform.OS === 'ios'
+                      );
+                      insetTop.current = inset;
+                      const d = fromEnd(e.nativeEvent.contentOffset.y, inset);
+                      distance.current = d;
+                      const byUser = byFinger(touch.current);
+                      // Bail-outs keep these from re-rendering on every event.
+                      setFollow((now) => scrolled(now, d, newestRef.current, byUser));
+                      setFar(d > FAR);
+                    }}
+                    scrollEventThrottle={32}
+                    initialNumToRender={16}
+                    maxToRenderPerBatch={12}
+                    windowSize={13}
+                    // Inverted: the header sits at the newest end, under the welcome.
+                    ListHeaderComponent={
+                      firstOpen && agent.starters ? (
+                        <Starters
+                          starters={agent.starters}
+                          onSend={(text) => {
+                            haptic.light();
+                            send(agent.id, text).catch((e: unknown) => showError(describeError(e)));
+                          }}
+                        />
+                      ) : chiefFirst ? (
+                        <ChiefStarters
+                          onPick={(idea) => {
+                            haptic.select();
+                            // Typed in for you to finish: nothing goes until you press Send.
+                            setComposer(agent.id, { text: idea.text });
+                            setFocusKey((k) => k + 1);
+                          }}
+                        />
+                      ) : undefined
+                    }
+                    ListFooterComponent={
+                      chat?.loaded && !chat.more ? (
+                        <Line text={`Start of your conversation with ${agent.name}`} />
+                      ) : chat?.loaded ? (
+                        <View style={styles.start}>{loadingOlder && <Spinner />}</View>
+                      ) : undefined
+                    }
+                    ListEmptyComponent={
+                      chat?.loaded ? undefined : (
+                        <View style={[styles.start, { transform: [{ scaleY: -1 }] }]}>
+                          {live ? (
+                            <Spinner />
+                          ) : (
+                            // Nothing saved for this chat and the Mac away: why, and what to do.
+                            <LinkProblem what="Your conversations" macName={macName} />
+                          )}
+                        </View>
+                      )
+                    }
+                  />
+                </PaneContext.Provider>
+              </GalleryContext.Provider>
+            </PathContext.Provider>
+          </BlockRepliesContext.Provider>
+        </ReplyContext.Provider>
         {/* Under the header: older words fade up into it. */}
         <EdgeFade edge="top" color={colors.surfaceApp} />
       </View>
@@ -1359,8 +1396,8 @@ const ChatHeader = memo(function ChatHeader({
   const colors = useColors();
   const id = agent.id;
   const buttons = (TALK_OFFERED ? 1 : 0) + 1;
-  const header = <Header agent={agent} buttons={buttons} />;
   const openSheet = () => router.push({ pathname: '/agent/[id]', params: { id } });
+  const header = <Header agent={agent} buttons={buttons} onOpen={openSheet} />;
   const openUsage = () => router.push({ pathname: '/usage', params: { id } });
   const openConversations = () => router.push({ pathname: '/conversations', params: { id } });
   const openTalk = () => router.push({ pathname: '/talk', params: { id } });
@@ -1368,16 +1405,27 @@ const ChatHeader = memo(function ChatHeader({
   // (Julian, 2026-11-10: the 17% pill crowded the bar). The figure rides along
   // as the Usage row's subtitle; a usage line in the chat still says when it's low.
   const controlsNow = useControlsNow(agent);
+  const tasksNow = agent?.tasks ? taskMenuLine(agent.tasks) : undefined;
   const openControls = () => router.push({ pathname: '/controls', params: { id } });
-  const moreActions = headerActions(agent.name, percent, offered, conversationNow, controlsNow);
+  const moreActions = headerActions(
+    agent.name,
+    percent,
+    offered,
+    conversationNow,
+    controlsNow,
+    tasksNow
+  );
+  const openTasks = () => router.push({ pathname: '/tasks', params: { id } });
   const run = (a: HeaderAction) =>
-    a === 'usage'
-      ? openUsage()
-      : a === 'conversations'
-        ? openConversations()
-        : a === 'controls'
-          ? openControls()
-          : openSheet();
+    a === 'tasks'
+      ? openTasks()
+      : a === 'usage'
+        ? openUsage()
+        : a === 'conversations'
+          ? openConversations()
+          : a === 'controls'
+            ? openControls()
+            : openSheet();
   void tone;
   return (
     <>
@@ -1385,16 +1433,7 @@ const ChatHeader = memo(function ChatHeader({
         options={{
           // Back and the header's controls in this agent's colour, not the Chief's.
           headerTintColor: accent.accent,
-          headerTitle: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityHint="Instructions, memory, files and routines"
-              onPress={openSheet}
-              style={({ pressed }) => pressed && PRESSED}
-            >
-              {header}
-            </Pressable>
-          ),
+          headerTitle: () => header,
           // On iOS the system's own bar button (below): a view of ours in its
           // glass got the bar's side padding, so the circle came out wider than tall.
           ...(NATIVE_HEADER_BUTTONS
@@ -1451,40 +1490,97 @@ const ChatHeader = memo(function ChatHeader({
   );
 });
 
-function Header({ agent, buttons }: { agent: Agent; buttons: number }) {
+function Header({
+  agent,
+  buttons,
+  onOpen,
+}: {
+  agent: Agent;
+  buttons: number;
+  /** The key and name open the agent's sheet; the task line is its own button. */
+  onOpen: () => void;
+}) {
   const colors = useColors();
   const styles = useStyles();
   const { width } = useWindowDimensions();
   // The role alone, across the whole title: which account a turn ran on is
   // desk detail, not something to read on the phone (Julian, 2026-11-10).
   const role = agent.role?.trim();
+  const router = useRouter();
+  // With open work the muted line is the task line; idle with nothing open it's the role.
+  const line = taskLine(agent.tasks);
   return (
     <View style={[styles.header, { maxWidth: headerTitleWidth(width, buttons) }]}>
-      <AgentKey
-        id={agent.id}
-        name={agent.name}
-        color={agent.color}
-        state={agentKeyState(agent)}
-        size={keySize.md}
-      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={agent.name}
+        accessibilityHint="Instructions, memory, files and routines"
+        onPress={onOpen}
+        style={({ pressed }) => pressed && PRESSED}
+      >
+        <AgentKey
+          id={agent.id}
+          name={agent.name}
+          color={agent.color}
+          state={agentKeyState(agent)}
+          size={keySize.md}
+        />
+      </Pressable>
       <View style={{ flexShrink: 1 }}>
-        <T
-          variant="headline"
-          color={colors.textStrong}
-          numberOfLines={1}
-          maxFontSizeMultiplier={chromeScale}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityHint="Instructions, memory, files and routines"
+          onPress={onOpen}
+          style={({ pressed }) => pressed && PRESSED}
         >
-          {agent.name}
-        </T>
-        {!!role && (
           <T
-            variant="caption"
-            color={colors.textSecondary}
+            variant="headline"
+            color={colors.textStrong}
             numberOfLines={1}
             maxFontSizeMultiplier={chromeScale}
           >
-            {role}
+            {agent.name}
           </T>
+        </Pressable>
+        {line ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Tasks: ${[line.doing, line.counts].filter(Boolean).join(', ')}`}
+            hitSlop={space.sm}
+            onPress={() => router.push({ pathname: '/tasks', params: { id: agent.id } })}
+            style={styles.taskLine}
+          >
+            <View
+              style={[
+                styles.taskDot,
+                { backgroundColor: line.doing ? colors.statusRunning : colors.textFaint },
+              ]}
+            />
+            <T
+              variant="caption"
+              color={colors.textSecondary}
+              numberOfLines={1}
+              maxFontSizeMultiplier={chromeScale}
+              style={styles.taskText}
+            >
+              {line.doing ? `${line.doing} · ` : ''}
+              <T variant="caption" color={line.waits > 0 ? colors.accentWarning : colors.textMuted}>
+                {line.counts}
+              </T>
+            </T>
+            <Icon name="chevron.right" size={iconSize.micro} color={colors.textMuted} />
+          </Pressable>
+        ) : (
+          !!role && (
+            <T
+              variant="caption"
+              color={colors.textSecondary}
+              numberOfLines={1}
+              maxFontSizeMultiplier={chromeScale}
+            >
+              {role}
+            </T>
+          )
         )}
       </View>
     </View>
@@ -1569,6 +1665,9 @@ const fadeStyles = StyleSheet.create({
 });
 
 const useStyles = makeStyles((colors) => ({
+  taskLine: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  taskDot: { width: 7, height: 7, borderRadius: radius.pill },
+  taskText: { flexShrink: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   rewound: {
     flexDirection: 'row',
@@ -1671,7 +1770,7 @@ const useStyles = makeStyles((colors) => ({
   },
 }));
 
-type HeaderAction = 'usage' | 'conversations' | 'controls' | 'about';
+type HeaderAction = 'tasks' | 'usage' | 'conversations' | 'controls' | 'about';
 
 /**
  * What it runs on, for the ⋯ menu's Model and controls row ("Opus 5.5 · High"):
@@ -1708,9 +1807,21 @@ export function headerActions(
   offered: boolean,
   conversationNow?: string,
   /** What it runs on ("Opus 5.5 · High"); present only when the Mac lets this phone change it. */
-  controlsNow?: string
+  controlsNow?: string,
+  /** "1 waits · 5 to do": present once the Mac serves the task list. */
+  tasksNow?: string
 ): (Action<HeaderAction> & { subtitle?: string })[] {
   return [
+    ...(tasksNow !== undefined
+      ? [
+          {
+            id: 'tasks' as const,
+            title: TASK_WORDS.title,
+            icon: 'checklist' as const,
+            subtitle: tasksNow || TASK_WORDS.nothing,
+          },
+        ]
+      : []),
     ...(controlsNow
       ? [
           {
