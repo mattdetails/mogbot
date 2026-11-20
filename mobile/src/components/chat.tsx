@@ -42,7 +42,17 @@ import {
   send,
 } from '../lib/session';
 import type { PendingSend } from '../lib/sync';
-import { keySize, composer, fonts, iconSize, lineHeight, space, type, PRESSED } from '../lib/theme';
+import {
+  keySize,
+  composer,
+  fonts,
+  iconSize,
+  lineHeight,
+  READ_LINE,
+  space,
+  type,
+  PRESSED,
+} from '../lib/theme';
 import { makeStyles, useColors } from '../lib/appearance';
 import { Attachments } from './attachments';
 import { LocalLinks } from './localLinks';
@@ -1026,8 +1036,8 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: composer.replyPadH,
     paddingVertical: composer.replyPadV,
   },
-  // Both bubbles are 15 on a 20 line.
-  bubbleText: { fontSize: type.bubble, lineHeight: composer.line },
+  // Both bubbles are the reading size (17) on the reading line.
+  bubbleText: { fontSize: type.bubble, lineHeight: lineHeight(type.bubble, READ_LINE) },
   held: { opacity: 0.85 },
   heldProse: { opacity: 0.7 },
   bubbleQuote: {

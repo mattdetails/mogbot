@@ -22,7 +22,6 @@ import { splitMentions } from '../lib/rooms';
 import { makeStyles, useColors } from '../lib/appearance';
 import {
   alpha,
-  composer,
   fonts,
   lineHeight,
   radius,
@@ -507,7 +506,11 @@ const useBaseStyles = makeStyles((colors) => ({
   root: { gap: space.lg },
   p: bodyOf(colors),
   // In an agent's bubble (15 on a 20 line).
-  pBubble: { ...bodyOf(colors), fontSize: type.bubble, lineHeight: composer.line },
+  pBubble: {
+    ...bodyOf(colors),
+    fontSize: type.bubble,
+    lineHeight: lineHeight(type.bubble, READ_LINE),
+  },
   heading: { fontFamily: fonts.semibold, color: colors.textStrong, marginTop: space.md },
   strong: { fontFamily: fonts.semibold, color: colors.textStrong },
   em: { fontStyle: 'italic' },

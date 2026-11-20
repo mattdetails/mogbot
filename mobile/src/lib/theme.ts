@@ -838,8 +838,8 @@ export const baseType = {
   field: 17,
   subhead: 16,
   read: 17,
-  /** An agent's bubble: 15 on the composer's 20 line. */
-  bubble: 15,
+  /** An agent's bubble and yours: the reading size (iMessage's 17), on `READ_LINE`. */
+  bubble: 17,
   /** A reply's top heading: a step over `title`, so a `#` reads over a `##`. */
   heading: 20,
   title: 18,
