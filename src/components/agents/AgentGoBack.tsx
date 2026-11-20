@@ -19,6 +19,7 @@ import {
   MoreHorizontalIcon,
   PencilIcon,
   PinIcon,
+  ReplyIcon,
   UndoIcon,
 } from '@/components/icons';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
@@ -78,9 +79,12 @@ export interface GoBackState {
 export function GoBackMenu({
   state,
   onPick,
+  onReply,
 }: {
   state: GoBackState;
   onPick: (action: GoBackAction) => void;
+  /** Reply to this message: first in the menu. */
+  onReply?: () => void;
 }) {
   const reason = goBackBlocked('rewind', state);
   return (
@@ -105,6 +109,11 @@ export function GoBackMenu({
         </MenuButton>
       )}
     >
+      {onReply && (
+        <DropdownItem icon={<ReplyIcon size={12} />} onSelect={onReply}>
+          Reply
+        </DropdownItem>
+      )}
       {ORDER.map((action) => (
         <DropdownItem
           key={action}
@@ -130,12 +139,15 @@ export function GoBackContextMenu({
   text,
   onPick,
   onRemember,
+  onReply,
   children,
 }: {
   state: GoBackState;
   text: string;
   onPick: (action: GoBackAction) => void;
   onRemember?: () => void;
+  /** Reply to this message: first in the menu. */
+  onReply?: () => void;
   children: ReactElement;
 }) {
   const { copy } = useCopyToClipboard();
@@ -144,6 +156,11 @@ export function GoBackContextMenu({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent aria-label="Message actions" className="agent-go-back__context">
+        {onReply && (
+          <ContextMenuItem onSelect={onReply}>
+            <ReplyIcon size={12} /> Reply
+          </ContextMenuItem>
+        )}
         <ContextMenuItem onSelect={() => void copy(text)}>
           <CopyIcon size={12} /> Copy
         </ContextMenuItem>

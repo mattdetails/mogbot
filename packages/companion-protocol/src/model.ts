@@ -1538,6 +1538,19 @@ export interface AgentSecret extends SecretRequest {
   lastUsedAt?: number;
 }
 
+/** What a reply points at: its kind says how the chip and the quote word it. */
+export type ReplyKind = 'message' | 'attachment' | 'file' | 'link' | 'card';
+
+/** What a sent reply carries about its original. */
+export interface ReplyRef {
+  id: string;
+  /** Who wrote the original: an agent's name, or "you". */
+  name: string;
+  /** One line of the original, already worded for its kind ("File · intros.pdf"). */
+  excerpt: string;
+  kind: ReplyKind;
+}
+
 export interface AgentMessage {
   id: string;
   agentId: string;
@@ -1571,6 +1584,8 @@ export interface AgentMessage {
   result?: ResultCard;
   /** On a user message: "Ask for changes" on this result. */
   revises?: ResultRef;
+  /** A reply: the message this one answers (the Mac stores it; the desk and phone quote it). */
+  replyTo?: ReplyRef;
   /** On a `note` (an `error` from older Macs): a take-over's terminal closed by itself; not a turn's failure. */
   takeover?: boolean;
   /**

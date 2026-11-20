@@ -279,6 +279,24 @@
       "reason": "Transitional migration-alias consumer; replace with the canonical semantic role."
     },
     {
+      "path": "src/styles/features/agents-chat.css",
+      "token": "--font-size-12",
+      "count": 2,
+      "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
+    },
+    {
+      "path": "src/styles/features/agents-chat.css",
+      "token": "--font-size-13",
+      "count": 2,
+      "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
+    },
+    {
+      "path": "src/styles/features/agents-chat.css",
+      "token": "--radius-6",
+      "count": 4,
+      "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
+    },
+    {
       "path": "src/styles/features/agents-composer.css",
       "token": "--radius-full",
       "count": 2,

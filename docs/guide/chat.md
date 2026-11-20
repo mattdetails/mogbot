@@ -7,6 +7,10 @@ Every message is a bubble. Yours takes your agent's colour (with writing in near
 
 A reply appears all at once, not word by word: while your agent writes it, the one working line stays at the end of the chat, and when the reply is ready it takes that line's place. The same goes in a room.
 
+## Reply to a message
+
+Hover a message and its toolbar shows **Reply** first, then Copy; with a message focused, press **R** (Esc drops it again). **Reply** is also first in a message's ⋯ and right-click menus. A chip appears directly above the box: "Replying to Lead Gen" (or "Replying to you") and one line of the original, with a × to cancel. One reply at a time; replying to another replaces it. Your message then starts with a quote of what it answers, and your agent is told which message you meant. Click the quote to jump to the original and see it flash. If the original is no longer loaded the quote says "Message not available". The toolbar's Reply isn't drawn on touch screens or in a window narrower than 480 pixels; the ⋯ menu still has it.
+
 ## When your agent is busy
 
 ## The message box

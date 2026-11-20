@@ -1135,3 +1135,123 @@
     animation: none;
   }
 }
+
+/* ------------------------------------------------------ reply to a message */
+
+/* The chip above the box (Designer's spec): the box's width, 16px corners above
+   and 6px where it meets the box, the agent's colour in a 3px bar. It and the
+   box read as one unit. */
+.agent-reply-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  height: var(--agents-reply-chip-height);
+  margin: 0 var(--agents-column-inset) calc(var(--border-width-default) * -1);
+  padding: 0 var(--spacing-xs) 0 var(--spacing-md);
+  border: var(--border-width-default) solid var(--border-default);
+  border-radius: var(--spacing-lg) var(--spacing-lg) var(--radius-6) var(--radius-6);
+  background: var(--surface-control);
+}
+
+.agent-reply-chip__bar {
+  align-self: stretch;
+  flex: none;
+  width: var(--agents-reply-bar);
+  margin: var(--spacing-md) 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent-user);
+}
+
+.agent-reply-chip__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.agent-reply-chip__text {
+  gap: var(--spacing-2xs);
+}
+
+.agent-reply-chip__name {
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-heading);
+  color: var(--text-primary);
+}
+
+.agent-reply-chip__excerpt {
+  overflow: hidden;
+  font-size: var(--font-size-13);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The box under a chip squares its top corners toward it. */
+.agent-reply-chip + .agent-composer {
+  border-top-left-radius: var(--radius-6);
+  border-top-right-radius: var(--radius-6);
+}
+
+/* What a sent reply quotes, inside a bubble: the existing quote look with the
+   original's name over up to two of its lines; tap it to go there. */
+.agent-reply-quote {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border: 0;
+  border-left: var(--agents-reply-bar) solid color-mix(in srgb, currentColor 55%, transparent);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-tight) var(--spacing-md) var(--spacing-tight) var(--spacing-md);
+  color: inherit;
+  cursor: pointer;
+  margin-bottom: var(--spacing-tight);
+}
+
+.agent-reply-quote[data-gone] {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.agent-reply-quote__name {
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-heading);
+}
+
+.agent-reply-quote__text {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--font-size-13);
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Going to the original: it pulses once. */
+@keyframes agent-reply-flash {
+  from {
+    background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  }
+}
+
+.agent-chat__row[data-flash] {
+  animation: agent-reply-flash 600ms ease-out;
+  border-radius: var(--radius-lg);
+}
+
+/* Reply in the hover toolbar needs a pointer and room: not on touch or in a
+   narrow window (the ⋯ menu still has it). */
+@media (pointer: coarse), (max-width: 480px) {
+  .agent-message__reply {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-chat__row[data-flash] {
+    animation: none;
+  }
+}

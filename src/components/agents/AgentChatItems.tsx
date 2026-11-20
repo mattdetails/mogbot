@@ -37,6 +37,7 @@ import {
   RoutineIcon,
   MoreHorizontalIcon,
   PinIcon,
+  ReplyIcon,
   SettingsSlidersIcon,
   ShieldCheckIcon,
   WarningIcon,
@@ -52,6 +53,8 @@ import { ComposerAttachments, MessageAttachments } from './AgentAttachments';
 import { LocalLinks } from './AgentLocalLinks';
 import type { DraftAttachment } from './useComposerAttachments';
 import { MentionText } from './AgentMentions';
+import { canReplyTo } from '../../lib/replyTo';
+import { ReplyQuote, useReply } from './ReplyContext';
 import { GoBackContextMenu, GoBackMenu, type GoBackAction, type GoBackState } from './AgentGoBack';
 import { AgentPeerStatus } from './AgentPeerStatus';
 import { SecretCard } from './AgentSecretCard';
@@ -142,9 +145,12 @@ function MessageActions({
   ts,
   onRemember,
   more,
+  onReply,
 }: {
   text: string;
   ts: number;
+  /** Reply to this message: first in the toolbar (hidden on touch and in a narrow window). */
+  onReply?: () => void;
   /** "Remember this": offered on messages with words in them. */
   onRemember?: () => void;
   /** Your own message's Edit, Fork and Rewind (`AgentGoBack`). */
@@ -153,6 +159,18 @@ function MessageActions({
   const { copy, isCopied } = useCopyToClipboard();
   return (
     <div className="agent-message__actions">
+      {onReply && (
+        <IconButton
+          tabIndex={-1}
+          variant="ghost"
+          size="compact"
+          className="agent-message__reply"
+          icon={<ReplyIcon size={12} />}
+          onClick={onReply}
+          aria-label="Reply"
+          title="Reply (R)"
+        />
+      )}
       {text && (
         <IconButton
           tabIndex={-1}
@@ -191,9 +209,19 @@ function MessageActions({
  * ⌘C on a focused message with nothing selected copies the whole message, as
  * its Copy button would.
  */
-function useCopyOnKey(textOf: string | (() => string)) {
+function useCopyOnKey(textOf: string | (() => string), onReply?: () => void) {
   const { copy } = useCopyToClipboard();
+  const reply = useReply();
   return (event: React.KeyboardEvent<HTMLElement>) => {
+    // R replies to the focused message; Esc drops the reply that is set.
+    if (event.target === event.currentTarget && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (event.key.toLowerCase() === 'r' && onReply) {
+        event.preventDefault();
+        onReply();
+        return;
+      }
+      if (event.key === 'Escape' && reply) reply.cancel();
+    }
     if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'c') return;
     const text = typeof textOf === 'function' ? textOf() : textOf;
     if (!text) return;
@@ -227,15 +255,18 @@ export const AgentBubble = memo(function AgentBubble({
   // Blocks (`show`) draw in place of the text, which is their plain version.
   const blocks = readBlocks(message);
   const attachments = attachmentsOutsideBlocks(message.attachments, blocks);
+  const replies = useReply();
+  const onReply = replies && canReplyTo(message) ? () => replies.reply(message) : undefined;
   const actions = (
     <MessageActions
       text={message.text}
       ts={message.ts}
+      onReply={onReply}
       onRemember={onRemember && (() => onRemember(message))}
     />
   );
   // Still being written: its words live in the store, not in this message.
-  const onKeyDown = useCopyOnKey(message.text);
+  const onKeyDown = useCopyOnKey(message.text, onReply);
   if (streamIn.phase !== 'done') {
     return (
       <div
@@ -275,6 +306,7 @@ export const AgentBubble = memo(function AgentBubble({
       ) : (
         message.text && (
           <div className="agent-bubble agent-bubble--agent agent-markdown" onClick={onClick}>
+            {message.replyTo && <ReplyQuote replyTo={message.replyTo} />}
             <Prose text={message.text} />
           </div>
         )
@@ -357,21 +389,34 @@ export const UserBubble = memo(function UserBubble({
   onGoBack,
 }: UserBubbleProps) {
   const attachments = message.attachments ?? [];
+  const replies = useReply();
+  const onReply =
+    replies && !failed && !sending && !tidying && canReplyTo(message)
+      ? () => replies.reply(message)
+      : undefined;
   const actions = !failed && !sending && !tidying && (
     <MessageActions
       text={message.text}
       ts={message.ts}
+      onReply={onReply}
       onRemember={onRemember && (() => onRemember(message))}
       more={
         goBack &&
-        onGoBack && <GoBackMenu state={goBack} onPick={(action) => onGoBack(action, message)} />
+        onGoBack && (
+          <GoBackMenu
+            state={goBack}
+            onReply={onReply}
+            onPick={(action) => onGoBack(action, message)}
+          />
+        )
       }
     />
   );
-  const onKeyDown = useCopyOnKey(message.text);
+  const onKeyDown = useCopyOnKey(message.text, onReply);
   const bubble = (
     <div className="agent-bubble agent-bubble--user">
       {message.revises && <RevisesBar revises={message.revises} />}
+      {message.replyTo && <ReplyQuote replyTo={message.replyTo} />}
       {tidying && !message.text.trim() && (
         // Sent before its words were written out: your voice, until they are.
         <span className="agent-bubble__wave" role="img" aria-label="What you said">
@@ -425,6 +470,7 @@ export const UserBubble = memo(function UserBubble({
             <GoBackContextMenu
               state={goBack}
               text={message.text}
+              onReply={onReply}
               onPick={(action) => onGoBack(action, message)}
               onRemember={onRemember && (() => onRemember(message))}
             >

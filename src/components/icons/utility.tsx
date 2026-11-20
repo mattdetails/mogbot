@@ -195,6 +195,14 @@ export const UndoIcon = createIcon(UndoSvg, {
   defaultSize: 16,
   strokeWidth: '1px',
 });
+/** Reply to a message: the undo arrow's curve, named for what it does here. */
+export const ReplyIcon = createIcon(UndoSvg, {
+  name: 'ReplyIcon',
+  source: 'icons/undo.svg',
+  kind: 'ui',
+  defaultSize: 16,
+  strokeWidth: '1px',
+});
 export const RedoIcon = createIcon(RedoSvg, {
   name: 'RedoIcon',
   source: 'icons/redo.svg',
