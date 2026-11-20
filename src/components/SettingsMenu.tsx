@@ -56,7 +56,7 @@ export function SettingsMenu({
     <Dropdown
       className={className}
       portal={presentation === 'dropdown'}
-      align={presentation === 'drawer' ? 'right' : 'left'}
+      align={presentation === 'drawer' || leadingItems ? 'right' : 'left'}
       side="top"
       menuClassName="settings-menu"
       trigger={renderTrigger}

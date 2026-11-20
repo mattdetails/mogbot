@@ -2070,7 +2070,9 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
               />
             )}
             <SettingsMenu
-              className="workspace-sidebar-settings-menu"
+              className={`workspace-sidebar-settings-menu${
+                settingsMenuItems && !isSidebarHidden ? ' workspace-sidebar-settings-menu--menu' : ''
+              }`}
               onOpenSettings={appSettingsModal.open}
               onOpenBugReports={bugReportModal.open}
               onOpenFeatureRequest={featureRequestModal.open}

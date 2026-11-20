@@ -328,7 +328,7 @@
 /* The gear's drawer opens across the foot's line: the usage line steps out
    of the way rather than showing through it. */
 .is-agents-foot
-  .workspace-sidebar-footer-actions.is-compact-foot:has(> .workspace-sidebar-settings-menu.is-open)
+  .workspace-sidebar-footer-actions.is-compact-foot:has(> .workspace-sidebar-settings-menu.is-open:not(.workspace-sidebar-settings-menu--menu))
   > .workspace-sidebar-footer-lead {
   visibility: hidden;
 }
