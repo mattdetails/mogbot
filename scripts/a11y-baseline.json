@@ -1,6 +1,4 @@
 {
-  "agents-recipe-share|dark|scrollable-region-focusable": 1,
-  "agents-recipe-share|light|scrollable-region-focusable": 1,
   "branches-many|dark|aria-required-children": 1,
   "branches-many|light|aria-required-children": 1,
   "gitlab-branches-menu|dark|aria-required-children": 1,
@@ -8,13 +6,10 @@
   "gitlab-branches-tab|dark|nested-interactive": 1,
   "gitlab-branches-tab|light|nested-interactive": 1,
   "gitlab-remote-push|dark|color-contrast": 1,
-  "gitlab-remote-push|light|color-contrast": 1,
   "layout-menu|dark|aria-required-children": 1,
   "layout-menu|light|aria-required-children": 1,
   "migration-fidelity|dark|scrollable-region-focusable": 2,
   "migration-fidelity|light|color-contrast": 4,
   "migration-fidelity|light|scrollable-region-focusable": 2,
-  "self-managed-remote-push|dark|color-contrast": 1,
-  "self-managed-remote-push|light|color-contrast": 1,
-  "settings-agents-defaults-menu|dark|color-contrast": 1
+  "self-managed-remote-push|dark|color-contrast": 1
 }
