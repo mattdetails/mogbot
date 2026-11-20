@@ -1223,6 +1223,16 @@ fn a_repeat_read_is_served_from_the_cache_until_the_file_changes() {
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(text.contains("Travel"));
         std::fs::write(&path, text.replace("Travel", "Travle")).unwrap();
+        // Off Unix the stamp has no inode, and a same-length rewrite inside one
+        // tick of the file clock keeps the mtime (Windows CI, 1.1.0). A real
+        // edit lands later than that, so say so explicitly.
+        let later = std::time::SystemTime::now() + std::time::Duration::from_secs(2);
+        std::fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(later)
+            .unwrap();
         let names: Vec<String> = list().unwrap().into_iter().map(|a| a.name).collect();
         assert_eq!(names, ["Finance", "Travle"]);
     });

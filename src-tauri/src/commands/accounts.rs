@@ -1841,8 +1841,14 @@ mod tests {
             Path::new("/nonexistent-home/.mogbot/accounts/65b3/codex"),
             accounts
         ));
-        assert!(!inside_accounts_dir(Path::new("/nonexistent-home/.claude"), accounts));
-        assert!(!inside_accounts_dir(Path::new("/nonexistent-home/.mogbot/accounts-x/a"), accounts));
+        assert!(!inside_accounts_dir(
+            Path::new("/nonexistent-home/.claude"),
+            accounts
+        ));
+        assert!(!inside_accounts_dir(
+            Path::new("/nonexistent-home/.mogbot/accounts-x/a"),
+            accounts
+        ));
         assert!(!inside_accounts_dir(
             Path::new("/nonexistent-home/.mogbot/accounts/../claude"),
             accounts
