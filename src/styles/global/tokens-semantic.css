@@ -181,6 +181,17 @@
   --motion-celebrate-delay: var(--duration-slow);
   --motion-stagger: var(--duration-fast);
   --motion-reduced: var(--duration-reduced);
+  /* The motion system's roles (docs/MOTION.md, "Rules by kind"). Specs and
+     builds name these, never a duration or curve. */
+  --motion-hover: var(--duration-micro) var(--ease-standard);
+  --motion-change: var(--duration-quick) var(--ease-standard);
+  --motion-press: var(--duration-press) var(--ease-press);
+  --motion-release: var(--duration-spring-snappy) var(--spring-snappy);
+  --motion-arrive: var(--duration-arrive) var(--ease-arrive);
+  --motion-exit: var(--duration-exit-quick) var(--ease-exit);
+  --motion-exit-screen: var(--duration-exit-screen) var(--ease-exit);
+  --motion-move: var(--duration-spring-standard) var(--spring-standard);
+  --motion-pop: var(--duration-spring-celebrate) var(--spring-celebrate);
 
   --shadow-button:
     0 var(--stroke-1) var(--space-02) var(--color-black-o75),

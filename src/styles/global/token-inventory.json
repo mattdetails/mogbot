@@ -6358,6 +6358,78 @@
       "consumerCount": 1
     },
     {
+      "name": "--motion-hover",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-change",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-press",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-release",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-arrive",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-exit",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-exit-screen",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-move",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-pop",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
       "name": "--shadow-button",
       "definitionFile": "src/styles/global/tokens-semantic.css",
       "layer": "semantic",

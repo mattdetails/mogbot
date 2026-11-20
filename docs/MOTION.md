@@ -62,6 +62,23 @@ it works, nothing bounces. Mogbot should feel at least as quick and calm, on eve
 | `standard` | 380ms | 0.92 | Sheets, cards, panels settling; reorders; a swipe returning |
 | `celebrate` | 500ms | 0.7 | Only a moment worth marking: Paired, a first result |
 
+**CSS roles** (`tokens-semantic.css`), what specs and desk code name:
+
+| Role | Is | Use |
+|---|---|---|
+| `--motion-hover` | micro + standard | Hover in and out |
+| `--motion-change` | quick + standard | A state changing in place |
+| `--motion-press` | press + press | Going down |
+| `--motion-release` | spring snappy | Coming back up |
+| `--motion-arrive` | arrive + arrive | Anything arriving (menus, messages, cards, toasts) |
+| `--motion-screen` | screen + arrive | Modals, screens, panels arriving |
+| `--motion-exit` | exitQuick + exit | Menus, popovers, toasts leaving |
+| `--motion-exit-screen` | exitScreen + exit | Modals, screens leaving |
+| `--motion-move` | spring standard | On-screen moves: reorder, restack, a swipe returning |
+| `--motion-pop` | spring celebrate | Paired, a first result |
+
+On the phone, `mobile/src/lib/motion.ts` exposes the same names as Reanimated configs.
+
 **Distances:** popover/menu 4px from its trigger, starting at scale 0.97; a message, card or toast
 rises 8px; a desk modal starts at scale 0.98; a pressed control goes to 0.97. Never scale from 0.
 
