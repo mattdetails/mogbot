@@ -785,6 +785,13 @@ body[data-agent-dragging] .agents-list__group-empty::before {
   border-color: var(--text-secondary);
 }
 
+/* The header's muted label sits on the selected fill here, not the sidebar's:
+   it takes the row's ink so the title and count read at 4.5:1 or better in
+   both themes. */
+.agents-list__group[data-drop-over] .agents-list__group-toggle {
+  color: var(--text-primary);
+}
+
 .agents-list__group[data-drop-over] .agents-list__group-empty-idle {
   display: none;
 }
