@@ -73,8 +73,8 @@ const old: AgentMessage = {
 };
 
 describe('an old step-in card', () => {
-  it('is one plain line, with nothing to answer', () => {
-    render(<MessageRow message={old} agent={agent()} queued={false} onError={jest.fn()} />);
+  it('is one plain line, with nothing to answer', async () => {
+    await render(<MessageRow message={old} agent={agent()} queued={false} onError={jest.fn()} />);
     expect(screen.getByText(STEP_IN_RETIRED_LINE)).toBeTruthy();
     expect(screen.queryByText('Allow')).toBeNull();
     expect(screen.queryByText('Deny')).toBeNull();

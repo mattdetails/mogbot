@@ -4,7 +4,7 @@
  * per idea). Pure; no rendering.
  */
 
-import type { Approval, CheckInMark, UsageAccount } from './model';
+import type { CheckInMark, UsageAccount } from './model';
 import { formatWhenInline } from './schedule';
 
 // --- Step in (retired) ------------------------------------------------------

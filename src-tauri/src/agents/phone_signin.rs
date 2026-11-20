@@ -1789,12 +1789,7 @@ pub async fn stop(app: &AppHandle, device_id: &str, id: &str) -> Result<(), Comm
 /// Stop from the desk's bar: whatever is live.
 pub async fn stop_from_desk(app: &AppHandle) {
     if let Some(l) = with_table(Table::take_any) {
-        finish_live(
-            app,
-            l,
-            concat!("stopped on the ", crate::computer::noun!()),
-        )
-        .await;
+        finish_live(app, l, concat!("stopped on the ", crate::computer::noun!())).await;
     }
 }
 

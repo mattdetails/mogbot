@@ -1,7 +1,7 @@
 /**
  * What's in flight as a board ordered by attention (docs/design/in-flight-board-2026-11-10.md):
  * twenty agents, with nothing, one or five needing you (an email to send, a
- * login, a step-in, a session's question, a failed turn), three working,
+ * login, a session's question, a failed turn), three working,
  * three unread results, one paused by a usage limit, the rest idle. And the
  * same board at a narrow window. Fictional team. Capture with `--theme light` too.
  */
@@ -109,26 +109,18 @@ const ASKS: Record<string, { lines: unknown[]; row: Record<string, unknown> }> =
   },
   finance: {
     row: {
-      status: status('waiting', 'Waiting for you in its browser'),
+      status: status('waiting', 'Waiting for your OK'),
       pendingApprovals: 1,
-      preview: 'Needs you in its browser: approve the Microsoft sign-in',
+      preview: 'Needs your OK: send October’s invoice summary to Acme',
     },
     lines: [
       msg('approval', '', 2, {
         ...at('finance'),
         approval: {
           requestId: 'iq-step',
-          title: 'Finance needs you in its browser: approve the Microsoft sign-in on your phone',
-          detail:
-            'Its tab on login.microsoftonline.com opens on this Mac for you to do this yourself; Hand back when you’re done.',
+          title: 'Send October’s invoice summary to Acme’s billing contact?',
+          detail: 'One email, from your Gmail, with the 14 invoices attached.',
           status: 'pending',
-          stepIn: {
-            reason: 'approve the Microsoft sign-in on your phone',
-            site: 'login.microsoftonline.com',
-            url: 'https://login.microsoftonline.com/common/oauth2/authorize',
-            pageTitle: 'Verify your identity',
-            tab: 2,
-          },
         },
       }),
     ],

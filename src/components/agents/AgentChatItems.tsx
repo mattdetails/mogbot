@@ -56,13 +56,15 @@ import { GoBackContextMenu, GoBackMenu, type GoBackAction, type GoBackState } fr
 import { AgentPeerStatus } from './AgentPeerStatus';
 import { SecretCard } from './AgentSecretCard';
 import { LoginCard } from './AgentLoginCard';
-import { StepInCard } from './AgentStepIn';
 import { CrossoverCard } from './AgentCrossoverCard';
 import {
   answeredWords,
   cantAlwaysAllow,
 } from '../../../packages/companion-protocol/src/answeredFrom';
-import { checkInHead } from '../../../packages/companion-protocol/src/cardWords';
+import {
+  checkInHead,
+  STEP_IN_RETIRED_LINE,
+} from '../../../packages/companion-protocol/src/cardWords';
 import { viaLabel } from '../../../packages/companion-protocol/src/model';
 import { AgentSettingsChange } from './AgentSettingsChange';
 import { AgentSkillCardBody } from './AgentSkills';
@@ -1063,11 +1065,6 @@ interface ApprovalCardProps extends Arrival {
    * from how many the agent might still send.
    */
   series?: { index: number; total: number };
-  /**
-   * Drawn in its own agent's chat, where the Step in bar above the composer
-   * holds Show window and Hand back: a step-in card under way leaves them to it.
-   */
-  ownChat?: boolean;
 }
 
 /** "subject" → "Subject", "cc_list" → "Cc list". */
@@ -1182,7 +1179,6 @@ const ApprovalCardBody = memo(function ApprovalCard({
   arrived,
   compact = false,
   series,
-  ownChat = false,
 }: ApprovalCardProps) {
   const approval = message.approval;
   const [busy, setBusy] = useState(false);
@@ -1222,15 +1218,16 @@ const ApprovalCardBody = memo(function ApprovalCard({
       </div>
     );
   }
-  // "Needs you in its browser": Step in / Not now, then Hand back.
+  // A retired "needs you in its browser" card (Step in is gone): one quiet line.
   if (approval.stepIn) {
     return (
-      <StepInCard
-        message={message}
-        onAnswer={(id, allow) => onAnswer(id, allow)}
-        arrived={arrived}
-        barShown={ownChat}
-      />
+      <div
+        className="agent-note agent-note--expired"
+        data-arrived={arrived || undefined}
+        data-message-ids={message.id}
+      >
+        {STEP_IN_RETIRED_LINE}
+      </div>
     );
   }
   // "Carry on with Codex until then?": Wait, Just this time, Always.
