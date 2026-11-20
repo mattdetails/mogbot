@@ -1,0 +1,340 @@
+/* Agents chat, continued from agents-chat.css (imported right after it, so the
+   cascade is unchanged): replying to a message, and the agent menu and tasks. */
+
+/* ------------------------------------------------------ reply to a message */
+
+/* The reply line at the top of the box (Grok's): one outlined line inside it,
+   32px tall, the first line of the original muted, a × at the right. No label,
+   no bar, no agent colour. The box grows by it. */
+.agent-reply-line {
+  display: flex;
+  align-items: center;
+  height: var(--agents-reply-line-height);
+  padding-left: var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
+  border: var(--border-width-default) solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.agent-reply-line__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--font-size-13);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-reply-line .agent-reply-line__cancel.button--icon-only {
+  flex: none;
+  width: var(--agents-reply-cancel);
+  min-width: var(--agents-reply-cancel);
+  height: var(--agents-reply-cancel);
+  margin-right: var(--spacing-2xs);
+}
+
+/* What a sent reply answers: a one-line outlined pill directly above the
+   bubble, outside it, against the bubble's right edge (4px gap). */
+.agent-reply-pill {
+  /* Hugs its text, up to the bubble's own cap, against the bubble's right edge. */
+  max-width: min(80%, var(--agents-user-bubble-max), calc(100% - 82px));
+  padding: var(--spacing-3xs) var(--spacing-md);
+  padding-block: 3px; /* css-ok: the spec's 3px */
+  overflow: hidden;
+  font: inherit;
+  font-size: var(--font-size-13);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: var(--border-width-default) solid var(--border-strong);
+  border-radius: 14px; /* css-ok: the spec's 14px pill */
+  cursor: pointer;
+}
+
+.agent-reply-pill[data-gone] {
+  cursor: default;
+}
+
+/* Going to the original: it pulses once. */
+@keyframes agent-reply-flash {
+  from {
+    background: color-mix(in srgb, var(--text-primary) 12%, transparent);
+  }
+}
+
+.agent-chat__row[data-flash] {
+  animation: agent-reply-flash 600ms ease-out;
+  border-radius: var(--radius-lg);
+}
+
+/* The hover tools: bare icons (17px, 6px apart) beside the message at its
+   vertical centre, 14px away, on the open side. Only while the message is
+   hovered or focused; not on touch or in a narrow window. */
+.agent-message__tools {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  gap: var(--spacing-tight);
+  margin-inline: 14px; /* css-ok: the spec's 14px from the bubble */
+  opacity: 0;
+}
+
+.agent-chat__row:hover .agent-message__tools,
+.agent-chat__row:focus-within .agent-message__tools {
+  opacity: 1;
+}
+
+@media (pointer: coarse), (max-width: 480px) {
+  .agent-message__tools {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-chat__row[data-flash] {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------- the agent menu and tasks */
+
+/* The header's ⋯ is a plain 32px icon button (no circle); Usage and Routines
+   open their popovers from hidden anchors at the header's right edge. */
+.agent-chat__more.button--icon-only {
+  width: var(--size-header-more);
+  height: var(--size-header-more);
+  border-radius: var(--radius-8);
+}
+
+.agent-chat__anchors {
+  position: absolute;
+  right: var(--agents-column-inset);
+  bottom: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  visibility: hidden;
+}
+
+.agent-menu {
+  width: var(--size-agent-menu);
+}
+
+.agent-menu .agent-menu__value {
+  margin-left: var(--spacing-xs);
+  font-size: var(--font-size-body-md);
+  color: var(--text-muted);
+}
+
+.agent-menu__group {
+  margin: var(--spacing-sm) var(--spacing-md) var(--spacing-2xs);
+  font-size: var(--font-size-11);
+  font-weight: var(--font-weight-label);
+  letter-spacing: 0.09em; /* css-ok: the spec's caps label tracking */
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The quiet line under the name: what it is doing and how much is open. */
+.agent-task-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--font-size-body-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.agent-task-line:hover {
+  color: var(--text-primary);
+}
+
+.agent-task-line__dot {
+  flex: none;
+  width: var(--catchup-dot);
+  height: var(--catchup-dot);
+  border-radius: var(--radius-full);
+  background: var(--status-running);
+}
+
+.agent-task-line__dot[data-waits] {
+  background: var(--accent-warning);
+}
+
+.agent-task-line__doing {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-task-line__counts {
+  color: var(--text-muted);
+}
+
+.agent-task-line__waits {
+  color: var(--accent-warning);
+}
+
+/* The task panel: 320px, beside the chat, under the header. */
+.agent-chat-dock {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.agent-chat-dock > .agent-chat {
+  min-width: 0;
+}
+
+/* A docked pane beside the chat: its header is the chat header's height, the
+   hairline is the pane's own left edge (side panes draw no bottom hairline). */
+.agent-tasks {
+  display: flex;
+  flex: 0 0 var(--size-agent-tasks);
+  flex-direction: column;
+  width: var(--size-agent-tasks);
+  min-height: 0;
+  overflow-y: auto;
+  border-left: var(--border-width-default) solid var(--border-default);
+  background: var(--surface-app);
+}
+
+.agent-tasks > :not(.agent-tasks__head) {
+  margin-inline: var(--spacing-lg);
+}
+
+.agent-tasks__head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--spacing-sm);
+  height: var(--agents-header-height);
+  padding: 0 var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.agent-tasks__head h3 {
+  margin: 0;
+  font-size: var(--font-size-subhead-lg);
+  font-weight: var(--font-weight-heading);
+}
+
+.agent-tasks__count {
+  flex: 1;
+  font-size: var(--font-size-body-md);
+  color: var(--text-muted);
+}
+
+.agent-tasks__failed {
+  margin: 0;
+  font-size: var(--font-size-12);
+  color: var(--accent-warning);
+}
+
+.agent-tasks__empty {
+  margin: 0;
+  font-size: var(--font-size-13);
+  color: var(--text-muted);
+}
+
+.agent-tasks__group h4 {
+  margin: 0 0 var(--spacing-xs);
+  font-size: var(--font-size-11);
+  font-weight: var(--font-weight-label);
+  letter-spacing: 0.09em; /* css-ok: the spec's caps label tracking */
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.agent-tasks__row {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xs) 0;
+}
+
+.agent-tasks__mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--size-task-mark);
+  height: var(--size-task-mark);
+  margin-top: var(--spacing-2xs);
+  border: var(--border-width-default) solid var(--border-strong);
+  border-radius: var(--radius-6);
+  color: var(--text-on-inverse);
+}
+
+.agent-tasks__row[data-state='doing'] .agent-tasks__mark {
+  border-radius: var(--radius-full);
+  background: radial-gradient(circle, var(--text-primary) 35%, transparent 40%);
+}
+
+.agent-tasks__row[data-state='waits'] .agent-tasks__mark {
+  border-color: var(--accent-warning);
+  background: var(--accent-warning);
+}
+
+.agent-tasks__row[data-state='done'] .agent-tasks__mark {
+  border-color: var(--accent-success);
+  background: var(--accent-success);
+}
+
+.agent-tasks__row[data-state='done'] .agent-tasks__title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.agent-tasks__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.agent-tasks__title {
+  font-size: var(--font-size-14);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.agent-tasks__sub {
+  font-size: var(--font-size-12);
+  color: var(--text-muted);
+}
+
+.agent-tasks__row[data-state='waits'] .agent-tasks__sub {
+  color: var(--accent-warning);
+}
+
+/* A full page (Team tasks, Usage) is its own 960px column: its header's content
+   aligns to it, as a conversation's header aligns to the 720px column. */
+.agents-team .agent-chat__header,
+.agents-usage-view .agent-chat__header {
+  padding-inline: var(--agents-page-inset);
+}
+
+.agent-tasks__head .agent-tasks__close {
+  margin-left: auto;
+}
+
+/* Task rows in the panel: a dropped line is kept for the day, muted and not struck through. */
+.agent-tasks__row[data-dropped] .agent-tasks__title {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.agents-list__busy {
+  color: var(--accent-warning);
+}
+
+.agent-tasks__row[data-dropped] .agent-tasks__mark {
+  border-color: var(--border-strong);
+  background: none;
+}

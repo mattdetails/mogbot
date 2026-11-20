@@ -135,6 +135,7 @@
 @import './features/agent-key.css';
 @import './features/agents-look.css';
 @import './features/agents-chat.css';
+@import './features/agents-chat-reply.css';
 @import './features/agents-goback.css';
 @import './features/agents-guide.css';
 @import './features/agents-composer.css';
