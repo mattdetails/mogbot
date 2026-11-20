@@ -181,19 +181,53 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  width: 100%;
+  /* A card inset on the sidebar's gutter (the toggle's and Search's edges),
+     rounded, with no hairlines between rows: the fill alone says hover and
+     selected. */
+  width: calc(100% - 2 * var(--spacing-sm));
+  margin: 0 var(--spacing-sm) var(--spacing-2xs);
   /* One height for every row in every state: a step's words changing, a
      waiting label or a failure never moves the rows below. */
   height: var(--size-agents-list-row);
-  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) var(--spacing-sm);
   text-align: left;
   font: inherit;
   color: var(--text-primary);
   background: none;
   border: none;
-  border-bottom: var(--border-width-default) solid var(--border-subtle);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   cursor: pointer;
+}
+
+/* The right column: when it last moved, and under it a blue dot while unread. */
+.agents-list__meta {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  align-self: stretch;
+  min-width: 0;
+}
+
+.agents-list__time {
+  font-size: var(--font-size-body-sm);
+  line-height: var(--line-height-compact);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.agents-list__unread {
+  width: var(--spacing-sm);
+  height: var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  background: var(--status-info);
+}
+
+.workspace-sidebar.is-hidden .agents-list__meta {
+  display: none;
 }
 
 /* Hover is a whisper; the open conversation is the solid selected fill with
@@ -215,7 +249,7 @@
 
 .agents-list__row:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--accent-focus);
+  box-shadow: inset 0 0 0 var(--border-width-emphasis) var(--focus-ring);
 }
 
 .agents-list__row[data-hidden] .agents-list__name {

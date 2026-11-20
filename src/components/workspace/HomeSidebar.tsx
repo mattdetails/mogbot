@@ -27,6 +27,8 @@ interface HomeSidebarProps {
   listActions?: ReactNode;
   /** Agents mode's page row (Routines), sharing the foot's last row with Settings. */
   footerLead?: ReactNode;
+  /** Agents mode's pages behind the foot's gear (Routines, Pair your phone). */
+  settingsMenuItems?: ReactNode;
   onGoHome: () => void;
   /** The Projects | Agents toggle: back to wherever you were on each side. */
   onGoProjects: () => void;
@@ -65,6 +67,7 @@ export function HomeSidebar({
   footerContent,
   listActions,
   footerLead,
+  settingsMenuItems,
   isSidebarHidden,
   onToggleSidebar,
   onOpenProjectPicker,
@@ -95,6 +98,7 @@ export function HomeSidebar({
       footerContent={footerContent}
       listActions={listActions}
       footerLead={footerLead}
+      settingsMenuItems={settingsMenuItems}
       onOpenProjectPicker={onOpenProjectPicker}
       isSidebarHidden={isSidebarHidden}
       onToggleSidebar={onToggleSidebar}

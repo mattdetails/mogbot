@@ -14,6 +14,8 @@ interface SettingsMenuProps {
   className?: string;
   presentation?: 'dropdown' | 'drawer';
   onOpenChange?: (open: boolean) => void;
+  /** Pages that live behind the gear in the Agents foot (Routines, Pair your phone), above App settings. */
+  leadingItems?: ReactNode;
 }
 
 /** True when Settings would be the menu's only item (no reports, no changelog). */
@@ -35,8 +37,9 @@ export function SettingsMenu({
   className,
   presentation = 'dropdown',
   onOpenChange,
+  leadingItems,
 }: SettingsMenuProps) {
-  if (SETTINGS_ONLY) {
+  if (SETTINGS_ONLY && !leadingItems) {
     return (
       <div className={['ss-dropdown', className].filter(Boolean).join(' ')}>
         {renderTrigger({
@@ -59,6 +62,7 @@ export function SettingsMenu({
       trigger={renderTrigger}
       onOpenChange={onOpenChange}
     >
+      {leadingItems}
       <DropdownItem icon={<SettingsIcon size={14} />} onSelect={onOpenSettings}>
         <span data-settings-item="app-settings">App settings</span>
       </DropdownItem>
