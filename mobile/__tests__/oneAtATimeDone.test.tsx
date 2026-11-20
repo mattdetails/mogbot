@@ -34,6 +34,20 @@ jest.mock('react-native-reanimated', () => {
     useAnimatedStyle: () => ({}),
     withTiming: (v: unknown) => v,
     withSpring: (v: unknown) => v,
+    runOnJS: (f: unknown) => f,
+    Easing: { bezier: () => null, linear: null },
+    ReduceMotion: { System: 'system', Never: 'never' },
+  };
+});
+// The card's swipe is a gesture-handler Pan on the UI thread: here it only
+// has to render its card.
+jest.mock('react-native-gesture-handler', () => {
+  const chain: Record<string, unknown> = {};
+  for (const k of ['activeOffsetX', 'failOffsetY', 'onUpdate', 'onEnd', 'onFinalize'])
+    chain[k] = () => chain;
+  return {
+    Gesture: { Pan: () => chain },
+    GestureDetector: ({ children }: { children: unknown }) => children,
   };
 });
 jest.mock('react-native-safe-area-context', () => ({
