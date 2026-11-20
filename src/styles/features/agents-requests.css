@@ -456,13 +456,20 @@
   background: var(--surface-control-hover);
 }
 
+.agents-catchup__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dropdown);
+  background: var(--overlay-30);
+}
+
 .agents-catchup__popover {
   display: none;
   position: absolute;
   top: 100%;
   left: var(--spacing-md);
-  z-index: var(--z-dropdown);
-  width: min(360px, calc(100% - var(--spacing-xl)));
+  z-index: calc(var(--z-dropdown) + 1);
+  width: min(var(--size-catchup-queue), calc(100% - var(--spacing-xl)));
   max-height: 60vh;
   overflow: auto;
   padding: var(--spacing-lg) var(--spacing-md);
@@ -544,6 +551,7 @@ button.agents-catchup__row:hover {
 
 .agents-catchup__row-text {
   display: flex;
+  gap: var(--spacing-2xs);
   flex: 1;
   flex-direction: column;
   min-width: 0;
@@ -724,24 +732,39 @@ button.agents-catchup__row:hover {
   font-size: var(--font-size-13);
 }
 
+.agents-catchup__quiet .button {
+  height: 32px; /* css-ok: the spec's 32px ghost buttons under the card's actions */
+}
+
+/* Flat: solid fill, no bevel, no inner ring (the spec). */
+.agents-catchup .button {
+  box-shadow: none;
+}
+
+/* The outline answer keeps its outline without the bevel. */
+.agents-catchup .button--secondary {
+  border: var(--border-width-default) solid var(--border-strong);
+}
+
 /* The keys here are the spec's: 32px in the queue and the summary, 28px on the card. */
 .agents-catchup__queue .agent-key,
-.agents-catchup__popover .agent-key,
-.agents-catchup__sum-row .agent-key {
+.agents-catchup__popover .agent-key {
   --agent-key-s: var(--catchup-key-row);
 }
 
-.agents-catchup__who .agent-key {
+.agents-catchup__who .agent-key,
+.agents-catchup__sum-row .agent-key {
   --agent-key-s: var(--catchup-key-card);
 }
 
 .agents-catchup__quiet {
   display: flex;
-  justify-content: center;
-  gap: var(--spacing-xl);
+  justify-content: flex-start;
+  gap: var(--spacing-sm);
   margin-top: var(--spacing-md);
 }
 
+.agents-catchup .button kbd,
 .agents-catchup kbd {
   margin-left: var(--spacing-xs);
   font: inherit;
@@ -749,12 +772,16 @@ button.agents-catchup__row:hover {
   padding: 0 var(--spacing-tight);
   border-radius: var(--radius-6);
   border: var(--border-width-default) solid var(--border-default);
+  background: var(--surface-control);
   /* A text role, not opacity: 0.6 over the button's ink fell under 4.5:1 (axe). */
   color: var(--text-secondary);
 }
 
+:root[data-theme='dark'] .agents-catchup kbd {
+  border-color: var(--border-strong);
+}
+
 .agents-catchup__head kbd {
-  background: var(--surface-control);
   color: var(--text-muted);
 }
 

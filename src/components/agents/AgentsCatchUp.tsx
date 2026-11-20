@@ -74,6 +74,12 @@ function kindOf(m: AgentMessage | undefined): string {
 /** The time now, for what is noticed during a render (kept out of the component body). */
 const stamp = (): number => Date.now();
 
+/** The row's second line: who and what kind ("Lead Gen · Needs your OK"); the kind alone when the title already starts with the agent's name. */
+const rowSub = (i: CatchItem): string =>
+  headline(i).toLowerCase().startsWith(i.agent.name.toLowerCase())
+    ? kindOf(i.message)
+    : `${i.agent.name} · ${kindOf(i.message)}`;
+
 /** A clock time in the user's own format, lower-cased ("5:57 am"). */
 const clock = (ts: number): string =>
   new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
@@ -221,7 +227,12 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
         >
           {CATCH_UP.close} <kbd>esc</kbd>
         </Button>
-        {queueOpen && <div className="agents-catchup__popover">{queue}</div>}
+        {queueOpen && (
+          <>
+            <div className="agents-catchup__scrim" onClick={() => setQueueOpen(false)} />
+            <div className="agents-catchup__popover">{queue}</div>
+          </>
+        )}
       </header>
       <div className="agents-catchup__body">
         <aside className="agents-catchup__queue" aria-label="Queue">
@@ -246,6 +257,7 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
             <Summary
               happened={happened}
               onOpenAgent={onOpenAgent}
+              onOpenInFlight={onOpenInFlight}
               onGotIt={() => {
                 setGotIt(true);
                 setPicked(null);
@@ -344,23 +356,27 @@ function Queue({
           ))}
         </section>
       )}
-      <section className="agents-catchup__group">
-        <h3>{catchUpGroup(CATCH_UP.needsYou, items.length)}</h3>
-        {items.length === 0 && (
-          <Row muted lead={tile(<CheckIcon size={14} />)} title={CATCH_UP.nothingWaiting} />
-        )}
-        {items.map((i) => (
-          <Row
-            key={i.key}
-            lead={<AgentKey id={i.agent.id} name={i.agent.name} color={i.agent.color} size="md" />}
-            title={headline(i)}
-            sub={i.agent.name}
-            right={later.includes(i.key) ? CATCH_UP.later : formatAge(i.ts)}
-            selected={open === i.key}
-            onPick={() => onPick(i.key)}
-          />
-        ))}
-      </section>
+      {(items.length > 0 || done.length === 0) && (
+        <section className="agents-catchup__group">
+          <h3>{catchUpGroup(CATCH_UP.needsYou, items.length)}</h3>
+          {items.length === 0 && (
+            <Row muted lead={tile(<CheckIcon size={14} />)} title={CATCH_UP.nothingWaiting} />
+          )}
+          {items.map((i) => (
+            <Row
+              key={i.key}
+              lead={
+                <AgentKey id={i.agent.id} name={i.agent.name} color={i.agent.color} size="md" />
+              }
+              title={headline(i)}
+              sub={rowSub(i)}
+              right={later.includes(i.key) ? CATCH_UP.later : formatAge(i.ts)}
+              selected={open === i.key}
+              onPick={() => onPick(i.key)}
+            />
+          ))}
+        </section>
+      )}
       {happened.length > 0 && (
         <section className="agents-catchup__group">
           <h3>{CATCH_UP.then}</h3>
@@ -534,10 +550,12 @@ function Decision({
 function Summary({
   happened,
   onOpenAgent,
+  onOpenInFlight,
   onGotIt,
 }: {
   happened: Agent[];
   onOpenAgent: (id: string) => void;
+  onOpenInFlight: () => void;
   onGotIt: () => void;
 }) {
   const shown = happened.slice(0, CATCH_UP_SUMMARY_ROWS);
@@ -569,7 +587,7 @@ function Summary({
         ))}
       </div>
       {rest > 0 && (
-        <TextButton tabIndex={0} onClick={() => onOpenAgent(happened[CATCH_UP_SUMMARY_ROWS].id)}>
+        <TextButton tabIndex={0} onClick={onOpenInFlight}>
           {catchUpMore(rest)}
         </TextButton>
       )}

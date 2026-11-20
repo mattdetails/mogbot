@@ -235,6 +235,13 @@ export const agentsCatchUpScenarios: Scenario[] = [
     {}
   ),
   scenario(
+    'done',
+    'answered rows in Done, the summary open',
+    'The fixture answers all three by itself (as the Mac would on Allow): the queue starts with a muted “DONE · 3” (each row ends in a check), “THEN” has the summary row, the pane shows the summary and the header says “Summary”.',
+    withAsks(ASKS, HAPPENED, 1500),
+    { mockEvents: true, steps: [{ wait: 3500 }] }
+  ),
+  scenario(
     'all-clear',
     'all clear',
     'Header “All clear”; the queue is “NEEDS YOU · 0” with one muted row “Nothing waiting”; the pane is a centred 48px ring with a check, “All clear”, “Nothing needs you.” (no time: nothing was answered here) and one outline “What’s in flight”.',
