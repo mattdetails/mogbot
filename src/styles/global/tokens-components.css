@@ -32,6 +32,13 @@
      a wrap or a state change never moves the rows below. */
   --size-agents-list-row: 52px;
   /* Catch up on the desk (direction 2): the queue beside the open card. */
+  /* Chat bubbles, Grok's measurements (chat-spec-vs-grok.md): a faint ink tint
+     for the agent's (4% in dark, 6% in light), 7x12 padding, 15/20 type, and
+     the user's bubble at most 560px. */
+  --agents-bubble-tint: 4%;
+  --agents-bubble-pad-y: 7px;
+  --agents-bubble-line: 20px;
+  --agents-user-bubble-max: 560px;
   --size-catchup-head: 56px;
   --size-catchup-queue: 360px;
   --size-catchup-pane-min: 520px;
@@ -518,6 +525,7 @@
 }
 
 :root[data-theme='light'] {
+  --agents-bubble-tint: 6%;
   --tabs-tray-surface: linear-gradient(var(--color-paper-250), var(--color-paper-200));
   --tabs-tray-shadow:
     inset 0 var(--stroke-1) var(--space-02) var(--color-black-o10),

@@ -21,23 +21,12 @@
 @keyframes agents-motion-rise {
   from {
     opacity: 0;
-    transform: translateY(var(--agents-motion-rise-y, var(--spacing-sm)))
-      scale(var(--agents-motion-rise-scale, 0.98));
+    transform: translateY(var(--spacing-sm)) scale(0.98);
   }
 }
 
 @keyframes agents-motion-fade-in {
   from {
-    opacity: 0;
-  }
-}
-
-/* Gone in the first frame, then reports animationend so it unmounts. */
-@keyframes agents-motion-gone {
-  from,
-  to {
-    height: 0;
-    margin-top: 0;
     opacity: 0;
   }
 }
@@ -137,58 +126,6 @@
     black calc(100% - var(--agents-motion-edge-fade)),
     transparent
   ); /* css-ok: mask alpha, not a colour */
-}
-
-/* ------------------------------------------------- streaming reply */
-
-/* The hand-off. When the first words arrive, the working pill goes in the
-   same frame and the reply takes its place at the pill's height, so the
-   transcript doesn't move: before, the line pushed in, the pill collapsed,
-   and everything bobbed 20-30px. The reply fades in rather than rising (the
-   rise's offsets are variables, so this never restarts the animation), and
-   lets go of the pill's height smoothly once it's done. */
-.agent-chat__messages
-  > .agent-chat__row:has(> .agent-bubble[data-streaming])
-  ~ .agent-chat__row--working[data-leaving] {
-  animation: agents-motion-gone 1ms forwards;
-}
-
-.agent-chat__messages > .agent-chat__row--agent[data-arrived] {
-  min-height: 0;
-  transition: min-height var(--agents-motion-settle);
-}
-
-.agent-chat__messages > .agent-chat__row:has(> .agent-bubble[data-streaming]) {
-  --agents-motion-rise-y: 0;
-  --agents-motion-rise-scale: 1;
-  min-height: var(--agents-motion-working-height);
-}
-
-/* A reply being written grows in place (the bubble arrives once, like any
-   line; its text changing never re-runs that). A soft dot breathes at the end
-   of the last line until the finished message takes over. */
-.agent-bubble[data-streaming] .agent-markdown__prose:last-child > :last-child:not(ul, ol)::after,
-.agent-bubble[data-streaming]
-  .agent-markdown__prose:last-child
-  > :is(ul, ol):last-child
-  > li:last-child::after {
-  content: '';
-  display: inline-block;
-  width: 0.5em;
-  height: 0.5em;
-  margin-left: 0.3em;
-  vertical-align: baseline;
-  background: currentColor;
-  border-radius: var(--radius-pill);
-  opacity: 0.5;
-  animation: agents-motion-caret var(--agents-motion-typing-period)
-    var(--agents-motion-typing-easing) infinite;
-}
-
-@keyframes agents-motion-caret {
-  50% {
-    opacity: 0.15;
-  }
 }
 
 /* ----------------------------------------------- working indicator */
@@ -404,11 +341,6 @@
   .agents-list__status > *,
   .agents-team__group[data-arrived],
   .agents-team__row[data-arrived] {
-    animation: none;
-  }
-
-  .agent-bubble[data-streaming] .agent-markdown__prose:last-child > :last-child::after,
-  .agent-bubble[data-streaming] .agent-markdown__prose li:last-child::after {
     animation: none;
   }
 

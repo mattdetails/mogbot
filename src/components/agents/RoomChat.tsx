@@ -151,11 +151,7 @@ export function RoomChat({
   const members = useMemo(() => roomMembers(room, agentsById), [room, agentsById]);
   const { working, waiting } = roomActivity(room, members);
   const workingKey = working.map((a) => a.id).join(' ');
-  // Replies streaming in this room: each working member's draft.
-  const drafts = useAgentsSelector(
-    (s) => working.map((a) => s.drafts[a.id]).filter(Boolean),
-    (a, b) => a.length === b.length && a.every((d, i) => d === b[i])
-  );
+  // A reply lands whole here too: drafts are never drawn, the working line stays.
   const { showToast } = useOptionalToast();
   // The draft lives outside this component (`composerDraft`): typing
   // re-renders the composer below, never the room.
@@ -248,11 +244,8 @@ export function RoomChat({
       if (p.failed) failed.add(p.key);
       else if (p.files) sending.set(p.key, p.files);
     }
-    const streaming = drafts
-      .filter((d) => d.text.trim() && !list.some((m) => m.id === d.id))
-      .map((d) => ({ ...d, room: room.id }));
-    return { shown: [...list, ...local, ...streaming], aliases, failed, sending };
-  }, [messages, pending, drafts, room.id]);
+    return { shown: [...list, ...local], aliases, failed, sending };
+  }, [messages, pending, room.id]);
 
   // Room lines never fold here: this is the room.
   const items = useMemo(() => buildChatItems(shown.map(({ room: _room, ...m }) => m)), [shown]);
@@ -482,7 +475,6 @@ export function RoomChat({
           m={m}
           speaker={speaker}
           arrived={arrived}
-          streaming={drafts.some((d) => d.id === m.id)}
           onAnswer={onAnswer(m.agentId)}
           onOpenAgent={onOpenAgent}
           liveCopy={liveCopyCards.has(m.id)}
@@ -979,7 +971,6 @@ const MemberRow = memo(function MemberRow({
   m,
   speaker,
   arrived,
-  streaming,
   onAnswer,
   onOpenAgent,
   liveCopy,
@@ -992,7 +983,6 @@ const MemberRow = memo(function MemberRow({
   /** The room's members: an @ of one of them in this reply is tinted its colour. */
   members: Agent[];
   arrived: boolean;
-  streaming: boolean;
   /** The newest card for the member's open copy: it offers Keep / Discard. */
   liveCopy: boolean;
   /** The newest version of its result: drawn in full, with its actions. */
@@ -1030,7 +1020,7 @@ const MemberRow = memo(function MemberRow({
       }
       return (
         <TintedMentions text={m.text} members={members} author={speaker.id}>
-          <AgentBubble message={m} agent={speaker} arrived={arrived} streaming={streaming} />
+          <AgentBubble message={m} agent={speaker} arrived={arrived} />
         </TintedMentions>
       );
     case 'approval':

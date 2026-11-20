@@ -3712,11 +3712,11 @@ export const agentsScenarios: Scenario[] = [
   },
   {
     id: 'agents-streaming',
-    title: 'Agents — a reply streaming in',
+    title: 'Agents — a reply being written lands whole',
     looksRightWhen:
-      'The first reply is complete; below it the second is still being written: plain agent bubble, same width and type as the rest, a soft dot breathing at the end of its last line, no typing dots under it. The header still says Working and the composer offers Stop. With ?freeze=off it plays live: words arrive every 40ms, the bubble grows without re-animating, and “Editing PricingCards.tsx” shows between the two blocks.',
+      'The first reply is complete (one bubble, all its text). The second reply is still being written and is NOT on screen: no half-written bubble, no growing text, no dot at its end. The working line under the first reply says what it is doing; the header still says Working and the composer offers Stop. With ?freeze=off the second reply appears all at once when it is done, the working line going as it lands.',
     command: 'agents.open',
-    requires: '.agent-bubble[data-streaming]',
+    requires: '.agent-working__line',
     mockEvents: true,
     commands: {
       agents_overview: overview(
@@ -3732,11 +3732,11 @@ export const agentsScenarios: Scenario[] = [
   ].map(
     ({ id, width, height }): Scenario => ({
       id,
-      title: `Agents — working: its reply is streaming in${width < 600 ? ' (390px)' : ''}`,
+      title: `Agents — working: its reply is being written${width < 600 ? ' (390px)' : ''}`,
       looksRightWhen:
-        'The reply is being written (the second block stops mid-way): under it ONE row with the agent’s key and three dots in a pill, and no phrase, no timer: dots show only while the reply streams. The row sits 10px under the bubble.',
+        'The second reply is being written and is not drawn: after the first reply, ONE working row (the agent’s key and what it is doing) stays until the reply lands whole. The row sits 10px under the bubble.',
       command: 'agents.open',
-      requires: '.agent-working__pill',
+      requires: '.agent-working__line',
       mockEvents: true,
       viewport: { width, height },
       commands: {

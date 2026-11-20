@@ -18,10 +18,10 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react';
-import { DraftProse, FinishedProse, GrowingProse, Prose } from './AgentProse';
+import { GrowingProse, Prose } from './AgentProse';
 import { useStreamIn } from './useStreamIn';
 import { TypingDots } from '../primitives/TypingDots';
-import { agentIn, getAgentsSnapshot, useAgentsSelector } from '../../lib/agentsStore';
+import { agentIn, useAgentsSelector } from '../../lib/agentsStore';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import {
   CheckIcon,
@@ -208,33 +208,26 @@ interface AgentBubbleProps extends Arrival {
   message: AgentMessage;
   /** Whose reply: local paths resolve against its home, shared files live there. */
   agent: Agent;
-  /** Still being written: the text grows in place and a caret marks its end. */
-  streaming?: boolean;
   /** "Remember this", with this message. */
   onRemember?: (message: AgentMessage) => void;
   /** One of the Chief's scripted lines: it types itself out when first seen (`useStreamIn`). */
   scripted?: boolean;
 }
 
-/** The reply an agent is writing, as it is now: read from the store, not passed down. */
-const draftTextOf = (agentId: string) =>
-  getAgentsSnapshot().drafts[agentId]?.text.trimStart() ?? '';
-
 /** A reply in prose, and any files the agent shared with it (`share_file`). */
 export const AgentBubble = memo(function AgentBubble({
   message,
   agent,
   arrived,
-  streaming,
   onRemember,
   scripted,
 }: AgentBubbleProps) {
   const onClick = useProseLinks(agent.id);
-  const streamIn = useStreamIn(message.id, message.text, message.ts, !!scripted && !streaming);
+  const streamIn = useStreamIn(message.id, message.text, message.ts, !!scripted);
   // Blocks (`show`) draw in place of the text, which is their plain version.
-  const blocks = streaming ? null : readBlocks(message);
+  const blocks = readBlocks(message);
   const attachments = attachmentsOutsideBlocks(message.attachments, blocks);
-  const actions = !streaming && (
+  const actions = (
     <MessageActions
       text={message.text}
       ts={message.ts}
@@ -242,7 +235,7 @@ export const AgentBubble = memo(function AgentBubble({
     />
   );
   // Still being written: its words live in the store, not in this message.
-  const onKeyDown = useCopyOnKey(streaming ? () => draftTextOf(message.agentId) : message.text);
+  const onKeyDown = useCopyOnKey(message.text);
   if (streamIn.phase !== 'done') {
     return (
       <div
@@ -268,7 +261,7 @@ export const AgentBubble = memo(function AgentBubble({
       className="agent-chat__row agent-chat__row--agent"
       data-arrived={arrived || undefined}
       data-stopped={message.stopped || undefined}
-      data-actions={(!streaming && attachments.length === 0) || undefined}
+      data-actions={attachments.length === 0 || undefined}
       data-attachments={attachments.length > 0 || undefined}
       data-local-links={(message.localLinks?.length ?? 0) > 0 || undefined}
       data-blocks={blocks ? true : undefined}
@@ -280,23 +273,14 @@ export const AgentBubble = memo(function AgentBubble({
           <AgentBlocks messageId={message.id} agent={agent} set={blocks} />
         </div>
       ) : (
-        (streaming || message.text) && (
-          <div
-            className="agent-bubble agent-bubble--agent agent-markdown"
-            data-streaming={streaming || undefined}
-            aria-busy={streaming || undefined}
-            onClick={onClick}
-          >
-            {streaming ? (
-              <DraftProse agentId={message.agentId} id={message.id} />
-            ) : (
-              <FinishedProse id={message.id} text={message.text} />
-            )}
+        message.text && (
+          <div className="agent-bubble agent-bubble--agent agent-markdown" onClick={onClick}>
+            <Prose text={message.text} />
           </div>
         )
       )}
       {message.stopped && <span className="agent-bubble__stopped">Stopped</span>}
-      {!streaming && <LocalLinks message={message} />}
+      <LocalLinks message={message} />
       {attachments.length > 0 ? (
         <div className="agent-chat__line agent-chat__line--agent">
           <MessageAttachments agent={agent} attachments={attachments} side="agent" />

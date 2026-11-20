@@ -64,7 +64,7 @@ import { AgentUsageRing } from './AgentUsageRing';
 import { AgentAccountChip } from './AccountSwitcher';
 import { AgentFilesModal } from './AgentFilesModal';
 import { RememberModal } from './AgentRemember';
-import { useArrivals, useFollowBottom, usePresence, useRecently } from './useAgentMotion';
+import { useArrivals, useFollowBottom, usePresence } from './useAgentMotion';
 import { useNextLine } from './useNextLine';
 import { useRowAnchoring } from './useRowAnchoring';
 import { useDictation } from './useDictation';
@@ -193,7 +193,6 @@ import {
   upsertMessage,
   useAgentsList,
   useAgentsSelector,
-  type AgentsState,
 } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { ImportTalkBar } from './ImportTalkBar';
@@ -326,9 +325,6 @@ const STICK_THRESHOLD = 80;
 /** Older lines start loading while this many screens of history are still above. */
 const LOAD_AHEAD_SCREENS = 1.5;
 
-/** After a block of a reply ends, how long before the working line may come back. */
-const WORKING_AFTER_REPLY_MS = 700;
-
 /**
  * A chat opens with this many of its newest lines in the DOM, and mounts more
  * of what's loaded, this many at a time, as you scroll up: the same steps as
@@ -460,19 +456,6 @@ interface AgentChatProps extends AgentActions {
 }
 
 /**
- * The reply being written, as far as the history needs to know: which one and
- * when it started. Its words are read by its own bubble (`DraftProse`), so a
- * delta re-renders that bubble and nothing else.
- */
-function draftHeadOf(s: AgentsState, agentId: string): AgentMessage | null {
-  const draft = s.drafts[agentId];
-  // Whitespace that hasn't become words yet isn't worth a bubble.
-  return draft && draft.text.trim() ? draft : null;
-}
-const sameDraftHead = (a: AgentMessage | null, b: AgentMessage | null) =>
-  a === b || (a !== null && b !== null && a.id === b.id && a.ts === b.ts);
-
-/**
  * Who the @mention picker offers and what it shows of them, in any order: the
  * sidebar order changes with every message anywhere, and the chat isn't
  * re-rendered for that. The order is read when the picker is (`draft`).
@@ -530,7 +513,6 @@ export const AgentChat = memo(function AgentChat({
   // This chat's slices only: another agent's reply streaming doesn't touch it.
   const messages = useAgentsSelector((s) => (chatKey ? s.messages[chatKey] : undefined));
   const importChoice = useAgentsSelector((s) => s.importChoice);
-  const draftHead = useAgentsSelector((s) => draftHeadOf(s, agent.id), sameDraftHead);
   const engineReady = useAgentsSelector((s) =>
     engineIsReady(agent.engine, s.engines, s.engineReady)
   );
@@ -569,12 +551,9 @@ export const AgentChat = memo(function AgentChat({
     (message: AgentMessage) => onOpenMessage?.(agent.id, message.id, conversationOf(message)),
     [agent.id, onOpenMessage]
   );
-  // The streaming bubble's place in the history: the same object for the
-  // whole reply, so the history is built once when it starts, not per word.
-  const streaming = useMemo(
-    () => (!inRoom && !elsewhere && draftHead ? { ...draftHead, text: '' } : null),
-    [draftHead, inRoom, elsewhere]
-  );
+  // A reply lands whole: its words aren't drawn while they are being written
+  // (the working line stays until the finished message arrives), so the
+  // history never holds a growing draft (docs/guide/chat.md).
   const { showToast } = useOptionalToast();
   // Kept outside the component: an agent opening a project switches this
   // window away from Agents and back, and a restart reopens the chat, and
@@ -876,14 +855,11 @@ export const AgentChat = memo(function AgentChat({
       if (p.failed) failed.add(p.key);
       else if (p.files) sending.set(p.key, p.files);
     }
-    // The reply being written sits after what's settled and before anything
-    // you've just sent, which it will read next.
-    const draft = streaming && !list.some((m) => m.id === streaming.id) ? [streaming] : [];
     // Sent while dictation still tidies it: here at once, dimmed, until it goes.
     if (held !== null)
       local.push({ id: HELD_ID, agentId: agent.id, ts: Date.now(), kind: 'user', text: held });
-    return { shown: [...list, ...draft, ...local], aliases, failed, sending };
-  }, [messages, pending, agent.id, streaming, held]);
+    return { shown: [...list, ...local], aliases, failed, sending };
+  }, [messages, pending, agent.id, held]);
 
   // What the rows read from the agent. A status or activity change re-renders
   // the header and the indicator, never the history.
@@ -1194,11 +1170,6 @@ export const AgentChat = memo(function AgentChat({
   }, [shown, failed, turn]);
   // A card left open after the turn ended is not "working": no dots, no Stop.
   const working = agent.status.state === 'working';
-  // While words are arriving they are the sign of life; the dots and what
-  // it's doing come back between text blocks, while tools run, once the gap
-  // has lasted a moment: a blink of the working line between two blocks was
-  // the flash that made streaming read as janky.
-  const wroteJustNow = useRecently(!!streaming, WORKING_AFTER_REPLY_MS);
   // Waiting on a card of this chat, the row says "Needs your OK on N" with a real
   // Review in place of the status, and the bar above the composer stays out of it.
   // What waits on you, said on the working row with a real Review: it brings
@@ -1217,9 +1188,8 @@ export const AgentChat = memo(function AgentChat({
     };
   }, [messages]);
   const waitingHere = agent.status.state === 'waiting' && !!needsOk;
-  // The row stays while the reply streams in, as dots in a pill (`typing`): the
-  // only time dots show.
-  const indicator = usePresence(((working || waitingHere) && !wroteJustNow) || !!streaming);
+  // The working line stays until the reply is there; it lands whole.
+  const indicator = usePresence(working || waitingHere);
   const jump = usePresence(!atBottom);
   // What it's doing now goes above what's waiting: the indicator sits before
   // the run of queued messages at the end, not under them.
@@ -1903,7 +1873,6 @@ export const AgentChat = memo(function AgentChat({
                     message={m}
                     arrived={arrived}
                     agent={rowAgent}
-                    streaming={m === streaming}
                     onRemember={setRemembering}
                   />
                   <DecideCards message={m} />
@@ -1916,7 +1885,6 @@ export const AgentChat = memo(function AgentChat({
                 message={m}
                 arrived={arrived}
                 agent={rowAgent}
-                streaming={m === streaming}
                 onRemember={setRemembering}
                 scripted={chiefScripts && !m.work && (m.id === firstShownId || isGuideLine(m))}
               />
@@ -2011,7 +1979,6 @@ export const AgentChat = memo(function AgentChat({
       interruptNow,
       driven,
       colorwayOf,
-      streaming,
       rowsPaused,
       onAnswer,
       onSignIn,
@@ -2067,7 +2034,6 @@ export const AgentChat = memo(function AgentChat({
           agent={rowAgent}
           bare={importTalking}
           needsOk={needsOk}
-          typing={!!streaming}
           place={
             inRoom ? (
               <RoomWorkingPlace roomId={inRoom} onOpenRoom={onOpenAgent} />
