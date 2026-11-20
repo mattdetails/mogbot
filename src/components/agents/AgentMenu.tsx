@@ -127,7 +127,12 @@ export function AgentMenu({
         />
       )}
     >
-      <Row icon={<CheckIcon size={12} />} label={MENU_COPY.tasks} value={value} onSelect={onTasks} />
+      <Row
+        icon={<CheckIcon size={12} />}
+        label={MENU_COPY.tasks}
+        value={value}
+        onSelect={onTasks}
+      />
       {engineReady && (
         <>
           <Row icon={<ActivityIcon size={12} />} label={MENU_COPY.usage} onSelect={onUsage} />

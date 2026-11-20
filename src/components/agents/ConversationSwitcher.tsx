@@ -99,9 +99,17 @@ export function ConversationSwitcher({
     void refreshConversations(agent.id);
   }, [agent.id]);
   // Opened from the agent menu: the same fresh list as a click on the button.
+  // The query resets during render as it opens; the list refresh, a call to
+  // the Mac, runs in the effect and sets the clock when it answers.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) setQuery('');
+  }
   useEffect(() => {
-    if (open) onOpened();
-  }, [open, onOpened]);
+    if (!open) return;
+    void refreshConversations(agent.id).finally(() => setNow(Date.now()));
+  }, [open, agent.id]);
 
   return (
     <>

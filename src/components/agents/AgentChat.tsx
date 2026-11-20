@@ -2208,9 +2208,7 @@ export const AgentChat = memo(function AgentChat({
                         onTasks={() => setTasksOpen(true)}
                         onUsage={() => setUsageOpen(true)}
                         onRoutines={() => setScheduleOpen(true)}
-                        onConversations={
-                          viewing ? () => setConversationsOpen(true) : undefined
-                        }
+                        onConversations={viewing ? () => setConversationsOpen(true) : undefined}
                         onModel={() => actions.onEdit(agent)}
                         onApps={openReach ? () => openReach(agent.id) : undefined}
                         teamIndependence={teamIndependence}
