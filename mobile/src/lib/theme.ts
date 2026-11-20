@@ -671,7 +671,7 @@ export const heroMark = 56;
  * of text, a menu item or a group, a list row's small key, a header, and the
  * big key with its sublegend and pips (the agent sheet).
  */
-export const keySize = { xs: 16, sm: 20, md: 30, lg: 44, xl: 112 } as const;
+export const keySize = { xs: 16, sm: 20, md: 30, row: 32, lg: 44, xl: 112 } as const;
 
 /** A key's three shades (face, skirt, depth) and its legend's ink. */
 export interface KeyColors {

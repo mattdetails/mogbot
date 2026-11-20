@@ -4540,6 +4540,13 @@ async function main() {
       await page.goto(`${WEB}/one-at-a-time`);
       await sleep(5000);
       await screen(page, theme, {
+        name: 'catchup2-two',
+        check: 'Two decisions: “1 of 2”, the card (flat, one container, the ask as its title), Up next · 1 with the kind under its title, then no summary row yet',
+      });
+      // Deny the first: one decision is left.
+      await page.clickLabel('Deny').catch(() => {});
+      await sleep(1500);
+      await screen(page, theme, {
         name: 'catchup2-one',
         check: 'One decision: “1 left”, the card, then “Then” and the “While you were away” row (“1 thing, no decisions”)',
       });
