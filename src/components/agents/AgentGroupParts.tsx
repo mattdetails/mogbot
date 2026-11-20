@@ -76,6 +76,8 @@ export function useAgentPointerDrag({
         if (Math.hypot(e.clientX - x0, e.clientY - y0) < DRAG_START_PX) return;
         started = true;
         row.setAttribute('data-dragging', '');
+        // Held, it can't be clicked: it reads as the inactive control it's dimmed as.
+        row.setAttribute('aria-disabled', 'true');
         document.body.setAttribute('data-agent-dragging', '');
       }
       e.preventDefault();
@@ -99,6 +101,7 @@ export function useAgentPointerDrag({
       window.removeEventListener('pointerup', end);
       window.removeEventListener('pointercancel', cancel);
       row.removeAttribute('data-dragging');
+      row.removeAttribute('aria-disabled');
       document.body.removeAttribute('data-agent-dragging');
       if (!started) return;
       // The release isn't a click on the row.

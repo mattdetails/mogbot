@@ -1,11 +1,6 @@
 {
-  "agents-desk-folder-dragover|dark|color-contrast": 4,
-  "agents-desk-folder-dragover|light|color-contrast": 3,
-  "agents-email-draft-narrow|dark|color-contrast": 1,
   "agents-recipe-share|dark|scrollable-region-focusable": 1,
   "agents-recipe-share|light|scrollable-region-focusable": 1,
-  "agents-sidebar-drag|dark|color-contrast": 3,
-  "agents-sidebar-drag|light|color-contrast": 3,
   "branches-many|dark|aria-required-children": 1,
   "branches-many|light|aria-required-children": 1,
   "gitlab-branches-menu|dark|aria-required-children": 1,
@@ -19,8 +14,6 @@
   "migration-fidelity|dark|scrollable-region-focusable": 2,
   "migration-fidelity|light|color-contrast": 4,
   "migration-fidelity|light|scrollable-region-focusable": 2,
-  "mode-toggle-compact-workspace|dark|aria-required-children": 1,
-  "mode-toggle-compact-workspace|light|aria-required-children": 1,
   "self-managed-remote-push|dark|color-contrast": 1,
   "self-managed-remote-push|light|color-contrast": 1,
   "settings-agents-defaults-menu|dark|color-contrast": 1

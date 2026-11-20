@@ -159,44 +159,48 @@ export function CompactWorkspace({
           if (selected) onSelectTab(selected.id);
         }}
       >
-        <TabsList className="compact-tabs" aria-label="Agent and terminal tabs">
-          {terminalTabs.map((tab) => {
-            const isActive = tab.id === activeTerminalTab;
-            const hasAttention = attentionTabs.has(tab.id) && !isActive;
-            const label = buildTabLabel(tab, terminalTabs, tabTitles);
-            const canClose = terminalTabs.length > 1;
-            return (
-              <div
-                key={tab.id}
-                className={`compact-tab ${isActive ? 'is-active' : ''} ${
-                  hasAttention ? 'has-attention' : ''
-                }`}
-              >
-                <TabsTab
-                  value={terminalTabValue(currentProject.path, tab.id)}
-                  className="compact-tab-select"
-                  title={label}
+        {/* The bar holds the tablist and the + after it: a tablist owns only tabs.
+            The list is display: contents, so the bar lays out as before. */}
+        <div className="tabs__list tabs__list--default tabs__list--appearance-segmented compact-tabs">
+          <TabsList className="compact-tabs__list" aria-label="Agent and terminal tabs">
+            {terminalTabs.map((tab) => {
+              const isActive = tab.id === activeTerminalTab;
+              const hasAttention = attentionTabs.has(tab.id) && !isActive;
+              const label = buildTabLabel(tab, terminalTabs, tabTitles);
+              const canClose = terminalTabs.length > 1;
+              return (
+                <div
+                  key={tab.id}
+                  className={`compact-tab ${isActive ? 'is-active' : ''} ${
+                    hasAttention ? 'has-attention' : ''
+                  }`}
                 >
-                  <span className="compact-tab-dot" aria-hidden="true" />
-                  <span className="compact-tab-label">{label}</span>
-                </TabsTab>
-                {canClose && (
-                  <button
-                    type="button"
-                    className="compact-tab-close"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCloseTab(tab.id);
-                    }}
-                    aria-label={`Close ${label}`}
-                    title="Close tab"
+                  <TabsTab
+                    value={terminalTabValue(currentProject.path, tab.id)}
+                    className="compact-tab-select"
+                    title={label}
                   >
-                    <CloseIcon size={12} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
+                    <span className="compact-tab-dot" aria-hidden="true" />
+                    <span className="compact-tab-label">{label}</span>
+                  </TabsTab>
+                  {canClose && (
+                    <button
+                      type="button"
+                      className="compact-tab-close"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCloseTab(tab.id);
+                      }}
+                      aria-label={`Close ${label}`}
+                      title="Close tab"
+                    >
+                      <CloseIcon size={12} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </TabsList>
           {!atMaxTabs && (
             <button
               type="button"
@@ -208,7 +212,7 @@ export function CompactWorkspace({
               <PlusIcon size={12} />
             </button>
           )}
-        </TabsList>
+        </div>
 
         <StaleEnvBanner projectPath={currentProject.path} />
 
