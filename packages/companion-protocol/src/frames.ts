@@ -178,6 +178,8 @@ export interface WelcomeFrame {
 export const MAC_FEATURES = {
   /** `agents.send` takes `revises`: a result card's "Ask for changes". */
   reviseResults: 'results.revise',
+  /** `agents.send` takes `replyTo` and messages carry `replyTo`: reply to a message. */
+  replyToMessage: 'messages.reply',
   /** Agents carry their "When…" routines as `watches`, shown read-only. */
   whenRoutines: 'routines.when',
   /** Rooms: the `rooms.*` methods and `rooms.changed`. */
