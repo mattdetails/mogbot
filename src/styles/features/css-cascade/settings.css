@@ -317,8 +317,8 @@
   font-size: var(--font-size-badge);
   cursor: pointer;
   transition:
-    color var(--transition),
-    background var(--transition);
+    color var(--motion-change),
+    background var(--motion-change);
 }
 
 .ss-settings__attr-add-btn:hover {

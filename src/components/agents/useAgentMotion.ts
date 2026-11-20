@@ -12,6 +12,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 import { prefersReducedMotion } from '../../lib/motion';
+import { MOTION_DURATION } from '../../../packages/companion-protocol/src/motion';
+
+/**
+ * A backstop for an exit or a fold whose end event never comes (a hidden
+ * window, a stylesheet without it): three times the longest exit, so it never
+ * cuts one short.
+ */
+const END_BACKSTOP_MS = 3 * MOTION_DURATION.exitScreen;
 
 export { prefersReducedMotion };
 
@@ -77,7 +85,10 @@ export function usePresence(visible: boolean) {
   // stylesheet without it), the element still goes.
   useEffect(() => {
     if (phase !== 'leaving') return;
-    const timer = window.setTimeout(() => setPhase((p) => (p === 'leaving' ? 'hidden' : p)), 600);
+    const timer = window.setTimeout(
+      () => setPhase((p) => (p === 'leaving' ? 'hidden' : p)),
+      END_BACKSTOP_MS
+    );
     return () => window.clearTimeout(timer);
   }, [phase]);
 
@@ -318,7 +329,7 @@ export function useHeightReveal(ref: RefObject<HTMLElement | null>, open: boolea
       if (event.target === el && event.propertyName === 'height') finish();
     };
     el.addEventListener('transitionend', onEnd);
-    const timer = window.setTimeout(finish, 700);
+    const timer = window.setTimeout(finish, END_BACKSTOP_MS);
     return () => {
       el.removeEventListener('transitionend', onEnd);
       window.clearTimeout(timer);

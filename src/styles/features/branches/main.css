@@ -21,8 +21,8 @@
   border-radius: 0;
   box-shadow: none;
   transition:
-    box-shadow var(--transition),
-    transform var(--transition);
+    box-shadow var(--motion-change),
+    transform var(--motion-change);
 }
 
 .source-control-push.has-unsaved-changes:hover {
@@ -476,8 +476,8 @@
   text-align: left;
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change);
 }
 
 .branches-menu-branch-row {
@@ -758,7 +758,7 @@
   font-size: var(--font-size-body-lg);
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background var(--motion-change);
 }
 
 .branch-dropdown-item:hover {
@@ -833,9 +833,9 @@
   text-align: left;
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .branch-dropdown-link:hover {

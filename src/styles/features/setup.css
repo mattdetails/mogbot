@@ -66,8 +66,8 @@
   border-radius: 10px;
   border: 1px solid var(--border-default);
   transition:
-    border-color var(--transition),
-    background-color var(--transition);
+    border-color var(--motion-change),
+    background-color var(--motion-change);
 }
 
 .setup-item:hover {

@@ -43,9 +43,9 @@
   color: var(--text-secondary);
   cursor: pointer;
   transition:
-    border-color var(--transition),
-    background-color var(--transition),
-    color var(--transition);
+    border-color var(--motion-change),
+    background-color var(--motion-change),
+    color var(--motion-change);
 }
 
 .dashboard-workspace-chip:hover {
@@ -286,7 +286,7 @@
   font: inherit;
   align-items: center;
   cursor: pointer;
-  transition: background-color var(--transition);
+  transition: background-color var(--motion-change);
 }
 
 .dashboard-disclosure:not(.is-expanded) .dashboard-disclosure__header {
@@ -343,7 +343,7 @@
   margin-inline-start: auto;
   flex-shrink: 0;
   color: var(--text-muted);
-  transition: transform var(--transition);
+  transition: transform var(--motion-change);
 }
 
 .dashboard-disclosure__header:hover .dashboard-disclosure__chevron,

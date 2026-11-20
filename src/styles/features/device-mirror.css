@@ -80,7 +80,7 @@
   padding: var(--spacing-xs) var(--spacing-md);
   background: var(--surface-panel);
   border-bottom: 1px solid var(--border-default);
-  transition: background var(--transition);
+  transition: background var(--motion-change);
 }
 
 /* Hovering anywhere on the bar highlights the whole bar — the toggle/chevron
@@ -125,7 +125,7 @@
 }
 
 .device-mirror-build-header > .button--icon-only svg {
-  transition: transform var(--transition);
+  transition: transform var(--motion-change);
 }
 
 .device-mirror-build-chevron-open svg {

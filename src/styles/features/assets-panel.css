@@ -107,9 +107,9 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .assets-breadcrumb-btn:hover {
@@ -140,8 +140,8 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition:
-    background-color var(--transition),
-    color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change);
 }
 
 .assets-root-toggle:hover {
@@ -352,7 +352,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  transition: background var(--transition);
+  transition: background var(--motion-change);
 }
 
 .assets-item:hover {
@@ -440,7 +440,7 @@
   display: flex;
   gap: 4px;
   opacity: 0;
-  transition: opacity var(--transition);
+  transition: opacity var(--motion-change);
 }
 
 .assets-item:hover .assets-item-actions,
@@ -517,9 +517,9 @@
   border-radius: var(--radius-control);
   cursor: inherit;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
   position: relative;
   overflow: hidden;
 }
@@ -585,7 +585,7 @@
   right: 4px;
   display: flex;
   opacity: 0;
-  transition: opacity var(--transition);
+  transition: opacity var(--motion-change);
 }
 
 .assets-grid-entry:hover .assets-grid-actions,

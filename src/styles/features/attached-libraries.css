@@ -87,8 +87,8 @@
   color: var(--text-muted);
   cursor: pointer;
   transition:
-    color var(--transition),
-    background var(--transition);
+    color var(--motion-change),
+    background var(--motion-change);
 }
 
 .attached-libraries-remove:hover {

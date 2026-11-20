@@ -114,7 +114,7 @@
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  transition: transform var(--transition);
+  transition: transform var(--motion-change);
 }
 
 .file-tree-chevron.expanded {

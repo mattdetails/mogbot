@@ -70,7 +70,7 @@
   background: var(--surface-control);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
 }
 
 .help-command:hover {
@@ -113,7 +113,7 @@
   background: var(--surface-control);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
 }
 
 .help-tip:hover {
@@ -214,7 +214,7 @@
   border-radius: var(--radius-card);
   font-family: var(--font-code);
   border: 1px solid var(--border-default);
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
   line-height: 1.4;
 }
 
@@ -250,7 +250,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
   cursor: pointer;
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
   user-select: none;
 }
 

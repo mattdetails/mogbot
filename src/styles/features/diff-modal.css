@@ -260,9 +260,9 @@
   cursor: pointer;
   font-size: var(--font-size-body-lg);
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .diff-error button:hover {

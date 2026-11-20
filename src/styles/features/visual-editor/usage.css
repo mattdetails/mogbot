@@ -95,8 +95,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   transition:
-    background var(--transition),
-    color var(--transition);
+    background var(--motion-change),
+    color var(--motion-change);
 }
 .ss-edit-panel__locitem:hover {
   color: var(--text-primary);
@@ -120,8 +120,8 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
-    background var(--transition),
-    color var(--transition);
+    background var(--motion-change),
+    color var(--motion-change);
 }
 .ss-edit-panel__scope--btn:hover {
   background: color-mix(in srgb, var(--text-muted) 14%, transparent);
@@ -233,7 +233,7 @@
   gap: var(--spacing-sm);
   padding: 6px var(--spacing-sm);
   border-radius: var(--radius-sm);
-  transition: background var(--transition);
+  transition: background var(--motion-change);
 }
 .ss-usage-row:hover {
   background: color-mix(in srgb, var(--text-primary) 6%, transparent);
@@ -283,8 +283,8 @@
   border: none;
   cursor: pointer;
   transition:
-    background var(--transition),
-    color var(--transition);
+    background var(--motion-change),
+    color var(--motion-change);
 }
 .ss-usage-row__line--btn:hover {
   color: var(--text-on-accent);
@@ -329,7 +329,7 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color var(--transition);
+  transition: color var(--motion-change);
 }
 .ss-edit-panel__srclink:hover {
   background: none;

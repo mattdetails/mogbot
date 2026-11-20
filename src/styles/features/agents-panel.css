@@ -58,7 +58,7 @@
   /* Figma-specific one-off: account rows use a 62px minimum rhythm. */
   min-height: 62px;
   border-bottom: var(--border-width-default) solid var(--border-subtle);
-  transition: background-color var(--transition);
+  transition: background-color var(--motion-change);
 }
 
 .agents-panel-row:last-child {
@@ -209,8 +209,8 @@
   font: inherit;
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 /* Button variants intentionally style their own surface. Re-assert the

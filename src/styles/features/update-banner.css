@@ -17,8 +17,8 @@
   box-shadow: var(--shadow-button);
   transition:
     max-height var(--transition-slow),
-    background-color var(--transition),
-    box-shadow var(--transition);
+    background-color var(--motion-change),
+    box-shadow var(--motion-change);
 }
 
 .update-indicator--ready:hover,
@@ -55,9 +55,9 @@
   text-align: left;
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    transform var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    transform var(--motion-change);
 }
 
 .update-indicator-update-action:hover:not(:disabled),
@@ -120,8 +120,8 @@
     margin-bottom var(--transition-slow),
     padding-top var(--transition-slow),
     padding-bottom var(--transition-slow),
-    background-color var(--transition),
-    opacity var(--transition),
+    background-color var(--motion-change),
+    opacity var(--motion-change),
     transform var(--transition-slow);
 }
 

@@ -316,7 +316,7 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  transition: transform var(--transition);
+  transition: transform var(--motion-change);
 }
 
 .ss-tree-chevron.open {

@@ -60,7 +60,7 @@
   padding: 12px;
   border-radius: var(--radius-card);
   background: var(--surface-panel);
-  transition: background-color var(--transition);
+  transition: background-color var(--motion-change);
 }
 
 .backup-item:hover {

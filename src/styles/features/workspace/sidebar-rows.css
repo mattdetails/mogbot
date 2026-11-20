@@ -287,8 +287,8 @@
   border-radius: var(--radius-sm);
   opacity: 0.55;
   transition:
-    opacity var(--transition),
-    color var(--transition);
+    opacity var(--motion-change),
+    color var(--motion-change);
   flex-shrink: 0;
 }
 

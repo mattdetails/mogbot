@@ -252,8 +252,8 @@ code,
   border: 1px solid var(--border-default);
   border-radius: 999px;
   transition:
-    background var(--transition),
-    border-color var(--transition);
+    background var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .toggle-pill-switch::after {
@@ -266,8 +266,8 @@ code,
   background: var(--text-muted);
   border-radius: 50%;
   transition:
-    transform var(--transition),
-    background var(--transition);
+    transform var(--motion-change),
+    background var(--motion-change);
 }
 
 .toggle-pill-switch.is-on {
@@ -283,7 +283,7 @@ code,
 /* Rotate the chevron 180° when its parent dropdown is open. */
 .button .chevron-flipped {
   transform: rotate(180deg);
-  transition: transform var(--transition);
+  transition: transform var(--motion-change);
 }
 
 /* ===== Primitive: Button ===== */
@@ -306,11 +306,11 @@ code,
   font-weight: var(--button-font-weight);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition),
-    opacity var(--transition),
-    transform var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change),
+    opacity var(--motion-change),
+    transform var(--motion-change);
   box-shadow: var(--button-shadow);
   white-space: nowrap;
 }

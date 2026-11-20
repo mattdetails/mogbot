@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { MOTION_DURATION } from '../../../packages/companion-protocol/src/motion';
 
 const TOOLTIP_ID = 'ss-tooltip';
 const TOOLTIP_OFFSET = 8;
@@ -18,8 +19,8 @@ const TOOLTIP_MARGIN = 8;
 const TOOLTIP_DEFAULT_DELAY_MS = 1000;
 /** Window after hiding one tooltip during which the next anchor shows instantly. */
 const TOOLTIP_CHAIN_MS = 250;
-/** Matches --duration-standard (the exit transition) plus a small buffer. */
-const TOOLTIP_EXIT_MS = 200;
+/** The exit (tooltip.css, --motion-change) plus a small buffer. */
+const TOOLTIP_EXIT_MS = MOTION_DURATION.quick + 50;
 const richTooltipContent = new Map<string, ReactNode>();
 
 type TooltipPlacement = 'above' | 'below';

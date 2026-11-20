@@ -84,8 +84,8 @@
   border-radius: calc(var(--radius-sm) - 1px);
   cursor: pointer;
   transition:
-    background var(--transition),
-    color var(--transition);
+    background var(--motion-change),
+    color var(--motion-change);
 }
 .ss-enum__item:hover {
   color: var(--text-primary);
@@ -171,7 +171,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
 }
 .ss-color-swatch:hover {
   border-color: var(--text-muted);

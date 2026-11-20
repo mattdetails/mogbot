@@ -198,7 +198,7 @@
   padding: 0;
   cursor: pointer;
   text-align: left;
-  transition: color var(--transition);
+  transition: color var(--motion-change);
 }
 
 .workspace-titlebar .project-path > svg {

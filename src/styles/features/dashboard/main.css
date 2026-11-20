@@ -162,9 +162,9 @@
   font-weight: var(--font-weight-label);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -204,8 +204,8 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
   transition:
-    border-color var(--transition),
-    background-color var(--transition),
+    border-color var(--motion-change),
+    background-color var(--motion-change),
     color var(--transition-interaction-fast);
   font: inherit;
   text-align: left;

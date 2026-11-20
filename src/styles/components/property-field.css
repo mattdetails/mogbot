@@ -12,8 +12,8 @@
   font: inherit;
   cursor: text;
   transition:
-    background var(--transition),
-    border-color var(--transition);
+    background var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .property-field--size-default {
@@ -39,10 +39,10 @@
   box-shadow: var(--button-shadow);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition),
-    transform var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change),
+    transform var(--motion-change);
 }
 
 .property-field:hover {

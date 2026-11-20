@@ -97,7 +97,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-control);
   outline: none;
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
 }
 
 .skills-search-input::placeholder {
@@ -134,7 +134,7 @@
   background: var(--surface-control);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-card);
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
 }
 
 .skills-result-card:hover {

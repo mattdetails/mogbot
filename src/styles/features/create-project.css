@@ -90,9 +90,9 @@
   cursor: pointer;
   border-radius: var(--radius-control);
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
   margin: -4px -4px 0 0;
 }
 
@@ -176,9 +176,9 @@
   cursor: pointer;
   text-align: left;
   transition:
-    border-color var(--transition),
-    background-color var(--transition),
-    box-shadow var(--transition);
+    border-color var(--motion-change),
+    background-color var(--motion-change),
+    box-shadow var(--motion-change);
 }
 
 .stack-card:hover {
@@ -259,8 +259,8 @@
   color: var(--text-primary);
   font-size: 15px;
   transition:
-    border-color var(--transition),
-    box-shadow var(--transition);
+    border-color var(--motion-change),
+    box-shadow var(--motion-change);
 }
 
 .create-modal-content input:focus {
@@ -371,9 +371,9 @@
   cursor: pointer;
   text-align: center;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .template-default-toggle:hover {
@@ -433,9 +433,9 @@
   border-radius: var(--radius-card);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
   margin-bottom: 0;
 }
 
@@ -504,9 +504,9 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
   flex-shrink: 0;
 }
 
@@ -544,8 +544,8 @@
   color: var(--text-primary);
   font-size: var(--font-size-body-lg);
   transition:
-    border-color var(--transition),
-    box-shadow var(--transition);
+    border-color var(--motion-change),
+    box-shadow var(--motion-change);
   box-sizing: border-box;
 }
 
@@ -574,8 +574,8 @@
   align-items: center;
   justify-content: center;
   transition:
-    background-color var(--transition),
-    color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change);
 }
 
 .tg-search-clear:hover {
@@ -620,9 +620,9 @@
   justify-content: center;
   box-shadow: 0 2px 8px var(--overlay-30);
   transition:
-    background-color var(--transition),
-    border-color var(--transition),
-    color var(--transition);
+    background-color var(--motion-change),
+    border-color var(--motion-change),
+    color var(--motion-change);
 }
 
 .tg-scroll-btn:hover {
@@ -649,9 +649,9 @@
   overflow: hidden;
   cursor: pointer;
   transition:
-    border-color var(--transition),
-    background-color var(--transition),
-    box-shadow var(--transition);
+    border-color var(--motion-change),
+    background-color var(--motion-change),
+    box-shadow var(--motion-change);
   text-align: left;
   padding: 0;
   position: relative;

@@ -133,9 +133,9 @@
   font-weight: 500;
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
   outline: none;
 }
 
@@ -217,7 +217,7 @@
   text-align: left;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: background var(--transition);
+  transition: background var(--motion-change);
   white-space: nowrap;
 }
 
@@ -528,8 +528,8 @@
   cursor: col-resize;
   z-index: 4;
   transition:
-    background var(--transition),
-    border-color var(--transition);
+    background var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .terminal-split-handle:hover,
@@ -543,7 +543,7 @@
   height: 40px;
   background: var(--text-muted);
   border-radius: 1px;
-  transition: background var(--transition);
+  transition: background var(--motion-change);
 }
 
 .terminal-split-handle:hover .terminal-split-handle-bar,

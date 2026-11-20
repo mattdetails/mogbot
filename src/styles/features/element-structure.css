@@ -81,7 +81,7 @@
   background: transparent;
   color: var(--property-surface-text);
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background var(--motion-change);
 }
 
 .ss-el-toolbar__control-icon {

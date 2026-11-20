@@ -121,9 +121,9 @@
   color: var(--text-secondary);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .notification-sound-option:hover {

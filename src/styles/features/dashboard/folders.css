@@ -79,7 +79,7 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity var(--transition);
+  transition: opacity var(--motion-change);
 }
 
 .folder-card-thumbnail:hover .folder-card-overlay {
@@ -137,9 +137,9 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .folder-card-menu-btn:hover {
@@ -167,9 +167,9 @@
   color: var(--text-secondary);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .folder-breadcrumb-back:hover {

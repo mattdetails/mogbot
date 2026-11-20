@@ -12,9 +12,9 @@
   border-radius: var(--radius-control);
   box-shadow: var(--shadow-button);
   transition:
-    background-color var(--transition),
-    border-color var(--transition),
-    color var(--transition);
+    background-color var(--motion-change),
+    border-color var(--motion-change),
+    color var(--motion-change);
 }
 
 .value-field:focus-within,
@@ -92,8 +92,8 @@
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    transform var(--transition);
+    background-color var(--motion-change),
+    transform var(--motion-change);
 }
 
 .value-field__unit:hover,
@@ -153,7 +153,7 @@
   font-size: var(--font-size-body-sm);
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--transition);
+  transition: background-color var(--motion-change);
 }
 
 .value-field__option:hover,

@@ -17,8 +17,8 @@
   opacity: 0;
   transform: translateY(var(--tooltip-enter-offset, calc(var(--spacing-xs) * -1)));
   transition:
-    opacity var(--duration-standard) var(--ease-standard),
-    transform var(--duration-standard) var(--ease-standard);
+    opacity var(--motion-change),
+    transform var(--motion-change);
 }
 
 /* Hidden state starts offset toward the anchor; it slides away from the anchor

@@ -169,8 +169,8 @@
 .branch-card.clickable {
   cursor: pointer;
   transition:
-    border-color var(--transition),
-    background var(--transition);
+    border-color var(--motion-change),
+    background var(--motion-change);
 }
 
 .branch-card.clickable:hover {
@@ -264,9 +264,9 @@
   font-size: var(--font-size-body-md);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .branch-card-action:hover {

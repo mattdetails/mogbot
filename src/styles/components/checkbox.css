@@ -38,9 +38,9 @@
   background: var(--surface-control);
   color: transparent;
   transition:
-    background var(--transition),
-    border-color var(--transition),
-    color var(--transition);
+    background var(--motion-change),
+    border-color var(--motion-change),
+    color var(--motion-change);
   pointer-events: none;
 }
 

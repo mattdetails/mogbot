@@ -53,7 +53,7 @@
   border: none;
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background var(--motion-change);
 }
 
 .branch-selector-item:hover {
@@ -73,9 +73,9 @@
   margin-top: 2px;
   position: relative;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
 }
 
 .branch-selector-item.selected .branch-selector-radio {
@@ -133,7 +133,7 @@
   color: var(--info);
   font-size: var(--font-size-body-lg);
   cursor: pointer;
-  transition: color var(--transition);
+  transition: color var(--motion-change);
 }
 
 .branch-create-toggle:hover {
@@ -153,7 +153,7 @@
   color: var(--text-primary);
   font-size: var(--font-size-body-lg);
   outline: none;
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
 }
 
 .branch-create-input:focus {
@@ -527,7 +527,7 @@
   color: var(--text-primary);
   font-size: var(--font-size-body-lg);
   outline: none;
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
   box-sizing: border-box;
 }
 

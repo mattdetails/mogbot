@@ -60,7 +60,12 @@
   color: var(--text-primary);
   cursor: pointer;
   text-align: center;
-  transition: all var(--transition-interaction);
+  /* What its states change, each on the interaction curve (was `all`). The
+     focus ring is listed so it still grows in as it did. */
+  transition: var(--transition-interaction);
+  transition-property:
+    background-color, border-color, color, opacity, transform, outline-color, outline-width,
+    outline-offset;
 }
 
 .agent-pick-card:hover:not(:disabled),

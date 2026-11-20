@@ -145,8 +145,8 @@
   pointer-events: none;
   box-sizing: border-box;
   transition:
-    transform var(--transition),
-    width var(--transition);
+    transform var(--motion-change),
+    width var(--motion-change);
 }
 
 .tabs__panel[aria-hidden='true']:not([data-tabs-keep-mounted='true']) {

@@ -58,7 +58,7 @@
   background: var(--surface-control);
   border: var(--stroke-1) solid var(--border-default);
   border-radius: var(--radius-control);
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
 }
 
 .extension-search-field:focus-within {
@@ -96,7 +96,7 @@
   background: var(--surface-control);
   border: var(--stroke-1) solid var(--border-default);
   border-radius: var(--radius-card);
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
 }
 
 .extension-list-row:hover,

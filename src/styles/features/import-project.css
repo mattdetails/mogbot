@@ -42,9 +42,9 @@
   border-radius: var(--radius-card);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
   text-align: left;
 }
 
@@ -125,8 +125,8 @@
   color: var(--text-primary);
   font-size: var(--font-size-subhead);
   transition:
-    border-color var(--transition),
-    box-shadow var(--transition);
+    border-color var(--motion-change),
+    box-shadow var(--motion-change);
 }
 
 .import-search input:focus {
@@ -164,9 +164,9 @@
   border-radius: var(--radius-card);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    color var(--transition),
-    border-color var(--transition);
+    background-color var(--motion-change),
+    color var(--motion-change),
+    border-color var(--motion-change);
   text-align: left;
 }
 
@@ -293,8 +293,8 @@
   cursor: pointer;
   text-align: left;
   transition:
-    border-color var(--transition),
-    background var(--transition);
+    border-color var(--motion-change),
+    background var(--motion-change);
 }
 
 .workspace-picker-item:hover {

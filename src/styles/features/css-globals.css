@@ -427,7 +427,7 @@
   border-radius: 0;
   justify-content: flex-start;
   text-align: left;
-  transition: color var(--transition);
+  transition: color var(--motion-change);
 }
 .ss-var-row__value.property-field,
 .ss-var-row .ss-value-pop--inline .ss-value-pop__input {
@@ -498,7 +498,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  transition: color var(--transition);
+  transition: color var(--motion-change);
 }
 .ss-var-row__value--ro:hover {
   background: none;

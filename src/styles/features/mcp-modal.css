@@ -141,7 +141,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-control);
   outline: none;
-  transition: border-color var(--transition);
+  transition: border-color var(--motion-change);
   font-family: var(--font-code);
 }
 

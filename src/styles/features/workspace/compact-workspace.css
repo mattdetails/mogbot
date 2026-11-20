@@ -83,9 +83,9 @@
   border-radius: var(--compact-topbar-control-radius);
   cursor: pointer;
   transition:
-    background-color var(--transition),
-    border-color var(--transition),
-    color var(--transition);
+    background-color var(--motion-change),
+    border-color var(--motion-change),
+    color var(--motion-change);
 }
 
 .compact-topbar__icon-button {
@@ -174,7 +174,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background var(--transition);
+  transition: background var(--motion-change);
 }
 
 .compact-topbar-project-menu-item:hover {
@@ -231,8 +231,8 @@
   border-radius: var(--radius-sm);
   background: transparent;
   transition:
-    background var(--transition),
-    box-shadow var(--transition);
+    background var(--motion-change),
+    box-shadow var(--motion-change);
   flex-shrink: 0;
 }
 
@@ -337,9 +337,9 @@
   pointer-events: none;
   z-index: var(--z-dropdown);
   transition:
-    background var(--transition),
-    color var(--transition),
-    visibility var(--transition);
+    background var(--motion-change),
+    color var(--motion-change),
+    visibility var(--motion-change);
 }
 
 .compact-tab-close {
@@ -375,8 +375,8 @@
   cursor: pointer;
   flex-shrink: 0;
   transition:
-    background var(--transition),
-    color var(--transition);
+    background var(--motion-change),
+    color var(--motion-change);
 }
 
 .compact-tab-add:hover {

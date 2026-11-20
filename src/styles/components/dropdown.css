@@ -100,7 +100,7 @@
   font-size: var(--font-size-menu-item);
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background var(--motion-change);
 }
 
 .ss-dropdown__item:hover:not(:disabled) {

@@ -210,15 +210,6 @@
       "consumerCount": 38
     },
     {
-      "name": "--transition",
-      "definitionFile": "src/styles/global/tokens-compatibility.css",
-      "layer": "compatibility",
-      "owner": "migration",
-      "status": "migration",
-      "removalCondition": "Remove after internal consumers migrate to the canonical semantic role.",
-      "consumerCount": 256
-    },
-    {
       "name": "--transition-slow",
       "definitionFile": "src/styles/global/tokens-compatibility.css",
       "layer": "compatibility",
@@ -5507,7 +5498,7 @@
       "layer": "core",
       "owner": "global/core",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 0
     },
     {
       "name": "--duration-sortable-settle",
@@ -5579,7 +5570,7 @@
       "layer": "core",
       "owner": "global/core",
       "status": "canonical",
-      "consumerCount": 3
+      "consumerCount": 1
     },
     {
       "name": "--ease-icon-swap",
@@ -6307,7 +6298,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 25
+      "consumerCount": 27
     },
     {
       "name": "--accent-overlay",
@@ -6699,7 +6690,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 9
+      "consumerCount": 6
     },
     {
       "name": "--motion-celebrate",
@@ -6707,7 +6698,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 5
+      "consumerCount": 4
     },
     {
       "name": "--motion-celebrate-ring",
@@ -6723,7 +6714,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 4
+      "consumerCount": 3
     },
     {
       "name": "--motion-stagger",
@@ -6755,7 +6746,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 0
+      "consumerCount": 259
     },
     {
       "name": "--motion-press",
@@ -6779,7 +6770,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 5
+      "consumerCount": 3
     },
     {
       "name": "--motion-exit",
@@ -6787,7 +6778,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 5
+      "consumerCount": 3
     },
     {
       "name": "--motion-exit-screen",
@@ -6819,7 +6810,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 10
+      "consumerCount": 8
     },
     {
       "name": "--motion-breathe",
@@ -6835,7 +6826,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 4
+      "consumerCount": 2
     },
     {
       "name": "--motion-travel-rise",
@@ -6851,7 +6842,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 4
+      "consumerCount": 2
     },
     {
       "name": "--motion-scale-modal",
@@ -7867,7 +7858,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 25
+      "consumerCount": 27
     },
     {
       "name": "--syntax-property",
