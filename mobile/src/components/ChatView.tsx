@@ -103,6 +103,7 @@ import { useAccent } from '../lib/accent';
 import { chatKeyFor, conversationsOffered, jumpStep } from '../lib/conversations';
 import { getApp, useApp, useServed } from '../lib/store';
 import { replyRefFor } from '../lib/reply';
+import { TASK_WORDS, taskLine, taskMenuLine } from '@shipstudio/companion-protocol';
 import { ReplyContext, type ReplyActions } from './Reply';
 import { chipLabel } from '../lib/agentControls';
 import { SETUP_KEY, chatItems, isRowFor, sentAt, withSetupCard, type Item } from '../lib/timeline';
@@ -750,6 +751,7 @@ export function ChatView({
   );
 
   const controlsNow = useControlsNow(agent);
+  const tasksNow = agent?.tasks ? taskMenuLine(agent.tasks) : undefined;
 
   // The working row's Review: the first waiting card, its answers in reach.
   const reviewNeeds = useCallback(() => {
@@ -776,8 +778,8 @@ export function ChatView({
   }
 
   // Embedded (beside the list) the title takes the row's flex, not the bar's budget.
-  const header = <Header agent={agent} buttons={0} />;
   const openSheet = () => router.push({ pathname: '/agent/[id]', params: { id } });
+  const header = <Header agent={agent} buttons={0} onOpen={openSheet} />;
   const openUsage = () => router.push({ pathname: '/usage', params: { id } });
   const openConversations = () => router.push({ pathname: '/conversations', params: { id } });
   // Which conversation this is lives in the ⋯ menu, as Conversations' subtitle
@@ -789,17 +791,20 @@ export function ChatView({
     ring?.percent,
     offered,
     conversationNow,
-    controlsNow
+    controlsNow,
+    tasksNow
   );
   const openMore = () =>
     showActions(undefined, moreActions, (a) =>
-      a === 'usage'
-        ? openUsage()
-        : a === 'conversations'
-          ? openConversations()
-          : a === 'controls'
-            ? openControls()
-            : openSheet()
+      a === 'tasks'
+        ? router.push({ pathname: '/tasks', params: { id } })
+        : a === 'usage'
+          ? openUsage()
+          : a === 'conversations'
+            ? openConversations()
+            : a === 'controls'
+              ? openControls()
+              : openSheet()
     );
   const urgentBelow =
     !follow.pinned &&
@@ -811,13 +816,7 @@ export function ChatView({
     <View style={{ flex: 1 }}>
       {embedded ? (
         <View style={styles.embeddedHeader}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={openSheet}
-            style={({ pressed }) => [{ flex: 1 }, pressed && PRESSED]}
-          >
-            {header}
-          </Pressable>
+          <View style={{ flex: 1 }}>{header}</View>
           {TALK_OFFERED && (
             <IconButton
               name="waveform"
@@ -1397,8 +1396,8 @@ const ChatHeader = memo(function ChatHeader({
   const colors = useColors();
   const id = agent.id;
   const buttons = (TALK_OFFERED ? 1 : 0) + 1;
-  const header = <Header agent={agent} buttons={buttons} />;
   const openSheet = () => router.push({ pathname: '/agent/[id]', params: { id } });
+  const header = <Header agent={agent} buttons={buttons} onOpen={openSheet} />;
   const openUsage = () => router.push({ pathname: '/usage', params: { id } });
   const openConversations = () => router.push({ pathname: '/conversations', params: { id } });
   const openTalk = () => router.push({ pathname: '/talk', params: { id } });
@@ -1406,16 +1405,27 @@ const ChatHeader = memo(function ChatHeader({
   // (Julian, 2026-11-10: the 17% pill crowded the bar). The figure rides along
   // as the Usage row's subtitle; a usage line in the chat still says when it's low.
   const controlsNow = useControlsNow(agent);
+  const tasksNow = agent?.tasks ? taskMenuLine(agent.tasks) : undefined;
   const openControls = () => router.push({ pathname: '/controls', params: { id } });
-  const moreActions = headerActions(agent.name, percent, offered, conversationNow, controlsNow);
+  const moreActions = headerActions(
+    agent.name,
+    percent,
+    offered,
+    conversationNow,
+    controlsNow,
+    tasksNow
+  );
+  const openTasks = () => router.push({ pathname: '/tasks', params: { id } });
   const run = (a: HeaderAction) =>
-    a === 'usage'
-      ? openUsage()
-      : a === 'conversations'
-        ? openConversations()
-        : a === 'controls'
-          ? openControls()
-          : openSheet();
+    a === 'tasks'
+      ? openTasks()
+      : a === 'usage'
+        ? openUsage()
+        : a === 'conversations'
+          ? openConversations()
+          : a === 'controls'
+            ? openControls()
+            : openSheet();
   void tone;
   return (
     <>
@@ -1423,16 +1433,7 @@ const ChatHeader = memo(function ChatHeader({
         options={{
           // Back and the header's controls in this agent's colour, not the Chief's.
           headerTintColor: accent.accent,
-          headerTitle: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityHint="Instructions, memory, files and routines"
-              onPress={openSheet}
-              style={({ pressed }) => pressed && PRESSED}
-            >
-              {header}
-            </Pressable>
-          ),
+          headerTitle: () => header,
           // On iOS the system's own bar button (below): a view of ours in its
           // glass got the bar's side padding, so the circle came out wider than tall.
           ...(NATIVE_HEADER_BUTTONS
@@ -1489,40 +1490,97 @@ const ChatHeader = memo(function ChatHeader({
   );
 });
 
-function Header({ agent, buttons }: { agent: Agent; buttons: number }) {
+function Header({
+  agent,
+  buttons,
+  onOpen,
+}: {
+  agent: Agent;
+  buttons: number;
+  /** The key and name open the agent's sheet; the task line is its own button. */
+  onOpen: () => void;
+}) {
   const colors = useColors();
   const styles = useStyles();
   const { width } = useWindowDimensions();
   // The role alone, across the whole title: which account a turn ran on is
   // desk detail, not something to read on the phone (Julian, 2026-11-10).
   const role = agent.role?.trim();
+  const router = useRouter();
+  // With open work the muted line is the task line; idle with nothing open it's the role.
+  const line = taskLine(agent.tasks);
   return (
     <View style={[styles.header, { maxWidth: headerTitleWidth(width, buttons) }]}>
-      <AgentKey
-        id={agent.id}
-        name={agent.name}
-        color={agent.color}
-        state={agentKeyState(agent)}
-        size={keySize.md}
-      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={agent.name}
+        accessibilityHint="Instructions, memory, files and routines"
+        onPress={onOpen}
+        style={({ pressed }) => pressed && PRESSED}
+      >
+        <AgentKey
+          id={agent.id}
+          name={agent.name}
+          color={agent.color}
+          state={agentKeyState(agent)}
+          size={keySize.md}
+        />
+      </Pressable>
       <View style={{ flexShrink: 1 }}>
-        <T
-          variant="headline"
-          color={colors.textStrong}
-          numberOfLines={1}
-          maxFontSizeMultiplier={chromeScale}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityHint="Instructions, memory, files and routines"
+          onPress={onOpen}
+          style={({ pressed }) => pressed && PRESSED}
         >
-          {agent.name}
-        </T>
-        {!!role && (
           <T
-            variant="caption"
-            color={colors.textSecondary}
+            variant="headline"
+            color={colors.textStrong}
             numberOfLines={1}
             maxFontSizeMultiplier={chromeScale}
           >
-            {role}
+            {agent.name}
           </T>
+        </Pressable>
+        {line ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Tasks: ${[line.doing, line.counts].filter(Boolean).join(', ')}`}
+            hitSlop={space.sm}
+            onPress={() => router.push({ pathname: '/tasks', params: { id: agent.id } })}
+            style={styles.taskLine}
+          >
+            <View
+              style={[
+                styles.taskDot,
+                { backgroundColor: line.doing ? colors.statusRunning : colors.textFaint },
+              ]}
+            />
+            <T
+              variant="caption"
+              color={colors.textSecondary}
+              numberOfLines={1}
+              maxFontSizeMultiplier={chromeScale}
+              style={styles.taskText}
+            >
+              {line.doing ? `${line.doing} · ` : ''}
+              <T variant="caption" color={line.waits > 0 ? colors.accentWarning : colors.textMuted}>
+                {line.counts}
+              </T>
+            </T>
+            <Icon name="chevron.right" size={iconSize.micro} color={colors.textMuted} />
+          </Pressable>
+        ) : (
+          !!role && (
+            <T
+              variant="caption"
+              color={colors.textSecondary}
+              numberOfLines={1}
+              maxFontSizeMultiplier={chromeScale}
+            >
+              {role}
+            </T>
+          )
         )}
       </View>
     </View>
@@ -1607,6 +1665,9 @@ const fadeStyles = StyleSheet.create({
 });
 
 const useStyles = makeStyles((colors) => ({
+  taskLine: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  taskDot: { width: 7, height: 7, borderRadius: radius.pill },
+  taskText: { flexShrink: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   rewound: {
     flexDirection: 'row',
@@ -1709,7 +1770,7 @@ const useStyles = makeStyles((colors) => ({
   },
 }));
 
-type HeaderAction = 'usage' | 'conversations' | 'controls' | 'about';
+type HeaderAction = 'tasks' | 'usage' | 'conversations' | 'controls' | 'about';
 
 /**
  * What it runs on, for the ⋯ menu's Model and controls row ("Opus 5.5 · High"):
@@ -1746,9 +1807,21 @@ export function headerActions(
   offered: boolean,
   conversationNow?: string,
   /** What it runs on ("Opus 5.5 · High"); present only when the Mac lets this phone change it. */
-  controlsNow?: string
+  controlsNow?: string,
+  /** "1 waits · 5 to do": present once the Mac serves the task list. */
+  tasksNow?: string
 ): (Action<HeaderAction> & { subtitle?: string })[] {
   return [
+    ...(tasksNow !== undefined
+      ? [
+          {
+            id: 'tasks' as const,
+            title: TASK_WORDS.title,
+            icon: 'checklist' as const,
+            subtitle: tasksNow || TASK_WORDS.nothing,
+          },
+        ]
+      : []),
     ...(controlsNow
       ? [
           {

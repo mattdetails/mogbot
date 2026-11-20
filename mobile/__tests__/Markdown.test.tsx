@@ -28,7 +28,7 @@ describe('Markdown', () => {
     await render(<Markdown text={reply} />);
     expect(screen.getByText('1.')).toBeTruthy();
     expect(screen.getByText('Read')).toBeTruthy();
-    expect(screen.getByText('◦')).toBeTruthy(); // nested bullet
+    expect(screen.getAllByText('•').length).toBeGreaterThan(0); // a nested bullet, the same dot
     expect(screen.getByText('0 broken')).toBeTruthy();
     expect(screen.getByText('pnpm build')).toBeTruthy();
 

@@ -225,6 +225,8 @@ export interface MockOptions {
   catchUpOne?: boolean;
   /** The Designer's chat ends on replies: to its words, to a picture, and to a message that's gone. */
   replies?: boolean;
+  /** The task list: `rich` has all four groups, `empty` nothing (default: one doing, one waiting). */
+  tasks?: 'rich' | 'empty';
   /** Something happened while away, with no ask: the queue ends on "While you were away". */
   catchUpSeveral?: boolean;
   /** The Designer's key colour (a colourway id): the chat bubbles take it. */
@@ -1962,6 +1964,10 @@ export function createMockServer(opts: MockOptions = {}) {
       quiet.lastActivityAt = now - 20 * 60_000;
       quiet.preview = 'The weekly numbers are ready.';
     }
+  }
+  if (opts.tasks === 'rich') {
+    const d = agents.find((a) => a.id === 'design');
+    if (d) d.tasks = { doing: 'Drafting intros', toDo: 2, waits: 1 };
   }
   if (opts.replies) {
     const list = messages.get('design') ?? [];
@@ -4291,6 +4297,54 @@ export function createMockServer(opts: MockOptions = {}) {
         return fail({ type: 'Protocol', code: 'bad_params', message: 'Tasks takes an agentId.' });
       }
       const now = Date.now();
+      if (opts.tasks === 'empty') {
+        return {
+          agentId: a.id,
+          name: a.name,
+          role: a.role ?? '',
+          doing: null,
+          open: [],
+          recent: [],
+          overloaded: false,
+          stuck: 0,
+        };
+      }
+      if (opts.tasks === 'rich') {
+        const t = (id: string, title: string, state: string, ago: number, extra: object = {}) => ({
+          id,
+          title,
+          source: 'user',
+          state,
+          createdAt: now - ago,
+          updatedAt: now - ago / 2,
+          chased: 0,
+          lastChasedAt: 0,
+          ...extra,
+        });
+        return {
+          agentId: a.id,
+          name: a.name,
+          role: a.role ?? '',
+          doing: 'Drafting intros',
+          open: [
+            t('r1', 'Draft the three intro emails', 'doing', 40 * 60_000),
+            t('r2', 'Chase the Globex invoice', 'next', 3 * 3_600_000, {
+              source: 'agent',
+              from: { id: 'mail', name: 'Mail' },
+            }),
+            t('r3', 'Update the pricing page copy', 'next', 5 * 3_600_000),
+            t('r4', 'Send Dana the deploy notes', 'waiting', 6 * 3_600_000, {
+              waitingOn: 'Dana’s reply',
+            }),
+          ],
+          recent: [
+            t('r5', 'Rotate the staging certificates', 'done', 2 * 3_600_000),
+            t('r6', 'Archive last month’s reports', 'done', 4 * 3_600_000),
+          ],
+          overloaded: false,
+          stuck: 0,
+        };
+      }
       return {
         agentId: a.id,
         name: a.name,

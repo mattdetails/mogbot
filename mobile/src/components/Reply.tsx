@@ -5,7 +5,7 @@
  */
 import { REPLY, replyExcerptLine, replyPillText } from '@shipstudio/companion-protocol';
 import type { ReplyRef } from '@shipstudio/companion-protocol';
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -46,10 +46,13 @@ export const useReplyActions = () => useContext(ReplyContext);
 export function SwipeReply({
   onReply,
   label,
+  above,
   children,
 }: {
   onReply: () => void;
   label: string;
+  /** Moves with the message but isn't part of it (a reply's pill): the circle centres on `children`. */
+  above?: ReactNode;
   children: ReactNode;
 }) {
   const styles = useStyles();
@@ -57,6 +60,7 @@ export function SwipeReply({
   const reduced = useReducedMotion();
   const x = useSharedValue(0);
   const armed = useSharedValue(false);
+  const [body, setBody] = useState({ y: 0, h: 0 });
   // 25 degrees: after 12 sideways, vertical drift past tan(25°)·12 ≈ 5.6 hands the touch to the list.
   const slop = Math.tan((SWIPE_ANGLE_DEG * Math.PI) / 180) * 12;
   const pan = Gesture.Pan()
@@ -92,10 +96,24 @@ export function SwipeReply({
         accessibilityActions={[{ name: 'reply', label }]}
         onAccessibilityAction={(e) => e.nativeEvent.actionName === 'reply' && onReply()}
       >
-        <Animated.View pointerEvents="none" style={[styles.circle, circle]}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.circle,
+            body.h > 0 && { top: body.y + body.h / 2 - reply.circle / 2, marginTop: 0 },
+            circle,
+          ]}
+        >
           <ReplyArrow x={x} />
         </Animated.View>
-        <Animated.View style={slide}>{children}</Animated.View>
+        <Animated.View style={slide}>
+          {above}
+          <View
+            onLayout={(e) => setBody({ y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height })}
+          >
+            {children}
+          </View>
+        </Animated.View>
       </View>
     </GestureDetector>
   );

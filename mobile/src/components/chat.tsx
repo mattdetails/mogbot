@@ -443,8 +443,7 @@ export const MessageRow = memo(function MessageRow(props: MessageRowProps) {
   const ref = replyRefFor(message, agent.name);
   if (!ref) return body;
   return (
-    <SwipeReply label={REPLY.action} onReply={() => actions.onReply(message.id)}>
-      {pill}
+    <SwipeReply label={REPLY.action} onReply={() => actions.onReply(message.id)} above={pill}>
       {body}
     </SwipeReply>
   );

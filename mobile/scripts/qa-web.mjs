@@ -4875,6 +4875,52 @@ async function main() {
     }
   }
 
+  if (phase('tasks')) {
+    // The task line under the name, the ⋯ menu's Tasks row, and the list: full, then empty.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--tasks');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(7000);
+      await screen(page, theme, {
+        name: 'tasks-header',
+        check:
+          'The header: key, name, and under it the task line (a dot, what it is doing, “· 4 to do · 1 waits” with the waits amber, a chevron); no pill',
+      });
+      await page.clickLabel('More');
+      await sleep(900);
+      await screen(page, theme, {
+        name: 'tasks-menu',
+        check:
+          'The ⋯ menu: Tasks is the first row with “1 waits · 4 to do” under it, then Usage, Conversations, About',
+      });
+      await page.clickText('Tasks');
+      await sleep(1500);
+      await screen(page, theme, {
+        name: 'tasks-sheet',
+        check:
+          'The task list sheet: Doing, Next, Waits on you (amber, “since … · on Dana’s reply”), Done today (struck, muted), marks per state, “4 to do” under the title',
+      });
+      await startMock('--tasks-empty');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(7000);
+      await screen(page, theme, {
+        name: 'tasks-header-idle',
+        check:
+          'Nothing open and not working: the muted line under the name is the agent’s role again',
+      });
+      await page.goto(`${WEB}/tasks?id=design`);
+      await sleep(5000);
+      await screen(page, theme, {
+        name: 'tasks-empty',
+        check:
+          'The empty list: “Nothing on the list” and “Nothing on the list. Ask for something and it lands here.”',
+      });
+    }
+  }
+
   if (phase('nested-list')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);

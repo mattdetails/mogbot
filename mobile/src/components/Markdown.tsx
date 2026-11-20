@@ -328,20 +328,23 @@ const decode = (s: string) =>
 function List({ list, depth = 0 }: { list: Tokens.List; depth?: number }) {
   const styles = useStyles();
   const start = typeof list.start === 'number' ? list.start : 1;
+  // The widest number plus its dot, so every number's text starts at the same place.
+  const markerWidth = (String(start + list.items.length - 1).length + 1) * 9;
   return (
     <View style={styles.list}>
       {list.items.map((item, i) => (
         <View key={i} style={styles.item}>
-          <Text maxFontSizeMultiplier={READ_MAX_SCALE} style={[styles.p, styles.bullet]}>
-            {item.task
-              ? item.checked
-                ? '☑'
-                : '☐'
-              : list.ordered
-                ? `${start + i}.`
-                : depth
-                  ? '◦'
-                  : '•'}
+          <Text
+            maxFontSizeMultiplier={READ_MAX_SCALE}
+            style={[
+              styles.p,
+              styles.bullet,
+              // Numbers in one tight column, right-aligned; a dot only as wide as itself.
+              list.ordered && { minWidth: markerWidth, textAlign: 'right' },
+              !list.ordered && !item.task && depth > 0 && styles.nestedDot,
+            ]}
+          >
+            {item.task ? (item.checked ? '☑' : '☐') : list.ordered ? `${start + i}.` : '•'}
           </Text>
           <View style={styles.itemBody}>
             {item.tokens.map((t, j) =>
@@ -527,7 +530,9 @@ const useBaseStyles = makeStyles((colors) => ({
   list: { gap: space.sm },
   item: { flexDirection: 'row', gap: space.sm },
   // Wide enough for "10." so a long list's numbers line up with its first.
-  bullet: { color: colors.textMuted, minWidth: 18 },
+  bullet: { color: colors.textMuted, minWidth: 10 },
+  // The nested level: the same filled dot, smaller.
+  nestedDot: { fontSize: type.small, lineHeight: lineHeight(type.read, READ_LINE) },
   // Not `flex: 1`: that is flex-basis 0, which React Native's layout (Yoga) counts as
   // zero width when a bubble shrinks to its content, so a reply that was only a list
   // collapsed to its numbers and bullets with no words (Julian's iPhone, 19 Nov;
@@ -604,4 +609,3 @@ function useStyles() {
   const bubble = useContext(BubbleSize);
   return useMemo(() => (bubble ? { ...base, p: base.pBubble } : base), [base, bubble]);
 }
-
