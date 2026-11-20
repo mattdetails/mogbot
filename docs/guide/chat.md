@@ -11,7 +11,7 @@ A reply appears all at once, not word by word: while your agent writes it, the o
 
 ## The message box
 
-The box holds the paperclip, your words, the mic and Send, and nothing else. Send is neutral (near-black in light, near-white in dark), never the agent's colour, and sits faint until there is something to send. The mic is there only while the box is empty. While the agent works and the box is empty, a Stop square sits where Send would be; Stop stops the turn. The model is no longer in the box: change it from **Model** in the chat header (desk) or **Model and controls** in the ⋯ menu (phone).
+The box is one rounded bar: a **+** (attach files) on the left, your words, the mic while the box is empty, and one round button on the right in your agent's colour. That button is a muted send arrow while the box is empty, a lit send arrow once there is something to send, and a stop square while your agent is working and the box is empty; Stop stops the turn. The model is no longer in the box: change it from **Model** in the chat header (desk) or **Model and controls** in the ⋯ menu (phone).
 
 Send something while it is working and it waits its turn. Under your message you see **Next**, and **Send now** if you'd rather it stop and read yours straight away. The agent's one working line sits below; that is all the chat says about it.
 

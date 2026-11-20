@@ -21,7 +21,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from 'react';
-import { ArrowUpIcon, MicrophoneIcon, PaperclipIcon } from '@/components/icons';
+import { ArrowUpIcon, MicrophoneIcon, PlusIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
 import { TextArea } from '../primitives/TextField';
 import { ComposerAttachments, ComposerQuotes } from './AgentAttachments';
@@ -360,12 +360,12 @@ export const AgentComposer = memo(function AgentComposer({
         aria-describedby={queueing ? queueHintId : undefined}
       />
       <div className="agent-composer__bar">
-        {/* The paperclip stays while listening, so the text never moves. */}
+        {/* The + (attach) stays while listening, so the text never moves. */}
         <IconButton
           tabIndex={0}
           variant="ghost"
           className="agent-composer__attach"
-          icon={<PaperclipIcon size={14} />}
+          icon={<PlusIcon size={14} />}
           onClick={onPickFiles}
           aria-label="Attach files"
           title="Attach files, or paste or drop them here"
@@ -426,7 +426,7 @@ export const AgentComposer = memo(function AgentComposer({
           {working && !canSend && !blank && !dictating ? (
             <IconButton
               tabIndex={0}
-              variant="secondary"
+              variant="strong"
               className="agent-composer__stop"
               data-armed={escArmed || undefined}
               icon={<span className="agent-composer__stop-square" aria-hidden />}

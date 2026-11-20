@@ -38,6 +38,7 @@
   --agents-bubble-tint: 4%;
   --agents-bubble-pad-y: 7px;
   --agents-bubble-line: 20px;
+  --agents-composer-radius: 22px;
   --agents-user-bubble-max: 560px;
   --size-catchup-head: 56px;
   --size-catchup-queue: 360px;

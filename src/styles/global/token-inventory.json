@@ -189,7 +189,7 @@
       "owner": "migration",
       "status": "migration",
       "removalCondition": "Remove after internal consumers migrate to the canonical semantic role.",
-      "consumerCount": 35
+      "consumerCount": 37
     },
     {
       "name": "--shadow",
@@ -575,6 +575,14 @@
     },
     {
       "name": "--agents-bubble-line",
+      "definitionFile": "src/styles/global/tokens-components.css",
+      "layer": "components",
+      "owner": "global/component",
+      "status": "canonical",
+      "consumerCount": 1
+    },
+    {
+      "name": "--agents-composer-radius",
       "definitionFile": "src/styles/global/tokens-components.css",
       "layer": "components",
       "owner": "global/component",
@@ -5707,7 +5715,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 426
+      "consumerCount": 427
     },
     {
       "name": "--border-subtle",
@@ -5747,7 +5755,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 377
+      "consumerCount": 378
     },
     {
       "name": "--border-width-emphasis",
@@ -6603,7 +6611,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 75
+      "consumerCount": 74
     },
     {
       "name": "--radius-pill",
@@ -7219,7 +7227,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 426
+      "consumerCount": 427
     },
     {
       "name": "--border-subtle",
@@ -7747,7 +7755,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 2
     },
     {
       "name": "--accent-on-user",
@@ -7755,7 +7763,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 3
     },
     {
       "name": "--accent-user-rgb",
@@ -7771,7 +7779,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 0
+      "consumerCount": 1
     },
     {
       "name": "--accent-user-strong",
@@ -7819,7 +7827,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 2
     },
     {
       "name": "--accent-on-user",
@@ -7827,7 +7835,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 3
     },
     {
       "name": "--accent-user-rgb",
@@ -7843,7 +7851,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 0
+      "consumerCount": 1
     },
     {
       "name": "--accent-user-strong",
