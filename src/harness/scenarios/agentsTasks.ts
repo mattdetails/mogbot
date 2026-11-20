@@ -217,6 +217,52 @@ export const agentsTasksScenarios: Scenario[] = [
     { steps: [{ click: '.agent-chat__more' }, { wait: 400 }], requires: '.agent-menu' }
   ),
 
+  // ---- “＋ Add a task” at the foot of the panel (Designer's G-6) ----
+  scenario(
+    'add',
+    'the task panel, Add a task at rest',
+    'At the foot of the panel a quiet “＋ Add a task” in muted ink, left-aligned under the last group; no button chrome, no accent.',
+    { doing: 'Drafting intros', toDo: 2, waits: 1 },
+    LOAD(OPEN, RECENT),
+    { steps: [...OPEN_TASKS], requires: '.agent-tasks__add-row' }
+  ),
+  scenario(
+    'add-typing',
+    'the task panel, Add a task typing',
+    'The row has become one field with “What needs doing?” and, typed, the words as written; the field keeps the neutral focus ring (never the accent).',
+    { doing: 'Drafting intros', toDo: 2, waits: 1 },
+    LOAD(OPEN, RECENT),
+    {
+      steps: [
+        ...OPEN_TASKS,
+        { click: '.agent-tasks__add-row' },
+        { fill: '.agent-tasks__add-input', value: 'Book the venue for March' },
+        { wait: 300 },
+      ],
+      requires: '.agent-tasks__add-input',
+    }
+  ),
+  scenario(
+    'added',
+    'the task panel, after Add a task',
+    'The new line is in Next, in the words typed, “you asked …”; the field is back to “＋ Add a task”, and the header says one more to do.',
+    { doing: 'Drafting intros', toDo: 3, waits: 1 },
+    // The board as it reads once the add has landed.
+    LOAD([...OPEN.slice(0, 3), task('n1', 'Book the venue for March', 'next', 0), OPEN[3]], RECENT),
+    {
+      steps: [
+        ...OPEN_TASKS,
+        { click: '.agent-tasks__add-row' },
+        { fill: '.agent-tasks__add-input', value: 'Book the venue for March' },
+        { key: 'Enter' },
+        { wait: 700 },
+      ],
+      requires: '.agent-tasks__add-row',
+      commands: {
+        agents_task_add: () => task('n1', 'Book the venue for March', 'next', 0),
+      },
+    }
+  ),
   // ---- Fidelity QA's gate: the task data states (DRYRUN-MISSING.md, Chief Brain) ----
   scenario(
     'dropped',
