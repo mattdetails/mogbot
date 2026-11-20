@@ -14,7 +14,11 @@
  * in, so the tests run it under Node against the mock relay.
  */
 
-import { RELAY_PING_MS } from '@shipstudio/companion-protocol';
+import {
+  RELAY_CLOSE_MAC_OFFLINE,
+  RELAY_CLOSE_SIGN_IN_NEEDED,
+  RELAY_PING_MS,
+} from '@shipstudio/companion-protocol';
 import { finishHandshake, startHandshake, type Channel } from './relayCrypto';
 
 /** Whatever answered at the relay couldn't prove it's the pinned Mac. */
@@ -29,7 +33,27 @@ export interface RelaySocketOptions {
   WebSocketImpl?: typeof WebSocket;
   /** Keep-alive to the relay; `RELAY_PING_MS` by default. */
   pingMs?: number;
+  /**
+   * Keep the session when this socket dies: reconnect behind the same
+   * RelaySocket and pick up where it left off (docs/relay.md, "Sessions").
+   * For the companion protocol's socket; HTTP's one-shot sockets leave it off.
+   */
+  session?: boolean;
+  /** How long a dropped session keeps trying; 120 s by default. */
+  graceMs?: number;
+  /** Timers, for tests. */
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (t: unknown) => void;
 }
+
+/** What a dropped session waits between tries, then keeps at the last. */
+const RETRY_MS = [250, 500, 1000, 2000, 3000];
+/** A try that hasn't opened by then is given up and redone. */
+const TRY_MS = 8000;
+/** Unacked frames kept for the Mac (it keeps the same). */
+const MAX_FRAMES = 256;
+const MAX_BYTES = 4 * 1024 * 1024;
+const ACK_EVERY = 8;
 
 /** What a socket's `data` holds, as bytes, whichever realm made it. Null for text. */
 function asBytes(data: unknown): Uint8Array | null {
@@ -73,24 +97,65 @@ export class RelaySocket {
   onclose: ((ev: unknown) => void) | null = null;
   onerror: ((ev: unknown) => void) | null = null;
 
-  private readonly inner: Inner;
+  private inner!: Inner;
   private mine: ReturnType<typeof startHandshake> | null = null;
   private channel: Channel | null = null;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private done = false;
 
-  constructor(url: string, opts: RelaySocketOptions) {
+  // The session (docs/relay.md, "Sessions"), once the Mac's first frame named it.
+  private sid: string | null = null;
+  private resumeKey: Uint8Array | null = null;
+  /** The Mac's answer carried `"s":1` and its `sess` frame hasn't come yet. */
+  private awaitSess = false;
+  private tx = 0;
+  private rx = 0;
+  private k = 0;
+  private sinceAck = 0;
+  private unacked: { n: number; text: string }[] = [];
+  private bytes = 0;
+  // Reconnecting.
+  private droppedAt = 0;
+  private attempts = 0;
+  private retry: unknown = null;
+  private tryTimer: unknown = null;
+
+  constructor(
+    private readonly url: string,
+    private readonly opts: RelaySocketOptions
+  ) {
+    this.connect();
+  }
+
+  private timer(fn: () => void, ms: number): unknown {
+    return (this.opts.setTimer ?? ((f, m) => setTimeout(f, m)))(fn, ms);
+  }
+  private untimer(t: unknown) {
+    if (t == null) return;
+    (this.opts.clearTimer ?? ((x) => clearTimeout(x as ReturnType<typeof setTimeout>)))(t);
+  }
+
+  private connect() {
+    const opts = this.opts;
     const Impl = opts.WebSocketImpl ?? WebSocket;
-    const ws = new Impl(url) as unknown as Inner;
+    const ws = new Impl(this.url) as unknown as Inner;
     ws.binaryType = 'arraybuffer';
     this.inner = ws;
+    this.channel = null;
+    this.awaitSess = false;
+    const mine = (): boolean => ws === this.inner && !this.done;
     ws.onopen = () => {
+      if (!mine()) return;
       // Nothing about the phone goes: a fresh key, for this socket only.
-      this.mine = startHandshake(opts.random);
+      const resume =
+        this.sid && this.resumeKey
+          ? { sid: this.sid, rx: this.rx, k: ++this.k, key: this.resumeKey }
+          : undefined;
+      this.mine = startHandshake(opts.random, opts.session ? { resume } : undefined);
       try {
         ws.send(this.mine.hello);
       } catch {
-        return this.fail(1006);
+        return this.lost(1006, '');
       }
       this.pingTimer = setInterval(() => {
         try {
@@ -101,7 +166,7 @@ export class RelaySocket {
       }, opts.pingMs ?? RELAY_PING_MS);
     };
     ws.onmessage = (ev) => {
-      if (this.done) return;
+      if (!mine()) return;
       // Text is the relay's own (`pong`); the Mac only ever sends bytes.
       const bytes = asBytes(ev.data);
       if (!bytes) return;
@@ -110,34 +175,132 @@ export class RelaySocket {
         this.mine = null;
         if (!channel) return this.fail(RELAY_NOT_YOUR_MAC, 'not_your_mac');
         this.channel = channel;
-        this.readyState = 1;
-        this.onopen?.({});
+        if (opts.session && channel.sessions) {
+          this.awaitSess = true;
+          return;
+        }
+        // A Mac without sessions: the old behaviour, and a drop ends it.
+        this.sid = null;
+        this.opened();
         return;
       }
       const text = this.channel.receive.open(bytes);
       if (text == null) return this.fail(RELAY_BROKEN, 'channel_broken');
-      this.onmessage?.({ data: text });
+      this.got(text);
     };
     ws.onerror = (ev) => {
-      if (!this.done) this.onerror?.(ev);
+      if (mine() && this.readyState !== 1) this.onerror?.(ev);
     };
-    ws.onclose = (ev) => this.finish(ev?.code ?? 1006, ev?.reason ?? '');
+    ws.onclose = (ev) => {
+      if (ws === this.inner) this.lost(ev?.code ?? 1006, ev?.reason ?? '');
+    };
+    this.untimer(this.tryTimer);
+    this.tryTimer = this.sid
+      ? this.timer(() => {
+          // A try that never opened: drop it and go again.
+          if (ws === this.inner && !this.done && (!this.channel || this.awaitSess)) {
+            this.dropInner(ws);
+            this.lost(1006, 'try_timeout');
+          }
+        }, TRY_MS)
+      : null;
+  }
+
+  private opened() {
+    this.readyState = 1;
+    this.onopen?.({});
+  }
+
+  /** A plaintext from the Mac. */
+  private got(text: string) {
+    if (!this.awaitSess && !this.sid) return void this.onmessage?.({ data: text });
+    let f: { t?: unknown; sid?: unknown; resumed?: unknown; rx?: unknown; n?: unknown; a?: unknown; d?: unknown };
+    try {
+      f = JSON.parse(text) as typeof f;
+    } catch {
+      return void this.onmessage?.({ data: text });
+    }
+    if (this.awaitSess) {
+      this.awaitSess = false;
+      if (f.t !== 'sess' || typeof f.sid !== 'string') return this.fail(RELAY_BROKEN, 'channel_broken');
+      const channel = this.channel!;
+      if (this.sid) {
+        // Back on a new socket: the Mac must say it is the same session.
+        if (f.sid !== this.sid || f.resumed !== true || typeof f.rx !== 'number') {
+          return this.finish(1006, 'session_lost');
+        }
+        this.acked(f.rx);
+        this.resumeKey = channel.resumeKey;
+        this.attempts = 0;
+        this.untimer(this.tryTimer);
+        this.tryTimer = null;
+        for (const m of this.unacked) this.inner.send(channel.send.seal(this.frame(m.n, m.text)));
+      } else {
+        this.sid = f.sid;
+        this.resumeKey = channel.resumeKey;
+        this.opened();
+      }
+      return;
+    }
+    if (typeof f.a === 'number') this.acked(f.a);
+    if (f.t === 'a') return;
+    if (f.t === 'q' && typeof f.n === 'number' && typeof f.d === 'string') {
+      if (f.n <= this.rx) return;
+      if (f.n !== this.rx + 1) return this.fail(RELAY_BROKEN, 'channel_broken');
+      this.rx = f.n;
+      if (++this.sinceAck >= ACK_EVERY) {
+        this.sinceAck = 0;
+        this.sealNow(JSON.stringify({ t: 'a', a: this.rx }));
+      }
+      this.onmessage?.({ data: f.d });
+      return;
+    }
+    // HTTP's own frames, and anything not numbered.
+    this.onmessage?.({ data: text });
+  }
+
+  private frame(n: number, text: string) {
+    return JSON.stringify({ t: 'q', n, a: this.rx, d: text });
+  }
+
+  private acked(a: number) {
+    while (this.unacked.length && this.unacked[0].n <= a) {
+      this.bytes -= this.unacked[0].text.length;
+      this.unacked.shift();
+    }
+  }
+
+  private sealNow(text: string) {
+    if (!this.channel || this.awaitSess || this.inner.readyState !== 1) return;
+    try {
+      this.inner.send(this.channel.send.seal(text));
+    } catch {
+      // the close that follows says so
+    }
   }
 
   /** Sealed for the Mac. Before the channel opens nothing is sent. */
   send(text: string) {
-    if (this.readyState !== 1 || !this.channel) return;
-    this.inner.send(this.channel.send.seal(text));
+    if (this.readyState !== 1) return;
+    if (!this.sid || text.startsWith('{"t":"http')) {
+      if (this.channel && !this.awaitSess) this.sealNow(text);
+      return;
+    }
+    if (this.unacked.length >= MAX_FRAMES || this.bytes + text.length > MAX_BYTES) {
+      return this.fail(RELAY_BROKEN, 'too_far_behind');
+    }
+    const n = ++this.tx;
+    this.unacked.push({ n, text });
+    this.bytes += text.length;
+    // While reconnecting it waits here, and goes first once the Mac has the session back.
+    this.sealNow(this.frame(n, text));
   }
 
   close(code = 1000, reason = '') {
     this.fail(code, reason);
   }
 
-  /** Ends it here, and says so with `code` (not whatever the relay says next). */
-  private fail(code: number, reason = '') {
-    if (this.done) return;
-    const ws = this.inner;
+  private dropInner(ws: Inner) {
     ws.onopen = ws.onmessage = ws.onclose = null;
     // Not null: node's `ws` throws an error event nobody listens to.
     ws.onerror = () => {};
@@ -146,6 +309,34 @@ export class RelaySocket {
     } catch {
       // still opening (node's ws throws) or already closed
     }
+  }
+
+  /** The socket went. A session in progress tries again; anything else is over. */
+  private lost(code: number, reason: string) {
+    if (this.done) return;
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    this.pingTimer = null;
+    this.mine = null;
+    this.channel = null;
+    this.untimer(this.tryTimer);
+    this.tryTimer = null;
+    // The relay's own answers (the Mac is away, signed out) are the news, not a blip.
+    const answered = code === RELAY_CLOSE_MAC_OFFLINE || code === RELAY_CLOSE_SIGN_IN_NEEDED;
+    if (!this.sid || this.readyState !== 1 || answered) return this.finish(code, reason);
+    if (!this.droppedAt) this.droppedAt = Date.now();
+    if (Date.now() - this.droppedAt > (this.opts.graceMs ?? 120_000)) return this.finish(code, reason);
+    this.dropInner(this.inner);
+    const wait = RETRY_MS[Math.min(this.attempts++, RETRY_MS.length - 1)];
+    this.retry = this.timer(() => {
+      this.retry = null;
+      if (!this.done) this.connect();
+    }, wait);
+  }
+
+  /** Ends it here, and says so with `code` (not whatever the relay says next). */
+  private fail(code: number, reason = '') {
+    if (this.done) return;
+    this.dropInner(this.inner);
     this.finish(code, reason);
   }
 
@@ -155,6 +346,9 @@ export class RelaySocket {
     this.readyState = 3;
     if (this.pingTimer) clearInterval(this.pingTimer);
     this.pingTimer = null;
+    this.untimer(this.retry);
+    this.untimer(this.tryTimer);
+    this.retry = this.tryTimer = null;
     this.mine = null;
     this.channel = null;
     this.onclose?.({ code, reason });

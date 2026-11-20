@@ -23,6 +23,7 @@ use super::super::server::{self, Peer};
 use super::super::Companion;
 use super::crypto::{self, MacChannel};
 use super::http::{Http, HttpBody, HttpRequest};
+use super::session::{self, Session, Taken};
 
 /// The phone has this long to send its hello once the relay opened the channel.
 const HELLO_TIMEOUT: Duration = Duration::from_secs(10);
@@ -182,38 +183,90 @@ async fn serve(
         tracing::debug!("[Relay] a channel opened with something that isn't a hello");
         return;
     };
+    // A phone coming back to a session it had: its handler and what it was
+    // owed are taken over before the answer goes, so a frame can't be lost
+    // between its old socket and this one.
+    let proof = keys.proof.clone();
+    let back = match (&proof, keys.sessions) {
+        (Some(proof), true) => session::claim(&keys.phone_e, proof).await,
+        _ => None,
+    };
     if out.send(Out::Payload(ch, answer)).await.is_err() {
         return;
     }
 
     let (plain_tx, mut plain_rx) = mpsc::channel::<String>(QUEUE);
     let mut http = port.map(|p| Http::new(p, ch, plain_tx.clone()));
-    // The socket handler, once a protocol frame arrives.
+    // The socket handler, once a protocol frame arrives (or already running,
+    // for a session coming back).
     let mut to_handler: Option<mpsc::Sender<Message>> = None;
     let (from_tx, mut from_handler) = mpsc::channel::<Message>(QUEUE);
     let mut from_tx = Some(from_tx);
-    let mut heard = Instant::now();
     let mut authed = false;
+    let mut sess: Option<Session> = None;
+    let mut replay: Vec<String> = Vec::new();
+    let mut resumed = false;
+    if let (Some(back), Some(proof)) = (back, &proof) {
+        let mut session = back.session;
+        session.rekey(keys.resume, proof.k);
+        replay = session.replay(proof.rx);
+        to_handler = back.to_handler;
+        from_handler = back.from_handler;
+        from_tx = None;
+        authed = back.authed;
+        resumed = true;
+        sess = Some(session);
+    } else if keys.sessions {
+        sess = Session::new(keys.resume);
+    }
+    let mut yield_rx = sess.as_ref().map(|s| session::go_live(&s.sid));
+    if let Some(s) = &sess {
+        if !seal_out(&mut keys, ch, out, s.sess(resumed).as_bytes()).await {
+            session::forget(&s.sid);
+            return;
+        }
+        for frame in &replay {
+            if !seal_out(&mut keys, ch, out, frame.as_bytes()).await {
+                session::forget(&s.sid);
+                return;
+            }
+        }
+        if resumed && authed && out.send(Out::Authed(ch, generation)).await.is_err() {
+            session::forget(&s.sid);
+            return;
+        }
+        if resumed {
+            tracing::info!(ch, replayed = replay.len(), "[Relay] a phone came back to its session");
+        }
+    }
+    let mut heard = Instant::now();
     let mut idle_check = tokio::time::interval(IDLE / 3);
 
-    loop {
+    let end = 'serve: loop {
         tokio::select! {
             _ = idle_check.tick() => {
                 let busy = http.as_mut().map_or(0, Http::in_flight) > 0;
                 if to_handler.is_none() && !busy && heard.elapsed() >= IDLE {
                     tracing::debug!("[Relay] a channel with nothing going on closed");
-                    return;
+                    break 'serve End::Done;
                 }
             }
+            // The same phone is back on a new socket already: this one is dead.
+            Some(()) = async {
+                match yield_rx.as_mut() {
+                    Some(r) => r.recv().await,
+                    None => std::future::pending().await,
+                }
+            } => break 'serve End::Park,
             payload = inbound.recv() => {
                 // None: the relay closed it, or the link went.
-                let Some(payload) = payload else { return };
+                let Some(payload) = payload else { break 'serve End::Park };
                 heard = Instant::now();
                 let Some(plain) = keys.incoming.open(&payload) else {
                     tracing::debug!("[Relay] a payload didn't open; closing the channel");
-                    return;
+                    break 'serve End::Done;
                 };
-                let Ok(text) = String::from_utf8(plain) else { return };
+                let Ok(text) = String::from_utf8(plain) else { break 'serve End::Done };
                 let kind = serde_json::from_str::<Value>(&text)
                     .ok()
                     .and_then(|v| v.get("t").and_then(Value::as_str).map(str::to_string));
@@ -222,7 +275,7 @@ async fn serve(
                         let (Some(http), Ok(req)) = (http.as_mut(), serde_json::from_str::<HttpRequest>(&text)) else { continue };
                         if let Some(answer) = http.start(req) {
                             if !seal_out(&mut keys, ch, out, answer.as_bytes()).await {
-                                return;
+                                break 'serve End::Done;
                             }
                         }
                     }
@@ -231,8 +284,25 @@ async fn serve(
                         http.body(piece).await;
                     }
                     _ => {
+                        // On a session the protocol frames are numbered.
+                        let text = match sess.as_mut() {
+                            None => text,
+                            Some(s) => match s.take(&text) {
+                                Taken::Frame(d, due) => {
+                                    if due && !seal_out(&mut keys, ch, out, s.ack().as_bytes()).await {
+                                        break 'serve End::Done;
+                                    }
+                                    d
+                                }
+                                Taken::Nothing => continue,
+                                Taken::Broken => {
+                                    tracing::debug!("[Relay] a session frame was out of order; closing");
+                                    break 'serve End::Done;
+                                }
+                            },
+                        };
                         if to_handler.is_none() {
-                            let Some(tx) = from_tx.take() else { return };
+                            let Some(tx) = from_tx.take() else { break 'serve End::Done };
                             let (in_tx, in_rx) = mpsc::channel::<Message>(QUEUE);
                             let adapter = Adapter { rx: in_rx, tx: PollSender::new(tx) };
                             let peer = Peer {
@@ -243,10 +313,10 @@ async fn serve(
                             tokio::spawn(server::serve_socket_as(c.clone(), adapter, peer));
                             to_handler = Some(in_tx);
                         }
-                        let Some(tx) = &to_handler else { return };
+                        let Some(tx) = &to_handler else { break 'serve End::Done };
                         if tx.send(Message::Text(text)).await.is_err() {
                             // The handler has finished with this phone.
-                            return;
+                            break 'serve End::Done;
                         }
                     }
                 }
@@ -254,17 +324,27 @@ async fn serve(
             msg = from_handler.recv() => match msg {
                 Some(Message::Text(text)) => {
                     let welcome = !authed && is_welcome(&text);
-                    if !seal_out(&mut keys, ch, out, text.as_bytes()).await {
-                        return;
+                    let framed = match sess.as_mut() {
+                        None => text,
+                        Some(s) => match s.wrap(&text) {
+                            Some(f) => f,
+                            None => {
+                                tracing::warn!("[Relay] a phone is too far behind; ending its session");
+                                break 'serve End::Done;
+                            }
+                        },
+                    };
+                    if !seal_out(&mut keys, ch, out, framed.as_bytes()).await {
+                        break 'serve End::Done;
                     }
                     if welcome {
                         authed = true;
                         if out.send(Out::Authed(ch, generation)).await.is_err() {
-                            return;
+                            break 'serve End::Done;
                         }
                     }
                 }
-                Some(Message::Close(_)) | None => return,
+                Some(Message::Close(_)) | None => break 'serve End::Done,
                 // A WebSocket ping is for proxies on a socket's path; the
                 // relay link has its own keep-alive.
                 Some(_) => {}
@@ -272,9 +352,26 @@ async fn serve(
             Some(text) = plain_rx.recv() => {
                 heard = Instant::now();
                 if !seal_out(&mut keys, ch, out, text.as_bytes()).await {
-                    return;
+                    break 'serve End::Done;
                 }
             }
         }
+    };
+
+    // The phone's socket went, not the phone: keep its handler for it.
+    match sess {
+        Some(s) if matches!(end, End::Park) && to_handler.is_some() => {
+            session::park(s, to_handler, from_handler, authed);
+        }
+        Some(s) => session::forget(&s.sid),
+        None => {}
     }
+}
+
+/// How a channel's loop ended.
+enum End {
+    /// Over: close the handler.
+    Done,
+    /// The socket went; the session may come back.
+    Park,
 }

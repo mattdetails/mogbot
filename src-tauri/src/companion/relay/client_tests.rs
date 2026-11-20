@@ -865,3 +865,186 @@ async fn a_relay_that_doesnt_offer_resume_gets_the_old_framing() {
     assert!(!relay.shared.resume.load(Ordering::SeqCst));
     stop_tx.send(()).unwrap();
 }
+
+// ---- Sessions: a phone's socket dies and it comes back (docs/relay.md) ----------
+
+/// A phone that keeps a session: protocol frames are numbered both ways.
+struct SessionPhone {
+    ws: PhoneWs,
+    keys: MacChannel,
+    sid: String,
+    tx: u64,
+    rx: u64,
+    resumed: bool,
+}
+
+impl SessionPhone {
+    /// Connects, offering sessions; with `back` = (sid, rx, k, key) it asks for that one.
+    async fn connect(url: &str, pinned: &str, back: Option<(&str, u64, u64, [u8; 32])>) -> Self {
+        let (mut ws, _) = tokio_tungstenite::connect_async(url).await.unwrap();
+        let secret = crypto::fresh_secret().unwrap();
+        let hello = crypto::phone::hello_session(
+            &secret,
+            back.as_ref().map(|(s, rx, k, key)| (*s, *rx, *k, key)),
+        );
+        ws.send(Message::Binary(hello.into_bytes())).await.unwrap();
+        let answer = loop {
+            match tokio::time::timeout(WAIT, ws.next()).await.unwrap() {
+                Some(Ok(Message::Binary(b))) => break b,
+                Some(Ok(_)) => continue,
+                other => panic!("no answer to the hello: {other:?}"),
+            }
+        };
+        let keys = crypto::phone::finish(&secret, &answer, pinned).expect("the Mac's own key");
+        assert!(keys.sessions, "the Mac offers sessions");
+        let mut p = SessionPhone {
+            ws,
+            keys,
+            sid: String::new(),
+            tx: 0,
+            rx: back.as_ref().map_or(0, |b| b.1),
+            resumed: false,
+        };
+        let sess = p.raw().await;
+        assert_eq!(sess["t"], "sess", "{sess}");
+        p.sid = sess["sid"].as_str().unwrap().to_string();
+        p.resumed = sess["resumed"] == true;
+        if p.resumed {
+            // What the Mac took is what it needn't be sent again.
+            // The phone's own frames the Mac took: what it sends next follows them.
+            p.tx = sess["rx"].as_u64().unwrap();
+        }
+        p
+    }
+
+    /// The next sealed plaintext, as it is on the wire.
+    async fn raw(&mut self) -> Value {
+        loop {
+            match tokio::time::timeout(WAIT, self.ws.next())
+                .await
+                .expect("a frame within 5 s")
+            {
+                Some(Ok(Message::Binary(b))) => {
+                    let plain = self.keys.incoming.open(&b).expect("a frame that opens");
+                    return serde_json::from_slice(&plain).unwrap();
+                }
+                Some(Ok(Message::Close(_))) | None | Some(Err(_)) => {
+                    return json!({ "t": "closed" })
+                }
+                Some(Ok(_)) => continue,
+            }
+        }
+    }
+
+    /// The next numbered protocol frame, unwrapped; repeats are dropped as the app does.
+    async fn next(&mut self) -> Value {
+        loop {
+            let f = self.raw().await;
+            if f["t"] == "q" {
+                let n = f["n"].as_u64().unwrap();
+                if n <= self.rx {
+                    continue;
+                }
+                assert_eq!(n, self.rx + 1, "no holes");
+                self.rx = n;
+                return serde_json::from_str(f["d"].as_str().unwrap()).unwrap();
+            }
+            assert_ne!(f["t"], "closed", "closed while waiting");
+        }
+    }
+
+    async fn send(&mut self, v: Value) {
+        self.tx += 1;
+        let q = json!({ "t": "q", "n": self.tx, "a": self.rx, "d": v.to_string() });
+        let sealed = self.keys.outgoing.seal(q.to_string().as_bytes()).unwrap();
+        self.ws.send(Message::Binary(sealed)).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn a_phone_that_lost_its_socket_picks_its_session_back_up() {
+    let (c, _stub) = Stub::companion();
+    let fingerprint = c.registry.identity().unwrap().fingerprint();
+    let (_record, token, _) = c
+        .registry
+        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .unwrap();
+    let port = loopback(c.clone()).await;
+    let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
+    let link = Arc::new(Link::default());
+    let (_stop_tx, stop_rx) = oneshot::channel();
+    let cfg = Config { base: relay.base(), port: Some(port) };
+    tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
+    until("the link", || link.status().state == RelayState::Connected).await;
+    let url = link.route().unwrap().url;
+
+    // A session: challenge, hello and welcome, all numbered.
+    let mut phone = SessionPhone::connect(&url, &fingerprint, None).await;
+    assert!(!phone.resumed);
+    phone.send(challenge()).await;
+    assert_eq!(phone.next().await["t"], "identity");
+    phone.send(hello(&token)).await;
+    assert_eq!(phone.next().await["t"], "welcome");
+
+    // A request goes out, and the socket dies before the answer is read.
+    phone
+        .send(json!({ "t": "req", "id": 7, "method": "rooms.list", "params": {} }))
+        .await;
+    let (sid, key, rx) = (phone.sid.clone(), phone.keys.resume, phone.rx);
+    drop(phone.ws);
+
+    // The new socket proves the session and is handed what it hadn't taken,
+    // under its own keys: a nonce is never reused.
+    let mut back = SessionPhone::connect(&url, &fingerprint, Some((&sid, rx, 1, key))).await;
+    assert!(back.resumed, "the same session");
+    assert_eq!(back.sid, sid);
+    let mut got = None;
+    for _ in 0..8 {
+        let f = back.next().await;
+        if f["t"] == "res" && f["id"] == 7 {
+            got = Some(f);
+            break;
+        }
+    }
+    let res = got.expect("the answer the first socket never read");
+    assert_eq!(res["ok"], true, "{res}");
+
+    // And it carries on: no new hello, the handler never noticed.
+    back.send(json!({ "t": "req", "id": 8, "method": "rooms.list", "params": {} }))
+        .await;
+    let mut ok = false;
+    for _ in 0..8 {
+        let f = back.next().await;
+        if f["t"] == "res" && f["id"] == 8 {
+            ok = f["ok"] == true;
+            break;
+        }
+    }
+    assert!(ok, "a request after resuming is answered");
+
+    // A hello replayed by the relay (same counter) is no session: a new one starts.
+    let replay = SessionPhone::connect(&url, &fingerprint, Some((&sid, 0, 1, back.keys.resume))).await;
+    assert!(!replay.resumed);
+    assert_ne!(replay.sid, sid);
+    // A proof from the wrong key is the same.
+    let forged = SessionPhone::connect(&url, &fingerprint, Some((&back.sid, 0, 9, [0u8; 32]))).await;
+    assert!(!forged.resumed);
+}
+
+#[tokio::test]
+async fn a_phone_without_sessions_gets_the_old_channel() {
+    let (c, _stub) = Stub::companion();
+    let fingerprint = c.registry.identity().unwrap().fingerprint();
+    let port = loopback(c.clone()).await;
+    let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
+    let link = Arc::new(Link::default());
+    let (_stop_tx, stop_rx) = oneshot::channel();
+    let cfg = Config { base: relay.base(), port: Some(port) };
+    tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
+    until("the link", || link.status().state == RelayState::Connected).await;
+    let mut phone = Phone::connect(&link.route().unwrap().url, &fingerprint).await;
+    assert!(!phone.keys.sessions);
+    phone.send(challenge()).await;
+    // Unnumbered, as before.
+    assert_eq!(phone.next().await["t"], "identity");
+}

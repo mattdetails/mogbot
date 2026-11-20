@@ -11,6 +11,7 @@
 import { chacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { ed25519, x25519 } from '@noble/curves/ed25519.js';
 import { hkdf } from '@noble/hashes/hkdf.js';
+import { hmac } from '@noble/hashes/hmac.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { PAIRING_SCHEME, toBase64Url } from '@shipstudio/companion-protocol';
 import { fingerprintOf, fromBase64Url } from './identity';
@@ -29,11 +30,13 @@ export const relayMacLogin = (nonce: string, fingerprint: string) =>
 export interface RelayKeys {
   phoneToMac: Uint8Array;
   macToPhone: Uint8Array;
+  /** Proves a returning phone held this channel (docs/relay.md, "Sessions"). */
+  resume: Uint8Array;
 }
 
 export function deriveKeys(shared: Uint8Array, transcript: string): RelayKeys {
-  const okm = hkdf(sha256, shared, sha256(enc.encode(transcript)), enc.encode(`${PAIRING_SCHEME} relay v1`), 64);
-  return { phoneToMac: okm.slice(0, 32), macToPhone: okm.slice(32, 64) };
+  const okm = hkdf(sha256, shared, sha256(enc.encode(transcript)), enc.encode(`${PAIRING_SCHEME} relay v1`), 96);
+  return { phoneToMac: okm.slice(0, 32), macToPhone: okm.slice(32, 64), resume: okm.slice(64, 96) };
 }
 
 /** 4 zero bytes then the counter, big-endian. */
@@ -68,20 +71,47 @@ export class Cipher {
   }
 }
 
+/** `HMAC-SHA256(resume key, "resume\n<hello e>\n<sid>\n<rx>\n<k>")`, base64url. */
+export const resumeMac = (key: Uint8Array, e: string, sid: string, rx: number, k: number) =>
+  toBase64Url(hmac(sha256, key, enc.encode(`resume\n${e}\n${sid}\n${rx}\n${k}`)));
+
+/** A phone coming back to the session it had (docs/relay.md, "Sessions"). */
+export interface ResumeOffer {
+  sid: string;
+  /** The last Mac→phone sequence taken. */
+  rx: number;
+  /** Grows with every attempt. */
+  k: number;
+  key: Uint8Array;
+}
+
 /** The phone's first message and the secret it keeps until the Mac answers. */
-export function startHandshake(random: (n: number) => Uint8Array): {
+export function startHandshake(
+  random: (n: number) => Uint8Array,
+  session?: { resume?: ResumeOffer }
+): {
   hello: Uint8Array;
   secret: Uint8Array;
   e: string;
 } {
   const secret = random(32);
   const e = toBase64Url(x25519.getPublicKey(secret));
-  return { hello: enc.encode(JSON.stringify({ v: 1, e })), secret, e };
+  const hello: Record<string, unknown> = { v: 1, e };
+  if (session) {
+    hello.s = 1;
+    const r = session.resume;
+    if (r) hello.resume = { sid: r.sid, rx: r.rx, k: r.k, mac: resumeMac(r.key, e, r.sid, r.rx, r.k) };
+  }
+  return { hello: enc.encode(JSON.stringify(hello)), secret, e };
 }
 
 export interface Channel {
   send: Cipher;
   receive: Cipher;
+  /** This channel's resume key. */
+  resumeKey: Uint8Array;
+  /** The Mac keeps sessions (its answer carried `"s":1`). */
+  sessions: boolean;
 }
 
 /**
@@ -93,7 +123,7 @@ export function finishHandshake(
   mine: { secret: Uint8Array; e: string },
   fingerprint: string
 ): Channel | null {
-  let reply: { v?: unknown; e?: unknown; publicKey?: unknown; signature?: unknown };
+  let reply: { v?: unknown; e?: unknown; publicKey?: unknown; signature?: unknown; s?: unknown };
   try {
     reply = JSON.parse(dec.decode(answer));
   } catch {
@@ -114,7 +144,12 @@ export function finishHandshake(
     if (!ed25519.verify(sig, enc.encode(transcript), key)) return null;
     const shared = x25519.getSharedSecret(mine.secret, macE);
     const keys = deriveKeys(shared, transcript);
-    return { send: new Cipher(keys.phoneToMac), receive: new Cipher(keys.macToPhone) };
+    return {
+      send: new Cipher(keys.phoneToMac),
+      receive: new Cipher(keys.macToPhone),
+      resumeKey: keys.resume,
+      sessions: reply.s === 1,
+    };
   } catch {
     return null;
   }
