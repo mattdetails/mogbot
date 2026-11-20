@@ -147,29 +147,36 @@ function subtitle(agent: Agent): ReactNode {
       </>
     );
   // The step it's on and how long it's been at it, not "Working…".
-  if (agent.status.state === 'working') return <AgentWorkingLine agent={agent} inRow />;
+  const toDo = agent.tasks?.toDo ?? 0;
+  // A working agent keeps its step line, unless it is Busy (ten or more open):
+  // then the row says how much is waiting behind this step.
+  if (agent.status.state === 'working') {
+    return toDo >= BUSY_AT ? toDoSubline(toDo) : <AgentWorkingLine agent={agent} inRow />;
+  }
   const failure = failedTurn(agent);
   if (failure) return failureLine(failure, previewText(agent.preview), agent.engine);
   // Open work: how much, and Busy (ten or more) in amber; a quiet agent says Idle.
-  const toDo = agent.tasks?.toDo ?? 0;
-  if (toDo > 0) {
-    return (
-      <>
-        {toDoLine(toDo)}
-        {toDo >= BUSY_AT && (
-          <>
-            {' · '}
-            <span className="agents-list__busy">Busy</span>
-          </>
-        )}
-      </>
-    );
-  }
+  if (toDo > 0) return toDoSubline(toDo);
   return previewText(agent.preview) || (agent.isMain ? FIRST_LINE : 'Idle');
 }
 
 /** Ten or more lines to do is Busy (docs/guide/asks.md). */
 const BUSY_AT = 10;
+
+/** "5 to do", or "14 to do · Busy" with Busy in amber. */
+function toDoSubline(toDo: number): ReactNode {
+  return (
+    <>
+      {toDoLine(toDo)}
+      {toDo >= BUSY_AT && (
+        <>
+          {' · '}
+          <span className="agents-list__busy">Busy</span>
+        </>
+      )}
+    </>
+  );
+}
 
 /** The Chief's row before it has said anything else (the stored greeting's first line). */
 const FIRST_LINE = 'Hi. Tell me what you want to get done.';
