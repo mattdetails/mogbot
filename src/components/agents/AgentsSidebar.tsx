@@ -689,8 +689,8 @@ const AgentRow = memo(function AgentRow({
   const movable = !agent.isMain;
   const drag = useAgentPointerDrag({ agentId: agent.id, enabled: movable, group, onReorder });
   const pill = rowPill(agent);
-  // Read already when it's the one open.
-  const unread = !current && agent.unread > 0;
+  // Read already when it's the one open; a muted agent never shows unread.
+  const unread = !current && !agent.muted && agent.unread > 0;
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -704,6 +704,7 @@ const AgentRow = memo(function AgentRow({
           data-hidden={agent.hidden || undefined}
           data-arrived={arrived || undefined}
           data-unread={unread || undefined}
+          data-muted={agent.muted || undefined}
           aria-current={current ? 'true' : undefined}
           onPointerEnter={tooltipIfTruncated}
           onClick={() => onSelect(agent.id)}
