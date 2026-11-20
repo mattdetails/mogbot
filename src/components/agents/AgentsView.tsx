@@ -90,8 +90,8 @@ import {
   refreshAgents,
   refreshRooms,
   startConversation,
-  useAgentsList,
   useAgentsSelector,
+  useAgentsShape,
   useRoomsList,
 } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
@@ -206,8 +206,9 @@ function focusComposer() {
 }
 
 function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewProps) {
-  // Slices, not the whole store: a reply streaming anywhere must not re-render the view.
-  const agents = useAgentsList();
+  // Slices, not the whole store: a reply streaming anywhere must not re-render the view,
+  // nor a step of any working agent (what shows a turn's progress reads it live).
+  const agents = useAgentsShape();
   const loaded = useAgentsSelector((s) => s.loaded);
   const error = useAgentsSelector((s) => s.error);
   const engines = useAgentsSelector((s) => s.engines);

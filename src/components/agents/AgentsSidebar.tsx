@@ -85,6 +85,7 @@ import { RoomRow, type RoomActions } from './AgentRoomParts';
 import { ROOM_WHAT, sortRooms, type Room } from '../../lib/agentRooms';
 import { useFlipReorder, useNewKeys } from './useAgentMotion';
 import { useSteadyList } from './useAttentionOrder';
+import { useLiveAgent } from '../../lib/agentsStore';
 import {
   agentKeyState,
   failedTurn,
@@ -661,7 +662,7 @@ export function RoutinesRow({
 
 /** One agent's row, memoised: a status event re-renders the row it changed, not all of them. */
 const AgentRow = memo(function AgentRow({
-  agent,
+  agent: listed,
   current,
   tabStop,
   arrived,
@@ -685,6 +686,8 @@ const AgentRow = memo(function AgentRow({
   /** Another row dropped on this one: put it just before (or after) this. */
   onReorder: (moved: string, target: string, after: boolean) => void;
 }) {
+  // Its turn's progress, live: the list it came from changes only when the team's layout does.
+  const agent = useLiveAgent(listed);
   // The Chief stays first: it neither moves nor takes a row above it.
   const movable = !agent.isMain;
   const drag = useAgentPointerDrag({ agentId: agent.id, enabled: movable, group, onReorder });

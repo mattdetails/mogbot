@@ -102,7 +102,12 @@ import {
   type Addressed,
   type Room,
 } from '../../lib/agentRooms';
-import { loadOlderRoomMessages, upsertMessage, useAgentsSelector } from '../../lib/agentsStore';
+import {
+  loadOlderRoomMessages,
+  upsertMessage,
+  useAgentsList,
+  useAgentsSelector,
+} from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { useOptionalToast } from '../../contexts/ToastContext';
 import { composerDraft, setComposerDraft, useComposerDraft } from '../../lib/composerDraft';
@@ -135,7 +140,7 @@ interface RoomChatProps extends RoomActions {
 
 export function RoomChat({
   room,
-  agentsById,
+  agentsById: listed,
   onOpenAgent,
   compact,
   onEditRoom,
@@ -145,6 +150,14 @@ export function RoomChat({
   // Neutral: a room has no one agent's colour. Each member's lines carry theirs.
   const accentScope = useAccentScope('white');
   const theme = useResolvedTheme();
+  // Each member as it is now: the Agents view's list leaves out a turn's
+  // progress, and the room says what its members are doing.
+  const live = useAgentsList();
+  const agentsById = useMemo(() => {
+    const now = new Map(listed);
+    for (const a of live) if (now.has(a.id)) now.set(a.id, a);
+    return now;
+  }, [listed, live]);
   const key = roomKey(room.id);
   const messages = useAgentsSelector((s) => s.messages[key]);
   const hasOlder = useAgentsSelector((s) => s.older[key] ?? false);

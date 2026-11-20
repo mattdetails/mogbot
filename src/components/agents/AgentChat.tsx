@@ -200,6 +200,7 @@ import {
   upsertMessage,
   useAgentsList,
   useAgentsSelector,
+  useLiveAgent,
 } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { ImportTalkBar } from './ImportTalkBar';
@@ -488,7 +489,7 @@ function LiveAgentSwitcher(props: Omit<ComponentProps<typeof AgentSwitcher>, 'ag
  * any other agent leaves the conversation on screen alone.
  */
 export const AgentChat = memo(function AgentChat({
-  agent,
+  agent: shownAgent,
   onOpenAgent,
   onSetUpEngine,
   onSignIn,
@@ -504,6 +505,8 @@ export const AgentChat = memo(function AgentChat({
   onMoreIdeas,
   ...actions
 }: AgentChatProps) {
+  // Its turn's progress, live: the Agents view hands over its layout copy.
+  const agent = useLiveAgent(shownAgent);
   // Everything in this conversation takes on the agent's colour.
   const accentScope = useAccentScope(agent.color);
   // Your bubble: the key's face colour with the ink both desk and phone pick the
