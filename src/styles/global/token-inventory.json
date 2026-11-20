@@ -779,7 +779,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 4
+      "consumerCount": 3
     },
     {
       "name": "--catchup-key-row",
@@ -6379,7 +6379,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 341
+      "consumerCount": 342
     },
     {
       "name": "--font-size-body-sm",
@@ -6763,7 +6763,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 835
+      "consumerCount": 836
     },
     {
       "name": "--spacing-sm",
