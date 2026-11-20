@@ -23,6 +23,7 @@
  *   pnpm qa:web --phases net             # requests the Mac sees and React renders: cold start, tabs, chats, reconnect, a streaming reply (not in the default run)
  *   pnpm qa:web --phases reconnecting    # the Mac going away under an open app (not in the default run)
  *   pnpm qa:web --phases project-preview # a project's picture on its card: empty, phone, desktop (not in the default run)
+ *   pnpm qa:web --phases catchup-dir2    # Catch up, direction 2: one left, several, summary, all clear (not in the default run)
  *   pnpm qa:web --phases nested-list     # a reply that is only a nested list (not in the default run)
  *   pnpm qa:web --phases dictation-words # Settings → Dictation words: the list, and Remove (not in the default run)
  *   pnpm qa:web --phases quiet-drops     # a short drop shows nothing; a 4-minute one shows the bar (not in the default run)
@@ -4521,6 +4522,41 @@ async function main() {
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
     await sleep(4000);
     await each(FIRST_RUN);
+  }
+
+  if (phase('catchup-dir2')) {
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      // Several: the first decision, the queue under it ("Up next · N") ending on the summary row.
+      await startMock();
+      await page.goto(`${WEB}/one-at-a-time`);
+      await sleep(5000);
+      await screen(page, theme, {
+        name: 'catchup2-several',
+        check: 'Header: back, “Catch up”, “1 of N”; the card (key, name, age, amber eyebrow, the ask), actions stacked (strong, outline, ghosts); “Up next · N” rows under it',
+      });
+      // One decision and what happened after it: “1 left”, “Then · While you were away”.
+      await startMock('--catchup-one');
+      await page.goto(`${WEB}/one-at-a-time`);
+      await sleep(5000);
+      await screen(page, theme, {
+        name: 'catchup2-one',
+        check: 'One decision: “1 left”, the card, then “Then” and the “While you were away” row (“1 thing, no decisions”)',
+      });
+      // Later on the only decision: on to the summary.
+      await page.clickText('Later');
+      await sleep(1200);
+      await screen(page, theme, {
+        name: 'catchup2-summary',
+        check: 'Summary: header “Summary”; the card “While you were away” with a clock tile, its rows with the time at the right; Got it in a fixed bar',
+      });
+      await page.clickText('Got it');
+      await sleep(1200);
+      await screen(page, theme, {
+        name: 'catchup2-clear',
+        check: 'All clear: a ring with a check, “All clear”, “Nothing needs you.”, one outline “What’s in flight”',
+      });
+    }
   }
 
   if (phase('nested-list')) {
