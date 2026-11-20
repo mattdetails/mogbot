@@ -57,3 +57,4 @@ export * from './page';
 export * from './rewind';
 export * from './failures';
 export * from './whenComposer';
+export * from './motion';
