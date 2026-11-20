@@ -10,3 +10,8 @@ disallowed-methods = [
   { path = "std::process::Command::output", reason = "use external_command::run_with_timeout for timeout + structured CommandError mapping" },
   { path = "std::process::Command::status", reason = "use external_command::run_with_timeout (or run_to_stdout) instead" },
 ]
+
+# Tests may unwrap and expect: a panic there is the failure being reported.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
