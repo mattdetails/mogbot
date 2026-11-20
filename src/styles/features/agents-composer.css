@@ -432,6 +432,9 @@
 .agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle'] .agent-composer__input {
   grid-column: 1 / -1;
   order: 1;
+  /* The words start on the + icon's left edge under them: the + sits 8px
+     into its button, the field one hairline right of the button. */
+  padding-inline-start: calc(var(--spacing-sm) - var(--border-width-default));
 }
 
 .agent-composer:is([data-wrapped], [data-narrow])[data-dictation='idle']

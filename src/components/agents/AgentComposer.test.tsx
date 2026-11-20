@@ -195,14 +195,14 @@ describe('↵ queues, ⌘↵ sends now, while it works', () => {
 });
 
 describe('the bar: Send, Dictate, Stop', () => {
-  it('leaves the model to the header, and shows Dictate only while the box is empty', () => {
+  it('leaves the model to the header, and keeps Dictate once there is text (composer "C")', () => {
     render(<Chat id="a1" onSend={() => {}} renders={() => {}} />);
     expect(screen.queryByRole('button', { name: /^Model for/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Dictate' })).toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'Message Ops' }), {
       target: { value: 'hi' },
     });
-    expect(screen.queryByRole('button', { name: 'Dictate' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Dictate' })).toBeInTheDocument();
   });
 
   it('draws Send on the default button chrome (its bubble colour comes from CSS), never the accent key, and off until there is something to send', () => {

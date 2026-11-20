@@ -64,7 +64,9 @@
 /* Compact: no column to keep to. The mode toggle has to clear the traffic
    lights from the window's edge, and the switcher is centred on the window. */
 .agent-chat__header:has(> .agent-chat__mode) {
-  padding-inline: var(--spacing-sm);
+  /* The toggle keeps its small left inset (clear of the traffic lights); ⋯
+     ends on the composer's right edge, the column's 24px gutter. */
+  padding-inline: var(--spacing-sm) var(--agents-column-inset);
 }
 
 /* Collapsed, the nav row floats over the header band; it carries the band's

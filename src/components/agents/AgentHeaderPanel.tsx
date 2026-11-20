@@ -46,7 +46,10 @@ import { formatAge } from '../../lib/formatAgo';
 import { useNow } from '../../hooks/useNow';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { useOptionalToast } from '../../contexts/ToastContext';
-import { INDEPENDENCE_LABEL } from '../../../packages/companion-protocol/src/independence';
+import {
+  INDEPENDENCE_LABEL,
+  independenceOf,
+} from '../../../packages/companion-protocol/src/independence';
 import { workingRowLine } from '../../../packages/companion-protocol/src/work';
 import { previewText } from '../../../packages/companion-protocol/src/preview';
 
@@ -171,10 +174,9 @@ export function AgentHeaderPanel({
   };
   const close = () => openChange(false);
 
-  const level = agent.independence ?? teamIndependence ?? undefined;
-  const runsOn = [ENGINE_LABEL[agent.engine], level ? INDEPENDENCE_LABEL[level] : null]
-    .filter(Boolean)
-    .join(' · ');
+  // Its own level, else the team's, else the default a Mac assumes (Steady).
+  const level = independenceOf(agent.independence ?? teamIndependence);
+  const runsOn = `${ENGINE_LABEL[agent.engine]} · ${INDEPENDENCE_LABEL[level]}`;
   const role = agent.role ? roleWithoutPath(agent.role) : '';
   const requests = agent.pendingApprovals ?? 0;
   const shownConversations = panelConversations(conversations?.items, viewing);
@@ -189,6 +191,8 @@ export function AgentHeaderPanel({
       open={open}
       onOpenChange={openChange}
       menuClassName="agent-header-panel"
+      quietOpen
+      gap={4}
       className="agent-chat__quiet-anchor"
       trigger={(p) => (
         <button

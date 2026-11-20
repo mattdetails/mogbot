@@ -434,24 +434,20 @@ export const AgentComposer = memo(function AgentComposer({
           </p>
         )}
         <div className="agent-composer__actions">
-          {/* Dictate is for an empty box: once there's text it steps aside
-              (and stays while dictating, which is what fills the box). */}
-          {(dictating || draft.trim().length === 0) && (
-            <IconButton
-              ref={micRef}
-              tabIndex={0}
-              variant="ghost"
-              className="agent-composer__mic"
-              icon={<MicrophoneIcon size={14} />}
-              onClick={dictation.toggle}
-              disabled={dictation.phase === 'finishing' || dictation.phase === 'tidying'}
-              aria-pressed={dictating}
-              aria-label={dictating ? 'Stop dictating' : 'Dictate'}
-              title={
-                dictating ? 'Stop dictating (Esc to discard)' : 'Dictate (⌘⇧D, or hold ⌥Space)'
-              }
-            />
-          )}
+          {/* The mic stays in the box, typed into or not (composer "C"):
+              dictating adds to what's there. */}
+          <IconButton
+            ref={micRef}
+            tabIndex={0}
+            variant="ghost"
+            className="agent-composer__mic"
+            icon={<MicrophoneIcon size={14} />}
+            onClick={dictation.toggle}
+            disabled={dictation.phase === 'finishing' || dictation.phase === 'tidying'}
+            aria-pressed={dictating}
+            aria-label={dictating ? 'Stop dictating' : 'Dictate'}
+            title={dictating ? 'Stop dictating (Esc to discard)' : 'Dictate (⌘⇧D, or hold ⌥Space)'}
+          />
           {working && !canSend && !blank && !dictating ? (
             <IconButton
               tabIndex={0}

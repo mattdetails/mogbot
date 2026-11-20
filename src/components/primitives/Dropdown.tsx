@@ -101,6 +101,8 @@ interface DropdownBaseProps {
    * (Enter / Space on the trigger) focuses the first item as usual.
    */
   quietOpen?: boolean;
+  /** Space between the trigger and the menu, px (`MENU_GAP`, 6, by default). */
+  gap?: number;
 }
 
 type DropdownProps = DropdownBaseProps &
@@ -140,6 +142,7 @@ export function Dropdown({
   openOnHover = false,
   className,
   quietOpen = false,
+  gap = MENU_GAP,
 }: DropdownProps) {
   if (presentation === 'popover' && (typeof ariaLabel !== 'string' || !ariaLabel.trim())) {
     throw new Error('Dropdown presentation="popover" requires a non-empty ariaLabel.');
@@ -297,6 +300,12 @@ export function Dropdown({
       focusEnabledMenuItemAt(0);
       return;
     }
+    // A popover a pointer opened (quietOpen) takes focus itself, so no row
+    // wears a focus ring until the keyboard is used.
+    if (quietOpen && openedByPointerRef.current) {
+      menuRef.current?.focus({ preventScroll: true });
+      return;
+    }
     const focusable = menuRef.current?.querySelector<HTMLElement>(
       'button:not(:disabled), summary, input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])'
     );
@@ -429,8 +438,8 @@ export function Dropdown({
       // edge to the anchor. Inline styles must own both horizontal edges.
       const vertical =
         opens === 'top'
-          ? { top: 'auto', bottom: window.innerHeight - rect.top + MENU_GAP }
-          : { top: rect.bottom + MENU_GAP, bottom: 'auto' };
+          ? { top: 'auto', bottom: window.innerHeight - rect.top + gap }
+          : { top: rect.bottom + gap, bottom: 'auto' };
       // Never past the window's side edges either: against the trigger's
       // other edge when the side asked for has no room, else held inside.
       // Inside the boundary too, when there is one: the window holds a
@@ -463,7 +472,7 @@ export function Dropdown({
       window.removeEventListener('scroll', anchor, true);
       window.removeEventListener('resize', anchor);
     };
-  }, [isOpen, portal, align, side, boundary, close]);
+  }, [isOpen, portal, align, side, boundary, close, gap]);
 
   // A closed menu stays for its exit (docs/MOTION.md), inert, showing what it
   // showed when it closed.

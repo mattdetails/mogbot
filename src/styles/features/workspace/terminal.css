@@ -429,7 +429,8 @@
    the toolbar's first button above it. */
 .session-agent-chat .agent-chat__header {
   height: var(--panel-header-h);
-  padding-inline: var(--spacing-md);
+  /* The composer's edges: the key starts over its left edge, ⋯ ends over its right. */
+  padding-inline: var(--agents-column-inset);
   background: var(--surface-panel);
   /* Its bottom line meets the preview toolbar's beside it (the quiet header,
      spec-header-dropdown.md: 47px with its border on the project screen). */
