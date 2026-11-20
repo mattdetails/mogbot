@@ -2203,7 +2203,7 @@ const crowdedHeader = (id: string, width?: number): Scenario => ({
     'Acme Site’s header: at the leading edge its key and name, then quiet chips: the folder “acme-marketing” and the conversation “Plan the November launch email” (the account chip doesn’t fit the conversation’s column; Usage says it). No role sentence (it is the name’s tooltip). At the trailing edge one family of ghost buttons, 4px apart, the same height: the usage gauge “Usage”, the clock “1 routine”, the sliders “Model”, then …. The key starts over the messages’ left edge and … ends over the composer’s right edge. Narrow, the words go (icons stay), then the project chip. Nothing truncates at 1280px.',
   ...(width ? { viewport: { width, height: 800 } } : {}),
   openSelector: AGENTS_TAB,
-  requires: '.agent-conversations__title',
+  requires: '.agent-chat__name-button',
   // Below 750px there's no sidebar: Acme is picked from the header's switcher.
   steps:
     width && width < 750
@@ -2237,7 +2237,7 @@ const chatColumn = (
   looksRightWhen: `The header’s key and name start exactly above the messages’ left edge and the composer’s; its last control (…) ends exactly above the composer’s right edge. The band’s hairline still runs the whole width.${opts.collapsed ? ' The collapsed nav row floats clear of the name.' : ''}${opts.bars ? ' The bar above the composer has the same two edges.' : ''}`,
   viewport: { width, height: 800 },
   openSelector: AGENTS_TAB,
-  requires: opts.bars ? '.agent-bars:not([data-empty])' : '.agent-conversations__title',
+  requires: opts.bars ? '.agent-bars:not([data-empty])' : '.agent-chat__name-button',
   steps: [
     ...(opts.collapsed ? [{ click: '.workspace-sidebar-toggle' }] : []),
     { click: opts.bars ? '[data-agent-id="chief"]' : '[data-agent-id="acme"]' },
@@ -4194,7 +4194,7 @@ export const agentsScenarios: Scenario[] = [
       'Acme Site’s chat. Beside its name in the header, a quiet button with a speech-bubble icon, “Plan the November launch email” (cut with … if it must); the amber dot is a small badge on the speech-bubble icon (another conversation waits), never after the title. Open under it, a menu: a search field, “New conversation” with a plus, a divider, the small heading “Recent”, then four rows newest first: the launch email on the selected fill in ordinary text colour (never accent), a check, “4m ago”, “Chase the two overdue invoices” with a “Needs your OK” status pill, “Set up the weekly metrics report” (“3d ago”), “Draft the job post for a designer” (“6d ago”); then a divider and “Rename this conversation…” with a pencil. The chat shows only the launch conversation’s lines.',
     openSelector: AGENTS_TAB,
     requires: '.agent-conversations__menu',
-    steps: [{ click: '[data-agent-id="acme"]' }, { click: '.agent-conversations__trigger' }],
+    steps: [{ click: '[data-agent-id="acme"]' }, { click: '.agent-chat__name-button' }],
     commands: CONVERSATIONS,
   },
   {
@@ -4205,7 +4205,7 @@ export const agentsScenarios: Scenario[] = [
     viewport: { width: 900, height: 800 },
     openSelector: AGENTS_TAB,
     requires: '.agent-conversations__menu',
-    steps: [{ click: '[data-agent-id="acme"]' }, { click: '.agent-conversations__trigger' }],
+    steps: [{ click: '[data-agent-id="acme"]' }, { click: '.agent-chat__name-button' }],
     commands: CONVERSATIONS,
   },
   {
@@ -4216,7 +4216,7 @@ export const agentsScenarios: Scenario[] = [
     viewport: { width: 900, height: 800 },
     openSelector: AGENTS_TAB,
     requires: '.agent-conversations__menu',
-    steps: [{ click: '[data-agent-id="acme"]' }, { click: '.agent-conversations__trigger' }],
+    steps: [{ click: '[data-agent-id="acme"]' }, { click: '.agent-chat__name-button' }],
     commands: {
       agents_overview: acmeWith(ACME_FULL),
       agents_messages: messagesFor,
@@ -4238,7 +4238,7 @@ export const agentsScenarios: Scenario[] = [
     looksRightWhen:
       'Acme Site’s chat, its header: the badge and name, then a quiet “Plan the November launch email” button whose speech-bubble icon wears a small amber badge (another conversation waits on you; nothing after the title), then the usual schedule and model controls on the right. The chat holds only the launch email conversation: your ask and its outline reply. Nothing from the invoices or the first conversation.',
     openSelector: AGENTS_TAB,
-    requires: '.agent-conversations__title',
+    requires: '.agent-chat__name-button',
     steps: [{ click: '[data-agent-id="acme"]' }],
     commands: CONVERSATIONS,
   },
@@ -4285,7 +4285,7 @@ export const agentsScenarios: Scenario[] = [
     requires: '.agent-conversations__menu',
     steps: [
       { click: '[data-agent-id="acme"]' },
-      { click: '.agent-conversations__trigger' },
+      { click: '.agent-chat__name-button' },
       { fill: '.ss-dropdown__search-input', value: 'invoice' },
     ],
     commands: CONVERSATIONS,
@@ -4299,7 +4299,7 @@ export const agentsScenarios: Scenario[] = [
     requires: '.agent-conversations__rename-form',
     steps: [
       { click: '[data-agent-id="acme"]' },
-      { click: '.agent-conversations__trigger' },
+      { click: '.agent-chat__name-button' },
       { click: '[role="menuitem"]', text: 'Rename this conversation' },
     ],
     commands: CONVERSATIONS,
@@ -4413,7 +4413,7 @@ export const agentsScenarios: Scenario[] = [
     looksRightWhen:
       'Acme Site’s chat, the header’s conversation button reading “Fork of Plan the November launch email”. The chat holds the launch email’s history (your ask and the outline), then the quiet line “Forked from “Plan the November launch email” before …. That one is unchanged. Files it changed and anything it sent since aren’t undone.”',
     openSelector: AGENTS_TAB,
-    requires: '.agent-conversations__title',
+    requires: '.agent-chat__name-button',
     steps: [{ click: '[data-agent-id="acme"]' }],
     commands: FORK,
   },
@@ -4423,7 +4423,7 @@ export const agentsScenarios: Scenario[] = [
     looksRightWhen:
       'Acme Site’s chat, now on its first conversation: the header’s conversation button reads “Set up the weekly metrics report” (no longer the launch email). The chat holds the pricing-cards conversation, scrolled so “Read both. The guidelines want 24px gutters on mobile…” sits mid-pane, ringed briefly. Nothing from the launch email conversation is in it.',
     openSelector: AGENTS_TAB,
-    requires: '.agent-conversations__title',
+    requires: '.agent-chat__name-button',
     steps: [
       { click: '[data-agent-id="acme"]' },
       { fill: '.agents-top-search input', value: 'gutters' },
@@ -4462,9 +4462,9 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-conversations-one',
     title: 'Agents — an agent with only its first conversation',
     looksRightWhen:
-      'Acme Site’s chat as ever. Beside its name, only a small speech-bubble icon with a chevron (no title: there is nothing to tell apart yet). Everything else in the header and chat unchanged.',
+      'Acme Site’s chat with the quiet header: key, name and ⌄ as one button; with only its first conversation there is nothing more to tell apart. Clicking it lists that one conversation and New conversation.',
     openSelector: AGENTS_TAB,
-    requires: '.agent-conversations__trigger',
+    requires: '.agent-chat__name-button',
     steps: [{ click: '[data-agent-id="acme"]' }],
     commands: {
       agents_overview: acmeWith(ACME_FULL),

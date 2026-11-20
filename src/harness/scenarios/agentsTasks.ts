@@ -30,6 +30,14 @@ const task = (
   ...more,
 });
 
+/** The quiet header has no task line: Tasks opens from ⋯ (its first row). */
+const OPEN_TASKS = [
+  { click: '.agent-chat__more' },
+  { wait: 300 },
+  { click: '.agent-menu [role="menuitem"]' },
+  { wait: 500 },
+];
+
 const LOAD = (open: unknown[], recent: unknown[]) => [
   {
     agentId: ID,
@@ -119,27 +127,60 @@ function sidebarRow(id: string, title: string, looksRightWhen: string): Scenario
 export const agentsTasksScenarios: Scenario[] = [
   scenario(
     'line-doing',
-    'task line, working',
-    'Under the name, in place of the description: a green dot, “Drafting intros”, then muted “· 3 to do”, and a chevron. No amber.',
+    'quiet header, working',
+    'The quiet header: the 24px key, “Lead Gen”, ⌄, then a small blue dot (working). No description, no task line, no chips.',
     { doing: 'Drafting intros', toDo: 3, waits: 0 },
     LOAD(OPEN, RECENT),
-    { requires: '.agent-task-line' }
+    {
+      requires: '.agent-chat__hint-dot[data-dot="working"]',
+      commands: {
+        agents_overview: overview([
+          agent(ID, 'Lead Gen', {
+            color: 'green',
+            role: 'Drafts and sends the intro emails.',
+            minutesAgo: 3,
+            tasks: { doing: 'Drafting intros', toDo: 3, waits: 0 },
+            status: status('working', 'Drafting intros'),
+          }),
+        ]),
+      },
+    }
   ),
   scenario(
     'line-waits',
-    'task line, something waits on you',
-    'The dot is amber and “· 1 waits” is amber; “5 to do” stays muted.',
+    'quiet header, something waits on you',
+    'The quiet header’s dot after ⌄ is amber: a task waits on you.',
     { doing: 'Drafting intros', toDo: 5, waits: 1 },
     LOAD(OPEN, RECENT),
-    { requires: '.agent-task-line__waits' }
+    { requires: '.agent-chat__hint-dot[data-dot="waits"]' }
+  ),
+  scenario(
+    'line-failed',
+    'quiet header, the last turn didn’t finish',
+    'The quiet header’s dot after ⌄ is red: its last turn didn’t finish (Claude Code signed out).',
+    undefined,
+    LOAD([], []),
+    {
+      requires: '.agent-chat__hint-dot[data-dot="failed"]',
+      commands: {
+        agents_overview: overview([
+          agent(ID, 'Lead Gen', {
+            color: 'green',
+            role: 'Drafts and sends the intro emails.',
+            minutesAgo: 3,
+            failure: { kind: 'signed_out' },
+          }),
+        ]),
+      },
+    }
   ),
   scenario(
     'line-idle',
-    'no open tasks',
-    'Nothing is open and it isn’t working, so the line is hidden and the muted description shows under the name.',
+    'quiet header, idle',
+    'Idle with nothing open: the 24px key, “Lead Gen” and ⌄ only, no dot and no description; ⋯ at the column’s right edge. 46px tall, no line under it.',
     undefined,
     LOAD([], []),
-    { requires: '.agent-chat__subtitle' }
+    { requires: '.agent-chat__name-button' }
   ),
   scenario(
     'panel',
@@ -147,7 +188,7 @@ export const agentsTasksScenarios: Scenario[] = [
     'A 320px panel opens at the right under the header: “Tasks” and “4 to do”; groups Doing, Next, Waits on you, Done today with a 18px mark each (a ring with a filled centre, an empty square, an amber square, a green check); Mail’s line says “from Mail · 40m ago”; the waiting line is amber; the done title is struck through and muted.',
     { doing: 'Drafting intros', toDo: 2, waits: 1 },
     LOAD(OPEN, RECENT),
-    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__group' }
+    { steps: [...OPEN_TASKS], requires: '.agent-tasks__group' }
   ),
   scenario(
     'panel-empty',
@@ -155,7 +196,7 @@ export const agentsTasksScenarios: Scenario[] = [
     '“Nothing on the list. Ask for something and it lands here.”',
     { doing: 'Drafting intros', toDo: 0, waits: 0 },
     LOAD([], []),
-    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__empty' }
+    { steps: [...OPEN_TASKS], requires: '.agent-tasks__empty' }
   ),
   scenario(
     'panel-failed',
@@ -165,7 +206,7 @@ export const agentsTasksScenarios: Scenario[] = [
     () => {
       throw new Error('offline');
     },
-    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__failed' }
+    { steps: [...OPEN_TASKS], requires: '.agent-tasks__failed' }
   ),
   scenario(
     'menu',
@@ -189,7 +230,7 @@ export const agentsTasksScenarios: Scenario[] = [
       }),
       ...RECENT,
     ]),
-    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__group' }
+    { steps: [...OPEN_TASKS], requires: '.agent-tasks__group' }
   ),
   scenario(
     'assigned',
@@ -209,7 +250,7 @@ export const agentsTasksScenarios: Scenario[] = [
       RECENT
     ),
     {
-      steps: [{ click: '.agent-task-line' }, { wait: 500 }],
+      steps: [...OPEN_TASKS],
       requires: '.agent-tasks__group',
       commands: {
         agents_messages: () => [
@@ -241,7 +282,7 @@ export const agentsTasksScenarios: Scenario[] = [
       }),
       task('u3', 'Rename the Acme folder', 'done', 150, { seen: true, version: 3 }),
     ]),
-    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__group' }
+    { steps: [...OPEN_TASKS], requires: '.agent-tasks__group' }
   ),
   scenario(
     'archived',
@@ -256,7 +297,7 @@ export const agentsTasksScenarios: Scenario[] = [
       }),
       task('r3', 'Check the Globex contract', 'done', 60 * 24 * 6, { archived: true, seen: true }),
     ]),
-    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__group' }
+    { steps: [...OPEN_TASKS], requires: '.agent-tasks__group' }
   ),
   scenario(
     'rewound',
@@ -275,7 +316,7 @@ export const agentsTasksScenarios: Scenario[] = [
         deliveredMsg: null,
       }),
     ]),
-    { steps: [{ click: '.agent-task-line' }, { wait: 500 }], requires: '.agent-tasks__group' }
+    { steps: [...OPEN_TASKS], requires: '.agent-tasks__group' }
   ),
   sidebarRow(
     'agents-sidebar-row-busy',

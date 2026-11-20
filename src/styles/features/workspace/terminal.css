@@ -431,6 +431,10 @@
   height: var(--panel-header-h);
   padding-inline: var(--spacing-md);
   background: var(--surface-panel);
+  /* Its bottom line meets the preview toolbar's beside it (the quiet header,
+     spec-header-dropdown.md: 47px with its border on the project screen). */
+  box-sizing: border-box;
+  border-bottom: var(--border-width-default) solid var(--border-default);
 }
 
 .session-agent-chat--loading {

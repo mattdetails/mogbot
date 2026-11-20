@@ -103,23 +103,23 @@ export const agentsQaScenarios: Scenario[] = [
   as(
     'agents-header2-idle',
     tasks('line-idle'),
-    'The header: the key (36px), the name and one muted line of description, a plain 32px ⋯ at the right edge; no pill, no Share, no Tasks chip.'
+    'The quiet header: the key (24px), the name (15/600) and ⌄ as one button, no dot while idle, a plain 32px ⋯ at the column’s right edge; no description, no chips, 46px, no line under it.'
   ),
   as(
     'agents-header2-task-line',
     tasks('line-doing'),
-    'The quiet line under the name: a dot, “Drafting intros”, muted “· 3 to do”, and a chevron.'
+    'Working: a small blue dot right after the ⌄; nothing else changes in the header.'
   ),
   as(
     'agents-header2-task-line-waits',
     tasks('line-waits'),
-    'With something waiting on you the dot and “· 1 waits” are amber.'
+    'With something waiting on you the dot after the ⌄ is amber.'
   ),
   as(
     'agents-header2-task-line-hover',
     tasks('line-doing'),
-    'The task line pointed at: the text steps up to the primary colour.',
-    { pointAt: '.agent-task-line' }
+    'The name button pointed at: it fills with the hover surface (key, name, ⌄ and dot inside one 32px, 6px-radius button).',
+    { pointAt: '.agent-chat__name-button' }
   ),
   as(
     'agents-header2-menu-hover',

@@ -43,6 +43,8 @@
   --agents-composer-button-radius: var(--radius-6);
   /* The model chip beside the +: cut short past this, so the words keep their room. */
   --size-composer-model-max: 220px;
+  /* The quiet header's hint dot (spec-header-dropdown.md). */
+  --size-hint-dot: 6px;
   --agents-reply-line-height: 32px;
   --agents-reply-cancel: 26px;
   --agents-user-bubble-max: 560px;

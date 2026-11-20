@@ -105,7 +105,92 @@
   padding-block: var(--spacing-lg);
   margin-block: calc(var(--spacing-lg) * -1);
   padding-inline-start: var(--spacing-lg);
-  margin-inline-start: calc(var(--spacing-lg) * -1);
+  /* …and the name button's own 6px inset back, so its key starts on the
+     column's edge while the hover fill reaches past it. A negative margin
+     inside the button shrank its fit width and cut the name short. */
+  margin-inline-start: calc((var(--spacing-lg) + var(--spacing-tight)) * -1);
+}
+
+/* The quiet header: who this is, one button (key 24, the name 15/600 on one
+   line, ⌄, the hint dot), 32 tall, 6px corners; hover fills it, open selects
+   it. The list behind it is the conversation switcher for now. */
+.agent-chat__quiet {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.agent-chat__quiet > .agent-conversations {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.agent-chat__name-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 0;
+  max-width: 100%;
+  height: var(--space-32);
+  padding: 0 var(--spacing-tight);
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-6);
+  cursor: pointer;
+  transition: background var(--transition-interaction);
+}
+
+.agent-chat__name-button[data-static] {
+  cursor: default;
+}
+
+.agent-chat__name-button:not([data-static]):hover {
+  background: var(--surface-control-hover);
+}
+
+.agent-chat__name-button[aria-expanded='true'] {
+  background: var(--surface-selected);
+}
+
+.agent-chat__name-button:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.agent-chat__name-button .agent-key {
+  flex: none;
+}
+
+.agent-chat__name-button .agent-chat__name {
+  font-size: var(--font-size-subhead-lg);
+}
+
+.agent-chat__name-chevron {
+  flex: none;
+  color: var(--text-muted);
+}
+
+/* One at a time: amber waits on you, red didn't finish, blue working. */
+.agent-chat__hint-dot {
+  flex: none;
+  width: var(--size-hint-dot);
+  height: var(--size-hint-dot);
+  border-radius: var(--radius-pill);
+  transition: background var(--transition-interaction);
+}
+
+.agent-chat__hint-dot[data-dot='waits'] {
+  background: var(--accent-warning);
+}
+
+.agent-chat__hint-dot[data-dot='failed'] {
+  background: var(--accent-error);
+}
+
+.agent-chat__hint-dot[data-dot='working'] {
+  background: var(--status-running);
 }
 
 .agent-chat__header .agent-chat__title .agent-key {

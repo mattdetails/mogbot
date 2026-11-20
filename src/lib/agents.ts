@@ -2503,6 +2503,20 @@ export function agentKeyState(
   });
 }
 
+/**
+ * The header's hint dot (spec-header-dropdown.md), one at a time by priority:
+ * something waits on you (a request or a task), the last turn didn't finish,
+ * working; nothing while idle or paused.
+ */
+export type HintDot = 'waits' | 'failed' | 'working' | null;
+
+export function hintDot(agent: Agent): HintDot {
+  if (needsYou(agent) || (agent.tasks?.waits ?? 0) > 0) return 'waits';
+  if (failedTurn(agent)) return 'failed';
+  if (agent.status.state === 'working' && !agent.takeover) return 'working';
+  return null;
+}
+
 /** Needs you, or its last turn didn't finish: what the "next needing you" key visits. */
 /**
  * Waiting on you: a request, or a turn that failed and needs you to act. A

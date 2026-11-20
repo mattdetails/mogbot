@@ -58,7 +58,6 @@ import { CHIEF_CHIPS, ideaRepeats, type ChiefIdea } from '../../lib/chiefIdeas';
 import { KeepAwakeLink } from './AgentsStayOn';
 import { AgentSchedulePopover } from './AgentSchedulePopover';
 import { AgentUsageRing } from './AgentUsageRing';
-import { AgentAccountChip } from './AccountSwitcher';
 import { AgentFilesModal } from './AgentFilesModal';
 import { RememberModal } from './AgentRemember';
 import { useArrivals, useFollowBottom, usePresence } from './useAgentMotion';
@@ -133,7 +132,7 @@ import {
 } from './AgentChatItems';
 import { DecideCards } from './AgentAdmin';
 import { needsOkLine } from '../../../packages/companion-protocol/src/workIndicator';
-import { AgentProjectChip, ChangeCard, useAgentProjects } from './AgentProject';
+import { ChangeCard, useAgentProjects } from './AgentProject';
 import { ResultCardView, ResultChatProvider } from './AgentResult';
 import { AgentGalleryProvider } from './AgentGallery';
 import { SessionCard } from './AgentSession';
@@ -182,6 +181,7 @@ import {
   roleWithoutPath,
   showsStarters,
   agentKeyState,
+  hintDot,
   needsYou,
   ROUTINES_NEED_THE_COMPUTER,
 } from '../../lib/agents';
@@ -680,6 +680,56 @@ export const AgentChat = memo(function AgentChat({
       onOpenChange={setConversationsOpen}
     />
   ) : null;
+  // The quiet header (Julian's pick, 20 Nov; spec-header-dropdown.md): who
+  // this is, as one button — key, name, ⌄, the hint dot — that opens the
+  // conversation list until the ⌄ panel is settled. No description, task
+  // line, chips or switcher of its own.
+  const dot = hintDot(agent);
+  const dotWords =
+    dot === 'waits'
+      ? 'Something waits on you'
+      : dot === 'failed'
+        ? "The last turn didn't finish"
+        : dot === 'working'
+          ? 'Working'
+          : null;
+  const quietName = (
+    <>
+      <AgentKey
+        id={agent.id}
+        name={agent.name}
+        color={agent.color}
+        state={agentKeyState(agent)}
+        size="sm"
+      />
+      <h2 className="agent-chat__name">{agent.name}</h2>
+    </>
+  );
+  const quietTitle = viewing ? (
+    <span className="agent-chat__quiet">
+      <ConversationSwitcher
+        agent={agent}
+        viewing={viewing}
+        renaming={renamingConversation}
+        onRenamingChange={setRenamingConversation}
+        open={conversationsOpen}
+        onOpenChange={setConversationsOpen}
+        nameTrigger={{
+          content: quietName,
+          after: dot ? (
+            <span className="agent-chat__hint-dot" data-dot={dot} aria-hidden="true" />
+          ) : null,
+          label: `${agent.name}${dotWords ? `, ${dotWords.toLowerCase()}` : ''}. Conversations`,
+        }}
+      />
+    </span>
+  ) : (
+    <span className="agent-chat__quiet">
+      <span className="agent-chat__name-button" data-static>
+        {quietName}
+      </span>
+    </span>
+  );
   const teamIndependence = useAgentsSelector((s) => s.independence);
   const openReach = useOpenReach();
   const [tasksOpen, setTasksOpen] = useState(false);
@@ -2173,13 +2223,7 @@ export const AgentChat = memo(function AgentChat({
                         onGoHome={compact.onGoHome}
                       />
                     ) : (
-                      <div className="agent-chat__title">
-                        {title}
-                        {/* Not in the compact switcher: it's a button already. */}
-                        <AgentProjectChip agent={agent} />
-                        <AgentAccountChip agent={agent} />
-                        {conversationSwitcher}
-                      </div>
+                      <div className="agent-chat__title">{quietTitle}</div>
                     )}
                     <div className="agent-chat__actions">
                       {/* Compact: the title is the agent menu, so it sits with the actions. */}
