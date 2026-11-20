@@ -32,6 +32,11 @@ pub struct AgentView {
     /// Its first-open starters, until the user says anything (`starters`).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub starters: Vec<agents::starters::Starter>,
+    /// The header's quiet line: what it is doing and how many tasks are to
+    /// do or wait, counted once here. Omitted when it has nothing open and
+    /// isn't working.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tasks: Option<agents::tasks::Counts>,
 }
 
 /// Which account a turn ran on (`wallet::last_on`).
@@ -237,12 +242,17 @@ fn agent_views() -> Result<Vec<AgentView>, CommandError> {
     store::list()?
         .into_iter()
         .map(|agent| {
+            let status = runner::status_with_work(&agent.id);
+            let working = (status.state != "idle")
+                .then(|| status.activity.clone())
+                .flatten();
             Ok(AgentView {
+                tasks: agents::tasks::counts_of(&agent.id, working),
                 ran_on: ran_on(&agent, &counts),
                 starters: agents::starters::load(&agent.id),
                 independence: agents::policy::own_independence(&policy, &agent.id),
                 takeover: takeover::view(&agent.id),
-                status: runner::status_with_work(&agent.id),
+                status,
                 home: store::agent_home(&agent.id)?.display().to_string(),
                 agent,
             })
@@ -289,6 +299,7 @@ pub async fn agents_with_projects() -> Result<Vec<AgentView>, CommandError> {
             })
             .map(|agent| {
                 Ok(AgentView {
+                    tasks: None,
                     ran_on: None,
                     starters: agents::starters::load(&agent.id),
                     independence: agents::policy::own_independence(&policy, &agent.id),

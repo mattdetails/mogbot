@@ -252,6 +252,8 @@ export interface Agent {
   template?: string;
   /** Its first-open starters, until the user sends anything (`agents/starters.rs`). */
   starters?: AgentStarter[];
+  /** The header's quiet line: what it is doing, how many to do and waiting (`agents/tasks.rs`). */
+  tasks?: TaskCounts;
   /** No OS notifications; unread and the Dock badge still count it. */
   muted: boolean;
   /** "Save new skills" (`agents/skills_learn.rs`); absent is `ask`. */
@@ -2869,6 +2871,8 @@ export {
 import type { ResultCard, ResultRef } from '../../packages/companion-protocol/src/results';
 import type { ReplyKind, ReplyRef } from '../../packages/companion-protocol/src/model';
 export type { ReplyKind, ReplyRef };
+import type { TaskCounts } from '../../packages/companion-protocol/src/model';
+export type { TaskCounts };
 import type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type { BlockSet } from '../../packages/companion-protocol/src/blocks';
 export type {
