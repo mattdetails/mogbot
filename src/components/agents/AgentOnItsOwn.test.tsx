@@ -35,6 +35,7 @@ const AGENTS = [
 const STATE = { agents: AGENTS };
 vi.mock('../../lib/agentsStore', () => ({
   useAgentsSelector: <T,>(sel: (s: typeof STATE) => T) => sel(STATE),
+  useAgentsShape: () => STATE.agents,
 }));
 
 import { AgentOnItsOwnModal, OnItsOwnTeamSettings } from './AgentOnItsOwn';

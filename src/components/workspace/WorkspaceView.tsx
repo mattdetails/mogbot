@@ -2,7 +2,11 @@ import { chatAgentTarget, commentAgents } from '../../lib/commentAgents';
 import { useSideBySide } from '../../lib/sideBySide';
 import { toggleTerminalOnly, useTerminalOnly } from '../../lib/terminalOnly';
 import { TerminalOnlyToggle } from './TerminalOnlyToggle';
-import { agentIn, useAgentsList } from '../../lib/agentsStore';
+import { agentIn, getAgentsSnapshot, useAgentsSelector } from '../../lib/agentsStore';
+import type { Agent } from '../../lib/agents';
+
+const sameChatAgent = (a: Agent | undefined, b: Agent | undefined) =>
+  a === b || (!!a && !!b && a.id === b.id && a.name === b.name && a.isMain === b.isMain);
 import type { WorkspaceViewProps } from './workspaceViewTypes';
 export type { WorkspaceViewProps } from './workspaceViewTypes';
 /**
@@ -672,20 +676,22 @@ const WorkspaceViewInner = memo(function WorkspaceViewInner({
   // One agent list for both the Team panel's handoff and the preview's pins.
   const terminalAgents = commentAgents(currentProject.path, terminal, tabTitles, setIsAgentPanelHidden); // prettier-ignore
   // The agent chat open in the Session panel takes notes and errors too, ahead of the terminals.
-  const agentsList = useAgentsList();
-  const chatAgent =
-    chatAgentId && chatAgentId !== PICK_AGENT ? agentIn(agentsList, chatAgentId) : undefined;
+  // Only its id, name and whether it's the Chief: a working agent's every step
+  // used to re-render the whole workspace.
+  const chatAgent = useAgentsSelector(
+    (s) =>
+      chatAgentId && chatAgentId !== PICK_AGENT ? agentIn(s.agents, chatAgentId) : undefined,
+    sameChatAgent
+  );
   // Opening a project lands on an agent's chat (`lib/projectOpens`): the one it
   // opened on last, one working here, or "Who should work on it?". Once
   // anything was shown for it this session, that stays.
-  const agentsKnown = agentsList.length > 0;
+  const agentsKnown = useAgentsSelector((s) => s.agents.length > 0);
   useEffect(() => {
     const path = currentProject.path;
     if (!agentsKnown || sessionDecided(path)) return;
-    const opening = openingFor(path, agentsList);
+    const opening = openingFor(path, getAgentsSnapshot().agents);
     showAgentInSession(path, opening === 'pick' ? PICK_AGENT : opening);
-    // Only on arriving in a project (or once the agents load), never on every agent update.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProject.path, agentsKnown]);
   // Whatever agent it shows is what the project opens on next time.
   useEffect(() => {

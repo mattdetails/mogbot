@@ -637,13 +637,21 @@ const held = new Map<string, Held>();
 let heldFrame: number | null = null;
 let heldTimer: ReturnType<typeof setTimeout> | null = null;
 const HELD_BACKSTOP_MS = 50;
+/** A window nobody can see applies once a second, and at once when it's shown. */
+const HELD_HIDDEN_MS = 1000;
+const windowHidden = () => typeof document !== 'undefined' && document.hidden;
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && held.size > 0) applyHeld();
+  });
+}
 
 function hold(event: Held) {
   const key = `${event.kind}:${event.agentId}`;
   held.delete(key);
   held.set(key, event);
   if (heldTimer !== null) return;
-  heldTimer = setTimeout(applyHeld, HELD_BACKSTOP_MS);
+  heldTimer = setTimeout(applyHeld, windowHidden() ? HELD_HIDDEN_MS : HELD_BACKSTOP_MS);
   if (typeof requestAnimationFrame === 'function') heldFrame = requestAnimationFrame(applyHeld);
 }
 
