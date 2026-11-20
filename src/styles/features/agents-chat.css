@@ -65,7 +65,11 @@
    lights from the window's edge, and the switcher is centred on the window. */
 .agent-chat__header:has(> .agent-chat__mode) {
   /* The toggle keeps its small left inset (clear of the traffic lights); ⋯
-     ends on the composer's right edge, the column's 24px gutter. */
+     ends on the composer's right edge, the column's 24px gutter. The name
+     starts right after the toggle, at the same x at every width: never
+     centred (Designer, 20 Nov). It can't start on the box's own left edge
+     there, where the toggle sits. */
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
   padding-inline: var(--spacing-sm) var(--agents-column-inset);
 }
 
@@ -226,7 +230,7 @@
 /* Compact: the switcher's wrapper is the grid item, its button the title. */
 .agent-chat__switcher {
   display: flex;
-  justify-self: center;
+  justify-self: start;
   max-width: 100%;
 }
 
