@@ -235,6 +235,16 @@ export interface MockOptions {
    * Site with a long name.
    */
   headerStates?: boolean;
+  /**
+   * The 1.1 gate's last phone states the mock can show: QA 2's Gmail sign-in
+   * failed, Ops muted, a Slack post draft and an email already sent in the
+   * Designer's chat, and a long ask on the Chief (title 3 lines, body 6+).
+   */
+  statesB?: boolean;
+  /** The task list answers after 60s (the sheet while it loads). */
+  tasksSlow?: boolean;
+  /** The task list answers once, then fails (the sheet's stale line). */
+  tasksFlaky?: boolean;
   /** Something happened while away, with no ask: the queue ends on "While you were away". */
   catchUpSeveral?: boolean;
   /** The Designer's key colour (a colourway id): the chat bubbles take it. */
@@ -2025,6 +2035,94 @@ export function createMockServer(opts: MockOptions = {}) {
     const d = agents.find((a) => a.id === 'design');
     if (d) d.tasks = { doing: 'Drafting intros', toDo: 2, waits: 1 };
   }
+  if (opts.statesB) {
+    const t = Date.now();
+    for (const m of messages.get('qa') ?? []) {
+      const login = m.approval?.login;
+      if (m.approval?.requestId === 'req_login_gmail_qa' && login?.flow) {
+        login.flow = {
+          ...login.flow,
+          state: 'failed',
+          message: 'The sign-in window was closed before it finished.',
+        };
+      }
+    }
+    const ops = agents.find((a) => a.id === 'ops');
+    if (ops) ops.muted = true;
+    const design = messages.get('design') ?? [];
+    design.push(
+      {
+        id: 'sb_sent',
+        agentId: 'design',
+        ts: t - 9 * 60_000,
+        kind: 'approval',
+        text: '',
+        approval: {
+          requestId: 'req_sb_sent',
+          sendFrom: 'sam@example.com',
+          title: 'Email Dana the new icon set',
+          detail: '',
+          status: 'allowed',
+          plan: {
+            actions: [
+              {
+                kind: 'send',
+                target: 'Dana Ruiz <dana@example.com>',
+                summary: 'Email Dana the new icon set',
+                text: 'Subject: New icons\n\nHi Dana,\n\nThe new set is in the shared folder.\n\nSam',
+              },
+            ],
+          },
+        },
+      },
+      {
+        id: 'sb_post',
+        agentId: 'design',
+        ts: t - 60_000,
+        kind: 'approval',
+        text: '',
+        approval: {
+          requestId: 'req_sb_post',
+          sendFrom: 'Sam (Slack)',
+          title: 'Do these under your name?',
+          detail: '',
+          status: 'pending',
+          plan: {
+            actions: [
+              {
+                kind: 'post',
+                target: '#design-team',
+                summary: 'Post the icon review in #design-team',
+                text: 'The new icon set is ready for review: 48 icons, two weights. Comments in the file by Friday, please.',
+              },
+            ],
+          },
+        },
+      }
+    );
+    messages.set('design', design);
+    const d = agents.find((a) => a.id === 'design');
+    if (d) d.pendingApprovals = (d.pendingApprovals ?? 0) + 1;
+    const chief = messages.get('chief') ?? [];
+    chief.push({
+      id: 'sb_long',
+      agentId: 'chief',
+      ts: t - 30_000,
+      kind: 'approval',
+      text: '',
+      approval: {
+        requestId: 'req_sb_long',
+        title:
+          'Move the quarterly planning review to Thursday afternoon, tell the five people invited, and book the large meeting room for two hours instead of one',
+        detail:
+          'Dana asked to move it because the board pack isn’t ready until Wednesday night. Thursday 2–4 pm is free for all five. The large room is free then; the small one is taken. I’d send one short note to each of them saying why it moved, and update the calendar invite so the agenda and the dial-in stay the same. Nothing else changes. If you’d rather keep Tuesday, I’ll tell Dana the pack goes out as a draft instead.',
+        status: 'pending',
+      },
+    });
+    messages.set('chief', chief);
+    const c = agents.find((a) => a.id === 'chief');
+    if (c) c.pendingApprovals = (c.pendingApprovals ?? 0) + 1;
+  }
   if (opts.headerStates) {
     const at = (id: string) => agents.find((a) => a.id === id);
     const qa = at('qa');
@@ -3096,6 +3194,7 @@ export function createMockServer(opts: MockOptions = {}) {
     { word: 'Tailscale', learned: true, heardAs: ['tail scale', 'tailscales'] },
     { word: 'Bradford', learned: true, heardAs: ['Bradfurd'] },
   ];
+  let tasksRead = 0;
   const methods: Partial<Record<MethodName, Handler>> = {
     'agents.conversations': (p) => convList(String(p.agentId)),
     'agents.conversationSelect': (p) => {
@@ -4373,7 +4472,11 @@ export function createMockServer(opts: MockOptions = {}) {
       return true;
     },
     // One agent's open asks (`agents::tasks::load_of`): a doing line, one waiting.
-    'agents.tasks': (p) => {
+    'agents.tasks': async (p) => {
+      if (opts.tasksSlow) await new Promise((r) => setTimeout(r, 60_000));
+      if (opts.tasksFlaky && tasksRead++ > 0) {
+        return fail({ type: 'Other', message: 'Couldn’t read the task list just now.' });
+      }
       const a = agents.find((x) => x.id === p.agentId);
       if (!a) {
         return fail({ type: 'Protocol', code: 'bad_params', message: 'Tasks takes an agentId.' });

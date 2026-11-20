@@ -5107,6 +5107,106 @@ async function main() {
     }
   }
 
+  if (phase('states-b')) {
+    // The 1.1 gate's last phone states the mock can show (Fidelity QA's c2 MISSING list).
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--states-b');
+      await dropCaches(page);
+      // A sign-in that failed: the reason in red, Try again on the way it used.
+      await page.goto(`${WEB}/chat/qa`);
+      await sleep(5000);
+      await scrollToIncludes('closed before it finished')(page).catch(() => {});
+      await sleep(700);
+      await screen(page, theme, {
+        name: 'login-failed',
+        check:
+          'QA 2’s Gmail card: “The sign-in window was closed before it finished.” in red, Try again on that way',
+      });
+      // A Slack post draft, and an email already sent (its answered line).
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(5000);
+      await scrollToIncludes('#design-team')(page).catch(() => {});
+      await sleep(700);
+      await screen(page, theme, {
+        name: 'card-post-draft',
+        check: 'A post draft: where it goes (#design-team), the exact words, Discard · Edit · Post',
+      });
+      await scrollToIncludes('Email Dana')(page).catch(() => {});
+      await sleep(700);
+      await screen(page, theme, {
+        name: 'card-draft-sent',
+        check: 'An email that went: one answered line, “Allowed · Email Dana the new icon set”',
+      });
+      // Agents list: Ops muted, then a row swiped left.
+      await page.goto(`${WEB}/agents`);
+      await sleep(5000);
+      await screen(page, theme, {
+        name: 'agents-row-muted',
+        check: 'Ops’s row muted: a bell-slash by its name, its line quieter',
+      });
+      await dragMessage(page, 'QA 2', -170, { release: false }).catch(() => {});
+      await screen(page, theme, {
+        name: 'agents-swipe',
+        check: 'A row swiped left: its actions (Mute, Hide) showing at the right edge',
+      });
+      await dragMessage(page, 'Finance', 0).catch(() => {});
+      // Catch up: a card sent Later is tagged in Up next; the long ask.
+      await startMock('--states-b', '--catchup-several');
+      await dropCaches(page);
+      await page.goto(`${WEB}/one-at-a-time`);
+      await page.waitFor(`/up next/i.test(document.body.innerText)`, 45000, 'the queue');
+      await sleep(3000);
+      // Later is the card's swipe left (a click on its text button doesn't reach it in the web build).
+      await dragMessage(page, 'All 48 checks passed', -260).catch(() => {});
+      await sleep(1200);
+      await screen(page, theme, {
+        name: 'catchup2-later',
+        check: 'The card sent Later sits at the end of Up next with a “Later” tag',
+      });
+      // The long ask, opened from its Up next row.
+      await scrollToIncludes('quarterly planning')(page).catch(() => {});
+      await page
+        .clickWhere(
+          `() => [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && (e.innerText ?? '').includes('quarterly planning')).pop()`,
+          'the long ask’s row'
+        )
+        .catch(() => {});
+      await sleep(1500);
+      await page.eval('window.scrollTo(0, 0)');
+      await screen(page, theme, {
+        name: 'catchup2-long',
+        check: 'A long ask: the title over three lines, the body cut at six with Details',
+      });
+      // The task sheet while the list loads, and once a read failed (the stale line).
+      await startMock('--tasks-slow');
+      await dropCaches(page);
+      await page.goto(`${WEB}/tasks?id=design`);
+      await sleep(4000);
+      await screen(page, theme, {
+        name: 'tasks-sheet-loading',
+        check:
+          'The sheet before the list arrives: the title and its loading state, no empty-list words',
+      });
+      await startMock('--tasks', '--tasks-flaky');
+      await dropCaches(page);
+      await page.goto(`${WEB}/tasks?id=design`);
+      await sleep(5000);
+      await page.clickLabel('Tasks menu').catch(() => {});
+      await sleep(700);
+      await page.clickText('Add a task').catch(() => {});
+      await sleep(600);
+      await page.type('Book the venue for March', 'input').catch(() => {});
+      await page.clickLabel('Add').catch(() => {});
+      await sleep(2500);
+      await screen(page, theme, {
+        name: 'tasks-sheet-failed',
+        check:
+          'A read that failed after one that worked: the list stays, with “From your Mac at <time>” in amber',
+      });
+    }
+  }
+
   if (phase('cards-gallery')) {
     // The card states of spec-cards.md that the Mac's own fixtures carry (`/chat/fixtures`), one shot each.
     const CARDS = [
