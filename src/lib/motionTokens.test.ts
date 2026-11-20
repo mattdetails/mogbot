@@ -11,7 +11,7 @@ import {
 } from '../../packages/companion-protocol/src/motion';
 
 /** Desk and phone share one motion system (docs/MOTION.md): the CSS mirror may not drift. */
-const css = readFileSync(path.resolve(__dirname, '../styles/global/tokens-core.css'), 'utf8');
+const css = readFileSync(path.resolve('src/styles/global/tokens-core.css'), 'utf8');
 const token = (name: string) => {
   const all = [...css.matchAll(new RegExp(`--${name}:\\s*([^;]+);`, 'g'))].map((m) => m[1].trim());
   expect(all.length, `--${name} is defined`).toBeGreaterThan(0);

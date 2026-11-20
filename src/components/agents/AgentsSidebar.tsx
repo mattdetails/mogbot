@@ -25,6 +25,7 @@ import {
   memo,
   useCallback,
   useMemo,
+  useEffect,
   useRef,
   useState,
   type DragEvent,
@@ -104,6 +105,7 @@ import {
 import { groupLine, groupRequests } from '../../lib/agentRequests';
 import { secretTitle } from '../../lib/agentSecrets';
 import { kbd } from '../../lib/shortcuts';
+import { markLaunchAfterPaint } from '../../lib/launchMarks';
 import { previewText } from '../../../packages/companion-protocol/src/preview';
 
 interface AgentsSidebarProps {
@@ -328,6 +330,10 @@ export function AgentsSidebar({
   rooms,
   roomActions,
 }: AgentsSidebarProps) {
+  const hasAgents = agents.length > 0;
+  useEffect(() => {
+    if (hasAgents) markLaunchAfterPaint('agents-list');
+  }, [hasAgents]);
   // Optional sections: by project, or the folders you make (none until the first).
   const grouping = useAgentGroups();
   const searching = query.trim().length > 0;
