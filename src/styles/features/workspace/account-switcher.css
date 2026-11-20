@@ -464,3 +464,15 @@
 .workspace-sidebar-footer > .update-indicator {
   z-index: var(--z-workspace-header);
 }
+
+/* The Agents foot's gear opens a menu above it (portalled), not the drawer:
+   open, its holder keeps the closed gear's size and look. */
+.workspace-sidebar-footer-actions.has-settings-drawer > .workspace-sidebar-settings-menu--menu.is-open {
+  width: var(--workspace-settings-summary-height);
+  height: var(--workspace-settings-summary-height);
+  max-height: var(--workspace-settings-summary-height);
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
