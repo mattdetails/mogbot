@@ -829,3 +829,136 @@ body[data-agent-dragging] * {
   cursor: grabbing !important; /* css-ok: the drag's cursor wins over every row's pointer */
   user-select: none;
 }
+
+/* A working row's 6px grey dot before its step; the clock is in the time column. */
+.agents-list__working-dot {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 6px; /* css-ok: the spec's 6px mark */
+  height: 6px; /* css-ok: the spec's 6px mark */
+  margin-right: var(--spacing-xs);
+  border-radius: var(--radius-pill);
+  background: var(--text-muted);
+}
+
+/* ------------------------------------------------- narrow (under 240px) */
+
+/* No excerpts: a name, its time and, where something needs you, an amber dot
+   in the tag's place. The tag's words stay for a screen reader and the title. */
+.workspace-sidebar.is-narrow .agents-list__preview:not(.agents-list__preview--pill) {
+  display: none;
+}
+
+.workspace-sidebar.is-narrow .agents-list__preview--pill .agents-list__rest {
+  display: none;
+}
+
+.workspace-sidebar.is-narrow .agents-list__preview--pill .status-pill {
+  width: var(--status-pill-dot);
+  height: var(--status-pill-dot);
+  padding: 0;
+  background: none;
+  font-size: 0;
+  overflow: hidden;
+}
+
+.workspace-sidebar.is-narrow .agents-list__preview--pill .status-pill__label {
+  position: absolute;
+  width: 1px; /* css-ok: visually hidden, still read aloud */
+  height: 1px; /* css-ok: visually hidden, still read aloud */
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.workspace-sidebar.is-narrow .agents-list__preview--pill .status-pill__dot {
+  width: var(--spacing-sm);
+  height: var(--spacing-sm);
+}
+
+/* A row with no second line centres its name against the key. */
+.workspace-sidebar.is-narrow .agents-list__text {
+  justify-content: center;
+}
+
+/* ------------------------------------------------------ collapsed rail */
+
+/* The rail's marks: amber = needs you (bottom-right of the key), blue = unread
+   (top-right), each ringed in the panel's colour so it reads apart from the key. */
+.agents-list__rail-needs {
+  display: none;
+}
+
+.workspace-sidebar.is-hidden .agents-list__rail-needs {
+  position: absolute;
+  right: var(--spacing-tight);
+  bottom: var(--spacing-tight);
+  display: block;
+  width: var(--spacing-sm);
+  height: var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  background: var(--status-pill-waiting);
+  box-shadow: 0 0 0 var(--border-width-emphasis) var(--surface-panel);
+}
+
+.workspace-sidebar.is-hidden .agents-list__status .agent-unread-dot {
+  background: var(--status-info);
+}
+
+.workspace-sidebar.is-hidden .agents-list__row {
+  position: relative;
+}
+
+/* The Catch up tile's count: amber, on the tile's corner (rail only). */
+.agents-catchup-row__tile {
+  position: relative;
+}
+
+.agents-catchup-row__count {
+  position: absolute;
+  top: calc(var(--spacing-xs) * -1);
+  right: calc(var(--spacing-xs) * -1);
+  min-width: var(--spacing-lg);
+  padding-inline: var(--spacing-xs);
+  border-radius: var(--radius-pill);
+  background: var(--status-pill-waiting);
+  box-shadow: 0 0 0 var(--border-width-emphasis) var(--surface-panel);
+  color: var(--surface-app);
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-label);
+  line-height: var(--line-height-compact);
+  text-align: center;
+}
+
+/* The foot shrinks to the usage icon: the rest is in the gear's menu and ⌘K. */
+.workspace-sidebar.is-hidden .is-agents-foot .agents-foot__new,
+.workspace-sidebar.is-hidden .is-agents-foot .remote-indicator:not(.usage-glance),
+.workspace-sidebar.is-hidden .is-agents-foot .workspace-sidebar-footer-actions {
+  display: none;
+}
+
+/* First run: only the Chief. A centred hint and one strong New agent. */
+.agents-list__first-run {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+}
+
+.agents-list__first-run-title {
+  margin: 0;
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-heading);
+  color: var(--text-primary);
+}
+
+.agents-list__first-run-copy {
+  margin: 0 0 var(--spacing-xs);
+  font-size: var(--font-size-body-md);
+  color: var(--text-muted);
+}
+
+.workspace-sidebar.is-hidden .agents-list__first-run {
+  display: none;
+}

@@ -4608,7 +4608,7 @@ async function main() {
           '"Runs on" with one line under it, then a card with one row per agent (its key, name, the account it runs on at the right); the first opened in place: "Any account" ticked, then each account with "Only this one, never another".',
       },
     ]);
-    for (const variant of ['two-claude', 'one-read']) {
+    for (const variant of ['two-claude', 'one-read', 'stale']) {
       await startMock('--usage', variant);
       await page.goto(`${WEB}/agents`);
       await sleep(4000);
@@ -4619,7 +4619,7 @@ async function main() {
           ready: 'Usage',
           act: scrollToText('Accounts'),
           check:
-            'Your accounts: a sheet with one headline, ONE bar of the total (an unread account left out of it and said so, never a segment per account) and the next refill; then each account as a card: a numbered keycap (the one in use filled), its name, plan and who, a state pill ("In use", "Out of usage until …", "Not signed in"), its 5-hour and Weekly bars with "Resets in …", and a pace line in secondary ink (never amber) when the Mac sent one; no account named "This Mac"',
+            'Your accounts: a sheet with one headline, ONE bar of the total (an unread account left out of it and said so, never a segment per account) and the next refill; then each account as a card: a numbered keycap (the one in use filled), its name, plan and who, a state pill ("In use", "Out of usage until …", "Not signed in"), its 5-hour and Weekly bars with "Resets in …", and a pace line in secondary ink (never amber) when the Mac sent one; no account named "This Mac". In the stale variant the Mac\'s figures say "as of <a time 7 hours ago>" (headline and its card), the other account\'s do not',
         },
       ]);
     }

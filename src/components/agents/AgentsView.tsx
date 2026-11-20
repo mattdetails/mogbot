@@ -1199,6 +1199,7 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
                     onSelect={setSelectedId}
                     rooms={roomRows}
                     roomActions={roomActions}
+                    onNew={() => openNew()}
                     actions={actions}
                     query={popoverSearch ? '' : query}
                     searchRef={searchRef}

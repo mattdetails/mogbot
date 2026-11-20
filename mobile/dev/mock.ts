@@ -106,8 +106,9 @@ function selfSigned(dir: string) {
       : {}),
     ...(arg('--usage') === 'two-claude' ||
     arg('--usage') === 'one-read' ||
-    arg('--usage') === 'room'
-      ? { usage: arg('--usage') as 'two-claude' | 'one-read' | 'room' }
+    arg('--usage') === 'room' ||
+    arg('--usage') === 'stale'
+      ? { usage: arg('--usage') as 'two-claude' | 'one-read' | 'room' | 'stale' }
       : {}),
     identityFile: path.join(state, 'identity.pem'),
     // The same server id and paired phones, a different key: what a phone
