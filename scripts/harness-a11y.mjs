@@ -47,7 +47,8 @@ const shardIdx = args.indexOf('--shard');
 const [shard, shards] =
   shardIdx === -1 ? [1, 1] : args[shardIdx + 1].split('/').map((n) => Number(n));
 if (!(shards >= 1 && shard >= 1 && shard <= shards)) throw new Error('--shard wants i/n, e.g. 2/4');
-if (updateBaseline && shards > 1) throw new Error('--update-baseline needs a full run, not a shard');
+if (updateBaseline && shards > 1)
+  throw new Error('--update-baseline needs a full run, not a shard');
 const filter =
   args.filter(
     (a, i) =>
@@ -109,12 +110,34 @@ class Page {
 
 let CDP_PORT = BASE_CDP_PORT;
 
+/**
+ * The browser's own CDP session, for making and closing tab contexts.
+ * Opened once per run (after launchChrome sets CDP_PORT).
+ */
+let browser = null;
+async function browserSession() {
+  if (!browser) {
+    const { webSocketDebuggerUrl } = await (
+      await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`)
+    ).json();
+    browser = await Page.attach(webSocketDebuggerUrl);
+  }
+  return browser;
+}
+
+/**
+ * Each page opens in a browser context of its own: its own localStorage.
+ * Four tabs scan at once, and in one shared context every page's start-up
+ * (resetStorage.ts wiping storage and seeding `?theme=`) reached the others:
+ * the app's theme follows other windows through the `storage` event, so a
+ * "dark" page turned light whenever a light one loaded beside it (and the
+ * reverse), and contrast was measured in the wrong theme.
+ */
 async function open(url, viewport) {
-  const res = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new?${encodeURIComponent(url)}`, {
-    method: 'PUT',
-  });
-  const target = await res.json();
-  const page = await Page.attach(target.webSocketDebuggerUrl);
+  const b = await browserSession();
+  const { browserContextId } = await b.send('Target.createBrowserContext', {});
+  const { targetId } = await b.send('Target.createTarget', { url, browserContextId });
+  const page = await Page.attach(`ws://127.0.0.1:${CDP_PORT}/devtools/page/${targetId}`);
   // Every page is read with Reduce Motion on: that is the setting the motion
   // check below holds, and a settled page is what contrast is measured on.
   await page.send('Emulation.setEmulatedMedia', {
@@ -128,10 +151,14 @@ async function open(url, viewport) {
     });
   }
   await page.send('Page.reload', {});
-  return { page, id: target.id };
+  return { page, id: browserContextId };
 }
 
-const close = (id) => fetch(`http://127.0.0.1:${CDP_PORT}/json/close/${id}`).catch(() => {});
+/** Close a page's tab by disposing of its context. */
+const close = (contextId) =>
+  browserSession()
+    .then((b) => b.send('Target.disposeBrowserContext', { browserContextId: contextId }))
+    .catch(() => {});
 
 async function waitReady(page, ms) {
   const deadline = Date.now() + ms;
@@ -226,10 +253,7 @@ async function scanPage(s, theme) {
       await page.eval(SETTLE);
       axeFound = JSON.parse(await page.eval(RUN_AXE));
     }
-    const violations = [
-      ...axeFound,
-      ...JSON.parse(await page.eval(MOTION_CHECK)),
-    ];
+    const violations = [...axeFound, ...JSON.parse(await page.eval(MOTION_CHECK))];
     return { id: s.id, theme, ready, violations };
   } catch (e) {
     return { id: s.id, theme, ready: false, error: e.message, violations: [] };
@@ -313,6 +337,7 @@ async function main() {
     const r = await scan(s, old.theme);
     results[results.indexOf(old)] = r;
   }
+  browser?.close();
   chrome.close();
   results.sort((a, b) => (a.id + a.theme).localeCompare(b.id + b.theme));
 
