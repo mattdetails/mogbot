@@ -243,6 +243,18 @@ async function scanPage(s, theme) {
     // reproduced alone). Finish every finite animation and transition: what is
     // measured is the screen as it settles. Loops are left for MOTION_CHECK.
     await page.eval(SETTLE);
+    // `pointAt`: the pointer rests on this element, as in the capture, so what
+    // shows only on hover (a tab's ×) is on the page axe reads.
+    if (s.pointAt) {
+      const at = await page.eval(
+        `(() => { const el = document.querySelector(${JSON.stringify(s.pointAt)}); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`
+      );
+      if (at) {
+        await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...at });
+        await sleep(100);
+        await page.eval(SETTLE);
+      }
+    }
     await page.eval(AXE_SOURCE + ';true');
     let axeFound = JSON.parse(await page.eval(RUN_AXE));
     // A slow CI runner can still be mid-fade at 500 ms (main run 43497996791:
@@ -304,7 +316,7 @@ async function main() {
   }
   const scenarios = JSON.parse(
     await probe.page.eval(
-      'JSON.stringify(window.__harness.scenarios.map(s=>({id:s.id,command:s.command,viewport:s.viewport})))'
+      'JSON.stringify(window.__harness.scenarios.map(s=>({id:s.id,command:s.command,viewport:s.viewport,pointAt:s.pointAt})))'
     )
   )
     .filter((s) => s.id.startsWith(filter))
