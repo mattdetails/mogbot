@@ -97,13 +97,13 @@ describe('the message field', () => {
     expect(stop).toHaveBeenCalledTimes(1);
   });
 
-  it('drops the mic once there are words, and Send takes Stop’s place', async () => {
+  it('keeps the mic once there are words, and Send takes Stop’s place', async () => {
     state();
     await render(composer());
     await act(async () => {
       await fireEvent.changeText(screen.getByLabelText('Message Ops'), 'hello');
     });
-    expect(screen.queryByLabelText('Dictate')).toBeNull();
+    expect(screen.getByLabelText('Dictate')).toBeTruthy();
     expect(screen.getByLabelText('Send').props.accessibilityState).toMatchObject({
       disabled: false,
     });
@@ -129,8 +129,8 @@ describe('the message field', () => {
     expect(screen.getByText('Next, after this one')).toBeTruthy();
     expect(screen.getByLabelText('Send now: interrupt Ops and send')).toBeTruthy();
     expect(screen.getByLabelText('Queue: Ops reads it next, after this one')).toBeTruthy();
-    // Words typed: the mic steps aside, and Stop gives Send its place back.
-    expect(screen.queryByLabelText('Dictate')).toBeNull();
+    // Words typed: the mic stays, and Stop gives Send its place back.
+    expect(screen.getByLabelText('Dictate')).toBeTruthy();
     expect(screen.queryByLabelText('Stop Ops')).toBeNull();
   });
 

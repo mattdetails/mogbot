@@ -49,7 +49,7 @@ export function fieldIsCard(f: {
 export type ComposerControl = 'mic' | 'stop' | 'send';
 
 /**
- * Dictate is for an empty box: once there's something to send it steps aside.
+ * The dictation mic stays beside Send, typed or not.
  * While a turn runs that can be stopped here (not one waiting on your OK,
  * where the card is the control, nor one driven on the Mac) an empty box
  * shows Stop where Send would be; type something and Send (queue) takes the
@@ -59,7 +59,9 @@ export type ComposerControl = 'mic' | 'stop' | 'send';
 export function composerControls(agent: Agent, hasContent = false): ComposerControl[] {
   const busy = agent.status.state !== 'idle';
   const stoppable = busy && !agent.takeover && !needsYou(agent);
-  const mic: ComposerControl[] = hasContent ? [] : ['mic'];
+  // The dictation mic stays beside Send while you type (Builder's chat spec): a real feature,
+  // not Grok's voice mode.
+  const mic: ComposerControl[] = ['mic'];
   return stoppable && !hasContent ? [...mic, 'stop'] : [...mic, 'send'];
 }
 
