@@ -83,16 +83,9 @@ export function AgentActionItems({
   onSchedule,
   onFiles,
   onGoBack,
-  inAgentMenu = false,
 }: {
   agent: Agent;
   kind: 'context' | 'dropdown';
-  /**
-   * In the header's agent menu, which has its own rows for Instructions and
-   * memory, Independence, Routines, Take over and Delete (spec-agent-menu §2):
-   * only the rest, so nothing is listed twice.
-   */
-  inAgentMenu?: boolean;
   /** Only where the schedule popover is at hand (the conversation header). */
   onSchedule?: () => void;
   /** Same: only where the Files list can open. */
@@ -109,10 +102,8 @@ export function AgentActionItems({
   // model and effort are settings, not actions: the header's Model menu and
   // Edit agent → Advanced hold them.
   const items: Item[] = [
-    ...(inAgentMenu
-      ? []
-      : [{ label: 'Edit agent…', icon: <EditIcon size={12} />, run: () => onEdit(agent) }]),
-    ...(onOnItsOwn && !inAgentMenu
+    { label: 'Edit agent…', icon: <EditIcon size={12} />, run: () => onEdit(agent) },
+    ...(onOnItsOwn
       ? [
           {
             label: ON_ITS_OWN_MENU,
@@ -121,7 +112,7 @@ export function AgentActionItems({
           },
         ]
       : []),
-    ...(onSchedule && !inAgentMenu
+    ...(onSchedule
       ? [{ label: 'Schedule a routine…', icon: <RoutineIcon size={12} />, run: onSchedule }]
       : []),
     ...(onFiles ? [{ label: 'Files', icon: <PaperclipIcon size={12} />, run: onFiles }] : []),
@@ -155,7 +146,7 @@ export function AgentActionItems({
       run: () => onToggleHidden(agent),
     },
     ...withDivider([
-      ...(inAgentMenu ? [] : takeoverItems(agent, onTakeOver, onHandBack)),
+      ...takeoverItems(agent, onTakeOver, onHandBack),
       ...(onGoBack ? [{ label: GO_BACK_MENU, icon: <UndoIcon size={12} />, run: onGoBack }] : []),
       {
         // How full this one is, only when its engine said. Never waits on a
@@ -166,17 +157,6 @@ export function AgentActionItems({
       },
     ]),
   ];
-  if (inAgentMenu) {
-    // The header's menu keeps only what lives nowhere else: Files, What it was
-    // told, Go back. Pin, Mute, Hide, Mark as unread and Share as a recipe are
-    // on the sidebar row's right-click; New conversation is in the
-    // conversation list.
-    const only = new Set(['Files', 'What it was told…', GO_BACK_MENU]);
-    return renderItems(
-      items.filter((item) => only.has(item.label)).map((item) => ({ ...item, divider: false })),
-      kind
-    );
-  }
   if (!agent.isMain) {
     items.push({
       label: 'Delete…',
@@ -187,10 +167,6 @@ export function AgentActionItems({
     });
   }
 
-  return renderItems(items, kind);
-}
-
-function renderItems(items: Item[], kind: 'context' | 'dropdown') {
   return (
     <>
       {items.map((item) => [

@@ -130,7 +130,13 @@ export const agentsQaScenarios: Scenario[] = [
   as(
     'agents-header2-menu-open',
     tasks('menu'),
-    'The ⋯ menu open, in spec-agent-menu §2’s groups: Tasks (with its counts), Usage, Routines, Conversations; Instructions and memory, Apps and logins, Model, Independence (its level); the agent’s other actions; Take over and Delete this agent (red, trash icon) last. Routines is listed once.'
+    'The ⋯ menu open, in spec-agent-menu §2’s groups: Tasks (with its counts), Usage, Routines, Conversations; Instructions and memory, Apps and logins, Model, Independence (its level); Files; Take over and Delete this agent (red, trash icon) last. Routines is listed once; nothing else, and no scrolling.'
+  ),
+  as(
+    'agents-header2-menu-720',
+    tasks('menu'),
+    'The same ⋯ menu in a 1280×720 window: shown whole, ending on Take over and Delete this agent, with no scroll.',
+    { viewport: { width: 1280, height: 720 } }
   ),
   as(
     'agents-header2-menu-keys',

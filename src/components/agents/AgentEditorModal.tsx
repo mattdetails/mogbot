@@ -98,6 +98,8 @@ interface AgentEditorModalProps {
   agent?: Agent | null;
   onSaved: (agentId: string) => void;
   onDelete?: (agent: Agent) => void;
+  /** "What it was told": the briefing its newest turn was given, at the page's foot. Desk only. */
+  onWhatItWasTold?: (agent: Agent) => void;
   /** Colours other agents already wear, so a new one starts on a free one. */
   takenColors?: string[];
   /** Open "Apps your agents can use" over the editor. */
@@ -147,6 +149,7 @@ export function AgentEditorModal({
   agent,
   onSaved,
   onDelete,
+  onWhatItWasTold,
   takenColors,
   onOpenApps,
   initialTab = 'agent',
@@ -735,6 +738,16 @@ export function AgentEditorModal({
         </div>
       )}
 
+      {editing && agent && onWhatItWasTold && (
+        <Button
+          variant="ghost"
+          width="fill"
+          className="agent-sheet__foot-row"
+          onClick={() => onWhatItWasTold(agent)}
+        >
+          What it was told…
+        </Button>
+      )}
       {editing && agent && !agent.isMain && onDelete && (
         <DeleteRow label="Delete agent" onDelete={() => onDelete(agent)} />
       )}

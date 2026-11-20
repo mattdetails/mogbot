@@ -5867,7 +5867,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 666
+      "consumerCount": 667
     },
     {
       "name": "--text-secondary",
@@ -6379,7 +6379,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 174
+      "consumerCount": 175
     },
     {
       "name": "--font-size-body-md",
@@ -6499,7 +6499,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 40
+      "consumerCount": 41
     },
     {
       "name": "--font-weight-label",
@@ -6987,7 +6987,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 81
+      "consumerCount": 82
     },
     {
       "name": "--radius-pill",
@@ -7507,7 +7507,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 666
+      "consumerCount": 667
     },
     {
       "name": "--text-secondary",

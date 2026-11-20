@@ -1366,6 +1366,10 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
             openAgent(id);
           }}
           onDelete={setDeleting}
+          onWhatItWasTold={(a) => {
+            setEditor({ open: false, agent: null });
+            setBriefingFor(a);
+          }}
           onOpenApps={() => openApps(editor.agent?.id)}
           onAskChief={
             editor.agent

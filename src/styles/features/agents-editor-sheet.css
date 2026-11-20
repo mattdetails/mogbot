@@ -389,6 +389,17 @@
   resize: none;
 }
 
+/* A plain row at the foot, above Delete ("What it was told…"). */
+.agent-sheet__foot-row.button {
+  height: auto;
+  min-height: var(--settings-row-min-height);
+  background: var(--settings-card-surface);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-body);
+}
+
 /* The red row at the foot. */
 .agent-sheet__delete.button {
   height: auto;

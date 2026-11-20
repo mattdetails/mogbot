@@ -1,10 +1,11 @@
 /**
  * The agent menu (spec-agent-menu-and-tasks.md §2): one plain ⋯ at the
  * header's right edge. Three groups in the spec's order — what it has going
- * (Tasks, Usage, Routines, Conversations), what it is (Instructions and
- * memory, Apps and logins, Model, Independence), and taking it over or
- * deleting it — with the agent's other actions (Files, Pin, Mute…) between the
- * second group and the last, so Delete stays last. Rows open the existing
+ * (Tasks, Usage, Routines, Conversations, Files), what it is (Instructions
+ * and memory, Apps and logins, Model, Independence), and taking it over or
+ * deleting it, Delete last. Pin, Mute, Hide and Share as a recipe are on the
+ * sidebar row's right-click; What it was told is at the foot of Instructions
+ * and memory; going back is Rewind on each message. Rows open the existing
  * popovers and pages; the menu adds only Tasks.
  *
  * Not here yet: "Pause this agent" (there is no per-agent pause on the Mac).
@@ -18,6 +19,7 @@ import {
   CheckIcon,
   CommentIcon,
   FileTextIcon,
+  PaperclipIcon,
   MoreHorizontalIcon,
   PlugIcon,
   RoutineIcon,
@@ -38,6 +40,7 @@ export const MENU_COPY = {
   usage: 'Usage',
   routines: 'Routines',
   conversations: 'Conversations',
+  files: 'Files',
   instructions: 'Instructions and memory',
   apps: 'Apps and logins',
   model: 'Model',
@@ -83,7 +86,7 @@ export function AgentMenu({
   onModel,
   onApps,
   actions,
-  children,
+  onFiles,
 }: {
   agent: Agent;
   engineReady: boolean;
@@ -100,8 +103,8 @@ export function AgentMenu({
   onApps?: () => void;
   /** Instructions (Edit), Independence (on its own), Take over, Delete. */
   actions: AgentActions;
-  /** The agent's other actions (Files, Pin, Mute…), before Take over and Delete. */
-  children: ReactNode;
+  /** Its Files list. */
+  onFiles: () => void;
 }) {
   const value = tasksValue(agent.tasks);
   const level = agent.independence ?? teamIndependence ?? undefined;
@@ -138,6 +141,7 @@ export function AgentMenu({
           onSelect={onConversations}
         />
       )}
+      <Row icon={<PaperclipIcon size={12} />} label={MENU_COPY.files} onSelect={onFiles} />
       <DropdownDivider />
       <Row
         icon={<FileTextIcon size={12} />}
@@ -161,8 +165,6 @@ export function AgentMenu({
           onSelect={() => actions.onOnItsOwn?.(agent)}
         />
       )}
-      <DropdownDivider />
-      {children}
       {(takeover.length > 0 || !agent.isMain) && <DropdownDivider />}
       {takeover.map((item) => (
         <Row key={item.label} icon={item.icon} label={item.label} onSelect={item.run} />

@@ -44,7 +44,7 @@ import { TextButton } from '../primitives/TextButton';
 import { AgentComposer, LiveSecretHint } from './AgentComposer';
 import { AgentRequestsBar } from './AgentRequests';
 import { AgentKey } from './AgentKey';
-import { AgentActionItems, GO_BACK_MENU, type AgentActions } from './AgentActions';
+import { GO_BACK_MENU, type AgentActions } from './AgentActions';
 import { TakeoverBanner, TakeoverTerminal } from './AgentTakeover';
 import { AgentLine, ConversationBar, ConversationBars } from './AgentCard';
 import { PhoneSigninBar } from './PhoneSigninBar';
@@ -2215,17 +2215,8 @@ export const AgentChat = memo(function AgentChat({
                         onApps={openReach ? () => openReach(agent.id) : undefined}
                         teamIndependence={teamIndependence}
                         actions={actions}
-                      >
-                        <AgentActionItems
-                          agent={agent}
-                          kind="dropdown"
-                          inAgentMenu
-                          onSchedule={engineReady ? () => setScheduleOpen(true) : undefined}
-                          onFiles={() => setFilesOpen(true)}
-                          onGoBack={ownRecent.length > 0 ? () => setPicking(true) : undefined}
-                          {...actions}
-                        />
-                      </AgentMenu>
+                        onFiles={() => setFilesOpen(true)}
+                      />
                       <AgentFilesModal
                         agent={agent}
                         isOpen={filesOpen}
