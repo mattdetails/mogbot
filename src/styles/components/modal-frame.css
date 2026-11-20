@@ -92,14 +92,14 @@
 @keyframes modal-frame-dialog-in {
   from {
     opacity: 0;
-    transform: scale(var(--motion-modal-scale));
+    transform: scale(var(--motion-scale-modal));
   }
 }
 
 @keyframes modal-frame-dialog-out {
   to {
     opacity: 0;
-    transform: scale(var(--motion-modal-scale));
+    transform: scale(var(--motion-scale-modal));
   }
 }
 
@@ -124,10 +124,10 @@
    timing, not a dialog's. */
 .modal-frame-overlay:has(> .command-palette),
 .modal-frame-overlay > .command-palette {
-  animation-duration: var(--duration-arrive);
+  animation-duration: var(--motion-duration-arrive);
 }
 
 .modal-frame-overlay[data-state='closed']:has(> .command-palette),
 .modal-frame-overlay[data-state='closed'] > .command-palette {
-  animation-duration: var(--duration-exit-quick);
+  animation-duration: var(--motion-duration-exit);
 }

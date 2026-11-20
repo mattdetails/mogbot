@@ -731,7 +731,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 0
     },
     {
       "name": "--context-menu-animation-easing",
@@ -739,7 +739,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 0
     },
     {
       "name": "--context-menu-destructive-hover-surface",
@@ -2603,7 +2603,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 23
+      "consumerCount": 22
     },
     {
       "name": "--agents-motion-flash",
@@ -5243,7 +5243,7 @@
       "layer": "core",
       "owner": "global/core",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 0
     },
     {
       "name": "--ease-arrive",
@@ -5251,7 +5251,7 @@
       "layer": "core",
       "owner": "global/core",
       "status": "canonical",
-      "consumerCount": 1
+      "consumerCount": 0
     },
     {
       "name": "--ease-press",
@@ -6275,7 +6275,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 119
+      "consumerCount": 118
     },
     {
       "name": "--transition-interaction-slow",
@@ -6315,7 +6315,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 5
+      "consumerCount": 7
     },
     {
       "name": "--motion-celebrate",
@@ -6395,7 +6395,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 0
+      "consumerCount": 3
     },
     {
       "name": "--motion-exit",
@@ -6403,7 +6403,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 0
+      "consumerCount": 3
     },
     {
       "name": "--motion-exit-screen",
@@ -6411,7 +6411,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 0
+      "consumerCount": 2
     },
     {
       "name": "--motion-move",
@@ -6428,6 +6428,62 @@
       "owner": "global/semantic",
       "status": "canonical",
       "consumerCount": 0
+    },
+    {
+      "name": "--motion-travel-popover",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 2
+    },
+    {
+      "name": "--motion-travel-rise",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-scale-popover",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 2
+    },
+    {
+      "name": "--motion-scale-modal",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 2
+    },
+    {
+      "name": "--motion-scale-press",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 0
+    },
+    {
+      "name": "--motion-duration-arrive",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 1
+    },
+    {
+      "name": "--motion-duration-exit",
+      "definitionFile": "src/styles/global/tokens-semantic.css",
+      "layer": "semantic",
+      "owner": "global/semantic",
+      "status": "canonical",
+      "consumerCount": 1
     },
     {
       "name": "--shadow-button",
@@ -6539,7 +6595,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 994
+      "consumerCount": 993
     },
     {
       "name": "--spacing-md",

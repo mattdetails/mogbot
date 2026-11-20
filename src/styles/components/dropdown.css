@@ -177,7 +177,7 @@
 }
 
 .ss-dropdown__menu[data-side='top'] {
-  --ss-menu-from: var(--motion-popover-y);
+  --ss-menu-from: var(--motion-travel-popover);
   transform-origin: bottom left;
 }
 

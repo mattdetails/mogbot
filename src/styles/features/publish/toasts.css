@@ -248,6 +248,6 @@
 @keyframes toast-leave {
   to {
     opacity: 0;
-    transform: translateY(var(--motion-popover-y));
+    transform: translateY(var(--motion-travel-popover));
   }
 }

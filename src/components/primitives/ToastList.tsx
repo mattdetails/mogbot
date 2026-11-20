@@ -14,7 +14,9 @@ import { createPortal } from 'react-dom';
 import { canAnimateExit } from '../../lib/motion';
 import {
   MOTION_DURATION,
+  MOTION_EASE,
   MOTION_SPRING,
+  cubicBezier,
   springEasing,
 } from '../../../packages/companion-protocol/src/motion';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
@@ -186,7 +188,7 @@ export function ToastList({ toasts, onDismiss, onHold }: ToastListProps) {
           duration: MOTION_SPRING.standard.duration,
           easing: CSS.supports('transition-timing-function', 'linear(0, 1)')
             ? springEasing('standard')
-            : 'cubic-bezier(0.2, 0, 0, 1)', // css-ok: --ease-move, for WAAPI
+            : cubicBezier(MOTION_EASE.move),
           composite: 'add',
         });
       }

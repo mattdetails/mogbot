@@ -101,15 +101,15 @@
 @keyframes ss-context-menu-enter {
   from {
     opacity: 0;
-    transform: translateY(var(--ss-menu-from, calc(-1 * var(--motion-popover-y))))
-      scale(var(--motion-popover-scale));
+    transform: translateY(var(--ss-menu-from, calc(-1 * var(--motion-travel-popover))))
+      scale(var(--motion-scale-popover));
   }
 }
 
 @keyframes ss-context-menu-exit {
   to {
     opacity: 0;
-    transform: scale(var(--motion-popover-scale));
+    transform: scale(var(--motion-scale-popover));
   }
 }
 
