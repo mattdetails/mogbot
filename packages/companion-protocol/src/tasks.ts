@@ -8,8 +8,8 @@
 /** Doing now, next in line, blocked on someone, nudged twice and still open, or closed. */
 export type TaskState = 'doing' | 'next' | 'waiting' | 'stuck' | 'done' | 'dropped';
 
-/** The user said it, another agent asked, or the agent's own step. */
-export type TaskSource = 'user' | 'agent' | 'own';
+/** The user said it, another agent asked (`message_agent`) or assigned it (`task_assign`), or the agent's own step. */
+export type TaskSource = 'user' | 'agent' | 'assigned' | 'own';
 
 export interface AgentTask {
   id: string;
@@ -25,6 +25,15 @@ export interface AgentTask {
   note?: string;
   chased: number;
   lastChasedAt: number;
+  /** Counts up with every change; an update naming an older one is refused. */
+  version?: number;
+  /** The message that asked, and the agent's that delivered it (when done). */
+  askedMsg?: string;
+  deliveredMsg?: string;
+  /** The user has looked at it since it finished; only the user sets it. */
+  seen?: boolean;
+  /** Moved out of Done (after 3 days, or by hand); never deleted. */
+  archived?: boolean;
 }
 
 /** One agent's list: open asks oldest first, the last few closed. */
