@@ -207,7 +207,7 @@ export interface MockOptions {
    * the account in use at 44% of its week and the other untouched (the
    * owner's "100% and 44%": the total reads 72%).
    */
-  usage?: 'two-claude' | 'one-read' | 'room';
+  usage?: 'two-claude' | 'one-read' | 'room' | 'stale';
   /** Answer CORS preflights and tag every response, for the web build (dev only). */
   cors?: boolean;
   /**
@@ -410,10 +410,13 @@ function storeUsage(plan: typeof real.agentsUsagePlan, now: number): typeof real
 
 function twoClaudeUsage(
   plan: typeof real.agentsUsagePlan,
-  variant: 'two-claude' | 'one-read' | 'room',
+  asked: 'two-claude' | 'one-read' | 'room' | 'stale',
   now: number
 ): typeof real.agentsUsagePlan {
   const hour = 3_600_000;
+  // `stale`: the two-Claude cast, but this Mac's account stopped being read 7 h ago.
+  const stale = asked === 'stale';
+  const variant = stale ? 'two-claude' : asked;
   const weekReset = now + 76 * hour;
   const w = (kind: string, usedPercent: number, resetsAt: number) => ({
     kind,
@@ -421,6 +424,10 @@ function twoClaudeUsage(
     resetsAt,
     limited: usedPercent >= 100,
     observedAt: now - 4 * 60_000,
+  });
+  const wMac = (kind: string, usedPercent: number, resetsAt: number) => ({
+    ...w(kind, usedPercent, resetsAt),
+    ...(stale ? { observedAt: now - 7 * hour } : {}),
   });
   const mac = {
     engine: 'claude' as const,
@@ -432,8 +439,8 @@ function twoClaudeUsage(
     next: true,
     plan: 'max',
     windows: [
-      w('five_hour', 7, now + 3 * hour),
-      w('seven_day', variant === 'room' ? 56 : 71, weekReset),
+      wMac('five_hour', 7, now + 3 * hour),
+      wMac('seven_day', variant === 'room' ? 56 : 71, weekReset),
     ],
     learned: ['five_hour', 'seven_day'],
     pace: [

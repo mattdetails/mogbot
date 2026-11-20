@@ -427,9 +427,17 @@ export function AccountRows({
                     {k.name}
                   </T>
                   {!!room && (
-                    <T variant="small" color={colors.textPrimary} style={styles.figure}>
-                      {room}
-                    </T>
+                    <View style={styles.figureCol}>
+                      <T variant="small" color={colors.textPrimary} style={styles.figure}>
+                        {room.split(' · ')[0]}
+                      </T>
+                      {/* A reading that has gone stale says when it is from, under the figure. */}
+                      {room.includes(' · ') && (
+                        <T variant="caption" color={colors.textMuted}>
+                          {room.split(' · ')[1]}
+                        </T>
+                      )}
+                    </View>
                   )}
                 </View>
                 {/* What tells it apart, as the desk's row: its plan first. */}
@@ -981,6 +989,7 @@ const useStyles = makeStyles((colors) => ({
   answer: { gap: space.xs },
   hero: { gap: space.lg, padding: space.xl },
   figure: { fontVariant: ['tabular-nums'] },
+  figureCol: { alignItems: 'flex-end', flexShrink: 0 },
   wrapRow: { flexWrap: 'wrap', rowGap: space['2xs'] },
   wholeLine: { flexBasis: '100%' },
   chip: {
