@@ -1009,9 +1009,18 @@ describe('the spatial implementation switch', () => {
     );
   });
 
-  it('focuses the first layout control rather than the footer on open', async () => {
+  it('focuses the first layout control rather than the footer on a keyboard open', async () => {
     localStorage.removeItem(WORKSPACE_LAYOUT_MENU_IMPLEMENTATION_KEY);
-    await openMenu(stacked());
+    writeProjectLayout(PROJECT, stacked() as never);
+    const user = userEvent.setup();
+    render(
+      <PanelDockProvider projectPath={PROJECT}>
+        <WorkspaceLayoutMenu />
+      </PanelDockProvider>
+    );
+    // A pointer open focuses the menu itself (no ring); the keyboard lands on the first control.
+    screen.getByRole('button', { name: 'Panel layout' }).focus();
+    await user.keyboard('{Enter}');
 
     expect(screen.getByRole('menuitem', { name: 'Move Left column 1' })).toHaveFocus();
     expect(screen.getByRole('menuitem', { name: 'Save as my default layout' })).not.toHaveFocus();
