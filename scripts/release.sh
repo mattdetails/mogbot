@@ -53,6 +53,16 @@ if ! git diff --quiet HEAD; then
   exit 1
 fi
 
+# Every check CI runs, accessibility included, before anything is tagged.
+# 1.0.24 was tagged first and took seven pushes to get green.
+if [ "${SKIP_CI_LOCAL:-}" != 1 ]; then
+  echo "Running every CI check on this Mac first (scripts/ci-local.sh release)..."
+  if ! bash scripts/ci-local.sh release; then
+    echo "Error: fix every failure above, commit, and run this again. Nothing was tagged."
+    exit 1
+  fi
+fi
+
 if [ ${#NOTES[@]} -gt 0 ]; then
   if [ -f "$NOTES_FILE" ]; then
     echo "Error: $NOTES_FILE already exists; edit it instead of passing -n."

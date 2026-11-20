@@ -1,3 +1,4 @@
-# Run type checking and tests before push
-pnpm typecheck
-pnpm test:run
+# The checks CI's Frontend job runs, from the same script (scripts/ci-local.sh),
+# plus cargo fmt and clippy: a push CI would reject never leaves this Mac.
+bash scripts/ci-local.sh frontend || exit 1
+bash scripts/ci-local.sh rust || exit 1
