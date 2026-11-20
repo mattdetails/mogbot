@@ -188,7 +188,7 @@ export const agentsSidebarFootScenarios: Scenario[] = [
   foot(
     'agents-foot-gear-menu',
     'Agents sidebar foot — the gear’s menu open',
-    `${BASE} The gear opens the app’s settings drawer upward over the foot line: Routines, Pair your phone, a divider, then Settings (and Report a bug / What’s new where the build has them).`,
+    `${BASE} The gear opens the app’s settings drawer upward over the foot line: Routines, Pair your phone, a divider, then All settings (and Report a bug / What’s new where the build has them).`,
     {
       phone: phoneStatus(),
       extra: {

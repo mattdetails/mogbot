@@ -64,7 +64,7 @@ export function SettingsMenu({
     >
       {leadingItems}
       <DropdownItem icon={<SettingsIcon size={14} />} onSelect={onOpenSettings}>
-        <span data-settings-item="app-settings">{leadingItems ? 'Settings' : 'App settings'}</span>
+        <span data-settings-item="app-settings">{leadingItems ? 'All settings' : 'App settings'}</span>
       </DropdownItem>
       {ISSUE_REPORTS_ENABLED && (
         <DropdownItem icon={<BugReportIcon size={14} />} onSelect={onOpenBugReports}>
