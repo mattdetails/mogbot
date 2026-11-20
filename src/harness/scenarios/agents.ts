@@ -2677,14 +2677,19 @@ export const agentsScenarios: Scenario[] = [
   },
   {
     id: 'agents-model-menu',
-    title: 'Agents — model menu, with what routines run on',
+    title: 'Agents — Model, from the header’s ⋯ menu',
     looksRightWhen:
-      'Finance’s header has a quiet “Model ⌄” button left of the … menu. Open, it starts with a quiet “Model · the AI it thinks with, on Claude Code” line, then Default (checked), Smartest (Opus), Balanced (Sonnet), Fastest (Haiku) with the engine’s names small; Finance has a routine, so a divider, “Routines · the model for its scheduled work”, then Automatic (checked) with “Fastest” small beside it, Same as its chats with what its chats run on, and the three models. The menu never runs past the window: it stops above the bottom edge and scrolls inside.',
-    requires: '.agent-model-menu__heading',
+      'Finance’s header has one plain ⋯ at its right edge (no Model button). Its menu has a Model row with the engine at the right (Claude Code); choosing it opens Finance’s editor on the “How it runs” card, where the model, effort and routine model are set.',
+    requires: '.agent-editor',
     openSelector: AGENTS_TAB,
-    steps: [{ click: '[data-agent-id="finance"]' }, { click: '.agent-chat__model button' }],
+    steps: [
+      { click: '[data-agent-id="finance"]' },
+      { click: '.agent-chat__more' },
+      { click: '.agent-menu [role="menuitem"]:nth-child(4)' },
+    ],
     commands: {
       agents_overview: overview(),
+      agents_instructions: 'Keep the books tidy and tell me before anything goes out.',
       agents_messages: messagesFor,
     },
   },
@@ -3117,19 +3122,6 @@ export const agentsScenarios: Scenario[] = [
       ),
       agents_messages: messagesFor,
       agents_schedule_preview: schedulePreview,
-    },
-  },
-  {
-    id: 'agents-model-menu',
-    title: 'Agents — the model menu in the chat header',
-    looksRightWhen:
-      'The header has a quiet “Model ⌄” button left of the … menu, which holds actions only. Open, the menu starts with “Model · the AI it thinks with, on Claude Code” and Default (checked), Smartest, Balanced, Fastest, each with the engine’s own name small beside it; no item ringed or highlighted.',
-    openSelector: AGENTS_TAB,
-    requires: '.agent-model-menu__heading',
-    steps: [{ click: '.agent-chat__model button' }],
-    commands: {
-      agents_overview: overview(),
-      agents_messages: messagesFor,
     },
   },
   {
