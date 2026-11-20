@@ -20,10 +20,10 @@ import { View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 're
 import Animated, {
   useAnimatedStyle,
   useFrameCallback,
-  useReducedMotion,
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
+import { useReduceMotion } from '../lib/moving';
 import { useColors } from '../lib/appearance';
 import { waveform } from '../lib/theme';
 import {
@@ -59,7 +59,7 @@ export function Waveform({
   style?: StyleProp<ViewStyle>;
 }) {
   const colors = useColors();
-  const still = useReducedMotion();
+  const still = useReduceMotion();
   const tint = color ?? colors.textPrimary;
   const [width, setWidth] = useState(fill ? 0 : WAVEFORM_WIDTH);
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);

@@ -12,7 +12,8 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { AppState, Platform, ScrollView, View } from 'react-native';
-import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
+import { useReduceMotion } from '../lib/moving';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { keyAccessibleName } from '@shipstudio/companion-protocol';
 import { AgentKey } from '../components/AgentKey';
@@ -65,7 +66,7 @@ function TalkScreen({ id }: { id: string }) {
   const accent = useAccent();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const still = useReducedMotion();
+  const still = useReduceMotion();
   const agent = useApp((s) => s.overview?.agents.find((a) => a.id === id));
   const messages = useApp((s) => s.chats[id]?.messages);
   const team = useApp((s) => s.overview?.agents ?? NONE);
