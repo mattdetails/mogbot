@@ -595,7 +595,7 @@
       "layer": "components",
       "owner": "global/component",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 1
     },
     {
       "name": "--agents-reply-line-height",
@@ -7003,7 +7003,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 96
+      "consumerCount": 97
     },
     {
       "name": "--radius-bubble",

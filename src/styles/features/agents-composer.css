@@ -167,7 +167,7 @@
 }
 
 .agent-composer__attach {
-  border-radius: var(--agents-composer-button-radius);
+  border-radius: var(--radius-pill);
   border: var(--border-width-default) solid var(--border-default);
 }
 
