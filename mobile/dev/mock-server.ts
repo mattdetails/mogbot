@@ -1974,6 +1974,47 @@ export function createMockServer(opts: MockOptions = {}) {
       quiet.preview = 'The weekly numbers are ready.';
     }
   }
+  // The rich task list, mutable (`--tasks`): Add, Reorder and Drop act on it.
+  type MockTask = Record<string, unknown> & { id: string; state: string };
+  const taskOf = (
+    id: string,
+    title: string,
+    state: string,
+    ago: number,
+    now: number,
+    extra: object = {}
+  ): MockTask => ({
+    id,
+    title,
+    source: 'user',
+    state,
+    createdAt: now - ago,
+    updatedAt: now - ago / 2,
+    chased: 0,
+    lastChasedAt: 0,
+    ...extra,
+  });
+  const richList: MockTask[] = [];
+  const richTasks = (now: number) => {
+    if (richList.length === 0) {
+      richList.push(
+        taskOf('r1', 'Draft the three intro emails', 'doing', 40 * 60_000, now),
+        taskOf('r2', 'Chase the Globex invoice', 'next', 3 * 3_600_000, now, {
+          source: 'agent',
+          from: { id: 'mail', name: 'Mail' },
+        }),
+        taskOf('r3', 'Update the pricing page copy', 'next', 5 * 3_600_000, now),
+        taskOf('r4', 'Send Dana the deploy notes', 'waiting', 6 * 3_600_000, now, {
+          waitingOn: 'Dana’s reply',
+        })
+      );
+    }
+    return richList;
+  };
+  const richDone = (now: number) => [
+    taskOf('r5', 'Rotate the staging certificates', 'done', 2 * 3_600_000, now),
+    taskOf('r6', 'Archive last month’s reports', 'done', 4 * 3_600_000, now),
+  ];
   if (opts.tasks === 'rich') {
     const d = agents.find((a) => a.id === 'design');
     if (d) d.tasks = { doing: 'Drafting intros', toDo: 2, waits: 1 };
@@ -4275,6 +4316,27 @@ export function createMockServer(opts: MockOptions = {}) {
       morningBrief = { on: p.on, at: at as number, always: p.always === true };
       return morningBrief;
     },
+    // The task list's own actions (Add, Reorder, Drop): this mock keeps one list, in order.
+    'agents.taskAdd': (p) => {
+      const title = String(p.title ?? '').trim();
+      if (!title) return fail({ type: 'Validation', field: 'title', reason: 'Say what it is.' });
+      const t = taskOf(`n${richList.length + 1}`, title, 'next', 0, Date.now());
+      richList.push(t);
+      return t;
+    },
+    'agents.taskDrop': (p) => {
+      const i = richList.findIndex((t) => t.id === p.taskId);
+      if (i < 0) return fail({ type: 'Other', message: 'That line is gone.' });
+      richList.splice(i, 1);
+      return true;
+    },
+    'agents.taskMove': (p) => {
+      const i = richList.findIndex((t) => t.id === p.taskId);
+      const j = p.direction === 'up' ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= richList.length) return false;
+      [richList[i], richList[j]] = [richList[j], richList[i]];
+      return true;
+    },
     // One agent's open asks (`agents::tasks::load_of`): a doing line, one waiting.
     'agents.tasks': (p) => {
       const a = agents.find((x) => x.id === p.agentId);
@@ -4295,37 +4357,13 @@ export function createMockServer(opts: MockOptions = {}) {
         };
       }
       if (opts.tasks === 'rich') {
-        const t = (id: string, title: string, state: string, ago: number, extra: object = {}) => ({
-          id,
-          title,
-          source: 'user',
-          state,
-          createdAt: now - ago,
-          updatedAt: now - ago / 2,
-          chased: 0,
-          lastChasedAt: 0,
-          ...extra,
-        });
         return {
           agentId: a.id,
           name: a.name,
           role: a.role ?? '',
           doing: 'Drafting intros',
-          open: [
-            t('r1', 'Draft the three intro emails', 'doing', 40 * 60_000),
-            t('r2', 'Chase the Globex invoice', 'next', 3 * 3_600_000, {
-              source: 'agent',
-              from: { id: 'mail', name: 'Mail' },
-            }),
-            t('r3', 'Update the pricing page copy', 'next', 5 * 3_600_000),
-            t('r4', 'Send Dana the deploy notes', 'waiting', 6 * 3_600_000, {
-              waitingOn: 'Dana’s reply',
-            }),
-          ],
-          recent: [
-            t('r5', 'Rotate the staging certificates', 'done', 2 * 3_600_000),
-            t('r6', 'Archive last month’s reports', 'done', 4 * 3_600_000),
-          ],
+          open: richTasks(now),
+          recent: richDone(now),
           overloaded: false,
           stuck: 0,
         };
@@ -5134,7 +5172,9 @@ export function createMockServer(opts: MockOptions = {}) {
           deviceId: entry.device.id,
           resume: canReplay ? 'replay' : 'snapshot',
           // What the real Mac advertises in P1, not what the mock happens to implement.
-          methods: realWelcome.methods,
+          methods: opts.tasks
+            ? [...realWelcome.methods, 'agents.taskAdd', 'agents.taskDrop', 'agents.taskMove']
+            : realWelcome.methods,
           features: realWelcome.features,
           // The zone the mock's parser reads times in: this machine's own.
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,

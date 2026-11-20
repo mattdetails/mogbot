@@ -15,7 +15,7 @@ import type { Skill, SkillsView } from './skills';
 import type { OnItsOwn, OnItsOwnNarrow, OnItsOwnTeam } from './onItsOwn';
 import type { QuietHours, QuietWindow } from './quiet';
 import type { MorningBrief } from './brief';
-import type { AgentTasks, EndOfDay } from './tasks';
+import type { AgentTask, AgentTasks, EndOfDay } from './tasks';
 import type { EngineId, Mission } from './missions';
 import type { WatchCheckOutcome, WatchOptions } from './whenComposer';
 import type {
@@ -636,6 +636,19 @@ export interface Methods {
    * Read-only. Newer Macs only.
    */
   'agents.tasks': { params: { agentId: string }; result: AgentTasks };
+  /**
+   * The task list's own actions, from the phone sheet's ⋯ (Add, Reorder, Drop).
+   * Send only to a Mac whose `welcome.methods` has them; an older one hides the
+   * rows. `taskAdd` puts a line in Next in the user's own words; `taskMove` moves a
+   * line one place up or down in its group; `taskDrop` closes it (it stays in the
+   * list for the day as Dropped). Newer Macs only.
+   */
+  'agents.taskAdd': { params: { agentId: string; title: string }; result: AgentTask };
+  'agents.taskMove': {
+    params: { agentId: string; taskId: string; direction: 'up' | 'down' };
+    result: boolean;
+  };
+  'agents.taskDrop': { params: { agentId: string; taskId: string }; result: boolean };
   /**
    * `agents_end_of_day`: the end-of-day check-in's settings (Settings →
    * Notifications). Read-only. Newer Macs only.

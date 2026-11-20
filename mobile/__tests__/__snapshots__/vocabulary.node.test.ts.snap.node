@@ -4,6 +4,7 @@ exports[`the words a person reads use the agreed words the way the snapshot hold
 [
   "; the sign-in stays in your Mac’s Keychain.",
   "A key in your Mac’s Keychain · …",
+  "Add a task",
   "Add logins",
   "Allow",
   "Allow camera",
@@ -21,6 +22,7 @@ exports[`the words a person reads use the agreed words the way the snapshot hold
   "Deny with a note…",
   "Discard",
   "Discard these changes?",
+  "Drop a task",
   "Each task shows the tokens Claude Code or Codex reported; a rise isn’t divided between tasks. Use of the same plan outside these agents counts too.",
   "Edit routine",
   "Every conversation with every agent, yours and theirs. Try a name, a topic or a phrase.",

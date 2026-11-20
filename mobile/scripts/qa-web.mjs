@@ -4947,6 +4947,79 @@ async function main() {
     }
   }
 
+  if (phase('tasks-menu')) {
+    // The task sheet's ⋯ (Reorder / Drop / Add): closed, open, and each action.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--tasks');
+      await dropCaches(page);
+      await page.goto(`${WEB}/tasks?id=design`);
+      await sleep(6000);
+      await screen(page, theme, {
+        name: 'tasks-menu-closed',
+        check: 'The sheet: Tasks, “4 to do” and a ⋯ at the right where the × was',
+      });
+      const open = async () => {
+        await page.clickLabel('Tasks menu');
+        await sleep(700);
+      };
+      await open();
+      await screen(page, theme, {
+        name: 'tasks-menu-open',
+        check: 'The ⋯ open: Add a task, Reorder, Drop a task (destructive)',
+      });
+      await page.clickText('Add a task');
+      await sleep(700);
+      await page.type('Book the venue for March', 'input');
+      await sleep(400);
+      await screen(page, theme, {
+        name: 'tasks-add',
+        check: 'Add: one field under the title with Add and Cancel; Add on once there are words',
+      });
+      await page.clickLabel('Add');
+      await sleep(1500);
+      await screen(page, theme, {
+        name: 'tasks-added',
+        check: 'The new line in Next, in the words typed, “you asked …”',
+      });
+      await open();
+      await page.clickText('Reorder');
+      await sleep(700);
+      await screen(page, theme, {
+        name: 'tasks-reorder',
+        check:
+          'Reorder: a bar “Move a line up or down” with Done; ↑ ↓ on each Next line (the first has no ↑, the last no ↓)',
+      });
+      await page.clickLabel('Move Update the pricing page copy up');
+      await sleep(1500);
+      await screen(page, theme, {
+        name: 'tasks-reordered',
+        check: 'The line moved up one place in Next',
+      });
+      await page.clickText('Done');
+      await sleep(500);
+      await open();
+      await page.clickText('Drop a task');
+      await sleep(700);
+      await screen(page, theme, {
+        name: 'tasks-drop',
+        check: 'Drop: a bar “Tap the line to drop” with Done; a red minus on each open line',
+      });
+      await page.clickText('Chase the Globex invoice');
+      await sleep(700);
+      await screen(page, theme, {
+        name: 'tasks-drop-confirm',
+        check: 'Drop “Chase the Globex invoice”? with Drop it (destructive) and Cancel',
+      });
+      await page.clickText('Drop it');
+      await sleep(1500);
+      await screen(page, theme, {
+        name: 'tasks-dropped',
+        check: 'The line is gone from the list; “3 to do”',
+      });
+    }
+  }
+
   if (phase('nested-list')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);
