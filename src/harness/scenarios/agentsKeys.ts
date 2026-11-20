@@ -177,6 +177,7 @@ export const agentsKeysScenarios: Scenario[] = [
     requires: '.agent-sheet__key .agent-key--xl',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       // New agent opens describe-first; the form (and its key) is hidden by
       // the stylesheet until "fill it in yourself", so a step into it would
       // still "find" its control.
@@ -225,6 +226,7 @@ export const agentsKeysScenarios: Scenario[] = [
     requires: '.agent-icons .agent-look__choice[data-value="lucide:banknote"]',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       { click: '.agent-editor__fill-in' },
       { fill: '.agent-sheet__field[aria-label="Agent name"]', value: 'Bookkeeper' },
       { click: '.agent-sheet__key' },
@@ -241,6 +243,7 @@ export const agentsKeysScenarios: Scenario[] = [
     requires: '.agent-sheet__key .agent-key[data-colorway="navy"]',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       { click: '.agent-editor__fill-in' },
       { fill: '.agent-sheet__field[aria-label="Agent name"]', value: 'Ledger' },
       { click: '.agent-sheet__key' },
@@ -256,6 +259,7 @@ export const agentsKeysScenarios: Scenario[] = [
     requires: '.agent-look__bind-field',
     steps: [
       { click: '.agents-list__new' },
+      { click: '.new-agent__more' },
       { click: '.agent-editor__fill-in' },
       { click: '.agent-sheet__key' },
       { focus: '.agent-look__bind-field' },

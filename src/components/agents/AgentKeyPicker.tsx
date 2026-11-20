@@ -44,6 +44,12 @@ interface AgentKeyPickerProps {
   onBoundKeyChange: (key: string) => void;
   /** Focus the icon search when it opens (opened by hand). */
   autoFocusSearch?: boolean;
+  /** Which list opens first: a new agent opens on its faces. */
+  defaultWears?: 'face' | 'icon';
+  /** The shortcut-key row; the new-agent dialog leaves it to the editor. */
+  showBind?: boolean;
+  /** Show the big preview of the key (the dialog draws its own). */
+  showPreview?: boolean;
 }
 
 /** Why a typed key can't be this agent's, or nothing. */
@@ -67,21 +73,28 @@ export function AgentKeyPicker({
   onIconChange,
   onBoundKeyChange,
   autoFocusSearch = false,
+  defaultWears,
+  showBind = true,
+  showPreview = true,
 }: AgentKeyPickerProps) {
   // A face or an icon: which list shows. Picking from it is what changes the key.
-  const [wears, setWears] = useState<'face' | 'icon'>(isKeyFace(icon) ? 'face' : 'icon');
+  const [wears, setWears] = useState<'face' | 'icon'>(
+    defaultWears ?? (isKeyFace(icon) ? 'face' : 'icon')
+  );
   return (
     <div className="agent-look">
-      <div className="agent-look__preview">
-        <AgentKey
-          name={name}
-          colorway={colorway}
-          icon={icon}
-          boundKey={boundKey}
-          level={level}
-          size="xl"
-        />
-      </div>
+      {showPreview && (
+        <div className="agent-look__preview">
+          <AgentKey
+            name={name}
+            colorway={colorway}
+            icon={icon}
+            boundKey={boundKey}
+            level={level}
+            size="xl"
+          />
+        </div>
+      )}
       <div className="agent-look__rows">
         <RadioRow
           label="Colour"
@@ -98,8 +111,8 @@ export function AgentKeyPicker({
             value={wears}
             onValueChange={setWears}
             options={[
-              { value: 'face', label: 'Face' },
-              { value: 'icon', label: 'Icon' },
+              { value: 'face', label: 'Faces' },
+              { value: 'icon', label: 'Icons' },
             ]}
           />
         </div>
@@ -121,7 +134,7 @@ export function AgentKeyPicker({
             autoFocus={autoFocusSearch}
           />
         )}
-        <BindField boundKey={boundKey} taken={taken} onChange={onBoundKeyChange} />
+        {showBind && <BindField boundKey={boundKey} taken={taken} onChange={onBoundKeyChange} />}
       </div>
     </div>
   );

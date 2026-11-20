@@ -19,6 +19,7 @@ import { agentsDraftScenarios } from './agentsDrafts';
 import { agentsWorkingScenarios } from './agentsWorking';
 import { agentsApprovalScenarios } from './agentsApprovals';
 import { agentsBubbleScenarios } from './agentsBubbles';
+import { agentsNewAgentScenarios } from './agentsNewAgent';
 import { agentsReplyScenarios } from './agentsReply';
 import { agentsCatchUpScenarios } from './agentsCatchUp';
 import { agentsBriefBlocksScenarios } from './agentsBriefBlocks';
@@ -96,6 +97,7 @@ export const scenarios: Scenario[] = [
   ...agentsWorkingScenarios,
   ...agentsApprovalScenarios,
   ...agentsBubbleScenarios,
+  ...agentsNewAgentScenarios,
   ...agentsReplyScenarios,
   ...agentsCatchUpScenarios,
   ...agentsBriefBlocksScenarios,

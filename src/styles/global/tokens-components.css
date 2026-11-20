@@ -42,6 +42,9 @@
   --agents-reply-line-height: 32px;
   --agents-reply-cancel: 26px;
   --agents-user-bubble-max: 560px;
+  --size-new-agent-width: 560px;
+  --size-new-agent-field: 40px;
+  --size-new-agent-dot: 28px;
   --size-catchup-head: 56px;
   --size-catchup-queue: 360px;
   --size-catchup-pane-min: 520px;
