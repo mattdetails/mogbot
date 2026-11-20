@@ -155,7 +155,8 @@
   color: var(--text-muted);
 }
 
-.agent-chat__messages > :is(.agent-note, .agent-room__speaker)[data-gap~='note-speaker'] {
+.agent-chat__messages > .agent-note + .agent-room__speaker,
+.agent-chat__messages > .agent-room__speaker + .agent-note {
   margin-top: var(--spacing-lg);
 }
 

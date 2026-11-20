@@ -237,8 +237,8 @@
 }
 
 .agent-chat__messages > .agent-chat__row--connector,
-.agent-chat__row--agent[data-gap~='c-a'],
-.agent-chat__row--connector[data-gap~='a-c'] {
+.agent-chat__row--connector + .agent-chat__row--agent,
+.agent-chat__row--agent + .agent-chat__row--connector {
   margin-top: var(--spacing-lg);
 }
 
