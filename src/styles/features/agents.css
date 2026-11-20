@@ -707,12 +707,22 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A dragged agent over a group it can join: its header and its empty place
-   take the selected fill, each on the rows' inset. */
-.agents-list__group[data-drop-over]
-  > :is(.agents-list__group-toggle, .agents-list__group-empty),
-.agents-list__group[data-drop-over] .agents-list__group-empty {
+/* A dragged agent over a folder it can join: the whole folder, header and
+   all, becomes one rounded card in the selected fill, on the rows' inset.
+   The fill is painted on the content box, so the inset moves from the
+   children to the folder and nothing shifts. */
+.agents-list__group[data-drop-over] {
+  padding-inline: var(--spacing-sm);
   background: var(--surface-selected);
+  background-clip: content-box;
+  border-radius: calc(var(--radius-lg) + var(--spacing-sm));
+}
+
+.agents-list__group[data-drop-over] > *,
+.agents-list__group[data-drop-over] .agents-list__row,
+.agents-list__group[data-drop-over] .agents-list__group-empty {
+  width: 100%;
+  margin-inline: 0;
 }
 
 /* An empty folder holds one place for an agent, exactly an agent row's
