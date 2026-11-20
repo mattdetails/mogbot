@@ -34,6 +34,8 @@ import { Button } from '../primitives/Button';
 import { IconButton } from '../primitives/IconButton';
 import { MenuButton } from '../primitives/MenuButton';
 import { SettingsMenu } from '../SettingsMenu';
+import { ISSUE_REPORTS_ENABLED } from '../../lib/issueReports';
+import { HAS_CHANGELOG } from '../dashboard/Changelog';
 import { SLACK_INVITE_URL } from '../../lib/links';
 import { PanelResizeHandle } from '../primitives/PanelResizeHandle';
 import { Spinner } from '../primitives/Spinner';
@@ -2084,6 +2086,11 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
                 }
               }}
               renderTrigger={(props) => {
+                // The Agents foot's drawer holds pages and Settings, no Help.
+                const openLabel =
+                  settingsMenuItems && !ISSUE_REPORTS_ENABLED && !HAS_CHANGELOG
+                    ? 'Settings'
+                    : 'Settings & Help';
                 const settingsMenuOpen = props['aria-expanded'];
                 if (!settingsMenuOpen && labeledFooterActions) {
                   return (
@@ -2127,13 +2134,13 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
                     width="fill"
                     className="workspace-sidebar-settings-summary workspace-sidebar-ws-switch"
                     leftIcon={<SettingsIcon size={12} />}
-                    title="Settings & Help"
-                    aria-label="Settings & Help"
+                    title={openLabel}
+                    aria-label={openLabel}
                     data-settings-menu-trigger="workspace"
                     expanded={settingsMenuOpen}
                     {...props}
                   >
-                    <span className="workspace-switcher-name">Settings &amp; Help</span>
+                    <span className="workspace-switcher-name">{openLabel}</span>
                     <span className="workspace-switcher-chevron is-open" aria-hidden="true">
                       <ChevronIcon size={12} />
                     </span>

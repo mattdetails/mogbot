@@ -219,6 +219,11 @@
   white-space: nowrap;
 }
 
+/* On a hover or menu-open fill, muted falls under 4.5:1 in dark: step up. */
+.agents-list__row:is(:hover, [data-context-menu-open]) .agents-list__time {
+  color: var(--text-secondary);
+}
+
 .agents-list__unread {
   width: var(--spacing-sm);
   height: var(--spacing-sm);
