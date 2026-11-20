@@ -2070,16 +2070,12 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
               />
             )}
             <SettingsMenu
-              className={`workspace-sidebar-settings-menu${
-                settingsMenuItems && !isSidebarHidden ? ' workspace-sidebar-settings-menu--menu' : ''
-              }`}
+              className="workspace-sidebar-settings-menu"
               onOpenSettings={appSettingsModal.open}
               onOpenBugReports={bugReportModal.open}
               onOpenFeatureRequest={featureRequestModal.open}
               onOpenChangelog={changelogModal.open}
-              // The Agents foot's gear opens a menu above it, like the agent
-              // menu; elsewhere the drawer stays.
-              presentation={settingsMenuItems && !isSidebarHidden ? 'dropdown' : 'drawer'}
+              presentation="drawer"
               leadingItems={settingsMenuItems}
               onOpenChange={(open) => {
                 if (open) {
@@ -2107,7 +2103,7 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
                     </MenuButton>
                   );
                 }
-                if (!settingsMenuOpen || (settingsMenuItems && !isSidebarHidden)) {
+                if (!settingsMenuOpen) {
                   return (
                     <MenuButton
                       // Beside the phone and remote icons in the Agents foot: the same weight.
