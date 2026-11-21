@@ -7,6 +7,7 @@
 import type { Scenario } from '../types';
 import { PHONE_PAIRING_LINK, PHONE_QR } from '../fixtures/phoneQr';
 import { PANEL_FLOW_KEY } from '../../components/phone/PhoneFlow';
+import { PHONE_ROUTE_KEY } from '../../lib/account';
 
 const DNS = 'studio-mac.tail1234.ts.net';
 const MIN = 60_000;
@@ -100,6 +101,8 @@ const LOGIN = { state: 'connected', dnsName: DNS, login: 'julian@example.com' };
 const CODE = {
   companion_pair_start: { link: PHONE_PAIRING_LINK, qr: PHONE_QR, expiresAt: Date.now() + 5 * MIN },
 };
+const TAILSCALE_STEPS = new Set(['phoneMacTailscale', 'phonePhoneTailscale']);
+
 const flowStep = (
   id: string,
   step: string,
@@ -109,7 +112,9 @@ const flowStep = (
   extra: Partial<Scenario> = {}
 ) =>
   phone(id, title, looksRightWhen, status, {
-    storage: at(step),
+    // The Tailscale steps show only on the Tailscale route: through the relay
+    // (the default) they're passed over (onboardingFlow.isPassedOver).
+    storage: TAILSCALE_STEPS.has(step) ? { ...at(step), [PHONE_ROUTE_KEY]: 'tailscale' } : at(step),
     ...extra,
     requires: `[data-phone-flow-step="${extra.requires ?? step}"]`,
     commands: { companion_tailnet_phones: [], ...CODE, ...(extra.commands ?? {}) },
@@ -374,7 +379,7 @@ export const phoneScenarios: Scenario[] = [
       command: undefined,
       openSelector: '[data-settings-menu-trigger]',
       steps: [
-        { click: '[data-settings-nav="phone"]' },
+        { click: '[role="menuitem"]', text: 'Phone' },
         { click: '.phone-device .phone-device__actions button' },
       ],
       // Read by Settings on the way through.

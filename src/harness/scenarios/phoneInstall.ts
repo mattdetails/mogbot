@@ -9,6 +9,7 @@
  * that failed (with the one fix), and a Codex-only Mac.
  */
 
+import { AGENTS_TAB } from './agents';
 import type { Scenario, ScenarioStep } from '../types';
 import { BRAND } from '../../lib/brand';
 import { PHONE_PAIRING_LINK, PHONE_QR } from '../fixtures/phoneQr';
@@ -136,17 +137,27 @@ function fakePty(screen: string, exitCode?: number) {
  */
 // With feedback and the changelog switched off by brand, the Settings trigger
 // opens Settings directly; there is no one-item menu to pick from.
+// Steps run before a scenario's command, so these open the install page from
+// the palette themselves. (With no phone paired, the gear's "Pair your phone"
+// opens the pairing flow, which has no install entry.)
 const OPEN: ScenarioStep[] = [
-  // Settings opens on its Agents page; Phone is a page of its own, the panel on it.
-  { click: '[data-settings-nav="phone"]' },
-  { click: '[data-install-open]' },
+  { key: 'mod+k' },
+  { fill: '.command-palette-input', value: 'Get the phone app' },
+  { click: '.command-palette [role="option"]', text: 'Get the phone app' },
 ];
 const ANDROID: ScenarioStep = { click: 'button[aria-label="Android"]' };
 const SET_UP: ScenarioStep = { click: '[data-install-route="build"]' };
+// With TestFlight to get, building it on the iPhone is folded under
+// "Install it yourself (advanced)".
+const UNFOLD: ScenarioStep = { click: '.phone-route__advanced' };
 const viaSettings = (...steps: ScenarioStep[]): Partial<Scenario> => ({
   command: undefined,
-  openSelector: '[data-settings-menu-trigger]',
-  steps: [...OPEN, ...steps],
+  openSelector: AGENTS_TAB,
+  // Android has no official APK yet, so its build card leads, unfolded.
+  steps: [
+    ...OPEN,
+    ...steps.flatMap((s) => (s === SET_UP && !steps.includes(ANDROID) ? [UNFOLD, s] : [s])),
+  ],
 });
 
 const install = (
