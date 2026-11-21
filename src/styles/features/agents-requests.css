@@ -1310,3 +1310,37 @@ button.agents-catchup__row:hover:not(.is-selected) {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Narrow: Open chat and Later keep a real gap, and the key chips stay inside
+   their own button (no clipped “O” against “Later”). */
+.agents-catchup__actions .button--ghost + .button--ghost,
+.agents-catchup__actions .button--ghost:last-child {
+  margin-left: var(--spacing-md);
+}
+
+.agents-catchup__actions .button--ghost kbd {
+  flex: none;
+}
+
+/* The recipients stay on one chip row: the first chip shortens, “+N more”
+   never drops to a line of its own. */
+.agents-catchup__chips {
+  flex-wrap: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.agents-catchup__chips .agents-catchup__chip:first-child {
+  display: block;
+  flex: 0 1 auto;
+  line-height: 24px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-catchup__chip-more {
+  flex: none;
+  white-space: nowrap;
+}
