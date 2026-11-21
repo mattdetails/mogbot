@@ -18,6 +18,7 @@
 mod channel;
 pub mod client;
 pub mod crypto;
+mod fit;
 mod http;
 mod session;
 

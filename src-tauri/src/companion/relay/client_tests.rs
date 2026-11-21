@@ -1503,6 +1503,11 @@ async fn a_video_past_the_attachment_cap_is_streamed_whole() {
 /// Serves an MP4 of `size` bytes from the stub agent and GETs it over a
 /// resumable relay whose acks lag: what was sent, and what arrived.
 async fn fetch_over_relay(size: u32) -> (Vec<u8>, Vec<u8>) {
+
+#[tokio::test]
+async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_channel_stays_up() {
+    // 2026-11-20: a phone whose latest 100 messages came to 270-299 KB was
+    // closed by the relay with 1009 on every read, and asked again at once.
     let (c, stub) = Stub::companion();
     let fingerprint = c.registry.identity().unwrap().fingerprint();
     let (_record, token, _) = c
@@ -1562,4 +1567,66 @@ async fn fetch_over_relay(size: u32) -> (Vec<u8>, Vec<u8>) {
         more = f["more"] == true;
     }
     (video, got)
+
+        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .unwrap();
+    {
+        let mut all = stub.messages.lock().unwrap();
+        all.clear();
+        for i in 0..100 {
+            all.push(
+                serde_json::from_value(json!({
+                    "id": format!("m{i:03}"), "agentId": crate::companion::testkit::AGENT,
+                    "ts": 1_762_290_000_000_i64 + i * 1000, "kind": "agent",
+                    "text": "x".repeat(channel::MAX_PAYLOAD * 3 / 2 / 100),
+                }))
+                .unwrap(),
+            );
+        }
+    }
+    let port = loopback(c.clone()).await;
+    let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
+    let link = Arc::new(Link::default());
+    let (stop_tx, stop_rx) = oneshot::channel();
+    let cfg = Config { base: relay.base(), port: Some(port) };
+    tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
+    until("the link", || link.status().state == RelayState::Connected).await;
+    let route = link.route().unwrap();
+    let mut phone = Phone::connect(&route.url, &fingerprint).await;
+    phone.send(challenge()).await;
+    assert_eq!(phone.next().await["t"], "identity");
+    phone.send(hello(&token)).await;
+    assert_eq!(phone.next_of("welcome").await["t"], "welcome");
+    phone
+        .send(json!({ "t": "req", "id": 5, "method": "agents.messages",
+            "params": { "agentId": crate::companion::testkit::AGENT, "limit": 100 } }))
+        .await;
+    let res = loop {
+        let f = phone.next_of("res").await;
+        if f["id"] == 5 {
+            break f;
+        }
+    };
+    assert_eq!(res["ok"], true, "{res}");
+    assert!(
+        res.to_string().len() + 64 < channel::MAX_PAYLOAD,
+        "{} bytes",
+        res.to_string().len()
+    );
+    let list = res["result"]["messages"].as_array().unwrap();
+    assert!(!list.is_empty() && list.len() < 100, "{}", list.len());
+    assert_eq!(list.last().unwrap()["id"], "m099");
+    assert_eq!(res["result"]["more"], true);
+    // Still connected: the next read is answered.
+    phone
+        .send(json!({ "t": "req", "id": 6, "method": "rooms.list", "params": {} }))
+        .await;
+    let again = loop {
+        let f = phone.next_of("res").await;
+        if f["id"] == 6 {
+            break f;
+        }
+    };
+    assert_eq!(again["ok"], true);
+    stop_tx.send(()).unwrap();
 }
