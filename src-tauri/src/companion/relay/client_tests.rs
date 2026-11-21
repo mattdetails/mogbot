@@ -1503,11 +1503,6 @@ async fn a_video_past_the_attachment_cap_is_streamed_whole() {
 /// Serves an MP4 of `size` bytes from the stub agent and GETs it over a
 /// resumable relay whose acks lag: what was sent, and what arrived.
 async fn fetch_over_relay(size: u32) -> (Vec<u8>, Vec<u8>) {
-
-#[tokio::test]
-async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_channel_stays_up() {
-    // 2026-11-20: a phone whose latest 100 messages came to 270-299 KB was
-    // closed by the relay with 1009 on every read, and asked again at once.
     let (c, stub) = Stub::companion();
     let fingerprint = c.registry.identity().unwrap().fingerprint();
     let (_record, token, _) = c
@@ -1567,7 +1562,16 @@ async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_ch
         more = f["more"] == true;
     }
     (video, got)
+}
 
+#[tokio::test]
+async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_channel_stays_up() {
+    // 2026-11-20: a phone whose latest 100 messages came to 270-299 KB was
+    // closed by the relay with 1009 on every read, and asked again at once.
+    let (c, stub) = Stub::companion();
+    let fingerprint = c.registry.identity().unwrap().fingerprint();
+    let (_record, token, _) = c
+        .registry
         .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
         .unwrap();
     {
@@ -1630,3 +1634,4 @@ async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_ch
     assert_eq!(again["ok"], true);
     stop_tx.send(()).unwrap();
 }
+
