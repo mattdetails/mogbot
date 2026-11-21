@@ -1241,6 +1241,9 @@ fn the_app_knows_a_site_is_open_in_the_users_chrome() {
 
 #[test]
 fn bold_uploads_the_agents_own_pictures_and_asks_for_anything_else() {
+    // The agents folder is process-wide: another test moving it between
+    // these lines and the gate's own lookup made this fail under load.
+    let _store = crate::agents::store::tests_lock();
     let home = crate::agents::store::agent_home("ops").unwrap();
     let own = |f: &str| home.join(f).to_string_lossy().into_owned();
     let up = |level, paths: Vec<String>| {
