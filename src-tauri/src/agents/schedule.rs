@@ -1894,7 +1894,17 @@ fn tick(app: &AppHandle) -> Result<(), CommandError> {
     let holds = super::saver::Holds::new(super::usage_plan::mode().0);
     let held: std::cell::RefCell<Vec<(store::Agent, CheckIn, super::saver::Hold)>> =
         Default::default();
+    // Routines caps (`routine_cap`): said once when reached, once when back
+    // under. A routine past its agent's cap doesn't wait: it is planned, then
+    // skipped to its next time below.
+    let today = super::usage::today();
+    if settle_caps(app, &agents, today, now) {
+        let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
+    }
     let waits = |a: &store::Agent, c: &CheckIn| {
+        if super::routine_cap::stops_check_in(a, c, today) {
+            return false;
+        }
         if super::quiet::waits(c, quiet.as_ref(), holding) {
             return true;
         }
@@ -1916,7 +1926,10 @@ fn tick(app: &AppHandle) -> Result<(), CommandError> {
     super::notify::release_quiet(app);
     let changed = plan.fire.is_some();
 
-    if let Some(firing) = plan.fire.filter(|f| !skip_while_driven(app, f)) {
+    if let Some(firing) = plan
+        .fire
+        .filter(|f| !skip_while_driven(app, f) && !skip_over_cap(&agents, f, today))
+    {
         // Move it on before waking anyone, so a crash mid-turn can't fire it twice.
         store::update(&firing.agent_id, |a| match firing.next {
             Some(next) => {
@@ -1967,18 +1980,7 @@ fn skip_while_driven(app: &AppHandle, firing: &Firing) -> bool {
         .map(|a| a.name)
         .unwrap_or_default();
     let detail = format!("Skipped: you were driving {name} in a terminal.");
-    let updated = store::update(&firing.agent_id, |a| {
-        if let Some(c) = a.check_ins.iter_mut().find(|c| c.id == firing.check_in.id) {
-            if let Some(next) = firing.next {
-                c.next_at = next;
-            }
-            if c.retry.take().is_some() {
-                runs::superseded(&mut c.runs);
-            }
-            runs::record(&mut c.runs, skipped_run(firing, now, detail.clone()));
-        }
-    });
-    if updated.is_err() {
+    if !move_on_skipped(firing, now, detail) {
         // Not moved on: firing it is better than skipping it every tick.
         return false;
     }
@@ -1990,6 +1992,88 @@ fn skip_while_driven(app: &AppHandle, firing: &Firing) -> bool {
     let _ = runner::record(app, line);
     tracing::info!(agent = %firing.agent_id, check_in = %firing.check_in.id, "routine skipped: taken over");
     true
+}
+
+/// A skipped routine moves on to its next time, with a "Skipped" row saying
+/// why; a pending retry is moot. False when the registry couldn't be written.
+fn move_on_skipped(firing: &Firing, now: i64, detail: String) -> bool {
+    store::update(&firing.agent_id, |a| {
+        if let Some(c) = a.check_ins.iter_mut().find(|c| c.id == firing.check_in.id) {
+            if let Some(next) = firing.next {
+                c.next_at = next;
+            }
+            if c.retry.take().is_some() {
+                runs::superseded(&mut c.runs);
+            }
+            runs::record(&mut c.runs, skipped_run(firing, now, detail.clone()));
+        }
+    })
+    .is_ok()
+}
+
+/// A routine coming due while its agent is past its routines cap
+/// (`routine_cap`) doesn't run: it moves on to its next time with a row
+/// saying why. The chat was told once, when the cap was reached
+/// ([`settle_caps`]), so no line per skip. Run now and one-time check-ins
+/// still run. True when `firing` was skipped.
+pub(super) fn skip_over_cap(
+    agents: &[store::Agent],
+    firing: &Firing,
+    today: chrono::NaiveDate,
+) -> bool {
+    let Some(agent) = agents.iter().find(|a| a.id == firing.agent_id) else {
+        return false;
+    };
+    let work = super::routine_cap::Work::Scheduled {
+        repeats: firing.check_in.repeat.is_some(),
+        manual: firing.manual,
+    };
+    if !super::routine_cap::stops(agent, work, today) {
+        return false;
+    }
+    let cap = agent.routine_cap.as_ref().map_or(0, |c| c.tokens);
+    let used = super::routine_cap::week_tokens(&agent.usage, today);
+    let detail = super::routine_cap::skipped_detail(cap, used);
+    if !move_on_skipped(firing, store::now_ms(), detail) {
+        return false;
+    }
+    tracing::info!(agent = %firing.agent_id, check_in = %firing.check_in.id, "routine skipped: past its routines cap");
+    true
+}
+
+/// Each agent with a routines cap: marked and said once when it is
+/// reached, and once when it is back under (`routine_cap::settle`). True
+/// when anything changed.
+fn settle_caps(
+    app: &AppHandle,
+    agents: &[store::Agent],
+    today: chrono::NaiveDate,
+    now: i64,
+) -> bool {
+    let mut changed = false;
+    for agent in agents.iter().filter(|a| a.routine_cap.is_some()) {
+        // Looked at on a copy first: the registry is written only on a change.
+        if super::routine_cap::settle(&mut agent.clone(), today, now).is_none() {
+            continue;
+        }
+        let mut said = None;
+        if store::update(&agent.id, |a| {
+            said = super::routine_cap::settle(a, today, now)
+        })
+        .is_err()
+        {
+            continue;
+        }
+        let Some(change) = said else { continue };
+        let line = match change {
+            super::routine_cap::Change::Reached { line }
+            | super::routine_cap::Change::Back { line } => line,
+        };
+        let _ = runner::record(app, runner::new_message(&agent.id, MessageKind::Note, line));
+        tracing::info!(agent = %agent.id, "routines cap settled");
+        changed = true;
+    }
+    changed
 }
 
 fn skipped_run(firing: &Firing, now: i64, detail: String) -> runs::Run {
@@ -2567,6 +2651,7 @@ mod tests {
             away: None,
             context: None,
             routine_model: None,
+            routine_cap: None,
             learn_skills: Default::default(),
             account: None,
             template: None,

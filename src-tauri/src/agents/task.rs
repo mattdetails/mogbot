@@ -228,7 +228,7 @@ pub enum Kept {
 
 /* ---------------------------------------------------------------- git */
 
-async fn git(dir: &Path, args: &[&str]) -> Result<std::process::Output, CommandError> {
+pub(super) async fn git(dir: &Path, args: &[&str]) -> Result<std::process::Output, CommandError> {
     git_for(dir, args, GIT_TIMEOUT_SECS).await
 }
 
@@ -248,7 +248,7 @@ async fn git_for(
 }
 
 /// Stdout of a command that succeeded, trimmed; `None` otherwise.
-async fn read(dir: &Path, args: &[&str]) -> Option<String> {
+pub(super) async fn read(dir: &Path, args: &[&str]) -> Option<String> {
     let out = git(dir, args).await.ok()?;
     out.status
         .success()
@@ -265,7 +265,7 @@ fn process_error(args: &[&str], out: &std::process::Output) -> CommandError {
     }
 }
 
-async fn run(dir: &Path, args: &[&str]) -> Result<String, CommandError> {
+pub(super) async fn run(dir: &Path, args: &[&str]) -> Result<String, CommandError> {
     let out = git(dir, args).await?;
     if out.status.success() {
         return Ok(String::from_utf8_lossy(&out.stdout).trim().to_string());
@@ -302,7 +302,7 @@ async fn unmerged(dir: &Path) -> Vec<String> {
 }
 
 /// Whether the copy's HEAD is still its own branch.
-async fn on_own_branch(dir: &Path, branch: &str) -> bool {
+pub(super) async fn on_own_branch(dir: &Path, branch: &str) -> bool {
     read(dir, &["symbolic-ref", "-q", "HEAD"])
         .await
         .is_some_and(|head| head == format!("refs/heads/{branch}"))
@@ -334,7 +334,7 @@ async fn head_unreachable(dir: &Path) -> bool {
 }
 
 /// What the project is in the middle of, in words, if anything.
-async fn in_progress(dir: &Path) -> Option<&'static str> {
+pub(super) async fn in_progress(dir: &Path) -> Option<&'static str> {
     for (file, what) in [
         ("MERGE_HEAD", "a merge"),
         ("CHERRY_PICK_HEAD", "a cherry-pick"),
@@ -1291,7 +1291,7 @@ async fn repo_key(project: &str) -> String {
     }
 }
 
-async fn lock(project: &str) -> tokio::sync::OwnedMutexGuard<()> {
+pub(super) async fn lock(project: &str) -> tokio::sync::OwnedMutexGuard<()> {
     let key = repo_key(project).await;
     let lock = LOCKS
         .lock()
@@ -1510,7 +1510,7 @@ async fn dropped_if_unused(agent_id: &str, copy: &TaskCopy) -> bool {
 /// How long Keep or Discard waits for a tidy to give way.
 const TIDY_GIVES_WAY: std::time::Duration = std::time::Duration::from_secs(20);
 
-async fn refuse_while_working(agent: &store::Agent) -> Result<(), CommandError> {
+pub(super) async fn refuse_while_working(agent: &store::Agent) -> Result<(), CommandError> {
     // Tidying its memory between turns isn't working on it: that gives way.
     if super::runner::in_turn(&agent.id)
         && !super::runner::clear_tidy(&agent.id, TIDY_GIVES_WAY).await
@@ -1626,6 +1626,8 @@ pub async fn discard(
     refuse_while_working(&agent).await?;
     let copy = open_copy(&agent, copy_id)?;
     remove(&copy, Branch::Force).await?;
+    // Discard throws the copy's work away: what a rewind kept goes too.
+    super::rewind_code::forget_undone(Path::new(&copy.project), &copy.id).await;
     store::update(agent_id, |a| a.copy = None)?;
     note(
         app,

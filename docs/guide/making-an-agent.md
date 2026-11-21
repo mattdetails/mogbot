@@ -90,6 +90,13 @@ On your own messages you can:
 - **Rewind to here.** What comes after folds away; it isn't deleted. Work the agent already did
   outside the chat (files, sends) isn't undone.
 
+When an agent works in its own copy of a project, Rewind to here and Edit and resend can also put
+the code back: tick **Also undo the code changes since then** (it starts unticked). The line under
+it says what goes back. What's undone is kept in git, not deleted, and anything the agent sent
+stays sent. You only see the option when the app knows exactly where the copy stood before that
+message, and when no other conversation has worked in the copy since. It isn't on the phone or on
+Fork from here.
+
 They're in the **…** beside your message (or a right-click on it). While the agent is working,
 Edit and resend and Rewind to here wait, and the menu says so; Fork from here always works.
 

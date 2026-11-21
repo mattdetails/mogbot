@@ -304,7 +304,7 @@ const TOOLS: &[Tool] = &[
     },
     Tool {
         name: "update_agent",
-        description: "Change an agent's name, role, instructions, project, engine, model, effort, routines' model, notifications or look. Instructions replace the old ones; its memory is kept. `project` takes a name or path from project_list, or \"none\" to unbind it. `engine` (`claude`, `codex` or `opencode`) switches what it runs on from its next turn: a new session, handed the recent conversation; its model goes back to the engine's default unless `model` comes with it. `model` (Claude Code: opus, sonnet, haiku, which the app calls Smartest, Balanced and Fastest and which you may pass by those words; Codex or OpenCode: one it lists), `effort` (low, medium, high, xhigh as \"Extra high\", max; Codex takes max as its highest) and `routine_model` (\"auto\", \"same\" as its chats, or a model) take \"default\" for the engine's own and apply from its next message with no card: \"put Research on the smartest model\", \"have Finance think harder\". Tell the user in the app's words, the model's name second: \"Research now uses Smartest (Opus)\", never just \"opus\"; \"model\" alone means little to most people, so say \"the AI it thinks with\" when they seem unsure. `muted: true` stops its notifications (\"stop pinging me about Social\"); unread and the badge still count it. `learn_skills` (\"automatically\", \"ask me\" or \"off\") is whether it saves how it did a hard task as a skill. `account` is its Runs on: one of its engine's accounts by the name usage_overview lists (\"run Finance only on Work\"), or \"any\" to run on whichever has room; no card. Its key: `colorway`, `icon` (the legend) and `key` (the keyboard key, one letter or digit, that jumps to it; unique on the team) change how it looks (\"make Hiring teal with the people icon\", \"put Finance on F\"); give only what changes. A look applies at once, with no card: it isn't a setting. What an agent may do (apps, projects, browser, independence) is propose_settings_change.",
+        description: "Change an agent's name, role, instructions, project, engine, model, effort, routines' model, routines cap, notifications or look. Instructions replace the old ones; its memory is kept. `project` takes a name or path from project_list, or \"none\" to unbind it. `engine` (`claude`, `codex` or `opencode`) switches what it runs on from its next turn: a new session, handed the recent conversation; its model goes back to the engine's default unless `model` comes with it. `model` (Claude Code: opus, sonnet, haiku, which the app calls Smartest, Balanced and Fastest and which you may pass by those words; Codex or OpenCode: one it lists), `effort` (low, medium, high, xhigh as \"Extra high\", max; Codex takes max as its highest) and `routine_model` (\"auto\", \"same\" as its chats, or a model) take \"default\" for the engine's own and apply from its next message with no card: \"put Research on the smartest model\", \"have Finance think harder\". Tell the user in the app's words, the model's name second: \"Research now uses Smartest (Opus)\", never just \"opus\"; \"model\" alone means little to most people, so say \"the AI it thinks with\" when they seem unsure. `muted: true` stops its notifications (\"stop pinging me about Social\"); unread and the badge still count it. `learn_skills` (\"automatically\", \"ask me\" or \"off\") is whether it saves how it did a hard task as a skill. `routine_cap` (\"pause Research's routines once it has used 2M tokens this week\") is in tokens as its engine reports them, over today and the six days before, never a percent of a limit or a dollar figure (no engine reports either per agent; if asked for a percent, say so and offer tokens, using usage_overview's figures to suggest a number); past it, its scheduled and \"When…\" routines don't start, while the user's messages, Run now and one-time reminders still run, and it lifts as older days leave the week. \"off\" clears it. Setting or lowering it applies at once; raising or clearing it asks the user unless their own message asked. `account` is its Runs on: one of its engine's accounts by the name usage_overview lists (\"run Finance only on Work\"), or \"any\" to run on whichever has room; no card. Its key: `colorway`, `icon` (the legend) and `key` (the keyboard key, one letter or digit, that jumps to it; unique on the team) change how it looks (\"make Hiring teal with the people icon\", \"put Finance on F\"); give only what changes. A look applies at once, with no card: it isn't a setting. What an agent may do (apps, projects, browser, independence) is propose_settings_change.",
         main_only: true,
         schema: || json!({
             "type": "object",
@@ -320,6 +320,7 @@ const TOOLS: &[Tool] = &[
                 "routine_model": { "type": "string" },
                 "muted": { "type": "boolean" },
                 "learn_skills": { "type": "string", "enum": ["automatically", "ask me", "off"] },
+                "routine_cap": { "type": ["string", "integer"], "description": "Tokens this week at which its routines stop starting (\"2M\", \"500k\", 2000000), or \"off\"." },
                 "account": { "type": "string", "description": "Runs on: an account's name or id, or \"any\"." },
                 "colorway": { "type": "string", "enum": super::keys::colorways() },
                 "icon": { "type": "string", "description": super::keys::icon_hint() },
@@ -2621,6 +2622,9 @@ async fn update_agent(app: &AppHandle, caller: &store::Agent, args: &Value) -> V
     {
         widens.push("Save new skills: Automatically, without asking".to_string());
     }
+    // More room for its routines (a raised or cleared cap): the same rule.
+    // Setting or lowering one holds back more and applies at once.
+    widens.extend(run.cap_widens(&agent));
     if update_asks(&caller.id, &widens) {
         let title = if account_changes && widens.len() == 1 {
             format!("Change which account {} runs on?", agent.name)
@@ -2825,6 +2829,27 @@ pub(super) struct RunSettings {
     pub muted: Option<bool>,
     /// "Save new skills" (`skills_learn`).
     pub learn_skills: Option<super::skills_learn::Learning>,
+    /// Its routines cap in tokens this week (`routine_cap`); `Some(None)`
+    /// clears it. Setting or lowering it applies at once; raising or
+    /// clearing it gives its routines more room, so it asks unless the
+    /// user's own message asked (`update_agent`'s widens).
+    pub routine_cap: Option<Option<u64>>,
+}
+
+/// `routine_cap` as given: a number of tokens, or words ("2M", "off").
+fn cap_arg(value: Option<&Value>) -> Result<Option<Option<u64>>, String> {
+    match value {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Number(n)) => {
+            let tokens = n
+                .as_u64()
+                .or_else(|| n.as_f64().filter(|f| *f >= 0.0).map(|f| f.round() as u64))
+                .ok_or("`routine_cap` is a number of tokens, like 2000000, or \"off\".")?;
+            super::routine_cap::checked(tokens).map(Some)
+        }
+        Some(Value::String(s)) => super::routine_cap::parse(s).map(Some),
+        Some(_) => Err("`routine_cap` is a number of tokens, like 2000000, or \"off\".".into()),
+    }
 }
 
 fn is_default_word(raw: &str) -> bool {
@@ -2889,6 +2914,7 @@ pub(super) fn run_settings(engine: Engine, args: &Value) -> Result<RunSettings, 
         learn_skills: raw("learn_skills")
             .map(super::skills_learn::Learning::parse)
             .transpose()?,
+        routine_cap: cap_arg(args.get("routine_cap"))?,
     })
 }
 
@@ -2920,7 +2946,29 @@ impl RunSettings {
         if self.learn_skills.is_some_and(|l| l != agent.learn_skills) {
             out.push("saving skills");
         }
+        if self
+            .routine_cap
+            .is_some_and(|c| c != agent.routine_cap.as_ref().map(|r| r.tokens))
+        {
+            out.push("routines cap");
+        }
         out
+    }
+
+    /// The line a raised or cleared cap asks with (more room for its
+    /// routines); `None` when it sets, lowers or keeps it.
+    pub fn cap_widens(&self, agent: &store::Agent) -> Option<String> {
+        let new = self.routine_cap?;
+        if !super::routine_cap::loosens(agent.routine_cap.as_ref(), new) {
+            return None;
+        }
+        Some(match new {
+            Some(t) => format!(
+                "Routines cap: raised to {} tokens this week",
+                super::routine_cap::tokens_short(t)
+            ),
+            None => "Routines cap: off, so its routines run however much it uses".to_string(),
+        })
     }
 
     pub fn apply(&self, a: &mut store::Agent) {
@@ -2938,6 +2986,9 @@ impl RunSettings {
         }
         if let Some(l) = self.learn_skills {
             a.learn_skills = l;
+        }
+        if let Some(cap) = self.routine_cap {
+            super::routine_cap::set(a, cap);
         }
     }
 
@@ -2971,6 +3022,10 @@ impl RunSettings {
                     Some(m) => m,
                 }
             ));
+        }
+        let cap = |a: &store::Agent| a.routine_cap.as_ref().map(|c| c.tokens);
+        if self.routine_cap.is_some() && cap(after) != cap(before) {
+            out.push(super::routine_cap::cap_words(cap(after)));
         }
         out
     }
@@ -5396,6 +5451,7 @@ mod tests {
             away: None,
             context: None,
             routine_model: None,
+            routine_cap: None,
             learn_skills: Default::default(),
             account: None,
             template: None,

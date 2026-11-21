@@ -9,7 +9,10 @@
  * - **Rewind to here** carries on from just before it, in place.
  *
  * Nothing is deleted: what a rewind passes over stays in the chat, folded
- * under "Rewound". Files the agent changed and anything it sent aren't undone.
+ * under "Rewound". Files the agent changed and anything it sent aren't undone,
+ * unless, on the desk, the user also picks "Also undo the code changes since
+ * then" for a project-bound agent's copy (`CodeOffer`); the phone doesn't
+ * offer it, and a rewind that doesn't ask keeps the code.
  */
 
 /** A rewind as the Mac keeps it (`conversations::Rewind`). */
@@ -105,20 +108,54 @@ export function copyClause(project: string | null | undefined): string | null {
   return `Its copy of ${project} keeps its changes too: use Discard on its changes card to drop them.`;
 }
 
+/**
+ * What going back can also undo in a project-bound agent's copy
+ * (`rewind_code::CodeOffer`): offered only where the Mac knows where the
+ * copy stood before the message, and something changed since.
+ */
+export interface CodeOffer {
+  /** The project's folder name. */
+  project: string;
+  /** Commits in the copy since then. */
+  commits: number;
+  /** Work in the copy not committed yet, undone with them. */
+  unsaved: boolean;
+}
+
+/** The option's label, on the Rewind confirm and the Edit bar. Off unless picked. */
+export const UNDO_CODE_LABEL = 'Also undo the code changes since then';
+
+/** What the option does, said plainly under it. */
+export function undoCodeLine(offer: CodeOffer): string {
+  const n = offer.commits;
+  const saved = n === 1 ? '1 saved change' : `${n} saved changes`;
+  const what =
+    n > 0 && offer.unsaved
+      ? `${saved} and work not saved yet`
+      : n > 0
+        ? saved
+        : 'work not saved yet';
+  return `Its copy of ${offer.project} goes back to how it was before this message (${what}). What's undone is kept in git, not deleted. Anything it sent isn't undone.`;
+}
+
 /** The confirm for Rewind to here (and Edit and resend). */
 export function rewindConfirm(
   agentName: string,
   text: string,
   project?: string | null,
   /** The conversation's living page, if it has one: a rewind leaves it as it is. */
-  page?: string | null
+  page?: string | null,
+  /** The user picked "Also undo the code changes since then": its line says what isn't undone. */
+  undoingCode?: boolean
 ): { title: string; body: string; confirm: string } {
   const parts = [
     `${agentName} carries on from just before “${goBackQuote(text)}”. That message and what came after it stay in the chat, folded, not deleted.`,
-    GO_BACK_NOT_UNDONE,
   ];
-  const copy = copyClause(project);
-  if (copy) parts.push(copy);
+  if (!undoingCode) {
+    parts.push(GO_BACK_NOT_UNDONE);
+    const copy = copyClause(project);
+    if (copy) parts.push(copy);
+  }
   if (page) parts.push(rewindPageClause(page));
   return { title: 'Rewind to here?', body: parts.join(' '), confirm: 'Rewind' };
 }

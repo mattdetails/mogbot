@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import {
   addOnComputer,
+  glanceSession,
   glanceUsed,
   NEW_WORK_HERE,
   NEW_WORK_PILL,
@@ -40,7 +41,16 @@ import {
   usedTone,
 } from '@shipstudio/companion-protocol';
 import { makeStyles, useColors, useLargeText } from '../lib/appearance';
-import { depthOf, iconSize, keySize, meter, PRESSED, radius, space, type Palette } from '../lib/theme';
+import {
+  depthOf,
+  iconSize,
+  keySize,
+  meter,
+  PRESSED,
+  radius,
+  space,
+  type Palette,
+} from '../lib/theme';
 import { AgentKey } from './AgentKey';
 import { Button, Icon, IconButton, Segmented, StatusPill, T } from './ui';
 import { useComputer } from '../lib/computer';
@@ -191,6 +201,8 @@ export function GlanceRow({ glance, onPress }: { glance: UsageGlance; onPress: (
   if (glance.keys.length === 0) return null;
   const { row, total } = glance;
   const used = glanceUsed(glance);
+  // The account in use's 5-hour limit, beside the week (as the desk's row).
+  const session = glanceSession(glance);
   const count = total.left !== null ? row.count : null;
   // Out everywhere, the refill is a moment ("Refills Sat 10:00 AM"); otherwise a countdown.
   const out = glance.tone === 'limited';
@@ -203,7 +215,7 @@ export function GlanceRow({ glance, onPress }: { glance: UsageGlance; onPress: (
       ? total.refill.in
       : null;
   const notRead = total.left !== null ? row.notRead : null;
-  const label = `Usage: ${used.detail}`;
+  const label = `Usage: ${[used.detail, session?.words].filter(Boolean).join('. ')}`;
   const warn = row.needsYou || used.tone === 'high' || used.tone === 'out';
   return (
     <Pressable
@@ -224,6 +236,15 @@ export function GlanceRow({ glance, onPress }: { glance: UsageGlance; onPress: (
             numberOfLines={1}
           >
             {used.figure}
+            {session && (
+              <T
+                variant="small"
+                color={session.tone === 'calm' ? colors.textSecondary : colors.accentWarning}
+              >
+                {' '}
+                · {session.short}
+              </T>
+            )}
             {count && (
               <T variant="small" color={colors.textMuted}>
                 {' '}
@@ -349,7 +370,9 @@ export function TotalCard({
         <View style={styles.low}>
           <T variant="small" color={colors.textPrimary}>
             {glance.low.text}
-            {glance.low.waitUntil ? ` ${glance.low.waitUntil}, or add an account on ${comp.your}.` : ''}
+            {glance.low.waitUntil
+              ? ` ${glance.low.waitUntil}, or add an account on ${comp.your}.`
+              : ''}
           </T>
         </View>
       )}

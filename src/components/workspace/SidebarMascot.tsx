@@ -2,16 +2,18 @@
  * The app's mark as a small mascot, in the sidebar's top row where the
  * traffic lights sit. It shows only in full screen, when macOS hides them and
  * their space would otherwise stand empty (a normal window keeps the lights
- * there). Drawn from boxes, not artwork, so it can move: the mark's two slots
- * are its eyes, and its body tilts toward the pointer like a lit keycap.
+ * there). A small cream keycap the size of the row's buttons, the mark in
+ * ink on it, drawn from boxes so it can move: the mark's two slots are its
+ * eyes.
  *
  * Its mood follows the team: it blinks and glances around while all is
- * quiet, watches side to side while agents work, and looks toward the bell
- * and hops when one needs you. Left alone with nothing going on it falls
+ * quiet; a thin arc turns around it and its eyes watch side to side while
+ * agents work; an amber dot shows and it looks toward the bell and hops when
+ * one needs you. Left alone with nothing going on it falls
  * asleep, and the pointer coming back wakes it.
  *
  * It plays, too: its eyes follow the pointer, it smiles when pointed at,
- * squishes while pressed, jumps and spins when clicked, and gets dizzy if
+ * goes down like a key while pressed, jumps when clicked, and wobbles if
  * poked again and again. Decorative only: the bell says what waits, so the
  * mascot is hidden from screen readers and takes no focus. Still for reduced
  * motion (it still sleeps and smiles, without moving).
@@ -90,17 +92,16 @@ export function SidebarMascotFace({
       data-state={state}
       aria-hidden="true"
     >
-      <span className="sidebar-mascot__shadow" />
-      <span className="sidebar-mascot__hop">
-        <span className="sidebar-mascot__body">
+      <span className="sidebar-mascot__ring" />
+      <span className="sidebar-mascot__key">
+        <span className="sidebar-mascot__mark">
           <span className="sidebar-mascot__eyes">
             <span className="sidebar-mascot__eye" />
             <span className="sidebar-mascot__eye sidebar-mascot__eye--right" />
           </span>
-          <span className="sidebar-mascot__cheek" />
-          <span className="sidebar-mascot__cheek sidebar-mascot__cheek--right" />
         </span>
       </span>
+      <span className="sidebar-mascot__dot" />
       <span className="sidebar-mascot__zzz">
         <span>z</span>
         <span>z</span>

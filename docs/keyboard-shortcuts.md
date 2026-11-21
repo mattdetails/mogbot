@@ -46,7 +46,7 @@ The macOS menu bar (`src-tauri/src/app_menu.rs`), the Dock menu
 | | Capture Preview | ⇧⌘S | a project with its web preview showing |
 | | Crop Preview… | ⇧⌘C | the same |
 | Edit | Undo … Select All | ⌘Z ⇧⌘Z ⌘X ⌘C ⌘V ⌘A | always (in a project, ⌘Z outside a text field undoes the agent's last snapshot) |
-| | Search Conversations… | ⌘F | Agents |
+| | Search Conversations… / Find in Terminal… | ⌘F | Agents: search every conversation; a project: find in the showing terminal's scrollback (Enter / ⇧Enter for next / previous, Esc to close) |
 | View | Command Palette… | ⌘K | the app |
 | | Workspace Mode ▸ Preview / Focus / Code | ⌃⌘1–3 | a project |
 | | Edit Mode | ⌘E | a project |

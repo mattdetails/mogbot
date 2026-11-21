@@ -23,40 +23,133 @@
   font-size: var(--font-size-body-lg);
 }
 
-/* "Account  Work ⌄" beside the tab's agent: which Claude Code account this
-   tab runs on, and one click to continue the chat on another. A bordered
-   pill so it reads as a control, not as more of the heading. */
-.terminal-agent-header__identity > .tab-account-chip {
-  align-self: center;
+/* "▮▮▯ Work  61% left  Auto ⌄" at the foot of the terminal: which
+   Claude Code account this tab runs on, how much it has left, and one click
+   to continue the chat on another or choose what happens when it runs out.
+   A bordered pill so it reads as a control, not as more of the footer. */
+.terminal-pane-footer-left > .tab-account-chip {
+  display: flex;
   min-width: 0;
   margin-left: var(--spacing-xs);
 }
 
 .tab-account-chip__button {
-  max-width: 240px; /* css-ok: cap so a long account name never pushes the header's actions off */
+  min-width: 0;
+  max-width: 340px; /* css-ok: cap so a long account name never pushes the footer's actions off */
+  gap: var(--spacing-tight);
   border: var(--stroke-1) solid var(--border-default);
   border-radius: var(--radius-pill);
+  background: var(--surface-panel);
   font-size: var(--font-size-body-sm);
 }
 
+/* The one meter (tokens-components.css, "One meter"), small: ink while
+   there is room, the warning role when little is left, an empty track when
+   it is out. */
+.tab-account-chip__meter {
+  flex-shrink: 0;
+  width: var(--spacing-xl);
+  height: var(--meter-height);
+  border-radius: var(--meter-radius);
+  background:
+    linear-gradient(
+      to right,
+      var(--tab-account-meter-fill) var(--tab-account-fill, 0%),
+      transparent var(--tab-account-fill, 0%)
+    ),
+    var(--meter-track);
+  --tab-account-meter-fill: var(--meter-fill);
+}
+
+.tab-account-chip__meter[data-level='low'] {
+  --tab-account-meter-fill: var(--meter-fill-high);
+}
+
 .tab-account-chip__words {
+  /* One line box, centred on the pill: the meter, the words and the tag
+     share a middle, never a baseline that sits the text low in WebKit. */
   display: inline-flex;
-  gap: var(--spacing-xs);
+  align-items: center;
+  line-height: var(--line-height-control);
+  gap: var(--spacing-tight);
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.tab-account-chip__key {
+.tab-account-chip__name {
+  flex: 0 1 auto;
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-account-chip__left {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--text-muted);
+}
+
+.tab-account-chip__auto,
+.tab-account-chip__offer {
+  display: inline-flex;
+  align-items: center;
+  line-height: var(--line-height-control);
+  flex-shrink: 0;
+  padding: 0 var(--spacing-tight);
+  border-radius: var(--radius-pill);
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  font-size: var(--font-size-badge);
+  white-space: nowrap;
+}
+
+/* "Switch?": the account will likely run out before it refills. Amber, since
+   the user has a choice to make. */
+.tab-account-chip__offer {
+  background: var(--surface-warning);
+  color: var(--text-warning);
 }
 
 /* On the hovered or open chip's raised background a dimmed label falls
    below 4.5:1 in dark, so it takes the button's own text colour there. */
-.tab-account-chip__button:hover .tab-account-chip__key,
-.tab-account-chip__button[aria-expanded='true'] .tab-account-chip__key {
+.tab-account-chip__button:hover .tab-account-chip__left,
+.tab-account-chip__button[aria-expanded='true'] .tab-account-chip__left,
+.tab-account-chip__left[data-out] {
   color: inherit;
+}
+
+/* As the pane narrows: the two limits become the tighter one (600px), then
+   "18% left" goes (460px; the meter still shows it), then the Auto or
+   Switch? tag (380px); the meter and the name stay. */
+.tab-account-chip__left-short {
+  display: none;
+}
+
+/* A narrow pane: "18% left" (the tighter limit) for "5h 18% · week 55% left". */
+@container terminal-pane (max-width: 600px) {
+  .tab-account-chip__left-full {
+    display: none;
+  }
+
+  .tab-account-chip__left-short {
+    display: inline;
+  }
+}
+
+@container terminal-pane (max-width: 380px) {
+  .tab-account-chip__auto,
+  .tab-account-chip__offer {
+    display: none;
+  }
+}
+
+@container terminal-pane (max-width: 460px) {
+  .tab-account-chip__left {
+    display: none;
+  }
 }
 
 .tab-account-chip__menu .tab-account-chip__heading {
@@ -67,7 +160,25 @@
 }
 
 .tab-account-chip__menu .tab-account-chip__label {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tab-account-chip__menu .tab-account-chip__limits {
+  font-size: var(--font-size-body-sm);
+  color: var(--text-muted);
+}
+
+/* The offer's sentence, above Continue on … / Not now. */
+.tab-account-chip__menu .tab-account-chip__suggest {
+  max-width: 300px; /* css-ok: a sentence wraps at a reading width, not the menu's */
+  margin: 0;
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-body-sm);
+  line-height: var(--line-height-help);
+  color: var(--text-warning);
 }
 
 .tab-account-chip__menu .tab-account-chip__check {
@@ -76,7 +187,6 @@
   width: var(--spacing-lg);
   color: var(--text-secondary);
 }
-
 .terminal-agent-header__actions {
   display: flex;
   align-items: center;

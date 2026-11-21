@@ -1019,6 +1019,10 @@ pub struct UpdateAgentInput {
     /// "Save new skills": `auto`, `ask` or `off` (`agents::skills_learn`).
     #[serde(default)]
     pub learn_skills: Option<agents::skills_learn::Learning>,
+    /// Its routines cap (`agents::routine_cap`): tokens this week at which
+    /// its routines stop starting; 0 clears it.
+    #[serde(default)]
+    pub routine_cap: Option<u64>,
 }
 
 #[tauri::command]
@@ -1088,6 +1092,11 @@ pub async fn agents_update(
         .as_deref()
         .map(store::normalize_effort)
         .transpose()?;
+    let routine_cap = input
+        .routine_cap
+        .map(agents::routine_cap::checked)
+        .transpose()
+        .map_err(|e| agents::err_invalid("routineCap", e))?;
     let project = match input.project.as_deref() {
         Some(p) => Some(project::resolve(p).await?.map(|p| p.path)),
         None => None,
@@ -1156,6 +1165,9 @@ pub async fn agents_update(
         }
         if let Some(m) = routine_model {
             a.routine_model = m;
+        }
+        if let Some(cap) = routine_cap {
+            agents::routine_cap::set(a, cap);
         }
         if let Some(e) = effort {
             a.effort = e;
@@ -1577,6 +1589,11 @@ pub async fn agents_conversation_rename(
 /// "Rewind to here" (and Edit and resend, before its send): the
 /// conversation carries on from just before the user's message; what came
 /// after is folded, not deleted. Refused while a turn runs.
+///
+/// `undo_code`: the user also chose "Also undo the code changes since then"
+/// (`rewind_code`). Absent or false, the agent's copy keeps its changes, as
+/// before (the phone sends nothing). When it's asked for and can't be done,
+/// nothing changes, the chat included.
 #[tauri::command]
 #[tracing::instrument(skip(app))]
 pub async fn agents_conversation_rewind(
@@ -1584,12 +1601,52 @@ pub async fn agents_conversation_rewind(
     agent_id: String,
     conversation_id: String,
     message_id: String,
+    undo_code: Option<bool>,
 ) -> Result<conversations::Conversations, CommandError> {
+    let code = if undo_code == Some(true) {
+        let (id, conversation, message) = (
+            agent_id.clone(),
+            conversation_id.clone(),
+            message_id.clone(),
+        );
+        blocking(move || agents::rewind::check(&id, &conversation, &message)).await?;
+        let restored =
+            agents::rewind_code::restore(&agent_id, &conversation_id, &message_id).await?;
+        let _ = app.emit(runner::EVENT_REGISTRY, ());
+        Some(agents::rewind_code::line(&restored))
+    } else {
+        None
+    };
     let id = agent_id.clone();
-    let done = blocking(move || agents::rewind::rewind(&id, &conversation_id, &message_id)).await?;
+    let undid = code.is_some();
+    let done = blocking(move || {
+        agents::rewind::rewind_undoing(&id, &conversation_id, &message_id, code.as_deref())
+    })
+    .await
+    .map_err(|e| match undid {
+        // Something started in the moment between: say the code went back.
+        true => CommandError::expected(format!(
+            "The copy's code went back, but the chat couldn't: {e}"
+        )),
+        false => e,
+    })?;
     let _ = runner::record(&app, done.line);
     let _ = app.emit(runner::EVENT_CONVERSATIONS, &agent_id);
     Ok(done.conversations)
+}
+
+/// Whether going back before the user's message can also undo the code in
+/// the agent's copy, and what it would undo: the Rewind confirm and the
+/// Edit bar offer "Also undo the code changes since then" only when this
+/// says so. `None` when the point isn't known or there's nothing to undo.
+#[tauri::command]
+#[tracing::instrument]
+pub async fn agents_conversation_code_offer(
+    agent_id: String,
+    conversation_id: String,
+    message_id: String,
+) -> Result<Option<agents::rewind_code::CodeOffer>, CommandError> {
+    agents::rewind_code::offer(&agent_id, &conversation_id, &message_id).await
 }
 
 /// "Fork from here": a new conversation with everything before the user's

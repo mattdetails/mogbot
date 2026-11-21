@@ -206,9 +206,15 @@ pub(super) async fn page_scenario(h: &H) -> Check {
     )?;
 
     // Rewind to the same message: the page stays as it is, and the line says so.
-    cmd::agents_conversation_rewind(h.app.clone(), a.id.clone(), conv.clone(), ticked.id.clone())
-        .await
-        .map_err(|e| e.to_string())?;
+    cmd::agents_conversation_rewind(
+        h.app.clone(),
+        a.id.clone(),
+        conv.clone(),
+        ticked.id.clone(),
+        None,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     ensure(
         page::get(&a.id, &conv).unwrap().unwrap().current.version == 3,
         "a rewind changed the page",

@@ -48,9 +48,15 @@
   pointer-events: auto;
 }
 
-.terminal-pane-footer-center {
+/* As the pane narrows the account pill's words give way (they ellipsize),
+   never the capture buttons, which would slide over one another. */
+.terminal-pane-footer-left {
   flex-shrink: 1;
   min-width: 0;
+}
+
+.terminal-pane-footer-center {
+  flex-shrink: 0;
 }
 
 .terminal-pane-footer-right {

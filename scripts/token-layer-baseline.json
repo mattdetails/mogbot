@@ -1401,6 +1401,12 @@
       "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
     },
     {
+      "path": "src/styles/features/terminal-find-bar.css",
+      "token": "--stroke-1",
+      "count": 1,
+      "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
+    },
+    {
       "path": "src/styles/features/update-banner.css",
       "token": "--font-weight-medium",
       "count": 1,
@@ -1715,6 +1721,18 @@
     {
       "path": "src/styles/features/workspace/sidebar-mascot.css",
       "token": "--duration-loader-isolated",
+      "count": 8,
+      "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
+    },
+    {
+      "path": "src/styles/features/workspace/sidebar-mascot.css",
+      "token": "--radius-full",
+      "count": 1,
+      "reason": "Transitional migration-alias consumer; replace with the canonical semantic role."
+    },
+    {
+      "path": "src/styles/features/workspace/sidebar-mascot.css",
+      "token": "--stroke-1",
       "count": 1,
       "reason": "Transitional primitive consumer; replace with an owner-appropriate semantic or component role."
     },

@@ -117,6 +117,9 @@ pub struct UsageSummary {
     pub all_time: UsageTotals,
     /// This week, per routine that ran on its own in it (a share of `week`).
     pub routines: Vec<RoutineUsage>,
+    /// Its routines cap against this week, when one is set (`routine_cap`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub routine_cap: Option<super::routine_cap::CapStatus>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
@@ -139,6 +142,7 @@ pub fn summarize(agent: &super::store::Agent, today: NaiveDate) -> UsageSummary 
         })
         .filter(|r| r.week.turns > 0 || r.week.checks > 0)
         .collect();
+    summary.routine_cap = super::routine_cap::status(agent, today);
     summary
 }
 
@@ -237,6 +241,7 @@ impl AgentUsage {
             week,
             all_time: self.all_time.clone(),
             routines: Vec::new(),
+            routine_cap: None,
         }
     }
 }

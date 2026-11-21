@@ -1340,7 +1340,9 @@ The phone can start work as well as answer it. Each piece is gated by
   listing `agents.effort`; **How much it does on its own** ("Same as team"
   and the four levels, `agents.setAgentIndependence`; going past the team's
   level asks first, with what it then does and what still asks); **Usage**,
-  the team's mode read-only (there is no per-agent budget; `agents.usagePlan`)
+  the team's mode read-only (`agents.usagePlan`; a per-agent routines
+  cap exists, in tokens this week, but is set on the desk or by the Chief:
+  the phone gets `routineCap` with the agent and has no control for it yet)
   and a tap to the usage sheet; and **More about** the agent. Model and
   effort apply from its next message and the Mac writes one quiet line in
   the chat ("Now on Opus · High from its next message"). While a turn runs,

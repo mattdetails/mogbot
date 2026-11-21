@@ -501,6 +501,7 @@ mod tests {
             away: None,
             context: None,
             routine_model: None,
+            routine_cap: None,
             learn_skills: Default::default(),
             account: None,
             template: None,

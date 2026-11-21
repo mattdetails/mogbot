@@ -63,9 +63,9 @@ use super::{
     connector, context, conversations, crossover, declined, dev_servers, disk, e2e_alias, engine,
     err_io, err_other, expiry, exposure, failure, follow_up, full_send, independence, is_disk_full,
     level_hint, local_links, mcp, narration, opencode, page, policy, preview_test, project, quiet,
-    quota, reach, results, rewind, rooms, runs, schedule, secrets, share_text, skills_learn, slack,
-    starters, survive, takeover, task, tidy, transcript, turn_end, usage, usage_plan, wallet, work,
-    workplace, DISK_FULL_LINE,
+    quota, reach, results, rewind, rewind_code, rooms, runs, schedule, secrets, share_text,
+    skills_learn, slack, starters, survive, takeover, task, tidy, transcript, turn_end, usage,
+    usage_plan, wallet, work, workplace, DISK_FULL_LINE,
 };
 
 mod state;

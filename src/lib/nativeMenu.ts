@@ -116,6 +116,15 @@ export function reportMenuContext(part: Partial<MenuContext>): void {
   if (timer === null) timer = setTimeout(flush, 16);
 }
 
+/**
+ * Where this window last told the menu it is (`agents`, `workspace`, …), so
+ * an item two places share (Edit → Find) acts in the right one. `other` where
+ * the menu doesn't own its keys (the harness, other platforms).
+ */
+export function lastMenuView(): string {
+  return context.view;
+}
+
 /** This window came forward: the menu bar is about it again. */
 export function resendMenuContext(): void {
   if (!menuOwnsShortcuts()) return;

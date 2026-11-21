@@ -1,0 +1,38 @@
+/* Find in a terminal's scrollback (TerminalFindBar): a small floating bar
+   at the terminal's top right, over its output, the way find sits in an
+   editor. Same surface as the tab's account notice (tab-account-bar.css). */
+
+.terminal-find-bar {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-md);
+  z-index: var(--z-dropdown);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-2xs) var(--spacing-xs);
+  background: var(--surface-panel);
+  border: var(--stroke-1) solid var(--border-default);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+}
+
+.terminal-find-bar__field {
+  width: 220px; /* css-ok: a find field wide enough for a phrase, narrow enough to leave the output readable */
+}
+
+.terminal-find-bar__count {
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 0 var(--spacing-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-badge);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@container terminal-pane (max-width: 380px) {
+  .terminal-find-bar__field {
+    width: 140px; /* css-ok: the narrow pane's find field */
+  }
+}

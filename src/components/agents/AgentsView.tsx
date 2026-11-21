@@ -23,6 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps 
 import { flushSync } from 'react-dom';
 import { HomeSidebar } from '../workspace/HomeSidebar';
 import { AgentsSidebar, AgentsSidebarActions, CatchUpRow, InFlightBell } from './AgentsSidebar';
+import { SideBySideToggle } from '../workspace/SideBySideToggle';
 import { DropdownDivider, DropdownItem } from '../primitives/Dropdown';
 import { PhoneMenuItem } from '../phone/PhoneIndicator';
 import { AgentsCatchUp } from './AgentsCatchUp';
@@ -36,7 +37,12 @@ import { getMissions, missionIdOf, reconnectMessage } from '../../lib/missions';
 import { AgentBriefingModal } from './AgentWorkDetail';
 import { AgentsRoutinesView, type BulkAsk } from './AgentsRoutinesView';
 import { ROUTINES_ID } from '../../lib/agentDesk';
-import { menuOwnsShortcuts, onMenuAction, reportMenuContext } from '../../lib/nativeMenu';
+import {
+  lastMenuView,
+  menuOwnsShortcuts,
+  onMenuAction,
+  reportMenuContext,
+} from '../../lib/nativeMenu';
 import { AgentEditorModal, type EditorTab } from './AgentEditorModal';
 import { NewAgentDialog } from './NewAgentDialog';
 import { AgentProjectsProvider } from './AgentProject';
@@ -591,7 +597,8 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
         if (action === 'next_needing_you') goNextNeedingYou();
         else if (action === 'prev_agent') stepAgent(-1);
         else if (action === 'next_agent') stepAgent(1);
-        else if (action === 'find') searchKeys.current.focusSearch();
+        else if (action === 'find' && lastMenuView() !== 'workspace')
+          searchKeys.current.focusSearch();
         else if (action === 'new_conversation') newConversationRef.current?.();
       }),
     [goNextNeedingYou, stepAgent]
@@ -1126,12 +1133,18 @@ function AgentsModeView({ isCompact, sidebarProps, previewServer }: AgentsViewPr
               activeNav="agents"
               // Home belongs to the Projects side; here the one control is
               // What's in flight, with how many need you.
+              // The split-view button sits with the toggle and the bell: one
+              // for the window (Agents is always the left side), not one per
+              // side.
               navContent={
-                <InFlightBell
-                  count={needsYouCount}
-                  current={teamOpen || catchUpOpen}
-                  onOpen={needsYouCount > 0 ? openCatchUp : openInFlight}
-                />
+                <>
+                  <InFlightBell
+                    count={needsYouCount}
+                    current={teamOpen || catchUpOpen}
+                    onOpen={needsYouCount > 0 ? openCatchUp : openInFlight}
+                  />
+                  <SideBySideToggle />
+                </>
               }
               searchContent={
                 <AgentsTopSearch

@@ -4,6 +4,7 @@ import {
   SIGN_IN_AGAIN,
   accountDisplayName,
   changeLines,
+  glanceSession,
   glanceUsed,
   relativeIn,
   shortCountdown,
@@ -1061,11 +1062,9 @@ describe('a reading that has gone stale', () => {
   });
 
   it('says it on the total too, so the hero never passes an old figure as now', () => {
-    const g = usageGlance(
-      [acct('default')],
-      inv([line('default', { windows: [stale(7 * H)] })]),
-      { now: NOW }
-    );
+    const g = usageGlance([acct('default')], inv([line('default', { windows: [stale(7 * H)] })]), {
+      now: NOW,
+    });
     expect(g.total.across).toBe('this week · as of 5:00 AM');
     expect(g.total.segments[0].words).toContain('0% used · as of 5:00 AM');
     expect(totalWords(g).across).toBe('this week · as of 5:00 AM');
@@ -1076,5 +1075,40 @@ describe('a reading that has gone stale', () => {
       now: NOW,
     });
     expect(g.total.across).toBe('this week');
+  });
+});
+
+describe('glanceSession', () => {
+  const session = (used: number) => ({
+    kind: 'five_hour',
+    usedPercent: used,
+    resetsAt: NOW + 2 * H,
+    limited: false,
+    observedAt: NOW - 60_000,
+  });
+
+  it('says the account in use’s 5-hour limit beside the week', () => {
+    const g = usageGlance(
+      [acct('default', { name: 'sam@example.com' })],
+      inv([
+        line('default', { name: 'sam@example.com', next: true, windows: [session(40), week(26)] }),
+      ]),
+      { now: NOW }
+    );
+    const s = glanceSession(g);
+    expect(s?.short).toBe('5h 40%');
+    expect(s?.used).toBe(40);
+    expect(s?.words).toBe('5-hour limit of sam@example.com: 40% used, refills in 2 h');
+  });
+
+  it('is absent when no 5-hour limit was read', () => {
+    const g = usageGlance(
+      [acct('default')],
+      inv([line('default', { next: true, windows: [week(26)] })]),
+      {
+        now: NOW,
+      }
+    );
+    expect(glanceSession(g)).toBeNull();
   });
 });

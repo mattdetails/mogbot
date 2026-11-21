@@ -66,9 +66,27 @@ export interface TabAccountOption {
   name: string;
   /** Its line in the menu: "Work · 61% left", "Personal · out until 4 PM". */
   label: string;
+  /** Left of its tighter limit, 0–100. */
   leftPercent?: number | null;
   out: boolean;
   current: boolean;
+  /** Left of its 5-hour limit, 0–100, when read. */
+  sessionLeft?: number | null;
+  /** Left of its weekly limit, 0–100, when read. */
+  weekLeft?: number | null;
+}
+
+/**
+ * "Continue on Personal?": the tab's account will likely run out before it
+ * refills (an estimate from its own readings) and another has room
+ * (`tab_accounts::Suggestion`). Offered, never done on its own.
+ */
+export interface TabAccountSuggestion {
+  estimate: true;
+  toId: string;
+  toName: string;
+  /** "At this pace Work runs out at 3:40 PM, before its 5-hour limit refills (an estimate). Personal has 80% left." */
+  line: string;
 }
 
 /** What a terminal tab's account chip shows (`tab_accounts::TabAccounts`). */
@@ -77,6 +95,7 @@ export interface TabAccountInfo {
   current?: string | null;
   /** Empty: the tab can't change accounts, and no chip is shown. */
   accounts: TabAccountOption[];
+  suggest?: TabAccountSuggestion | null;
 }
 
 export function tabAccountInfo(sessionId: string): Promise<TabAccountInfo> {

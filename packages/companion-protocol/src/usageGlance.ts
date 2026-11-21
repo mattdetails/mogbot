@@ -503,6 +503,38 @@ export function glanceUsed(glance: Pick<UsageGlance, 'total' | 'tone' | 'row'>):
   };
 }
 
+/**
+ * The 5-hour limit beside the glance's weekly total: what turns hit first
+ * in a busy afternoon. It is the account in use's (the one turns run on
+ * now), as that engine reported it; null with no such reading. Said as what
+ * is used, like the total: "5h 40%".
+ */
+export interface GlanceSession {
+  /** 0–100 used. */
+  used: number;
+  /** "5h 40%": short, for the glance's line. */
+  short: string;
+  /** "5-hour limit of Work: 40% used, refills in 2 h", for a tooltip and VoiceOver. */
+  words: string;
+  tone: KeyLimit['tone'];
+}
+
+export function glanceSession(glance: Pick<UsageGlance, 'keys'>): GlanceSession | null {
+  for (const key of glance.keys) {
+    if (key.state !== 'in_use') continue;
+    const limit = key.limits.find((l) => l.label === '5-hour' && !l.model);
+    if (!limit) continue;
+    const refill = limit.resetsIn ? `, refills ${limit.resetsIn}` : '';
+    return {
+      used: limit.used,
+      short: `5h ${limit.used}%`,
+      words: `5-hour limit of ${key.name}: ${limit.used}% used${refill}`,
+      tone: limit.tone,
+    };
+  }
+  return null;
+}
+
 /** One agent and the account it runs on, for the Usage view's "Runs on" list. */
 export interface RunsOnRow {
   agentId: string;
@@ -944,9 +976,7 @@ function keyOf(
       ? null
       : general.length > 0
         ? Math.max(
-            ...line.windows
-              .filter((w) => live(w, now) && !modelOf(w.kind))
-              .map((w) => w.observedAt)
+            ...line.windows.filter((w) => live(w, now) && !modelOf(w.kind)).map((w) => w.observedAt)
           )
         : null;
   const fresh = readAt === null || !Number.isFinite(readAt) || now - readAt <= READING_STALE_MS;

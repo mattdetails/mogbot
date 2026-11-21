@@ -25,7 +25,7 @@ const ACCOUNT = {
   out: false,
 };
 
-function inventory(used: number, out = false) {
+function inventory(used: number, out = false, session?: number) {
   return {
     mode: 'normal',
     engines: [
@@ -49,6 +49,17 @@ function inventory(used: number, out = false) {
         out,
         next: true,
         windows: [
+          ...(session === undefined
+            ? []
+            : [
+                {
+                  kind: 'five_hour',
+                  usedPercent: session,
+                  resetsAt: now + 2 * H,
+                  limited: false,
+                  observedAt: now - 8 * 60_000,
+                },
+              ]),
           {
             kind: 'seven_day',
             usedPercent: used,
@@ -103,12 +114,15 @@ function foot(
   {
     used = 8,
     out = false,
+    session,
     phone = PAIRED,
     remote = remoteBrief(),
     extra = {},
   }: {
     used?: number;
     out?: boolean;
+    /** The 5-hour limit's % used, when it was read. */
+    session?: number;
     phone?: unknown;
     remote?: unknown;
     extra?: Partial<Scenario>;
@@ -127,7 +141,7 @@ function foot(
       agents_overview: overview(TEAM),
       agents_messages: messagesFor,
       agents_accounts: [{ ...ACCOUNT, out }],
-      agents_usage_overview: inventory(used, out),
+      agents_usage_overview: inventory(used, out, session),
       companion_status: phone,
       get_remote_access_brief: remote,
       ...(extra.commands ?? {}),
@@ -146,6 +160,12 @@ export const agentsSidebarFootScenarios: Scenario[] = [
     'agents-foot-low',
     'Agents sidebar foot — light use (8% used), a phone paired',
     `${BASE} “8% used · refills in 6d”, a short fill in ordinary ink; the phone icon with no dot (seen 3 h ago, its tooltip).`
+  ),
+  foot(
+    'agents-foot-session',
+    'Agents sidebar foot — the week and the 5-hour limit',
+    `${BASE} “26% · 5h 40%”: the week’s figure, then the account in use’s 5-hour limit in secondary ink, nothing cut off; the bar is the week’s. The refill moves to its tooltip, which adds “5-hour limit of sam@example.com: 40% used, refills in 2 h”.`,
+    { used: 26, session: 40 }
   ),
   foot(
     'agents-foot-high',

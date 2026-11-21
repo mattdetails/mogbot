@@ -10,7 +10,15 @@
  * @module components/agents/AgentGoBack
  */
 
-import { Fragment, isValidElement, useRef, type ReactElement, type ReactNode } from 'react';
+import {
+  Fragment,
+  isValidElement,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import {
   BranchIcon,
   ChevronRightIcon,
@@ -22,9 +30,12 @@ import {
   ReplyIcon,
   UndoIcon,
 } from '@/components/icons';
+import { useAsyncState } from '../../hooks/useAsyncState';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
+import { codeOffer as askCodeOffer } from '../../lib/agentConversations';
 import { formatAgo } from '../../lib/formatAgo';
 import { Button } from '../primitives/Button';
+import { Checkbox } from '../primitives/Checkbox';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -49,6 +60,9 @@ import {
   rewindConfirm,
   rewoundSummary,
   REWOUND_END,
+  UNDO_CODE_LABEL,
+  undoCodeLine,
+  type CodeOffer,
   type GoBackAction,
 } from '../../../packages/companion-protocol/src/rewind';
 
@@ -265,12 +279,66 @@ export interface GoBackAsk {
   text: string;
 }
 
+/**
+ * "Also undo the code changes since then", for one message being gone back
+ * to: what the Mac offers (`rewind_code::offer`, asked each time the message
+ * changes; an answer for another message is never shown) and whether the
+ * user picked it. Off until they do, and off again for every new message.
+ */
+export interface UndoCode {
+  offer: CodeOffer | null;
+  undo: boolean;
+  setUndo: (undo: boolean) => void;
+}
+
+export function useUndoCode(
+  agentId: string,
+  conversation: string,
+  messageId: string | null
+): UndoCode {
+  const { data, execute } = useAsyncState(async (id: string) => ({
+    id,
+    offer: await askCodeOffer(agentId, conversation, id),
+  }));
+  // Picked for one message only: another message starts unpicked.
+  const [pickedFor, setPickedFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (messageId) void execute(messageId);
+  }, [messageId, agentId, conversation, execute]);
+  const offer = messageId && data?.id === messageId ? data.offer : null;
+  return {
+    offer,
+    undo: offer !== null && pickedFor === messageId,
+    setUndo: (undo) => setPickedFor(undo ? messageId : null),
+  };
+}
+
+/** The option itself: a checkbox, and under it what it does. */
+function UndoCodeOption({ code, disabled }: { code: UndoCode; disabled?: boolean }) {
+  if (!code.offer) return null;
+  return (
+    <label className="agent-go-back__code">
+      <Checkbox
+        checked={code.undo}
+        disabled={disabled}
+        onChange={code.setUndo}
+        label={UNDO_CODE_LABEL}
+      />
+      <span className="agent-go-back__code-text">
+        <span aria-hidden>{UNDO_CODE_LABEL}</span>
+        <span className="agent-go-back__code-line">{undoCodeLine(code.offer)}</span>
+      </span>
+    </label>
+  );
+}
+
 /** Rewind to here? / Fork from here?: what happens, and what isn't undone. */
 export function GoBackConfirm({
   ask,
   agentName,
   project,
   page,
+  code,
   busy,
   onCancel,
   onConfirm,
@@ -281,16 +349,19 @@ export function GoBackConfirm({
   project?: string | null;
   /** The conversation's living page's title, if it has one. */
   page?: string | null;
+  /** Rewind only: undoing the code in its copy too, when the Mac offers it. */
+  code?: UndoCode;
   busy: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const confirmRef = useRef<HTMLButtonElement>(null);
   if (!ask) return null;
+  const undoing = ask.action === 'rewind' && code?.undo === true;
   const words =
     ask.action === 'fork'
       ? forkConfirm(agentName, ask.text, project)
-      : rewindConfirm(agentName, ask.text, project, page);
+      : rewindConfirm(agentName, ask.text, project, page, undoing);
   return (
     <ModalFrame
       isOpen
@@ -302,6 +373,7 @@ export function GoBackConfirm({
       initialFocusRef={confirmRef}
     >
       <p className="agent-go-back__body">{words.body}</p>
+      {ask.action === 'rewind' && code && <UndoCodeOption code={code} disabled={busy} />}
       <div className="agent-go-back__actions">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>
           Cancel
@@ -321,7 +393,16 @@ export function GoBackConfirm({
 }
 
 /** Over the composer while a sent message is being edited. */
-export function ComposerEditing({ text, onCancel }: { text: string | null; onCancel: () => void }) {
+export function ComposerEditing({
+  text,
+  code,
+  onCancel,
+}: {
+  text: string | null;
+  /** Undoing the code in its copy too, when the Mac offers it. */
+  code?: UndoCode;
+  onCancel: () => void;
+}) {
   if (text === null) return null;
   return (
     <div className="agent-composer__revising agent-go-back__editing">
@@ -341,6 +422,7 @@ export function ComposerEditing({ text, onCancel }: { text: string | null; onCan
           title="Stop editing"
         />
       </span>
+      {code && <UndoCodeOption code={code} />}
     </div>
   );
 }

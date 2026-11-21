@@ -37,6 +37,7 @@ import {
   legacyColorFor,
 } from '../../../packages/companion-protocol/src/agentKeys';
 import { AgentReach } from './AgentReach';
+import { AgentRoutineCap } from './AgentRoutineCap';
 import { AgentPolicy } from './AgentPolicy';
 import { AgentLevelPicker } from './AgentLevelPicker';
 import { AgentEngineProtections, engineReason, showsEnginePicker } from './AgentEngine';
@@ -902,7 +903,19 @@ export function AgentEditorModal({
               )}
             </TabsPanel>
             <TabsPanel value="usage">
-              {tab === 'usage' && <UsagePage usage={usage} agent={live ?? agent} />}
+              {tab === 'usage' && (
+                <UsagePage
+                  usage={usage}
+                  agent={live ?? agent}
+                  cap={
+                    <AgentRoutineCap
+                      key={usage ? 'read' : 'reading'}
+                      agent={live ?? agent}
+                      status={usage?.routineCap}
+                    />
+                  }
+                />
+              )}
             </TabsPanel>
           </Tabs>
         ) : (

@@ -99,6 +99,7 @@ import {
   GO_BACK_PICK_MAX,
   GoBackPicker,
   openOneFold,
+  useUndoCode,
   type GoBackAction,
   type GoBackAsk,
 } from './AgentGoBack';
@@ -1154,6 +1155,15 @@ export const AgentChat = memo(function AgentChat({
   const [replying, setReplying] = useState<ReplyRef | null>(null);
   const [goBackAsk, setGoBackAsk] = useState<GoBackAsk | null>(null);
   const [goingBack, setGoingBack] = useState(false);
+  // "Also undo the code changes since then" (`rewind_code`): asked of the
+  // Mac for the message being rewound to or edited, off until picked.
+  const where = viewing ?? FIRST_CONVERSATION;
+  const rewindCode = useUndoCode(
+    agent.id,
+    where,
+    goBackAsk?.action === 'rewind' ? goBackAsk.messageId : null
+  );
+  const editCode = useUndoCode(agent.id, where, editing?.id ?? null);
   // Another conversation on screen: an edit or a confirm was about this one's message.
   useEffect(() => {
     setEditing(null);
@@ -1173,9 +1183,8 @@ export const AgentChat = memo(function AgentChat({
     if (!goBackAsk) return;
     setGoingBack(true);
     try {
-      const where = viewing ?? FIRST_CONVERSATION;
       if (goBackAsk.action === 'fork') await forkConversation(agent.id, where, goBackAsk.messageId);
-      else await rewindConversation(agent.id, where, goBackAsk.messageId);
+      else await rewindConversation(agent.id, where, goBackAsk.messageId, rewindCode.undo);
       setGoBackAsk(null);
     } catch (error) {
       showToast(formatCommandError(asCommandError(error)), 'error');
@@ -1807,7 +1816,12 @@ export const AgentChat = memo(function AgentChat({
       setDraft('');
       setQuotes([]);
       if (files.length) attachments.setItems([]);
-      void rewindConversation(agent.id, viewing ?? FIRST_CONVERSATION, target.id).then(
+      void rewindConversation(
+        agent.id,
+        viewing ?? FIRST_CONVERSATION,
+        target.id,
+        editCode.undo
+      ).then(
         () => {
           if (files.length) void sendWithFiles(typed, quoted, files, false);
           else sendText(withQuotes(quoted, typed), false, replied ? { replyTo: replied } : {});
@@ -2563,6 +2577,7 @@ export const AgentChat = memo(function AgentChat({
                         onCancelReplying={() => setReplying(null)}
                         editing={editing?.text ?? null}
                         onCancelEditing={cancelEditing}
+                        editingCode={editCode}
                         busy={busy}
                         working={working}
                         onEscape={onEscape}
@@ -2612,6 +2627,7 @@ export const AgentChat = memo(function AgentChat({
                     agentName={agent.name}
                     project={agent.project ? agent.project.split('/').filter(Boolean).pop() : null}
                     page={livingPage?.title}
+                    code={rewindCode}
                     busy={goingBack}
                     onCancel={() => setGoBackAsk(null)}
                     onConfirm={() => void confirmGoBack()}

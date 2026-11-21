@@ -998,10 +998,15 @@ async fn rewind(h: &H) -> Check {
     )?;
     let lines_before = log(&a.id).len();
 
-    let list =
-        cmd::agents_conversation_rewind(h.app.clone(), a.id.clone(), first.into(), m2.id.clone())
-            .await
-            .map_err(|e| e.to_string())?;
+    let list = cmd::agents_conversation_rewind(
+        h.app.clone(),
+        a.id.clone(),
+        first.into(),
+        m2.id.clone(),
+        None,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     ensure(
         list.items
             .iter()
@@ -1085,9 +1090,15 @@ async fn rewind_fallback(h: &H) -> Check {
     h.turn(&a.id).await?;
     let m2 = h.send(&a.id, &fake(json!([{"say": "b {turn}"}]))).await?;
     h.turn(&a.id).await?;
-    cmd::agents_conversation_rewind(h.app.clone(), a.id.clone(), first.into(), m2.id.clone())
-        .await
-        .map_err(|e| e.to_string())?;
+    cmd::agents_conversation_rewind(
+        h.app.clone(),
+        a.id.clone(),
+        first.into(),
+        m2.id.clone(),
+        None,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     std::env::set_var("FAKE_CLAUDE_NO_RESUME_AT", "1");
     let sent = h
         .send(&a.id, &fake(json!([{"say": "c {session} {turn}"}])))

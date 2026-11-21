@@ -2118,6 +2118,7 @@ static SLOTS: LazyLock<tokio::sync::Semaphore> =
 /// twice. One that hangs (a folder on a dead mount) holds only its own slot.
 fn tick(app: &AppHandle) {
     let Ok(agents) = store::list() else { return };
+    let today = usage::today();
     let mut model_checks = 0;
     for agent in agents {
         for c in &agent.check_ins {
@@ -2156,6 +2157,19 @@ fn tick(app: &AppHandle) {
             if runner::driven(&agent.id) {
                 continue;
             }
+            // Past its agent's routines cap (`routine_cap`): not checked (a
+            // check can be a model call), and nothing starts. Said once on
+            // its row; what arrives is found by the first check after.
+            if super::routine_cap::stops(
+                &agent,
+                super::routine_cap::Work::When { manual: false },
+                today,
+            ) {
+                if due(c, now).is_some() {
+                    note_capped(&agent, c, today, now);
+                }
+                continue;
+            }
             match due(c, now) {
                 None => {}
                 Some(Due::Retry) => {
@@ -2188,6 +2202,46 @@ fn tick(app: &AppHandle) {
             }
         }
     }
+}
+
+/// A "When…" routine of an agent past its routines cap came due: one
+/// "Skipped" row each time the cap is reached (from when the chat was told,
+/// `RoutineCap::reached_at`), never one a minute.
+fn note_capped(agent: &store::Agent, c: &CheckIn, today: chrono::NaiveDate, now: i64) {
+    let Some(cap) = agent.routine_cap.as_ref() else {
+        return;
+    };
+    let Some(since) = cap.reached_at else {
+        // Not said in the chat yet: the schedule's tick does that first.
+        return;
+    };
+    if !capped_row_due(&c.runs, since) {
+        return;
+    }
+    let used = super::routine_cap::week_tokens(&agent.usage, today);
+    let detail = super::routine_cap::skipped_detail(cap.tokens, used);
+    store::update(&agent.id, |a| {
+        if let Some(x) = a.check_ins.iter_mut().find(|x| x.id == c.id) {
+            if capped_row_due(&x.runs, since) {
+                runs::record(
+                    &mut x.runs,
+                    runs::Run {
+                        outcome: runs::Outcome::Skipped,
+                        detail: Some(detail.clone()),
+                        ..running(now, 1)
+                    },
+                );
+            }
+        }
+    })
+    .or_log("a When… routine skipped past its cap");
+}
+
+/// No "Skipped" row yet since the cap was reached at `since`.
+pub fn capped_row_due(runs: &[runs::Run], since: i64) -> bool {
+    !runs
+        .iter()
+        .any(|r| r.outcome == runs::Outcome::Skipped && r.at >= since)
 }
 
 /* -------------------------------------------------------- create/edit */

@@ -5,7 +5,11 @@
  * owns the terminal pane's layout, split-pane rendering, and footer actions.
  */
 
+import { useCallback, useEffect } from 'react';
 import type { CSSProperties, MutableRefObject, ReactNode } from 'react';
+import { SearchIcon } from '@/components/icons';
+import { useCommands } from '../../commands/useCommands';
+import { lastMenuView, menuOwnsShortcuts, onMenuAction } from '../../lib/nativeMenu';
 import { getAgentById, type AgentConfig } from '../../lib/agent';
 import { sessionRegistry } from '../../lib/sessionRegistry';
 import { kbd } from '../../lib/shortcuts';
@@ -191,6 +195,52 @@ export function WorkspaceTerminalPane(props: WorkspaceTerminalPaneProps) {
   // report a drag of the header below.
   const dock = usePanelDockBinding('agent');
 
+  // Find in the showing terminal's scrollback: ⌘F (Edit → Find in Terminal…
+  // on the Mac, where the menu owns the key; a key handler on the terminal
+  // pane elsewhere and in the harness) and ⌘K "Find in terminal".
+  const findable = Boolean(activeTab) && !chatting && !showHealthLogs;
+  const openFind = useCallback(() => {
+    if (!activeTab || !findable) return;
+    terminalRefsMap.current.get(`${currentProject.path}::${activeTab.id}`)?.openFind?.();
+  }, [activeTab, findable, currentProject.path, terminalRefsMap]);
+
+  useEffect(
+    () =>
+      onMenuAction((action) => {
+        if (action === 'find' && lastMenuView() === 'workspace') openFind();
+      }),
+    [openFind]
+  );
+
+  useEffect(() => {
+    if (menuOwnsShortcuts()) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+      if (e.key.toLowerCase() !== 'f') return;
+      if (!(e.target instanceof Element) || !e.target.closest('.terminal-pane')) return;
+      e.preventDefault();
+      openFind();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openFind]);
+
+  useCommands(
+    () => [
+      {
+        id: 'terminal.find',
+        title: 'Find in terminal',
+        icon: <SearchIcon size={14} />,
+        category: 'action',
+        shortcut: kbd('mod', 'F'),
+        when: () => findable,
+        keywords: ['search', 'scrollback', 'output', 'find'],
+        run: openFind,
+      },
+    ],
+    [findable, openFind]
+  );
+
   return (
     <DockablePanel
       dock={dock}
@@ -214,16 +264,6 @@ export function WorkspaceTerminalPane(props: WorkspaceTerminalPaneProps) {
               <span className="terminal-agent-header__identity">
                 <span className="panel-heading-pair-title workspace-panel-title">Terminal</span>
                 <span className="panel-heading-pair-meta">{getActiveTabAgent().displayName}</span>
-                {activeTab?.agentId === 'claude-code' && !isSplitActive && (
-                  <TabAccountChip
-                    sessionId={activeTab.sessionId}
-                    onSwitch={(notice) =>
-                      terminalRefsMap.current
-                        .get(`${currentProject.path}::${activeTab.id}`)
-                        ?.switchAccount?.(notice)
-                    }
-                  />
-                )}
               </span>
               {!isPreviewHidden && (
                 <span className="terminal-agent-header__actions">
@@ -420,6 +460,18 @@ export function WorkspaceTerminalPane(props: WorkspaceTerminalPaneProps) {
                 title={redoTitle}
                 aria-label="Redo"
               />
+              {/* Which account the tab runs on and what's left, where it's
+                  seen: at the foot of the terminal, not in its header. */}
+              {activeTab?.agentId === 'claude-code' && !isSplitActive && (
+                <TabAccountChip
+                  sessionId={activeTab.sessionId}
+                  onSwitch={(notice) =>
+                    terminalRefsMap.current
+                      .get(`${currentProject.path}::${activeTab.id}`)
+                      ?.switchAccount?.(notice)
+                  }
+                />
+              )}
             </div>
 
             <div className="terminal-pane-footer-center">

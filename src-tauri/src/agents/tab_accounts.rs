@@ -45,6 +45,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
 use super::engine::Engine;
+use super::quota::QuotaWindow;
 use super::wallet::{self, Account, Choice, LimitHit};
 use crate::errors::CommandError;
 
@@ -359,7 +360,31 @@ pub struct TabAccounts {
     /// Empty: the tab can't be switched (another workspace's login, a
     /// routed base URL, switching off, or one account).
     pub accounts: Vec<TabAccount>,
+    /// The tab's account will likely run out before it refills, and another
+    /// has room: offered, never done on its own ([`suggestion_of`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggest: Option<Suggestion>,
 }
+
+/// "Continue on Personal?": the tab's account is nearly used up and, at the
+/// pace of its own readings, runs out before that window refills.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Suggestion {
+    /// Always true: it rests on the pace of readings (`forecast::pace`), not
+    /// on a reading.
+    pub estimate: bool,
+    pub to_id: String,
+    pub to_name: String,
+    /// "At this pace Work runs out at 3:40 PM, before its 5-hour limit
+    /// refills (an estimate). Personal has 80% left."
+    pub line: String,
+}
+
+/// From this much used of a window, a run-out before its refill is offered.
+pub const SUGGEST_FROM_USED: f64 = 75.0;
+/// The account offered instead has at least this much left.
+pub const SUGGEST_ROOM_LEFT: u8 = 30;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -373,6 +398,85 @@ pub struct TabAccount {
     pub left_percent: Option<u8>,
     pub out: bool,
     pub current: bool,
+    /// Left of its 5-hour limit, 0–100, when read and still current.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_left: Option<u8>,
+    /// Left of its weekly limit, 0–100, when read and still current.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub week_left: Option<u8>,
+}
+
+/// What is left of one window kind (`five_hour`, `seven_day`), when it was
+/// read and hasn't refilled since.
+pub fn window_left(windows: &[QuotaWindow], kind: &str, now: i64) -> Option<u8> {
+    windows
+        .iter()
+        .filter(|w| w.kind == kind && w.resets_at.is_none_or(|r| r > now))
+        .find_map(|w| w.used_percent)
+        .map(|used| (100.0 - used).clamp(0.0, 100.0).round() as u8)
+}
+
+fn window_words(kind: &str) -> &'static str {
+    if kind == "five_hour" {
+        "5-hour"
+    } else {
+        "weekly"
+    }
+}
+
+/// The offer to move on ([`Suggestion`]): the current account has used
+/// [`SUGGEST_FROM_USED`] of a window whose pace reaches 100% before its
+/// refill, and another signed-in account (not a second sign-in of the same
+/// one) has [`SUGGEST_ROOM_LEFT`] or more left. The roomiest is offered.
+pub fn suggestion_of<Tz: chrono::TimeZone>(
+    lines: &[super::inventory::AccountLine],
+    current_id: Option<&str>,
+    tz: &Tz,
+    now: i64,
+) -> Option<Suggestion>
+where
+    Tz::Offset: std::fmt::Display,
+{
+    let claude = |l: &&super::inventory::AccountLine| l.engine == Engine::Claude && l.signed_in;
+    let current = lines
+        .iter()
+        .filter(claude)
+        .find(|l| Some(l.id.as_str()) == current_id && !l.out)?;
+    let pace = current
+        .windows
+        .iter()
+        .filter(|w| w.resets_at.is_none_or(|r| r > now))
+        .filter(|w| w.used_percent.is_some_and(|u| u >= SUGGEST_FROM_USED))
+        .filter_map(|w| {
+            current
+                .pace
+                .iter()
+                .find(|p| p.kind == w.kind && p.reaches_at > now && p.reaches_at < p.resets_at)
+        })
+        .min_by_key(|p| p.reaches_at)?;
+    let same = |a: &super::inventory::AccountLine, b: &super::inventory::AccountLine| {
+        a.same_as.as_deref() == Some(b.name.as_str())
+            || b.same_as.as_deref() == Some(a.name.as_str())
+    };
+    let (to, left) = lines
+        .iter()
+        .filter(claude)
+        .filter(|l| l.id != current.id && !l.out && !same(l, current))
+        .filter_map(|l| super::tray_accounts::left_percent(&l.windows, now).map(|left| (l, left)))
+        .filter(|(_, left)| *left >= SUGGEST_ROOM_LEFT)
+        .max_by_key(|(_, left)| *left)?;
+    let when = super::failure::clock_phrase(tz, pace.reaches_at, now);
+    Some(Suggestion {
+        estimate: true,
+        to_id: to.id.clone(),
+        to_name: to.name.clone(),
+        line: format!(
+            "At this pace {} runs out {when}, before its {} limit refills (an estimate). {} has {left}% left.",
+            current.name,
+            window_words(&pace.kind),
+            to.name
+        ),
+    })
 }
 
 /// The chip's view for a tab, from the accounts as the menu bar reads them.
@@ -411,6 +515,16 @@ where
             },
             out: l.out,
             current: current_id == Some(l.id.as_str()),
+            session_left: if l.out {
+                None
+            } else {
+                window_left(&l.windows, "five_hour", now)
+            },
+            week_left: if l.out {
+                None
+            } else {
+                window_left(&l.windows, "seven_day", now)
+            },
         })
         .collect();
     if accounts.len() < 2 {
@@ -419,6 +533,7 @@ where
     TabAccounts {
         current: accounts.iter().find(|a| a.current).map(|a| a.name.clone()),
         accounts,
+        suggest: suggestion_of(lines, current_id, tz, now),
     }
 }
 

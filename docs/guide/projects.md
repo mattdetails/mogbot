@@ -35,6 +35,11 @@ agent or a terminal in the sidebar switches between them.
 - **Sessions:** Claude Code, Codex or OpenCode working in the project, in tabs or side by side.
   Sessions stay running when you switch between projects. A new session opens on the engine and model your
   agents run on (Settings → Agents); changing them there changes them here too.
+- **Find in a terminal:** ⌘F (or ⌘K → "Find in terminal") opens a small find bar at the top right
+  of the terminal. Type to find as you go: every match is marked, with how many there are ("3 of
+  12"). Enter and ⇧Enter (or the arrows) go to the next and previous, and Esc closes it and puts
+  you back in the terminal. It searches everything the terminal still keeps, not just what's on
+  screen.
 - **Live preview:** your site as it runs, with device sizes, zoom and full screen. **Every
   breakpoint** shows every device size at once, each page in full. When the dev server returns an
   error, the preview shows it with **Copy error** and **Send to agent**. Send to agent asks first,
@@ -65,7 +70,8 @@ are side by side.
 
 ⌘K → "Show Agents and Projects side by side" puts your agents and their chats on the left and the open project on the right, in one window.
 The project half shows its terminals only: no preview or code, which come back when you click the
-split button that appears beside **Agents | Projects** while it's on (or run the command again). Drag the line between the halves to resize them (double-click puts it back to half
+split button that appears at the top of the Agents sidebar, beside the sidebar toggle and the
+bell, while it's on (or run the command again). Drag the line between the halves to resize them (double-click puts it back to half
 and half). The window remembers both.
 
 ## Visual editing

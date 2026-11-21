@@ -11,6 +11,8 @@ import {
   rewindConfirm,
   rewoundIds,
   rewoundSummary,
+  UNDO_CODE_LABEL,
+  undoCodeLine,
 } from './rewind';
 
 describe('going back, in the same words on desk and phone', () => {
@@ -45,6 +47,25 @@ describe('going back, in the same words on desk and phone', () => {
     expect(rewindConfirm('Finance', 'Sort it', null, 'Budget').body).toContain(
       "The page “Budget” stays as it is now; it isn't rewound."
     );
+  });
+
+  it('says what undoing the code does, and drops the copy clause when it is picked', () => {
+    expect(UNDO_CODE_LABEL).toBe('Also undo the code changes since then');
+    const offer = { project: 'acme-site', commits: 2, unsaved: true };
+    expect(undoCodeLine(offer)).toBe(
+      "Its copy of acme-site goes back to how it was before this message (2 saved changes and work not saved yet). What's undone is kept in git, not deleted. Anything it sent isn't undone."
+    );
+    expect(undoCodeLine({ ...offer, commits: 1, unsaved: false })).toContain('(1 saved change)');
+    expect(undoCodeLine({ ...offer, commits: 0 })).toContain('(work not saved yet)');
+    // Not picked: the copy keeps its changes, as before.
+    const keeps = rewindConfirm('Site', 'Make it blue', 'acme-site');
+    expect(keeps.body).toContain(GO_BACK_NOT_UNDONE);
+    expect(keeps.body).toContain(copyClause('acme-site'));
+    // Picked: the option's own line says it, so the confirm doesn't contradict it.
+    const undoes = rewindConfirm('Site', 'Make it blue', 'acme-site', 'Plan', true);
+    expect(undoes.body).not.toContain(GO_BACK_NOT_UNDONE);
+    expect(undoes.body).not.toContain('keeps its changes');
+    expect(undoes.body).toContain('The page “Plan” stays as it is now');
   });
 
   it('waits for a turn to go back in place, never to fork', () => {

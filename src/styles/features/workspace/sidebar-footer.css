@@ -339,3 +339,14 @@
 .workspace-sidebar.is-narrow .agents-foot__new > .agents-list__new-room {
   display: none;
 }
+
+/* "· 5h 40%": the account in use's 5-hour limit, beside the week. */
+.usage-glance__session {
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-label);
+}
+
+.usage-glance__session[data-tone='warning'],
+.usage-glance__session[data-tone='limited'] {
+  color: var(--accent-warning);
+}

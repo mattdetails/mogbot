@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { clearMocks, mockIPC } from '@tauri-apps/api/mocks';
 import { useState, type ReactElement } from 'react';
 import {
   ComposerEditing,
@@ -9,6 +10,7 @@ import {
   GoBackPicker,
   foldRows,
   openOneFold,
+  useUndoCode,
 } from './AgentGoBack';
 import { REWOUND_END, rewoundIds } from '../../../packages/companion-protocol/src/rewind';
 
@@ -135,6 +137,99 @@ describe('GoBackConfirm', () => {
       />
     );
     expect(container.textContent).toBe('');
+  });
+});
+
+describe('Also undo the code changes since then', () => {
+  afterEach(() => clearMocks());
+
+  const offer = { project: 'site', commits: 2, unsaved: false };
+
+  /** The Mac's answer per message; every ask is recorded. */
+  function mac(offers: Record<string, typeof offer | null>, asked: unknown[] = []) {
+    mockIPC((cmd, args) => {
+      if (cmd !== 'agents_conversation_code_offer') throw new Error(`unexpected ${cmd}`);
+      asked.push(args);
+      return offers[(args as { messageId: string }).messageId] ?? null;
+    });
+    return asked;
+  }
+
+  function Confirm({
+    ask,
+    onConfirm,
+  }: {
+    ask: { action: 'rewind' | 'fork'; messageId: string; text: string };
+    onConfirm: (undo: boolean) => void;
+  }) {
+    const code = useUndoCode('a1', 'first', ask.action === 'rewind' ? ask.messageId : null);
+    return (
+      <GoBackConfirm
+        ask={ask}
+        agentName="Writer"
+        project="site"
+        code={code}
+        busy={false}
+        onCancel={() => {}}
+        onConfirm={() => onConfirm(code.undo)}
+      />
+    );
+  }
+
+  it('is offered off, says what it does, and changes the confirm when picked', async () => {
+    const asked = mac({ m2: offer });
+    const onConfirm = vi.fn();
+    render(
+      <Confirm ask={{ action: 'rewind', messageId: 'm2', text: 'Blue' }} onConfirm={onConfirm} />
+    );
+    const box = await screen.findByRole('checkbox', {
+      name: 'Also undo the code changes since then',
+    });
+    expect(asked).toEqual([{ agentId: 'a1', conversationId: 'first', messageId: 'm2' }]);
+    expect(box).not.toBeChecked();
+    expect(
+      screen.getByText(/goes back to how it was before this message \(2 saved changes\)/)
+    ).toBeTruthy();
+    expect(screen.getByText(/Its copy of site keeps its changes too/)).toBeTruthy();
+    // Left as it is: the copy keeps its code.
+    fireEvent.click(screen.getByRole('button', { name: 'Rewind' }));
+    expect(onConfirm).toHaveBeenLastCalledWith(false);
+    fireEvent.click(box);
+    expect(box).toBeChecked();
+    expect(screen.queryByText(/keeps its changes too/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Rewind' }));
+    expect(onConfirm).toHaveBeenLastCalledWith(true);
+  });
+
+  it('is never shown where the Mac knows no point, nor on a fork', async () => {
+    const asked = mac({});
+    const { unmount } = render(
+      <Confirm ask={{ action: 'rewind', messageId: 'm9', text: 'Old' }} onConfirm={() => {}} />
+    );
+    await waitFor(() => expect(asked).toHaveLength(1));
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByText(/Its copy of site keeps its changes too/)).toBeTruthy();
+    unmount();
+    render(
+      <Confirm ask={{ action: 'fork', messageId: 'm2', text: 'Blue' }} onConfirm={() => {}} />
+    );
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(asked).toHaveLength(1);
+  });
+
+  it('is offered on the Edit bar too', async () => {
+    mac({ m3: { ...offer, commits: 0, unsaved: true } });
+    function Bar() {
+      const code = useUndoCode('a1', 'first', 'm3');
+      return <ComposerEditing text="Make it red" code={code} onCancel={() => {}} />;
+    }
+    render(<Bar />);
+    const box = await screen.findByRole('checkbox', {
+      name: 'Also undo the code changes since then',
+    });
+    expect(screen.getByText(/\(work not saved yet\)/)).toBeTruthy();
+    fireEvent.click(box);
+    expect(box).toBeChecked();
   });
 });
 
