@@ -443,12 +443,13 @@
   padding-inline: var(--agents-page-inset);
 }
 
-/* A hairline under it, the column's width, not the window's. */
+/* A hairline under it, the pane's full width, edge to edge (only the title
+   and the buttons keep to the column). */
 .agents-catchup__head[data-mode='entry']::after {
   position: absolute;
-  right: var(--agents-page-inset);
+  right: 0;
   bottom: 0;
-  left: var(--agents-page-inset);
+  left: 0;
   height: var(--border-width-default);
   background: var(--border-default);
   content: '';
