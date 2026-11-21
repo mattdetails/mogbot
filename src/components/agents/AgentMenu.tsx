@@ -8,7 +8,7 @@
  * and memory; going back is Rewind on each message. Rows open the existing
  * popovers and pages; the menu adds only Tasks.
  *
- * Pause this agent (Resume once paused) sits above Delete: it stops what the
+ * Pause (Resume once paused) sits above Delete: it stops what the
  * agent is doing and switches its routines off; messages still reach it.
  *
  * @module components/agents/AgentMenu
@@ -22,8 +22,8 @@ import {
   FileTextIcon,
   PaperclipIcon,
   MoreHorizontalIcon,
-  PauseIcon,
-  PlayIcon,
+  PauseOutlineIcon,
+  PlayOutlineIcon,
   PlugIcon,
   RoutineIcon,
   SettingsSlidersIcon,
@@ -48,7 +48,7 @@ export const MENU_COPY = {
   apps: 'Apps and logins',
   model: 'Model',
   independence: 'Independence',
-  pause: 'Pause this agent',
+  pause: 'Pause',
   resume: 'Resume',
   delete: 'Delete this agent',
 } as const;
@@ -184,7 +184,7 @@ export function AgentMenu({
       ))}
       {!agent.isMain && onPause && (
         <Row
-          icon={agent.paused ? <PlayIcon size={12} /> : <PauseIcon size={12} />}
+          icon={agent.paused ? <PlayOutlineIcon size={12} /> : <PauseOutlineIcon size={12} />}
           label={agent.paused ? MENU_COPY.resume : MENU_COPY.pause}
           value={agent.paused ? 'Paused' : undefined}
           onSelect={() => onPause(agent, !agent.paused)}

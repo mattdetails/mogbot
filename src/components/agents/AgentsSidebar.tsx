@@ -192,6 +192,8 @@ function rowPill(agent: Agent): { tone: StatusTone; label: string; rest: string 
     // The tag alone: how many when more than one, never an excerpt beside it.
     return { tone: 'waiting', label: n > 1 ? `Needs your OK · ${n}` : 'Needs your OK', rest: '' };
   }
+  // A paused agent says so on its row, without opening the menu.
+  if (agent.paused) return { tone: 'idle', label: 'Paused', rest: '' };
   if (agent.takeover || agent.status.state === 'working') return null;
   const failure = failedTurn(agent);
   return failure ? failurePill(failure, previewText(agent.preview), agent.engine) : null;
@@ -205,7 +207,7 @@ function rowStateWords(agent: Agent, unread: boolean): string {
   const words: string[] = [];
   if (agent.takeover && !needsYou(agent)) words.push('live');
   else if (agent.status.state === 'working' && !needsYou(agent)) words.push('working');
-  else if (usageLimited(agent)) words.push('paused');
+  else if (usageLimited(agent) || agent.paused) words.push('paused');
   if (unread) words.push('unread');
   return words.length ? `, ${words.join(', ')}` : '';
 }

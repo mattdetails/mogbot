@@ -189,6 +189,7 @@ import {
   setAgentPaused,
 } from '../../lib/agents';
 import { AgentStarters } from './AgentStarters';
+import { StatusPill } from '../primitives/StatusPill';
 import { BlockReplyContext, type BlockReply } from './blocks/blockReply';
 import { answerAfter } from '../../../packages/companion-protocol/src/blocks';
 import {
@@ -706,6 +707,11 @@ export const AgentChat = memo(function AgentChat({
             ?.scrollIntoView({ block: 'center', behavior: scrollMotion() })
         }
       />
+      {agent.paused && (
+        <StatusPill tone="idle" className="agent-chat__paused">
+          Paused
+        </StatusPill>
+      )}
       {renamingConversation && (
         <RenameConversation
           agentId={agent.id}

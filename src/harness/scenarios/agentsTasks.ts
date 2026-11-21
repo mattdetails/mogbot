@@ -96,7 +96,12 @@ const scenario = (
 });
 
 /** The sidebar's three task sub lines (DRYRUN-MISSING.md): 5 to do, Idle, 14 to do · Busy. */
-function sidebarRow(id: string, title: string, looksRightWhen: string): Scenario {
+function sidebarRow(
+  id: string,
+  title: string,
+  looksRightWhen: string,
+  paused = false
+): Scenario {
   return {
     id,
     title,
@@ -112,7 +117,7 @@ function sidebarRow(id: string, title: string, looksRightWhen: string): Scenario
           minutesAgo: 3,
           tasks: { toDo: 5, waits: 0 },
         }),
-        agent('mail', 'Mail', { color: 'blue', minutesAgo: 20 }),
+        agent('mail', 'Mail', { color: 'blue', minutesAgo: 20, ...(paused ? { paused: true } : {}) }),
         agent('scout', 'Scout', {
           color: 'orange',
           minutesAgo: 1,
@@ -237,6 +242,20 @@ export const agentsTasksScenarios: Scenario[] = [
       requires: '.agent-menu',
       pausedAgent: true,
     }
+  ),
+  scenario(
+    'header-paused',
+    'the chat header, a paused agent',
+    'Beside the agent’s name a grey “Paused” tag (neutral wash, ordinary ink), the same tag and word the phone uses; nothing amber or red.',
+    undefined,
+    LOAD([], []),
+    { requires: '.agent-chat__paused', pausedAgent: true }
+  ),
+  sidebarRow(
+    'agents-sidebar-row-paused',
+    'Agents sidebar row, a paused agent',
+    'The paused agent’s row says “Paused” in a grey tag in place of its task line; the other rows are unchanged.',
+    true
   ),
   // ---- “＋ Add a task” at the foot of the panel (Designer's G-6) ----
   scenario(
