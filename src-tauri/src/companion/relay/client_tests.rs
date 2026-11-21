@@ -1371,12 +1371,26 @@ async fn live_an_old_phone_holds_its_channel_for_two_minutes() {
     let fingerprint = c.registry.identity().unwrap().fingerprint();
     let (_r, token, _) = c
         .registry
-        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .add(
+            &device(),
+            String::new(),
+            now_ms() as i64,
+            &[],
+            Some("j@x.com".into()),
+        )
         .unwrap();
     let port = loopback(c.clone()).await;
     let link = Arc::new(Link::default());
     let (_stop_tx, stop_rx) = oneshot::channel();
-    tokio::spawn(run(c.clone(), Config { base: worker.clone(), port: Some(port) }, link.clone(), stop_rx));
+    tokio::spawn(run(
+        c.clone(),
+        Config {
+            base: worker.clone(),
+            port: Some(port),
+        },
+        link.clone(),
+        stop_rx,
+    ));
     live_until("the link", Duration::from_secs(10), || {
         link.status().state == RelayState::Connected
     })
@@ -1403,7 +1417,9 @@ async fn live_an_old_phone_holds_its_channel_for_two_minutes() {
         if Instant::now() >= next_app {
             id += 1;
             phone.send(json!({ "t": "ping" })).await;
-            phone.send(json!({ "t": "req", "id": id, "method": "rooms.list", "params": {} })).await;
+            phone
+                .send(json!({ "t": "req", "id": id, "method": "rooms.list", "params": {} }))
+                .await;
             assert_eq!(phone.res(id, Duration::from_secs(5)).await["ok"], true);
             say(&format!("read {id} answered"));
             next_app += Duration::from_secs(15);
@@ -1420,18 +1436,35 @@ async fn live_an_old_phone_holds_its_channel_for_two_minutes() {
 async fn live_serve_for_an_outside_phone() {
     let worker = std::env::var("RELAY_LIVE").expect("RELAY_LIVE=ws://127.0.0.1:8799");
     let file = std::env::var("SERVE_FILE").expect("SERVE_FILE");
-    let secs: u64 = std::env::var("SERVE_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(150);
+    let secs: u64 = std::env::var("SERVE_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(150);
     let (c, stub) = Stub::companion();
     *stub.hosts.lock().unwrap() = vec!["127.0.0.1".into()];
     let fingerprint = c.registry.identity().unwrap().fingerprint();
     let (_r, token, _) = c
         .registry
-        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .add(
+            &device(),
+            String::new(),
+            now_ms() as i64,
+            &[],
+            Some("j@x.com".into()),
+        )
         .unwrap();
     let port = loopback(c.clone()).await;
     let link = Arc::new(Link::default());
     let (_stop_tx, stop_rx) = oneshot::channel();
-    tokio::spawn(run(c.clone(), Config { base: worker.clone(), port: Some(port) }, link.clone(), stop_rx));
+    tokio::spawn(run(
+        c.clone(),
+        Config {
+            base: worker.clone(),
+            port: Some(port),
+        },
+        link.clone(),
+        stop_rx,
+    ));
     live_until("the link", Duration::from_secs(10), || {
         link.status().state == RelayState::Connected
     })
