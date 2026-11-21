@@ -1496,6 +1496,24 @@ export interface SharedFile extends Attachment {
 export const openLocalPath = (agentId: string, path: string, reveal = false) =>
   invoke<'open' | 'reveal'>('agents_open_path', { agentId, path, reveal });
 
+/** What a path in a reply is; mirrors `files::PathKind`. */
+export type PathKind = 'image' | 'file' | 'folder' | 'missing' | 'outside';
+
+/** One path's check; mirrors `files::PathCheck`. `full` only on an image. */
+export interface PathCheck {
+  path: string;
+  kind: PathKind;
+  full?: string;
+}
+
+/**
+ * The paths written in a reply, checked before anyone clicks (at most 64): an
+ * image is drawn in the bubble, a file or folder stays a link, one that isn't
+ * there is muted, and one outside the open allowlist becomes plain text.
+ */
+export const checkPaths = (agentId: string, paths: string[]) =>
+  invoke<PathCheck[]>('agents_check_paths', { agentId, paths });
+
 /**
  * The local path a link in agent prose points at, or null for a web link.
  * `~/x`, `/x`, `file:///x` and a bare relative `report.md` (relative to the

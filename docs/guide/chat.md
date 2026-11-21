@@ -29,6 +29,10 @@ Send something while it is working and it waits its turn. Under your message you
 
 An agent can keep a page for a conversation, like a tracker or a status board. It only sits above the chat if you asked for that. Otherwise it is kept, and the **Page** button in the chat header pins it.
 
+## Files it names
+
+When a reply names a file in the agent's folder or one of your projects, the path is a link: click it to open the file in its usual app (⌘-click shows it in Finder; folders and anything that runs are only ever shown in Finder). A screenshot or picture it names (PNG, JPG, GIF or WebP) also appears under the reply, like a picture it attached; click it to open it. A path that isn't on this Mac any more is grey and struck through ("Not found on this Mac"), and a path anywhere else on your Mac stays plain text, with nothing to click.
+
 ## Drafts to send
 
 When an agent wants to send an email or a Slack reply as you, you get a draft card. Its title says who and where ("Email to Aurelie · Gmail", "Reply to Aurelie", "Reply in #beta · Slack"; Gmail is named only when the app knows your Gmail account). One block holds To, CC and Subject and the exact words, which scroll if they are long; under it, "From <account> · goes out as you" (just "goes out as you" when the app doesn't know the account) and "These exact words go out under your name." The buttons: **Discard** stops it, **Edit** changes the words first (for an email, also CC and Subject), **Draft in Gmail** opens your own Gmail with the draft filled in and sends nothing, and **Send** is your OK.
