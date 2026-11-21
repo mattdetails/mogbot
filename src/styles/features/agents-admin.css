@@ -57,29 +57,19 @@
   color: var(--text-secondary);
 }
 
-/* Recently deleted: one card with its full border and a 12px radius at all
-   four corners; its rows have the same 12px inside, so the first row never
-   touches the top edge, and no hairlines between them (the fill and the
-   hover change only). The card keeps the group's surface. */
-.settings-group > .agent-admin-deleted {
-  gap: 0;
-  margin: 0;
-  padding: 0 var(--spacing-md);
-  border: var(--border-width-default) solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--settings-card-surface);
-}
-
-.settings-group .agent-admin-deleted > .settings-row {
-  padding: var(--spacing-md) 0;
-}
-
-.settings-group .agent-admin-deleted > .settings-row::before {
+/* Recently deleted is the same card as Admins above it (the group's card:
+   inset, surface, radius, no border). Its rows take the group's own spacing,
+   so they start where Admins' rows do. Rows get no hairline between them. */
+.settings-group .agent-admin-deleted > .settings-row::before,
+.settings-group .agent-admin-deleted > .settings-row + .settings-row::before {
   display: none;
 }
 
-.settings-group .agent-admin-deleted > .settings-row + .settings-row {
-  border-top: 0;
+/* A list or an empty line in a card is not a row: it takes no hairline across
+   its top (the group draws one above every non-row child). */
+.settings-group .settings-section > .agent-admin-activity::before,
+.settings-group .settings-section > .agent-admin-settings__empty::before {
+  display: none;
 }
 
 .agent-admin-activity__who {

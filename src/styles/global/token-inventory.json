@@ -6034,7 +6034,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 225
+      "consumerCount": 224
     },
     {
       "name": "--border-strong",
@@ -6066,7 +6066,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 385
+      "consumerCount": 384
     },
     {
       "name": "--border-width-emphasis",
@@ -6994,7 +6994,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 695
+      "consumerCount": 693
     },
     {
       "name": "--spacing-lg",
@@ -7066,7 +7066,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 83
+      "consumerCount": 82
     },
     {
       "name": "--radius-pill",
@@ -7690,7 +7690,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 225
+      "consumerCount": 224
     },
     {
       "name": "--border-strong",
