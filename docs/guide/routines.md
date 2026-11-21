@@ -70,6 +70,24 @@ Full Disk Access). The app shows you the way there and checks again until it's o
 What arrives through a "When…" routine (an email, a text, a comment) counts as text from outside,
 so the agent works on it carefully: see [Independence](independence.md).
 
+## A cap per agent
+
+So routines can't quietly use up your week, you can cap what one agent's routines may use: "pause
+its routines once it has used 2M tokens this week". It's off until you set it.
+
+- Set it in the agent's settings (**Edit agent → Usage → Routines cap**), or tell the Chief: "pause
+  Research's routines after 2M tokens a week".
+- It's counted in **tokens**, as the engine reports them. Engines don't report a per-agent share of
+  your plan's limit or a price you pay, so the cap isn't a percent or a dollar figure.
+- "This week" is today and the 6 days before, the same figure as **This week** on its Usage tab.
+- Past the cap, its scheduled and "When…" routines don't start. Each skipped run says so in **Past
+  runs**, and one line in the agent's chat tells you, with how to lift it.
+- **Your own messages to it still run**, and so do **Run now** and one-time reminders. The cap is
+  only for work nobody started.
+- It lifts by itself as older days leave the week (the Usage tab says which day), or straight away
+  if you raise or clear it. The Chief can lower it any time; raising or clearing it asks you first
+  unless you asked for it yourself.
+
 ## Quiet hours
 
 Tell the Chief "quiet hours 10pm to 7am". Inside them, nothing scheduled fires, except a routine

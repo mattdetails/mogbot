@@ -26,7 +26,7 @@ import { IconButton } from '../primitives/IconButton';
 import { TextArea } from '../primitives/TextField';
 import { ComposerAttachments, ComposerQuotes } from './AgentAttachments';
 import { ComposerRevising } from './AgentResult';
-import { ComposerEditing } from './AgentGoBack';
+import { ComposerEditing, type UndoCode } from './AgentGoBack';
 import { ReplyLine } from './ReplyChip';
 import type { ReplyRef } from '../../lib/replyTo';
 import { AgentSecretHint } from './AgentSecretHint';
@@ -83,6 +83,8 @@ interface AgentComposerProps {
   /** Editing a sent message (Edit and resend): its words as sent, or null. */
   editing?: string | null;
   onCancelEditing?: () => void;
+  /** While editing: undoing the code in its copy too, when the Mac offers it. */
+  editingCode?: UndoCode;
   /** Mid-turn: what's sent waits for the next one. */
   busy: boolean;
   /** Working, not just holding a card open: Stop is offered. */
@@ -189,6 +191,7 @@ export const AgentComposer = memo(function AgentComposer({
   onCancelReplying,
   editing = null,
   onCancelEditing,
+  editingCode,
   busy,
   working,
   onEscape,
@@ -329,7 +332,7 @@ export const AgentComposer = memo(function AgentComposer({
     >
       {mentionPicker.menu}
       <ReplyLine replying={replying} onCancel={() => onCancelReplying?.()} />
-      <ComposerEditing text={editing} onCancel={() => onCancelEditing?.()} />
+      <ComposerEditing text={editing} code={editingCode} onCancel={() => onCancelEditing?.()} />
       <ComposerRevising revising={revising} onRemove={onClearRevising} />
       <ComposerQuotes quotes={quotes} onRemove={onRemoveQuote} />
       <ComposerAttachments items={staged} onRemove={onRemoveStaged} />

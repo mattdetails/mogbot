@@ -529,6 +529,18 @@ pub(super) async fn drain_turns(app: &AppHandle, agent_id: &str, progressed: &mu
                 m.tree = Some(tree.clone());
             });
         }
+        // Where its copy stood, for going back in the code too
+        // (`rewind_code`). Once per turn, before any attempt: a pick-up
+        // after a cut-off turn keeps the point its first start noted.
+        if let (Ok(Some((copy, _))), Some((dir, tree)), 0) = (&prepared, &start, resume) {
+            let messages = read_mark(&agent_id).map(|m| m.batch).unwrap_or_default();
+            let here = store::get(&agent_id)
+                .map(|a| super::conversations::loaded(&a).to_string())
+                .ok();
+            if let (Some(here), true) = (here, dir == std::path::Path::new(&copy.path)) {
+                super::rewind_code::note(&agent_id, &here, &messages, copy, tree).await;
+            }
+        }
         let since = store::now_ms();
         super::work::begin(&agent_id, since);
         // A bound agent works in its project (its copy is the project's).

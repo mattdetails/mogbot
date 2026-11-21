@@ -1633,6 +1633,8 @@ const CONVERSATIONS = {
   agents_conversation_rename: () => several('acme', now),
   agents_conversation_rewind: () => several('acme', now),
   agents_conversation_fork: () => several('acme', now),
+  // No point known before these messages: no "Also undo the code" option.
+  agents_conversation_code_offer: () => null,
 };
 
 /**
@@ -1680,6 +1682,20 @@ const withLaunch = (
 const GO_BACK = {
   ...CONVERSATIONS,
   agents_overview: acmeWith({ status: status('idle'), conversations: { loaded: 'c-launch' } }),
+};
+/**
+ * Going back in the code too (`agents/rewind_code.rs`): Acme works in its
+ * own copy of acme-site, and the Mac knows where the copy stood before the
+ * message, with two saved changes since.
+ */
+const GO_BACK_CODE = {
+  ...GO_BACK,
+  agents_overview: acmeWith({
+    status: status('idle'),
+    project: '/Users/sam/ShipStudio/acme-site',
+    conversations: { loaded: 'c-launch' },
+  }),
+  agents_conversation_code_offer: () => ({ project: 'acme-site', commits: 2, unsaved: false }),
 };
 /**
  * Issue #10: a long message of yours fills the column, so its "…" sits at the
@@ -2431,7 +2447,7 @@ export const agentsScenarios: Scenario[] = [
     id: 'agents-mascot-fullscreen',
     title: 'Agents — full screen: the mascot in the traffic lights’ place',
     looksRightWhen:
-      'The window is in full screen, so there are no traffic lights. The top row of the sidebar shows the app’s mark as a small grey mascot, centred in the room the lights would take, its two eye slots looking right toward the bell (an agent needs you), with the sidebar toggle and the bell where they always are. Nothing overlaps; the row is otherwise unchanged.',
+      'The window is in full screen, so there are no traffic lights. The top row of the sidebar shows a small flat cream keycap with the app’s mark in dark ink on it, in a 30px box like the row’s buttons, right before the sidebar toggle; its two cream eye slots look right toward the bell and a small amber dot sits on the key’s top-right corner (an agent needs you), with the sidebar toggle and the bell where they always are. Nothing overlaps; the row is otherwise unchanged.',
     command: 'agents.open',
     requires: '.sidebar-mascot',
     commands: {
@@ -3039,6 +3055,40 @@ export const agentsScenarios: Scenario[] = [
         week: totals(14, 412_000, 3.81, 22),
         allTime: totals(161, 5_930_000, 47.2, 274),
         routines: [{ id: 'ci2', week: totals(3, 96_000, 0.84, 4) }],
+      },
+    },
+  },
+  {
+    id: 'agents-edit-routine-cap',
+    title: 'Agents — a routines cap, reached, on the Usage tab',
+    looksRightWhen:
+      'On the Chief’s Usage tab, under the Usage card, a “Routines cap” card: “Pause its routines after” with a quiet “2M tokens” menu at its right, then This week · “Reached: 2.1M of 2M tokens this week. Its routines don’t start. They start again on <a weekday> if nothing more runs.” Under the card, one muted footnote saying it is in tokens as the engine reports them, that your own messages, Run now and one-time reminders still run, and that it lifts as older days leave the week. No percent and no dollar figure anywhere in the card.',
+    openSelector: AGENTS_TAB,
+    requires: '[aria-labelledby="settings-group-agent-routine-cap"]',
+    clipSelector: '.agent-sheet',
+    steps: [
+      { click: '.agent-chat__menu [aria-label^="Actions for"]' },
+      { click: '[role="menuitem"]', text: 'Edit agent' },
+      { click: '.agent-sheet__tabs [data-tab-value="usage"]' },
+    ],
+    commands: {
+      agents_overview: overview(
+        TEAM.map((a) =>
+          a.id === 'chief' ? { ...a, routineCap: { tokens: 2_000_000, reachedAt: 1 } } : a
+        )
+      ),
+      agents_messages: messagesFor,
+      agents_instructions: 'Keep the team moving.',
+      agents_usage: {
+        week: totals(31, 2_100_000, 19.4, 58),
+        allTime: totals(161, 5_930_000, 47.2, 274),
+        routines: [{ id: 'ci2', week: totals(24, 1_700_000, 15.1, 40) }],
+        routineCap: {
+          tokens: 2_000_000,
+          used: 2_100_000,
+          reached: true,
+          liftsOn: new Date(Date.now() + 4 * 86_400_000).toISOString().slice(0, 10),
+        },
       },
     },
   },
@@ -4418,6 +4468,49 @@ export const agentsScenarios: Scenario[] = [
       { click: '[role="menuitem"]', text: 'Rewind to here' },
     ],
     commands: GO_BACK,
+  },
+  {
+    id: 'agents-go-back-confirm-code',
+    title: 'Agents — Rewind to here?, with the code option for a copy',
+    looksRightWhen:
+      'The “Rewind to here?” dialog for Acme Site, bound to acme-site. The body still says files aren’t undone and “Its copy of acme-site keeps its changes too: use Discard on its changes card to drop them.” Under it, an unticked checkbox “Also undo the code changes since then” and, muted beneath, “Its copy of acme-site goes back to how it was before this message (2 saved changes). What’s undone is kept in git, not deleted. Anything it sent isn’t undone.” Then Cancel and a neutral Rewind; nothing in accent.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-go-back__code',
+    steps: [
+      { click: '[data-agent-id="acme"]' },
+      { click: '.agent-chat__row--user [aria-label="Go back to here"]' },
+      { click: '[role="menuitem"]', text: 'Rewind to here' },
+    ],
+    commands: GO_BACK_CODE,
+  },
+  {
+    id: 'agents-go-back-confirm-code-picked',
+    title: 'Agents — Rewind to here?, also undoing the code',
+    looksRightWhen:
+      'As the code option scenario, with “Also undo the code changes since then” ticked. The body now ends after “…folded, not deleted.”: it no longer says files aren’t undone or that the copy keeps its changes, since the line under the checkbox says what happens to the code. Cancel and a neutral Rewind.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-go-back__code input:checked',
+    steps: [
+      { click: '[data-agent-id="acme"]' },
+      { click: '.agent-chat__row--user [aria-label="Go back to here"]' },
+      { click: '[role="menuitem"]', text: 'Rewind to here' },
+      { click: '.agent-go-back__code' },
+    ],
+    commands: GO_BACK_CODE,
+  },
+  {
+    id: 'agents-go-back-editing-code',
+    title: 'Agents — editing a sent message, with the code option for a copy',
+    looksRightWhen:
+      'Over the composer, the “Editing your message…” bar, and under it an unticked checkbox “Also undo the code changes since then” with its muted line “Its copy of acme-site goes back to how it was before this message (2 saved changes)…”. The composer holds the message’s words.',
+    openSelector: AGENTS_TAB,
+    requires: '.agent-go-back__editing .agent-go-back__code',
+    steps: [
+      { click: '[data-agent-id="acme"]' },
+      { click: '.agent-chat__row--user [aria-label="Go back to here"]' },
+      { click: '[role="menuitem"]', text: 'Edit and resend' },
+    ],
+    commands: GO_BACK_CODE,
   },
   {
     id: 'agents-go-back-editing',

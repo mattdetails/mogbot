@@ -96,11 +96,19 @@
   flex-direction: column;
 }
 
-.mode-toggle-row .side-by-side-toggle {
+/* The split-view button: in the Agents sidebar's top row, the toggle and the
+   bell's size (sidebar.css), one for the window. */
+.workspace-sidebar-top-row .side-by-side-toggle {
   flex: 0 0 auto;
-  height: var(--size-control-medium);
-  min-height: var(--size-control-medium);
-  width: var(--size-control-medium);
+}
+
+/* The collapsed rail stacks the row's buttons; it is one of them. */
+.workspace-sidebar.is-hidden .side-by-side-toggle {
+  width: var(--control-height-standard);
+  min-width: var(--control-height-standard);
+  height: var(--control-height-standard);
+  flex: 0 0 var(--control-height-standard);
+  padding: 0;
 }
 
 /* Terminals only (WorkspaceDock `terminalsOnly`): the preview column stays

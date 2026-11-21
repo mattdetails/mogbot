@@ -246,3 +246,106 @@ fn moving_a_tab_restarts_it_with_its_conversation() {
     assert_eq!(n.prompt.as_deref(), Some(CONTINUE));
     assert_eq!(n.line, "Continuing on Work…");
 }
+
+/* ------------------------------------- the 5-hour and weekly figures, the offer */
+
+fn window(kind: &str, used: f64, resets_in_ms: i64) -> crate::agents::quota::QuotaWindow {
+    crate::agents::quota::QuotaWindow {
+        kind: kind.into(),
+        used_percent: Some(used),
+        resets_at: Some(now() + resets_in_ms),
+        window_minutes: None,
+        limited: false,
+        observed_at: now(),
+    }
+}
+
+fn pace(kind: &str, reaches_in_ms: i64, resets_in_ms: i64) -> crate::agents::forecast::Pace {
+    crate::agents::forecast::Pace {
+        estimate: true,
+        kind: kind.into(),
+        resets_at: now() + resets_in_ms,
+        reaches_at: now() + reaches_in_ms,
+        readings: 4,
+        span_minutes: 40,
+    }
+}
+
+const HOUR: i64 = 60 * 60 * 1000;
+
+#[test]
+fn each_account_says_its_5_hour_and_weekly_room_apart() {
+    let mut work = line("a", "Work");
+    work.windows = vec![
+        window("five_hour", 60.0, 2 * HOUR),
+        window("seven_day", 39.0, 72 * HOUR),
+    ];
+    let view = view_of(&[work, line("b", "Personal")], Some("a"), &Utc, now());
+    assert_eq!(view.accounts[0].session_left, Some(40));
+    assert_eq!(view.accounts[0].week_left, Some(61));
+    // The one figure is still the tighter one.
+    assert_eq!(view.accounts[0].left_percent, Some(40));
+    assert_eq!(view.accounts[1].session_left, None);
+}
+
+fn nearly_out_work() -> crate::agents::inventory::AccountLine {
+    let mut work = line("a", "Work");
+    work.windows = vec![window("five_hour", 80.0, 3 * HOUR)];
+    work.pace = vec![pace("five_hour", HOUR, 3 * HOUR)];
+    work
+}
+
+fn roomy(id: &str, name: &str, used: f64) -> crate::agents::inventory::AccountLine {
+    let mut l = line(id, name);
+    l.windows = vec![window("five_hour", used, 4 * HOUR)];
+    l
+}
+
+#[test]
+fn a_run_out_before_the_refill_offers_the_roomiest_other_account() {
+    let lines = [
+        nearly_out_work(),
+        roomy("b", "Personal", 50.0),
+        roomy("c", "Spare", 10.0),
+    ];
+    let s = suggestion_of(&lines, Some("a"), &Utc, now()).expect("an offer");
+    assert!(s.estimate);
+    assert_eq!(s.to_id, "c");
+    assert!(s.line.starts_with("At this pace Work runs out at "));
+    assert!(s
+        .line
+        .contains("before its 5-hour limit refills (an estimate)"));
+    assert!(s.line.ends_with("Spare has 90% left."));
+    // And the chip carries it.
+    assert!(view_of(&lines, Some("a"), &Utc, now()).suggest.is_some());
+}
+
+#[test]
+fn no_offer_below_75_used_or_when_it_lasts_until_the_refill() {
+    let mut light = nearly_out_work();
+    light.windows = vec![window("five_hour", 60.0, 3 * HOUR)];
+    let other = roomy("b", "Personal", 10.0);
+    assert!(suggestion_of(&[light, other.clone()], Some("a"), &Utc, now()).is_none());
+
+    let mut lasts = nearly_out_work();
+    lasts.pace = vec![pace("five_hour", 4 * HOUR, 3 * HOUR)];
+    assert!(suggestion_of(&[lasts, other.clone()], Some("a"), &Utc, now()).is_none());
+
+    let mut no_pace = nearly_out_work();
+    no_pace.pace.clear();
+    assert!(suggestion_of(&[no_pace, other], Some("a"), &Utc, now()).is_none());
+}
+
+#[test]
+fn no_offer_without_a_roomy_other_account() {
+    let tight = roomy("b", "Personal", 80.0);
+    assert!(suggestion_of(&[nearly_out_work(), tight], Some("a"), &Utc, now()).is_none());
+    let mut same = roomy("b", "Personal", 0.0);
+    same.same_as = Some("Work".into());
+    assert!(suggestion_of(&[nearly_out_work(), same], Some("a"), &Utc, now()).is_none());
+    let mut out = roomy("b", "Personal", 0.0);
+    out.out = true;
+    assert!(suggestion_of(&[nearly_out_work(), out], Some("a"), &Utc, now()).is_none());
+    let unread = line("b", "Personal");
+    assert!(suggestion_of(&[nearly_out_work(), unread], Some("a"), &Utc, now()).is_none());
+}

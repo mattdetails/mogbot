@@ -16,6 +16,7 @@ import { useEffect, useRef, useCallback, useState, forwardRef, useImperativeHand
 import { Terminal as XTerm } from '@xterm/xterm';
 import { createWebLinksAddon } from '../../lib/terminalLinks';
 import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { attachWebglRenderer } from '../../lib/terminalWebgl';
 import {
@@ -77,6 +78,7 @@ import {
 } from './startupWatchdog';
 import { createTerminalOptions, followAppTheme } from './terminalTheme';
 import { TabAccountBar } from './TabAccountBar';
+import { TerminalFindBar } from './TerminalFindBar';
 import {
   onTabAccountNotice,
   settleTabAccount,
@@ -149,6 +151,8 @@ export interface TerminalHandle {
   fit: () => void;
   /** Restart on another account with the conversation (the account chip). */
   switchAccount?: (notice: TabAccountNotice) => void;
+  /** Open find in this terminal's scrollback (⌘F). */
+  openFind?: () => void;
 }
 
 export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Terminal(
@@ -188,6 +192,12 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
   const restartRequestedRef = useRef(false);
   const [isReady, setIsReady] = useState(false);
   const [isFocused, setIsFocused] = useState(false); // Start unfocused to show overlay until user clicks
+  // Find in the scrollback: the addon lives with the terminal; while the bar
+  // is open it is held here too (null: closed), taken as find opens.
+  const searchAddonRef = useRef<SearchAddon | null>(null);
+  const [finding, setFinding] = useState<SearchAddon | null>(null);
+  // Each ⌘F, even with the bar open, puts the cursor back in its field.
+  const [findAsked, setFindAsked] = useState(0);
   // The tab's account ran out of usage (lib/tabAccounts): the bar's notice,
   // the restart onto the next account (set by the spawn effect, which owns
   // the PTY), and the continue prompt that restart carries.
@@ -270,6 +280,8 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
     if (terminalRef.current) {
       terminalRef.current.dispose();
       terminalRef.current = null;
+      searchAddonRef.current = null;
+      setFinding(null);
     }
   }, []);
 
@@ -449,6 +461,9 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
     term.loadAddon(fitAddon);
     term.loadAddon(unicode11Addon);
     term.loadAddon(createWebLinksAddon());
+    const search = new SearchAddon();
+    term.loadAddon(search);
+    searchAddonRef.current = search;
     term.unicode.activeVersion = '11';
 
     // Open terminal in container
@@ -1369,6 +1384,10 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
         if (run && attachedRef.current) run(notice);
         else pendingSwitchRef.current = notice;
       },
+      openFind: () => {
+        setFinding(searchAddonRef.current);
+        setFindAsked((n) => n + 1);
+      },
       fit: () => {
         if (fitAddonRef.current && terminalRef.current && ptyRef.current) {
           fitAddonRef.current.fit();
@@ -1428,6 +1447,16 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>(function Termi
           cursor: 'text',
         }}
       />
+      {finding && (
+        <TerminalFindBar
+          finder={finding}
+          focusRequest={findAsked}
+          onClose={() => {
+            setFinding(null);
+            terminalRef.current?.focus();
+          }}
+        />
+      )}
       {accountNotice && (accountNotice.kind === 'allOut' || accountNotice.ask) && (
         <TabAccountBar
           notice={accountNotice}

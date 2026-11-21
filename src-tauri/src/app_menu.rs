@@ -56,11 +56,18 @@ pub struct MenuState {
     pub conversation: bool,
     /// The Go menu's flip between the two halves of the app.
     pub toggle_label: &'static str,
+    /// Edit → ⌘F: searches conversations in Agents, finds in the terminal
+    /// in a project; greyed out elsewhere.
+    pub find: bool,
+    pub find_label: &'static str,
     /// ⌘1…⌘n's names, cut to one short line each.
     pub go_to: Vec<String>,
 }
 
 const MAX_LABEL: usize = 40;
+
+const SEARCH_CONVERSATIONS: &str = "Search Conversations…";
+const FIND_IN_TERMINAL: &str = "Find in Terminal…";
 
 fn short(label: &str) -> String {
     let line = label.lines().next().unwrap_or_default().trim();
@@ -85,6 +92,12 @@ pub fn menu_state(ctx: &MenuContext) -> MenuState {
             "Switch to Projects"
         } else {
             "Switch to Agents"
+        },
+        find: in_agents || in_workspace,
+        find_label: if in_workspace {
+            FIND_IN_TERMINAL
+        } else {
+            SEARCH_CONVERSATIONS
         },
         go_to: if in_app {
             ctx.go_to
@@ -124,7 +137,7 @@ mod mac {
     };
     use tauri::{AppHandle, Emitter, Manager, Wry};
 
-    use super::{MenuState, ACTION_EVENT, GO_TO_SLOTS};
+    use super::{MenuState, ACTION_EVENT, GO_TO_SLOTS, SEARCH_CONVERSATIONS};
     use crate::brand;
 
     /// The items that change with where you are.
@@ -277,7 +290,7 @@ mod mac {
             .build()?;
 
         // ── Edit
-        let find = item(app, "find", "Search Conversations…", Some("CmdOrCtrl+F"))?;
+        let find = item(app, "find", SEARCH_CONVERSATIONS, Some("CmdOrCtrl+F"))?;
         let edit_menu = SubmenuBuilder::new(app, "Edit")
             .undo()
             .redo()
@@ -436,14 +449,11 @@ mod mac {
         let Some(live) = LIVE.get() else { return };
         let _ = live.toggle.set_text(state.toggle_label);
         let _ = live.toggle.set_enabled(state.in_app);
-        for agents_only in [
-            &live.next_needing,
-            &live.prev_agent,
-            &live.next_agent,
-            &live.find,
-        ] {
+        for agents_only in [&live.next_needing, &live.prev_agent, &live.next_agent] {
             let _ = agents_only.set_enabled(state.in_agents);
         }
+        let _ = live.find.set_text(state.find_label);
+        let _ = live.find.set_enabled(state.find);
         let _ = live.new_conversation.set_enabled(state.conversation);
         let _ = live.close_tab.set_enabled(state.in_workspace);
         let _ = live.capture.set_enabled(state.preview);
@@ -561,6 +571,19 @@ mod tests {
         let s = menu_state(&ctx("projects"));
         assert!(!s.in_agents && s.in_app);
         assert_eq!(s.toggle_label, "Switch to Agents");
+    }
+
+    #[test]
+    fn find_searches_conversations_in_agents_and_the_terminal_in_a_project() {
+        let s = menu_state(&ctx("agents"));
+        assert!(s.find);
+        assert_eq!(s.find_label, SEARCH_CONVERSATIONS);
+        let s = menu_state(&ctx("workspace"));
+        assert!(s.find);
+        assert_eq!(s.find_label, FIND_IN_TERMINAL);
+        let s = menu_state(&ctx("projects"));
+        assert!(!s.find);
+        assert!(!menu_state(&ctx("other")).find);
     }
 
     #[test]

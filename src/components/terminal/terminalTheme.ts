@@ -1,4 +1,5 @@
 import type { ITheme, ITerminalOptions, Terminal } from '@xterm/xterm';
+import type { ISearchDecorationOptions } from '@xterm/addon-search';
 import { getResolvedTheme, subscribeTheme, type ResolvedTheme } from '../../lib/theme';
 
 export type TerminalThemeVariant = 'normal' | 'onboarding' | 'build' | 'logs' | 'connection';
@@ -109,6 +110,35 @@ const TERMINAL_VARIANT_THEME: Record<
   dark: { normal: {}, onboarding: {}, build: {}, logs: { background: '#1c1b19' }, connection: {} },
   light: { normal: {}, onboarding: {}, build: {}, logs: { background: '#fdfcfa' }, connection: {} },
 };
+
+/*
+ * Find in the terminal: every match a quiet amber wash, the current one a
+ * stronger amber with a border, so it can be told apart without colour too.
+ * Also at the xterm API boundary (the search addon takes #RRGGBB only).
+ */
+const TERMINAL_SEARCH_COLORS: Record<ResolvedTheme, ISearchDecorationOptions> = {
+  dark: {
+    matchBackground: '#4d3f17',
+    matchOverviewRuler: '#a3812a',
+    activeMatchBackground: '#7a5f14',
+    activeMatchBorder: '#e5b93a',
+    activeMatchColorOverviewRuler: '#e5b93a',
+  },
+  light: {
+    matchBackground: '#f6e7b0',
+    matchOverviewRuler: '#c99a1c',
+    activeMatchBackground: '#f0cd5e',
+    activeMatchBorder: '#9a6200',
+    activeMatchColorOverviewRuler: '#9a6200',
+  },
+};
+
+/** How find marks matches in a terminal (default: the theme currently painted). */
+export function terminalSearchColors(
+  theme: ResolvedTheme = getResolvedTheme()
+): ISearchDecorationOptions {
+  return TERMINAL_SEARCH_COLORS[theme];
+}
 
 /** The xterm palette for a variant on a theme (default: the theme currently painted). */
 export function terminalTheme(

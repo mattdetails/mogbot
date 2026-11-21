@@ -409,11 +409,13 @@ impl Backend for DesktopBackend {
         message_id: &str,
     ) -> Result<Value, CommandError> {
         json(
+            // The phone doesn't offer undoing the code: its copy keeps it.
             cmd::agents_conversation_rewind(
                 self.app.clone(),
                 agent_id.to_string(),
                 id.to_string(),
                 message_id.to_string(),
+                None,
             )
             .await?,
         )
@@ -662,6 +664,7 @@ impl Backend for DesktopBackend {
             engine: toggles.engine,
             model: toggles.model,
             routine_model: None,
+            routine_cap: None,
             effort: toggles.effort,
             project: None,
             work_directly: None,

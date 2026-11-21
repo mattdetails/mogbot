@@ -213,9 +213,18 @@ export function DeleteRow({ label, onDelete }: { label: string; onDelete: () => 
 /**
  * The Usage tab: this week and all time as its engine reported them, then
  * how full its conversation is, only when the engine said. Nothing invented
- * before a turn has run.
+ * before a turn has run. `cap` is its routines cap (`AgentRoutineCap`),
+ * shown even before anything has run, so a cap can be set up front.
  */
-export function UsagePage({ usage, agent }: { usage: UsageSummary | null; agent: Agent }) {
+export function UsagePage({
+  usage,
+  agent,
+  cap,
+}: {
+  usage: UsageSummary | null;
+  agent: Agent;
+  cap?: ReactNode;
+}) {
   // On a Claude plan a dollar figure is a list price, not the bill: tokens instead.
   const onPlan = onClaudePlan(useQuotaLines());
   const week = usage && formatUsage(usage.week, onPlan);
@@ -226,10 +235,13 @@ export function UsagePage({ usage, agent }: { usage: UsageSummary | null; agent:
     !onPlan && t && t.pricedTurns + (t.pricedChecks ?? 0) > 0 ? COST_BASIS_NOTE : undefined;
   if (!allTime && !context) {
     return (
-      <p className="agent-sheet__empty">
-        Nothing yet. What {agent.name} uses shows here after its first reply, as{' '}
-        {ENGINE_LABEL[agent.engine]} reports it.
-      </p>
+      <div className="agent-sheet__groups">
+        <p className="agent-sheet__empty">
+          Nothing yet. What {agent.name} uses shows here after its first reply, as{' '}
+          {ENGINE_LABEL[agent.engine]} reports it.
+        </p>
+        {cap}
+      </div>
     );
   }
   const note = priced(usage?.week) ?? priced(usage?.allTime);
@@ -252,6 +264,7 @@ export function UsagePage({ usage, agent }: { usage: UsageSummary | null; agent:
           </Row>
         </Group>
       )}
+      {cap}
       {context && (
         <Group id="agent-context" title="This conversation">
           <Row label="Conversation">

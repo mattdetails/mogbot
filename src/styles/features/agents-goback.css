@@ -137,6 +137,41 @@
   align-items: center;
 }
 
+/* "Also undo the code changes since then": the confirm's and the Edit bar's. */
+.agent-go-back__code {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+}
+
+.agent-go-back__confirm .agent-go-back__code {
+  padding: var(--spacing-md) var(--spacing-xl) 0;
+}
+
+.agent-go-back__editing {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+}
+
+.agent-go-back__editing .agent-go-back__code {
+  padding: 0 var(--spacing-2xs);
+}
+
+.agent-go-back__code-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3xs);
+  font-size: var(--font-size-body-sm);
+  color: var(--text-primary);
+}
+
+.agent-go-back__code-line {
+  line-height: var(--line-height-help);
+  color: var(--text-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .agent-go-back__summary .agent-go-back__chevron {
     transition: none;

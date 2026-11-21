@@ -640,7 +640,40 @@ carries the same conversation on from just before it.
 - **What isn't undone** is said in the confirm and the line: files the agent
   changed and anything it sent. A project-bound agent's copy keeps its
   changes; the confirm points at its changes card's Discard.
-- Commands: `agents_conversation_rewind`, `agents_conversation_fork`; phone
+- **Going back in the code too** (`agents/rewind_code.rs`, desk only). The
+  Rewind confirm and the Edit bar offer **Also undo the code changes since
+  then**, unticked, with a line saying what goes back ("Its copy of
+  acme-site goes back to how it was before this message (2 saved changes).
+  What's undone is kept in git, not deleted. Anything it sent isn't
+  undone."). Ticked, the line in the chat says so in place of "Files it
+  changed… aren't undone". Where it comes from: at the start of every turn
+  in a copy (before any attempt, not again on a pick-up) the app notes the
+  copy's commit with the turn's messages and conversation
+  (`code_points.jsonl`, at most 400), and only when that commit *is* the
+  copy: on its own branch, nothing in progress, and the working tree's
+  snapshot (the change card's) the same tree. A turn that started with
+  unsaved work notes no commit; turns from before this build noted nothing;
+  a commit is never guessed by time. It is offered
+  (`agents_conversation_code_offer`) only for the turn whose batch starts
+  with that message (as `rewind::plan`), in the copy it was noted in (still
+  the conversation's open copy: not kept, discarded or remade), when no
+  other conversation has worked in that copy since (they share it), and
+  when something changed since. Restoring (`restore`, under the project's
+  lock, refused while a turn runs or the user drives the agent, like Keep
+  and Discard) checks again that the copy is still a worktree locked as this
+  agent's, on its own branch, with no merge or rebase in progress and the
+  noted commit still in its history; then commits what's unsaved (the turn's
+  end commit: secrets and big files stay out), keeps the copy's latest
+  commit under `refs/rewound/<copy id>/<ms>` (no branch list shows it), and
+  resets the copy's branch to the noted commit. Files git never had stay as
+  they are, and the line names them. Discard removes those refs with the
+  copy; Keep and cleanup leave them. Any refusal changes nothing, the chat
+  included: the rewind's own checks run first (`rewind::check`). Fork never
+  undoes code: the conversation it leaves stays as it was, and shares the
+  copy. The phone sends no `undoCode`, so its rewind keeps the code as
+  before.
+- Commands: `agents_conversation_rewind` (`undoCode`, optional),
+  `agents_conversation_code_offer`, `agents_conversation_fork`; phone
   `agents.conversationRewind`, `agents.conversationFork`.
 
 **Context meter.** `agents/context.rs` stores one reading per agent
@@ -5826,6 +5859,74 @@ older Mac doesn't list it in `welcome.methods`). Wording lives once in
 - Not verified against live accounts: a real nudge firing near a real
   reset, Codex's `planType` on a signed-in account, LM Studio's model list.
 
+## A routines cap per agent (`agents/routine_cap.rs`)
+
+Answers: **can a routine quietly eat the week's limit?** Not past a cap the
+user set. Per agent, off by default: "Pause its routines once it has used
+2M tokens this week".
+
+**The unit is tokens, as the engines reported them**, because that is the
+only per-agent figure every engine reports for every turn and "When…" check
+(Claude Code, Codex and OpenCode; `usage`). Not a dollar figure (Codex and
+OpenCode report none, and Claude Code's is at API list prices, not a plan's
+bill), and not a share of a plan's weekly limit: engines report limits per
+account in percent, never per agent, and what a token is worth of a limit is
+only learned, an upper-side estimate that often isn't known at all
+(`forecast::rate`). So the cap is never offered or said as a percentage. The
+Chief, asked for "20% of my weekly limit", says so and suggests a token figure
+from `usage_overview`.
+
+**"This week" is the agent's own week as its Usage tab counts it**: today and
+the six days before, turns and checks together (`AgentUsage::summary`), the
+same figure shown beside the control. It has no refill moment of its own: it
+falls back under the cap as each day's use leaves the week, and
+`routine_cap::lifts_on` names the day that happens if nothing more runs (the
+Usage tab: "They start again on Tue if nothing more runs"). The plan's own
+limits refill on the engine's clock; that is what the Saver holds for, a
+separate thing.
+
+**What it stops** (`routine_cap::stops`, `Work`): only unattended work.
+
+- A repeating routine coming due (`schedule::skip_over_cap`, from the minute
+  tick): it moves on to its next time with a "Skipped" row ("Skipped: past
+  its routines cap (2.1M of 2M tokens this week)."), as a routine due while
+  the user drives the agent does; a pending retry is moot. A routine past the
+  cap isn't held by the Saver: it is skipped, not waited.
+- A "When…" routine: not checked meanwhile (a check can be a model call),
+  so nothing fires; one "Skipped" row each time the cap is reached
+  (`watch::note_capped`, from `RoutineCap::reached_at`), and whatever arrived
+  is found by its first check after.
+- Still run: the user's own messages (desk, phone, Slack), Run now, Check
+  now, and a one-time check-in (a reminder the user set for a moment). The
+  control says so.
+
+**Said once each way** (`routine_cap::settle`, from the schedule tick): when
+it is reached, one line in the agent's chat with the week's figure, the cap,
+when it lifts on its own, that raising or clearing it lifts it now (its
+settings, Usage), and that the user's messages still run; when it is back
+under (a day left the week, or the cap was raised), one line that its
+routines run again. `reached_at` remembers that it was said and is kept
+across a change of the cap, so raising it past the week says "back under" and
+a change that leaves it reached says nothing new. An agent with no active
+repeating or "When…" routine gets no line.
+
+**Where it is set.** The agent's editor, Usage tab, "Routines cap" (desk;
+`AgentRoutineCap`): Off and a few token presets (a cap set from chat that
+isn't one is listed too), applied at once through `agents_update`
+`routineCap` (0 clears), with where it stands this week under it
+(`UsageSummary.routine_cap`: `used`, `reached`, `liftsOn`). From chat: the
+Chief's `update_agent` `routine_cap` (tokens, "2M", "500k", or "off");
+setting or lowering it applies at once, raising or clearing it is a card
+unless the user's own message asked (more room for unattended work; see
+"Settings from chat"). The phone receives `routineCap` with the agent but has
+no control for it yet, and `agents.update` from the phone doesn't take it.
+
+Tests: `agents/routine_cap_tests.rs` (off by default and old entries load;
+reached stops routines but never the user's messages, Run now or one-time
+reminders; the scheduled skip and its row on a scratch registry; said once
+each way; lifts as days leave the week), `AgentRoutineCap.test.tsx`. Looking
+at it: `pnpm harness` scenario `agents-edit-routine-cap`.
+
 ## Apps agents can use (`src-tauri/src/agents/apps.rs`)
 
 Every turn is a `claude` process, and Claude Code loads the user's MCP servers
@@ -6531,6 +6632,7 @@ are `agents/settings_tools.rs`. Tests: `agents/settings_chat_tests.rs`,
 | When every account of an engine is out | `set_engine_fallback` (Chief) | carry on with the other engine yes; wait / ask first no |
 | Which account turns use now | `use_account` (Chief) | no on the user's own message alone; a standing card otherwise |
 | Account order, rename, add one | `manage_account` (Chief, the user's own message only) | no on their message alone, a card when another agent's request rode with it or the conversation read outside content; adding opens the engine's sign-in on the Mac (`agents-open-settings`), finished by the user there |
+| One agent's routines cap (its Usage tab) | `update_agent` `routine_cap` (Chief): tokens ("2M", 2000000) or "off" | setting or lowering it no; raising or clearing it (more room for unattended work) no on the user's own message alone, a card otherwise |
 | One agent's Runs on | `update_agent` `account` (Chief) | no on the user's own message alone (the editor's "Runs only on Work" line); a card otherwise: which of their accounts it spends |
 | Quiet hours | `set_quiet_hours` (any agent); also Settings → Notifications and the phone (`agents.quietHours` / `agents.setQuietHours`) | no when they hold back as much or more (a check-in setting them from memory); turning them off or leaving part of the current window out is a card unless the user's own message asked |
 | Morning brief | `set_morning_brief` (Chief only); also Settings → Notifications and the phone (`agents.morningBrief` / `agents.setMorningBrief`) | no for its time, on/off and quiet days; adding a read-only check is a card unless the user's own message asked; never from outside text |

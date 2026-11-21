@@ -1078,9 +1078,11 @@ export async function renameConversation(
 export async function rewindConversation(
   agentId: string,
   conversation: string,
-  messageId: string
+  messageId: string,
+  /** Also undo the code changes in its copy since then (`rewind_code`). */
+  undoCode = false
 ): Promise<void> {
-  setConversations(await rewindOnMac(agentId, conversation, messageId));
+  setConversations(await rewindOnMac(agentId, conversation, messageId, undoCode));
 }
 
 /** "Fork from here": the new conversation, opened. */

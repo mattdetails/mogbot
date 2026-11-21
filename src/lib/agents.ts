@@ -247,6 +247,11 @@ export interface Agent {
   effort?: AgentEffort;
   /** What its routines run on (see `routineModelOf`); omitted when automatic. */
   routineModel?: string;
+  /**
+   * Its routines cap (`agents/routine_cap.rs`): tokens this week at which its
+   * scheduled and "When…" routines stop starting. Omitted: no cap.
+   */
+  routineCap?: RoutineCap;
   /** The ready-made agent it was made from (`agentTemplates.ts`), if any. */
   template?: string;
   /** Its first-open starters, until the user sends anything (`agents/starters.rs`). */
@@ -1106,6 +1111,8 @@ export interface UpdateAgentInput {
   account?: string;
   /** "Save new skills": Automatically, Ask me or Off. */
   learnSkills?: LearnSkills;
+  /** Its routines cap in tokens this week; 0 clears it. */
+  routineCap?: number;
 }
 
 /** The model choice that passes no model: whatever the engine itself defaults to. */
@@ -1340,6 +1347,26 @@ export interface UsageSummary {
   allTime: UsageTotals;
   /** Each routine that ran on its own this week. Newer Macs only. */
   routines?: RoutineUsage[];
+  /** Its routines cap against this week, when one is set. */
+  routineCap?: RoutineCapStatus;
+}
+
+/** An agent's routines cap, as stored (`routine_cap::RoutineCap`). */
+export interface RoutineCap {
+  /** Tokens this week (today and the six days before) at which its routines stop. */
+  tokens: number;
+  /** When the app saw it reached and said so in the chat. */
+  reachedAt?: number;
+}
+
+/** The cap against this week, as `agents_usage` reports it. */
+export interface RoutineCapStatus {
+  tokens: number;
+  /** Its tokens this week, as the engines reported them. */
+  used: number;
+  reached: boolean;
+  /** Reached: the day (`YYYY-MM-DD`) it falls back under if nothing more runs. */
+  liftsOn?: string;
 }
 
 /** One routine's week, from turns that ran nothing but it. */

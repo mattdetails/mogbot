@@ -10,6 +10,8 @@ for Codex, or whatever providers you set up in OpenCode. The app doesn't sell or
 
 The row at the bottom of the Agents sidebar shows what you have **left** across your accounts,
 one bar, and when it next refills (for example "72% left · 2 accounts · Refills in 2d 4h").
+When the account in use has a 5-hour limit, the row adds it after the week's figure (for example
+"26% · 5h 40%", both said as used), and the refill moves into the row's tooltip.
 Click it for the full view, also in **Settings → Accounts & usage**.
 
 - Figures are only what the engine reports. The app never estimates a reading. If an account
@@ -29,6 +31,9 @@ Click it for the full view, also in **Settings → Accounts & usage**.
 
 Limits come back by themselves. The app calls that the **refill**. When an account runs out, the
 chat shows a quiet line with when it refills and a **Retry** button.
+
+To keep one agent's routines from using too much, give it a routines cap in tokens: see
+[Routines](routines.md#a-cap-per-agent).
 
 ## Adding more accounts
 
@@ -66,9 +71,18 @@ With two or more Claude Code accounts signed in, the agent tabs in your projects
 - **Settings → Accounts & usage → When a terminal tab runs out** sets this: **Ask me** (the
   default: a bar on the tab offers **Continue on** the next account), **Switch on its own**, or **Off**
   (tabs use the account you signed in with on this computer, as before).
-- The terminal's header shows which account a Claude Code tab runs on (**Account  Work ⌄**). Click it
-  and pick another account to continue that chat there: the tab restarts on it with the same
-  conversation. It's there when two Claude Code accounts are signed in and switching isn't Off.
+- The foot of the terminal shows which account a Claude Code tab runs on and how much it has left:
+  a small meter (amber when little is left), **Work  5h 72% · week 61% left** (the 5-hour and
+  weekly limits apart; a narrow terminal shows only the tighter one), and **Auto** while tabs switch
+  on their own. Click it to pick another account and continue that chat there (the tab restarts on
+  it with the same conversation; each account in the menu shows its 5-hour and weekly room), or to
+  choose **When an account runs out**: **Switch on its own** or **Ask me**. It's there when two
+  Claude Code accounts are signed in and switching isn't Off (Off is in Settings).
+- **Switch?** on that pill means the tab's account will probably run out before it refills: it has
+  used 75% or more of a limit, and at the pace of its own recent readings it reaches 100% before
+  that limit's refill (an estimate, and it says so), while another account has at least 30% left.
+  The menu opens on that suggestion: **Continue on** that account, or **Not now**. It only suggests;
+  nothing switches until you click.
 - A project in another workspace keeps that workspace's own login and is never switched.
 - If every account is out, the tab says when the first one is back.
 - A Codex tab starts on an account with room, but isn't moved partway through: Codex tabs don't

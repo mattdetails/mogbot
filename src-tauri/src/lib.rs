@@ -802,6 +802,7 @@ pub fn run() {
             commands::agents::agents_conversation_for_project,
             commands::agents::agents_conversation_rename,
             commands::agents::agents_conversation_rewind,
+            commands::agents::agents_conversation_code_offer,
             commands::agents::agents_conversation_fork,
             commands::agents::agents_conversation_routine,
             commands::agents::agents_take_over,

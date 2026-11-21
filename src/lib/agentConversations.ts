@@ -17,6 +17,7 @@ import {
   conversationOf,
   type Conversations,
 } from '../../packages/companion-protocol/src/conversations';
+import type { CodeOffer } from '../../packages/companion-protocol/src/rewind';
 import type { Agent, AgentMessage } from './agents';
 
 export {
@@ -80,9 +81,32 @@ export const renameConversation = (agentId: string, conversationId: string, titl
 /**
  * "Rewind to here" (and Edit and resend, before its send): the conversation
  * carries on from just before the user's message; what came after is folded.
+ * `undoCode`: the user also picked "Also undo the code changes since then";
+ * left out, the agent's copy keeps its changes.
  */
-export const rewindConversation = (agentId: string, conversationId: string, messageId: string) =>
-  invoke<Conversations>('agents_conversation_rewind', { agentId, conversationId, messageId });
+export const rewindConversation = (
+  agentId: string,
+  conversationId: string,
+  messageId: string,
+  undoCode = false
+) =>
+  invoke<Conversations>('agents_conversation_rewind', {
+    agentId,
+    conversationId,
+    messageId,
+    undoCode,
+  });
+/**
+ * Whether going back before the message can also undo the code in the
+ * agent's copy (`rewind_code::offer`): null when the Mac doesn't know where
+ * the copy stood then, or nothing changed since.
+ */
+export const codeOffer = (agentId: string, conversationId: string, messageId: string) =>
+  invoke<CodeOffer | null>('agents_conversation_code_offer', {
+    agentId,
+    conversationId,
+    messageId,
+  });
 /** "Fork from here": a new conversation with everything before the message; `current` is it. */
 export const forkConversation = (agentId: string, conversationId: string, messageId: string) =>
   invoke<Conversations>('agents_conversation_fork', { agentId, conversationId, messageId });

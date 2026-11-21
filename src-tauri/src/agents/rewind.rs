@@ -23,7 +23,8 @@
 //! - **What isn't undone.** Files an agent changed and anything it sent
 //!   stay as they are; the confirm and the line say so. A project-bound
 //!   agent's copy keeps its changes too (its changes card's Discard drops
-//!   them).
+//!   them), unless the user also chose to undo the code changes since then
+//!   on Rewind or Edit (`rewind_code`, only where that point is known).
 //! - **Never while a turn runs**, nor while the user drives the session
 //!   (take over): the session the turn is writing is the one being cut.
 //! - **Outside text stays marked.** A fork of a session that read outside
@@ -126,7 +127,7 @@ pub fn note_turn(agent_id: &str, messages: &[String], before: Branch) {
 }
 
 /// Add `bytes` to the end of an owner-only file, creating it 0600.
-fn append_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+pub(super) fn append_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     let mut options = std::fs::OpenOptions::new();
     options.append(true).create(true);
@@ -387,13 +388,25 @@ pub const RECAP_CLAUSE: &str =
 
 /// The quiet line a rewind leaves where the conversation carries on.
 pub fn rewind_line(quoted: &str, folded: usize, branch: &Branch) -> String {
+    rewind_line_with(quoted, folded, branch, None)
+}
+
+/// [`rewind_line`], with what going back did to the copy's code
+/// (`rewind_code::line`) in place of [`NOT_UNDONE`] when it was undone too.
+pub fn rewind_line_with(
+    quoted: &str,
+    folded: usize,
+    branch: &Branch,
+    code: Option<&str>,
+) -> String {
     let what = match folded {
         0 => "It is".to_string(),
         1 => "It and the message after it are".to_string(),
         n => format!("It and the {n} messages after it are"),
     };
+    let undone = code.unwrap_or(NOT_UNDONE);
     let mut line =
-        format!("Went back to before “{quoted}”. {what} folded above, not deleted. {NOT_UNDONE}");
+        format!("Went back to before “{quoted}”. {what} folded above, not deleted. {undone}");
     if *branch == Branch::Recap {
         line.push(' ');
         line.push_str(RECAP_CLAUSE);
@@ -435,6 +448,27 @@ pub struct Done {
 /// lines from it on are folded, the conversation's session goes, and its
 /// next turn starts from the branch point before that message.
 pub fn rewind(agent_id: &str, conversation: &str, message: &str) -> Result<Done, CommandError> {
+    rewind_undoing(agent_id, conversation, message, None)
+}
+
+/// Whether going back before `message` would be refused right now (a turn
+/// running, the session driven, not one of the user's messages here):
+/// asked before the copy's code is undone, so a refused rewind changes
+/// nothing. Touches nothing.
+pub fn check(agent_id: &str, conversation: &str, message: &str) -> Result<(), CommandError> {
+    let agent = store::get(agent_id)?;
+    refuse_while_busy(agent_id, &agent.name, "go back")?;
+    find_user(&visible(agent_id, conversation)?, message).map(|_| ())
+}
+
+/// [`rewind`], after the conversation's copy went back too: `code` is the
+/// line `rewind_code::line` wrote for it.
+pub fn rewind_undoing(
+    agent_id: &str,
+    conversation: &str,
+    message: &str,
+    code: Option<&str>,
+) -> Result<Done, CommandError> {
     let agent = store::get(agent_id)?;
     refuse_while_busy(agent_id, &agent.name, "go back")?;
     let lines = visible(agent_id, conversation)?;
@@ -462,7 +496,7 @@ pub fn rewind(agent_id: &str, conversation: &str, message: &str) -> Result<Done,
     );
     // The user's own message is folded too, but it's the one they chose:
     // the count is of what came after it.
-    let mut said = rewind_line(&quoted, folded, &branch);
+    let mut said = rewind_line_with(&quoted, folded, &branch, code);
     // The page isn't part of the chat a rewind folds (`page::rewind_clause`).
     if let Some(page) = super::page::rewind_clause(agent_id, conversation) {
         said.push(' ');

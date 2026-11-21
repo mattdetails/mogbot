@@ -176,6 +176,11 @@ pub struct Agent {
     /// model), `"same"` is always its own model, or one of its engine's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub routine_model: Option<String>,
+    /// "Pause its routines once it has used this many tokens this week"
+    /// (`routine_cap`). `None` (the default, and every registry from before
+    /// it): no cap. Only unattended work stops; the user's messages run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routine_cap: Option<super::routine_cap::RoutineCap>,
     /// Secrets it asked for and the user saved: names and references only.
     /// The values are in the Keychain (see `secrets`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1421,6 +1426,7 @@ fn register_new(id: String, name: String, new: NewAgent) -> Result<Agent, Comman
         away: None,
         context: None,
         routine_model: None,
+        routine_cap: None,
         learn_skills: Default::default(),
         account: None,
         template: None,

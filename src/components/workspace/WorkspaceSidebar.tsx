@@ -77,7 +77,6 @@ import type { TerminalTab } from '../../hooks/useTerminalManagement';
 import type { ProjectDevServerSnapshot } from '../../hooks/useDevServer';
 import type { PinnedProjectRow } from '../../hooks/usePinnedProjects';
 import { ModeToggle } from './ModeToggle';
-import { SideBySideToggle } from './SideBySideToggle';
 import { SidebarMascot } from './SidebarMascot';
 import { useActiveAccount } from '../../hooks/useActiveAccount';
 import { useCommands } from '../../commands/useCommands';
@@ -1880,7 +1879,6 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebar({
                 onAgents={onGoAgents}
                 layout={isSidebarHidden ? 'stacked' : 'labels'}
               />
-              <SideBySideToggle />
             </div>
           )}
           {/* The Projects side's twin of Agents' "Search conversations": same

@@ -41,7 +41,7 @@ import {
 } from '../../lib/agentAccounts';
 import { usageGlance, type UsageGlance } from '../../lib/agentsUsage';
 import { HOST_COMPUTER } from '../../lib/computer';
-import { glanceUsed } from '../../../packages/companion-protocol/src/usageGlance';
+import { glanceSession, glanceUsed } from '../../../packages/companion-protocol/src/usageGlance';
 import {
   ranOnName,
   type WorkingLine,
@@ -166,7 +166,15 @@ export function AccountSwitcher({
   const quiet = glance.unread && !words.needsYou;
   // Said as what is used, its bar filling with use (`glanceUsed`).
   const used = glanceUsed(glance);
-  const label = `Usage: ${used.detail}`;
+  // The 5-hour limit of the account in use, beside the week's total.
+  const session = glanceSession(glance);
+  const label = `Usage: ${[used.detail, session?.words].filter(Boolean).join('. ')}`;
+  const sessionPart = session && (
+    <span className="usage-glance__session" data-tone={session.tone}>
+      {' · '}
+      {session.short}
+    </span>
+  );
   const asLine = line && !collapsed;
 
   const row = (
@@ -198,7 +206,11 @@ export function AccountSwitcher({
               <UsedBar used={used} />
               <span className="usage-glance__headline">
                 <span className="usage-glance__figure">{used.figure.replace(/ used$/, '')}</span>
-                {used.refill && <span className="usage-glance__count"> · {used.refill}</span>}
+                {sessionPart}
+                {/* With the 5-hour figure the line is full: the refill is in the tooltip. */}
+                {used.refill && !session && (
+                  <span className="usage-glance__count"> · {used.refill}</span>
+                )}
               </span>
             </>
           )}
@@ -214,6 +226,7 @@ export function AccountSwitcher({
           {/* "8% used · refills in 6d": the figure, then when it refills. */}
           <span className="usage-glance__headline">
             <span className="usage-glance__figure">{used.figure}</span>
+            {sessionPart}
             {used.refill && <span className="usage-glance__count"> · {used.refill}</span>}
           </span>
           <UsedBar used={used} />
