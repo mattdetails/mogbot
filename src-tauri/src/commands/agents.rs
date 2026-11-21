@@ -825,6 +825,53 @@ pub async fn agents_files(agent_id: String) -> Result<Vec<files::SharedFile>, Co
         .map_err(agents::err_other)?
 }
 
+/// Where a path in an agent's reply may open: its home, the user's projects,
+/// and (added off the async workers, `add_copy_root`) its own copy.
+async fn path_roots(
+    agent_id: &str,
+) -> Result<(std::path::PathBuf, Vec<std::path::PathBuf>), CommandError> {
+    let home = store::agent_home(agent_id)?;
+    let mut roots = vec![home.clone()];
+    if let Ok(projects) = crate::commands::projects::list_projects().await {
+        roots.extend(
+            projects
+                .into_iter()
+                .map(|p| std::path::PathBuf::from(p.path)),
+        );
+    }
+    Ok((home, roots))
+}
+
+fn add_copy_root(agent_id: &str, roots: &mut Vec<std::path::PathBuf>) {
+    if let Some(copy) = store::get(agent_id).ok().and_then(|a| a.copy) {
+        roots.push(std::path::PathBuf::from(copy.path));
+    }
+}
+
+/// The paths written in a reply, checked before anyone clicks (at most 64):
+/// an image is drawn in the bubble, a file or folder is a link, one that
+/// isn't there is muted, and one outside the open allowlist is plain text.
+#[tauri::command]
+#[tracing::instrument(skip(app))]
+pub async fn agents_check_paths(
+    app: AppHandle,
+    agent_id: String,
+    paths: Vec<String>,
+) -> Result<Vec<files::PathCheck>, CommandError> {
+    let (home, mut roots) = path_roots(&agent_id).await?;
+    let checks = blocking(move || {
+        add_copy_root(&agent_id, &mut roots);
+        Ok(files::check_paths(&paths, &home, &roots))
+    })
+    .await?;
+    use tauri::Manager;
+    // An image drawn in the bubble: that one file, inside the allowlist.
+    for full in checks.iter().filter_map(|c| c.full.as_deref()) {
+        let _ = app.asset_protocol_scope().allow_file(full);
+    }
+    Ok(checks)
+}
+
 /// A path an agent wrote in its reply, clicked: a document, image or text file
 /// opens in its default app; anything else is only shown in Finder; a path
 /// outside the agent's folder, the user's projects and its copy is refused. Returns
@@ -836,21 +883,10 @@ pub async fn agents_open_path(
     path: String,
     reveal: Option<bool>,
 ) -> Result<files::PathAction, CommandError> {
-    let home = store::agent_home(&agent_id)?;
-    // Its home, the user's projects, and its own copy of its project.
-    let mut roots = vec![home.clone()];
-    if let Ok(projects) = crate::commands::projects::list_projects().await {
-        roots.extend(
-            projects
-                .into_iter()
-                .map(|p| std::path::PathBuf::from(p.path)),
-        );
-    }
+    let (home, mut roots) = path_roots(&agent_id).await?;
     // The registry, canonical paths and `open`: off the async workers.
     blocking(move || {
-        if let Some(copy) = store::get(&agent_id).ok().and_then(|a| a.copy) {
-            roots.push(std::path::PathBuf::from(copy.path));
-        }
+        add_copy_root(&agent_id, &mut roots);
         let (full, action) = files::local_path(&path, &home, &roots, reveal.unwrap_or(false))?;
         files::perform(&full, action)?;
         Ok(action)

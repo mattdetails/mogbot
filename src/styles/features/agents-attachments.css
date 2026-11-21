@@ -323,6 +323,24 @@
   overflow-wrap: anywhere;
 }
 
+/* Outside the agent's folder and your projects: plain text, nothing to click. */
+.agent-markdown a[data-path='outside'] {
+  cursor: text;
+  text-decoration: none;
+}
+
+/* Not on this Mac (any more): still the path, muted, struck through. */
+.agent-markdown a[data-path='missing'] {
+  color: var(--text-muted);
+  text-decoration-line: line-through;
+  text-decoration-color: var(--text-faint);
+}
+
+/* Images a reply names, under it like attached pictures. */
+.agent-prose-images {
+  margin-top: var(--spacing-xs);
+}
+
 /* A quote inside the user's own bubble. */
 .agent-bubble__quote,
 .agent-bubble__text {

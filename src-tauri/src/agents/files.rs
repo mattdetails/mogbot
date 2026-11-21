@@ -245,6 +245,85 @@ pub fn local_path(
     Ok((real, action))
 }
 
+/// What a path written in an agent's reply is, for drawing it before anyone
+/// clicks: an image shown in the bubble, a file or folder that opens or
+/// reveals, one that isn't there, or one outside the open allowlist (drawn as
+/// plain text, and never looked at: whether it exists isn't said).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PathKind {
+    Image,
+    File,
+    Folder,
+    Missing,
+    Outside,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PathCheck {
+    /// As the reply wrote it.
+    pub path: String,
+    pub kind: PathKind,
+    /// The real file, for an image only (its `<img>` source).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub full: Option<String>,
+}
+
+/// The images a bubble draws inline: plain raster types only, never SVG
+/// (a document that can carry script).
+const INLINE_IMAGES: &[&str] = &["png", "jpg", "jpeg", "gif", "webp"];
+
+/// Each path's [`PathKind`], judged as [`local_path`] judges a click. A path
+/// that doesn't resolve counts as missing only when it is spelled inside one
+/// of `roots`; anywhere else it is outside, so nothing is said about files
+/// beyond the allowlist.
+pub fn check_paths(raws: &[String], home: &Path, roots: &[PathBuf]) -> Vec<PathCheck> {
+    let canon: Vec<PathBuf> = roots.iter().filter_map(|r| r.canonicalize().ok()).collect();
+    raws.iter()
+        .take(64)
+        .map(|raw| {
+            let path = expand(raw, home);
+            let (kind, full) = match path.canonicalize() {
+                Ok(real) if canon.iter().any(|root| real.starts_with(root)) => {
+                    match std::fs::metadata(&real) {
+                        Ok(meta) if meta.is_dir() => (PathKind::Folder, None),
+                        Ok(meta) if meta.is_file() => {
+                            let image = real
+                                .extension()
+                                .map(|e| e.to_string_lossy().to_ascii_lowercase())
+                                .is_some_and(|e| INLINE_IMAGES.contains(&e.as_str()));
+                            if image {
+                                (PathKind::Image, Some(real.display().to_string()))
+                            } else {
+                                (PathKind::File, None)
+                            }
+                        }
+                        _ => (PathKind::Missing, None),
+                    }
+                }
+                Ok(_) => (PathKind::Outside, None),
+                Err(_) => {
+                    let spelled_inside = roots
+                        .iter()
+                        .chain(canon.iter())
+                        .any(|r| path.starts_with(r));
+                    if spelled_inside && !raw.contains("..") {
+                        (PathKind::Missing, None)
+                    } else {
+                        (PathKind::Outside, None)
+                    }
+                }
+            };
+            PathCheck {
+                path: raw.clone(),
+                kind,
+                full,
+            }
+        })
+        .collect()
+}
+
 pub fn perform(path: &Path, action: PathAction) -> Result<(), CommandError> {
     match action {
         PathAction::Open => tauri_plugin_opener::open_path(path, None::<&str>),
@@ -267,6 +346,46 @@ mod tests {
         std::fs::write(project.join("data.csv"), b"a,b").unwrap();
         std::fs::write(dir.path().join("secret.txt"), b"no").unwrap();
         (dir, home, project)
+    }
+
+    #[test]
+    fn checks_paths_for_drawing() {
+        let (dir, home, project) = setup();
+        std::fs::write(project.join("shot.png"), b"png").unwrap();
+        std::fs::write(project.join("logo.svg"), b"<svg/>").unwrap();
+        std::fs::write(dir.path().join("outside.png"), b"png").unwrap();
+        let roots = [home.clone(), project.clone()];
+        let p = |x: &Path| x.display().to_string();
+        let raws = vec![
+            p(&project.join("shot.png")),
+            "report.md".to_string(),
+            p(&project),
+            p(&project.join("gone.md")),
+            p(&dir.path().join("outside.png")),
+            p(&dir.path().join("nowhere.md")),
+            p(&project.join("logo.svg")),
+            format!("{}/../outside.png", p(&project)),
+        ];
+        let kinds: Vec<PathKind> = check_paths(&raws, &home, &roots)
+            .iter()
+            .map(|c| c.kind)
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                PathKind::Image,
+                PathKind::File,
+                PathKind::Folder,
+                PathKind::Missing,
+                PathKind::Outside,
+                PathKind::Outside,
+                PathKind::File,
+                PathKind::Outside,
+            ]
+        );
+        let checks = check_paths(&raws[..1], &home, &roots);
+        assert!(checks[0].full.as_deref().unwrap().ends_with("shot.png"));
+        assert!(check_paths(&raws[1..2], &home, &roots)[0].full.is_none());
     }
 
     #[test]
