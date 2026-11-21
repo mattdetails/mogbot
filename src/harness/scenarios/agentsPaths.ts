@@ -4,7 +4,8 @@
  * in a project is drawn under the reply like an attached picture, a file stays
  * a link, one outside the agent's folder and your projects is a chip that
  * doesn't open, and
- * one that isn't there keeps its chip with “(missing)” beside it. Every path
+ * one that isn't there is the same chip struck through and muted, as on the
+ * phone. Every path
  * is one look, a monospace chip. Fictional throughout.
  */
 
@@ -59,6 +60,13 @@ const scenario = (
 
 export const agentsPathsScenarios: Scenario[] = [
   scenario(
+    'mixed',
+    'found, missing and outside in one reply',
+    'One reply, three paths, one look: the review note’s path a chip that opens; the footer shot’s the same chip struck through and muted; the Downloads path the same chip with nothing to click. Matches the phone’s reply-paths shot.',
+    `Updated ${FILE}. The old ${MISSING} is gone, and I left ${OUTSIDE} alone.`,
+    '.agent-markdown a[data-path="missing"]'
+  ),
+  scenario(
     'image',
     'image paths drawn in the bubble',
     'The reply names two screenshots; both paths are chips in the text, and under the bubble the two pictures sit side by side like attached images (rounded, same size as attachments), the new hero first. Nothing is cut off; readable in both themes.',
@@ -82,7 +90,7 @@ export const agentsPathsScenarios: Scenario[] = [
   scenario(
     'missing',
     'a path that isn’t there',
-    'The footer screenshot’s path keeps its chip, with a muted “(missing)” beside it and “Not found on this Mac” on hover; no strikethrough, no picture for it, and the hero beside it still draws.',
+    'The footer screenshot’s path is the same chip, struck through and muted (as on the phone), with “Not found on this Mac” on hover; no word beside it, no picture for it, and the hero beside it still draws.',
     `The footer shot was at ${MISSING} but I cleaned it up; the hero is still at ${IMAGE}.`,
     '.agent-markdown a[data-path="missing"]'
   ),

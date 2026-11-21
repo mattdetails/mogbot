@@ -3,7 +3,7 @@ import { cleanup, render, waitFor } from '@testing-library/react';
 import { clearMocks, mockIPC } from '@tauri-apps/api/mocks';
 import { useRef } from 'react';
 import { Prose } from './AgentProse';
-import { PATH_MISSING, PATH_MISSING_NOTE, ProseImages, useProsePaths } from './useProsePaths';
+import { PATH_MISSING, ProseImages, useProsePaths } from './useProsePaths';
 
 function Reply({ agentId, text }: { agentId: string; text: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -52,8 +52,6 @@ describe('useProsePaths', () => {
     expect(link('file')?.getAttribute('href')).toBeTruthy();
     expect(link('outside')?.hasAttribute('href')).toBe(false);
     expect(link('missing')?.title).toBe(PATH_MISSING);
-    expect(link('missing')?.nextElementSibling?.textContent).toBe(PATH_MISSING_NOTE);
-    expect(container.querySelectorAll('.agent-path__note')).toHaveLength(1);
     expect(container.querySelectorAll('.agent-prose-images img')).toHaveLength(1);
     expect(asked).toHaveLength(1);
   });

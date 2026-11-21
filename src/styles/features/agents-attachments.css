@@ -319,7 +319,7 @@
 
 /* Every path in a reply is one look: a monospace chip, the inline-code tint,
    no underline. A link while it opens; outside the allowlist the same chip
-   with nothing to click; missing, the same chip with "(missing)" beside it. */
+   with nothing to click; missing, the same chip struck through and muted. */
 .agent-markdown a.agent-path,
 .agent-markdown a[data-path] {
   padding: 0 var(--spacing-xs);
@@ -345,9 +345,12 @@
   text-decoration: none;
 }
 
-.agent-path__note {
-  margin-left: var(--spacing-xs);
+/* Not on this Mac (any more): the same chip, struck through and muted, as on
+   the phone. */
+.agent-markdown a[data-path='missing'] {
   color: var(--text-muted);
+  text-decoration-line: line-through;
+  text-decoration-color: var(--text-muted);
 }
 
 /* Images a reply names, under it like attached pictures. */
