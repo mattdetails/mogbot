@@ -781,14 +781,6 @@
       "consumerCount": 3
     },
     {
-      "name": "--catchup-label-tracking",
-      "definitionFile": "src/styles/global/tokens-components.css",
-      "layer": "components",
-      "owner": "global/component",
-      "status": "canonical",
-      "consumerCount": 2
-    },
-    {
       "name": "--catchup-card-radius",
       "definitionFile": "src/styles/global/tokens-components.css",
       "layer": "components",
@@ -5306,7 +5298,7 @@
       "layer": "core",
       "owner": "global/core",
       "status": "canonical",
-      "consumerCount": 16
+      "consumerCount": 14
     },
     {
       "name": "--font-size-12",
@@ -6458,7 +6450,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 348
+      "consumerCount": 350
     },
     {
       "name": "--font-size-body-sm",

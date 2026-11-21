@@ -439,13 +439,13 @@
 
 /* On the entry, the header sits on the centred column's edges: the title
    over the card's left edge, Close over its right, at every width. */
-.agents-catchup__head[data-mode='entry'] {
+.agents-catchup__head {
   padding-inline: var(--agents-page-inset);
 }
 
 /* A hairline under it, the pane's full width, edge to edge (only the title
    and the buttons keep to the column). */
-.agents-catchup__head[data-mode='entry']::after {
+.agents-catchup__head::after {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -455,12 +455,12 @@
   content: '';
 }
 
-.agents-catchup__head[data-mode='entry'] .agents-catchup__title {
+.agents-catchup__head .agents-catchup__title {
   font-size: var(--font-size-h4);
 }
 
 /* Close's words, not its quiet hover box, end on the card's right edge. */
-.agents-catchup__head[data-mode='entry'] > .button:last-child {
+.agents-catchup__head > .button:last-child {
   /* The head buttons' padding (10px, the spec's) and their border. */
   margin-right: calc(-1 * (var(--catchup-head-button-pad) + var(--border-width-default)));
 }
@@ -512,13 +512,15 @@
   display: grid;
   flex: 1;
   min-height: 0;
+  /* The queue and the card on the header's column, like the entry. */
+  padding-inline: var(--agents-page-inset);
   grid-template-columns: var(--size-catchup-queue) minmax(var(--size-catchup-pane-min), 1fr);
 }
 
 .agents-catchup__queue {
   min-height: 0;
   overflow: auto;
-  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
+  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg) 0;
   padding-top: 20px; /* css-ok: the spec's 20px, between md and xl */
   border-right: var(--border-width-default) solid var(--border-subtle);
 }
@@ -529,10 +531,8 @@
 
 .agents-catchup__group > h3 {
   margin: 0 0 var(--spacing-sm) var(--spacing-sm);
-  font-size: var(--font-size-11);
+  font-size: var(--font-size-body-md);
   font-weight: var(--font-weight-label);
-  letter-spacing: var(--catchup-label-tracking);
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -683,10 +683,8 @@ button.agents-catchup__row:hover:not(.is-selected) {
   align-items: center;
   gap: var(--spacing-sm);
   margin: 20px 0 6px; /* css-ok: the spec's 20px under the key, 6px over the title */
-  font-size: var(--font-size-11);
+  font-size: var(--font-size-body-md);
   font-weight: var(--font-weight-label);
-  letter-spacing: var(--catchup-label-tracking);
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -770,6 +768,13 @@ button.agents-catchup__row:hover:not(.is-selected) {
   margin-top: var(--spacing-xl);
 }
 
+/* Allow and Deny, equal halves (designs/approval-card-fix). */
+.agents-catchup__actions:has([data-allow]) {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
+
 .agents-catchup__actions > .button {
   height: var(--size-catchup-action);
   border-radius: var(--radius-card);
@@ -813,6 +818,7 @@ button.agents-catchup__row:hover:not(.is-selected) {
 
 .agents-catchup__quiet {
   display: flex;
+  align-items: center;
   justify-content: flex-start;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-md);

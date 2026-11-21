@@ -705,17 +705,13 @@ function Decision({
             <Button
               tabIndex={0}
               variant="secondary"
+              width="fill"
               disabled={busy}
               onClick={() => void answer(false)}
               aria-keyshortcuts="D"
             >
               {CATCH_UP.deny} <kbd>D</kbd>
             </Button>
-            {approval && approval.detail.trim() && (
-              <Button tabIndex={0} variant="ghost" aria-expanded={all} onClick={() => setAll(!all)}>
-                {CATCH_UP.details}
-              </Button>
-            )}
           </>
         ) : (
           <>
@@ -737,6 +733,17 @@ function Decision({
       {all && approval && <pre className="agents-catchup__detail">{approval.detail}</pre>}
       {here && (
         <div className="agents-catchup__quiet">
+          {approval && approval.detail.trim() && (
+            <Button
+              tabIndex={0}
+              variant="ghost"
+              size="compact"
+              aria-expanded={all}
+              onClick={() => setAll(!all)}
+            >
+              {CATCH_UP.details}
+            </Button>
+          )}
           <Button
             tabIndex={0}
             variant="ghost"
@@ -746,6 +753,7 @@ function Decision({
           >
             {CATCH_UP.openChat} <kbd>O</kbd>
           </Button>
+          <span className="agents-catchup__grow" />
           <Button
             tabIndex={0}
             variant="ghost"
