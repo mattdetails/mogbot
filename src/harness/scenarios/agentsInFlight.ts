@@ -410,4 +410,26 @@ export const agentsInFlightScenarios: Scenario[] = [
     viewport: { width: 400, height: 900 },
     commands: board(5),
   },
+  {
+    id: 'agents-inflight-narrow-400-long',
+    title: 'Agents — What’s in flight at 400px: a long agent name and a tag',
+    looksRightWhen:
+      'At 400px: a long name keeps its width up to 14 characters, then ends in an ellipsis; “Didn’t finish” stays whole; the task text ellipsises before the age; no Open chat link, the chevron stays.',
+    command: 'agents.team',
+    requires: '.agents-team .agent-approval',
+    viewport: { width: 400, height: 900 },
+    commands: (() => {
+      const base = board(5);
+      const ov = base.agents_overview as { agents: { id: string; name: string }[] };
+      return {
+        ...base,
+        agents_overview: {
+          ...ov,
+          agents: ov.agents.map((a) =>
+            a.id === 'inbox' ? { ...a, name: 'Inbox Triage And Follow-up Assistant' } : a
+          ),
+        },
+      };
+    })(),
+  },
 ];
