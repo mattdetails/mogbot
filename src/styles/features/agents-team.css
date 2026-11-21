@@ -243,6 +243,31 @@
   color: var(--text-muted);
 }
 
+/* Under 480px (a phone-width window): the row drops its Open chat link (the
+   whole row opens the chat), keeps its chevron; the name keeps its full width
+   up to 14 characters; the task text gives way first, then the age; a tag
+   stays whole. */
+@media (max-width: 480px) {
+  .text-button.button.agents-team__open {
+    display: none;
+  }
+
+  .agents-team__name {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+
+  .agents-team__name-text {
+    flex: 0 0 auto;
+    max-width: 14ch;
+  }
+
+  .agents-team__pill {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
 .agents-team__meta {
   display: inline-flex;
   flex: 0 0 auto;

@@ -390,4 +390,46 @@ export const agentsInFlightScenarios: Scenario[] = [
     viewport: { width: 720, height: 1100 },
     commands: board(5),
   },
+  {
+    id: 'agents-inflight',
+    title: 'Agents — What’s in flight, the header on the content edges (1440)',
+    looksRightWhen:
+      'The header’s title sits on the same left edge as the section labels and rows below it; Close-style right items on the right edge; the bar’s bottom border runs the full pane width.',
+    command: 'agents.team',
+    requires: '.agents-team .agent-approval',
+    viewport: { width: 1440, height: 900 },
+    commands: board(5),
+  },
+  {
+    id: 'agents-inflight-narrow-400',
+    title: 'Agents — What’s in flight at 400px: the header on the list’s left edge',
+    looksRightWhen:
+      'At 400px wide: the view toggle and the title start at the same x as the section labels and the rows (x 44 in the 2x shot), the bar’s bottom border spans the whole window.',
+    command: 'agents.team',
+    requires: '.agents-team .agent-approval',
+    viewport: { width: 400, height: 900 },
+    commands: board(5),
+  },
+  {
+    id: 'agents-inflight-narrow-400-long',
+    title: 'Agents — What’s in flight at 400px: a long agent name and a tag',
+    looksRightWhen:
+      'At 400px: a long name keeps its width up to 14 characters, then ends in an ellipsis; “Didn’t finish” stays whole; the task text ellipsises before the age; no Open chat link, the chevron stays.',
+    command: 'agents.team',
+    requires: '.agents-team .agent-approval',
+    viewport: { width: 400, height: 900 },
+    commands: (() => {
+      const base = board(5);
+      const ov = base.agents_overview as { agents: { id: string; name: string }[] };
+      return {
+        ...base,
+        agents_overview: {
+          ...ov,
+          agents: ov.agents.map((a) =>
+            a.id === 'inbox' ? { ...a, name: 'Inbox Triage And Follow-up Assistant' } : a
+          ),
+        },
+      };
+    })(),
+  },
 ];
