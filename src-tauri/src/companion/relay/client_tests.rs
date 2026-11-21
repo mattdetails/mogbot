@@ -1572,7 +1572,13 @@ async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_ch
     let fingerprint = c.registry.identity().unwrap().fingerprint();
     let (_record, token, _) = c
         .registry
-        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .add(
+            &device(),
+            String::new(),
+            now_ms() as i64,
+            &[],
+            Some("j@x.com".into()),
+        )
         .unwrap();
     {
         let mut all = stub.messages.lock().unwrap();
@@ -1592,7 +1598,10 @@ async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_ch
     let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
     let link = Arc::new(Link::default());
     let (stop_tx, stop_rx) = oneshot::channel();
-    let cfg = Config { base: relay.base(), port: Some(port) };
+    let cfg = Config {
+        base: relay.base(),
+        port: Some(port),
+    };
     tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
     until("the link", || link.status().state == RelayState::Connected).await;
     let route = link.route().unwrap();
@@ -1635,3 +1644,62 @@ async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_ch
     stop_tx.send(()).unwrap();
 }
 
+/// A photo from the phone's library over the relay (Julian, 20 Nov: pictures
+/// he sent never reached the Mac): a 6 MB PUT in 128 KiB pieces, all sent at
+/// once as the phone does, comes back as a staged blob of the same size.
+#[tokio::test]
+async fn a_photo_uploaded_over_the_relay_arrives_whole() {
+    let (c, _stub) = Stub::companion();
+    let fingerprint = c.registry.identity().unwrap().fingerprint();
+    let (_record, token, _) = c
+        .registry
+        .add(
+            &device(),
+            String::new(),
+            now_ms() as i64,
+            &[],
+            Some("j@x.com".into()),
+        )
+        .unwrap();
+    let port = loopback(c.clone()).await;
+    let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
+    relay.shared.resume.store(true, Ordering::SeqCst);
+    let link = Arc::new(Link::default());
+    let (_stop_tx, stop_rx) = oneshot::channel();
+    let cfg = Config {
+        base: relay.base(),
+        port: Some(port),
+    };
+    tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
+    until("the link", || link.route().is_some()).await;
+    let url = link.route().unwrap().url;
+
+    let photo: Vec<u8> = (0..6 * 1024 * 1024u32).map(|i| (i % 253) as u8).collect();
+    let mut phone = Phone::connect(&url, &fingerprint).await;
+    let pieces: Vec<&[u8]> = photo.chunks(128 * 1024).collect();
+    let last = pieces.len() - 1;
+    phone
+        .send(json!({
+            "t": "http", "id": 1, "method": "PUT", "path": "/v1/blobs",
+            "headers": {
+                "authorization": format!("Bearer {token}"),
+                "content-type": "image/jpeg",
+                "x-name": "IMG_0001.jpg",
+            },
+            "body": B64.encode(pieces[0]),
+            "more": true,
+        }))
+        .await;
+    for (i, p) in pieces.iter().enumerate().skip(1) {
+        phone
+            .send(json!({ "t": "httpBody", "id": 1, "body": B64.encode(p), "more": i < last }))
+            .await;
+    }
+    let res = tokio::time::timeout(Duration::from_secs(30), phone.next_of("httpRes"))
+        .await
+        .expect("an answer to the upload");
+    assert_eq!(res["status"], 200, "{res}");
+    let blob = http_body(&res);
+    assert_eq!(blob["size"], photo.len() as u64, "{blob}");
+    assert_eq!(blob["name"], "IMG_0001.jpg");
+}

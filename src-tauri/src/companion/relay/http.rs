@@ -295,6 +295,60 @@ async fn perform(
     request: Request<http_body_util::combinators::UnsyncBoxBody<Bytes, std::io::Error>>,
     out: &mpsc::Sender<String>,
 ) -> Result<(), bool> {
+    let kind = file_kind(request.uri().path());
+    let started = std::time::Instant::now();
+    let mut seen = Seen::default();
+    let result = perform_inner(port, id, request, out, &mut seen).await;
+    // One line per file over the relay, so a phone that can't open one is
+    // visible here (20 Nov: a video that failed left nothing in the log).
+    if let Some(kind) = kind {
+        let how = match result {
+            Ok(()) if seen.cut => "the file stopped short",
+            Ok(()) => "sent",
+            Err(false) => "this Mac's server didn't answer",
+            Err(true) => "the phone's channel went mid-file",
+        };
+        tracing::info!(
+            kind,
+            status = seen.status,
+            bytes = seen.bytes,
+            ms = started.elapsed().as_millis() as u64,
+            "[Relay] file: {how}"
+        );
+    }
+    result
+}
+
+/// What a relayed answer came to, for its log line.
+#[derive(Default)]
+struct Seen {
+    status: u16,
+    bytes: u64,
+    cut: bool,
+}
+
+/// A file route's kind, for the log (never the path: it names the file).
+fn file_kind(path: &str) -> Option<&'static str> {
+    if path.starts_with("/v1/blobs") {
+        Some("blob")
+    } else if path.starts_with("/v1/agents/") && path.contains("/attachments/") {
+        Some(if path.contains("?w=") {
+            "thumbnail"
+        } else {
+            "attachment"
+        })
+    } else {
+        None
+    }
+}
+
+async fn perform_inner(
+    port: u16,
+    id: u64,
+    request: Request<http_body_util::combinators::UnsyncBoxBody<Bytes, std::io::Error>>,
+    out: &mpsc::Sender<String>,
+    seen: &mut Seen,
+) -> Result<(), bool> {
     let stream = tokio::net::TcpStream::connect(("127.0.0.1", port))
         .await
         .map_err(|_| false)?;
@@ -309,6 +363,7 @@ async fn perform(
         false
     })?;
     let status = response.status().as_u16();
+    seen.status = status;
     let mut headers = Map::new();
     for (name, value) in response.headers() {
         let n = name.as_str();
@@ -350,20 +405,41 @@ async fn perform(
                     {
                         return Err(!first);
                     }
+                    seen.bytes += piece.len() as u64;
                     first = false;
                 }
             }
-            Some(Err(_)) => break,
+            Some(Err(_)) => {
+                seen.cut = true;
+                break;
+            }
             None => break,
         }
     }
     out.send(response_frame(id, first, status, &headers, &buf, false))
         .await
-        .map_err(|_| !first)
+        .map_err(|_| !first)?;
+    seen.bytes += buf.len() as u64;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_file_route_is_logged_by_its_kind_never_its_path() {
+        use super::file_kind;
+        assert_eq!(file_kind("/v1/blobs/blob_1"), Some("blob"));
+        assert_eq!(
+            file_kind("/v1/agents/a1/attachments/attachments/x/clip.mp4"),
+            Some("attachment")
+        );
+        assert_eq!(
+            file_kind("/v1/agents/a1/attachments/attachments/x/p.jpg?w=300"),
+            Some("thumbnail")
+        );
+        assert_eq!(file_kind("/v1/identity"), None);
+    }
+
     use super::*;
 
     #[test]

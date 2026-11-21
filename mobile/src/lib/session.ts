@@ -89,7 +89,12 @@ import { roomIdOf, roomKey, roomsOffered } from './rooms';
 import { registerPush } from './push';
 import { sendSecret } from './secrets';
 export { secretRouteProblem } from './secrets';
-import { DirectTransport, setTransportFaultReporter, WireFailure } from './transport';
+import {
+  DirectTransport,
+  setTransportFaultReporter,
+  WireFailure,
+  type DownloadProgress,
+} from './transport';
 import { recordCrash, sendCrashes } from './crash';
 import { asMessage, asOverview, asProjects, asRooms } from './wellFormed';
 
@@ -1248,9 +1253,12 @@ export async function tidyDictation(
 }
 
 /** A local copy of an attachment (cached) or of a blob the Mac produced. */
-export function download(source: { blobId: string } | { agentId: string; path: string }) {
+export function download(
+  source: { blobId: string } | { agentId: string; path: string },
+  onProgress?: DownloadProgress
+) {
   if (!transport) return Promise.reject(new Error('Not paired'));
-  return transport.download(source);
+  return transport.download(source, undefined, onProgress);
 }
 
 /**

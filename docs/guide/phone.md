@@ -94,3 +94,7 @@ words. It locks as usual once you stop.
 On the Projects tab each project has a **Preview** row. Tap **Show the site** and your computer takes a picture of the site it is running; the picture sits right on the project's card, at Phone or Desktop width, with when it was taken. Tap the circular arrow for a new one, or the picture to open it full size. It needs the site running on your computer; if it isn't, the card says so.
 
 Settings on the phone also lists your **Dictation words**, the names and terms dictation should always get right. They are kept on your computer (Settings → Agents → Dictation there). The phone shows them read-only, with what each was heard as, and lets you remove one; adding stays on the computer.
+
+## Files from your agents
+
+Tap a file an agent sent to open it in the phone's viewer (videos play there). Files of any size open: while a big one downloads, the file shows how much has come ("4.2 MB of 20 MB"). Once a file has opened, it opens again straight away without downloading. Files you send from the phone can still be up to 25 MB each.

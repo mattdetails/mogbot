@@ -287,6 +287,11 @@ export interface MockOptions {
   lostPictures?: boolean;
   /** `--sheet-messages`: a very long message of yours and a reply with code and links (the long-press sheet). */
   sheetMessages?: boolean;
+  /**
+   * A 20 MB video in the Designer's chat, served slowly (`slow`) so the file
+   * chip's "4.2 MB of 20 MB" can be seen, or cut off part way (`cut`).
+   */
+  bigFile?: 'slow' | 'cut';
   /** The App Store screenshots' cast (dev/mock-store.ts), at this stage of its story. */
   store?: StoreStage;
 }
@@ -2009,6 +2014,26 @@ export function createMockServer(opts: MockOptions = {}) {
   if (opts.catchUpSingle) {
     const s = agents.find((a) => a.id === 'site');
     if (s) s.copy = undefined;
+  }
+  if (opts.bigFile) {
+    const list = messages.get('design') ?? [];
+    const t = Date.now();
+    const clip = attach(
+      'design',
+      'big_clip',
+      'launch-walkthrough.mp4',
+      'video/mp4',
+      Buffer.alloc(20 * 1024 * 1024, 7)
+    );
+    list.push({
+      id: 'big_clip',
+      agentId: 'design',
+      ts: t - 60_000,
+      kind: 'agent',
+      text: 'Here’s the walkthrough of the launch flow, all three pages.',
+      attachments: [clip],
+    });
+    messages.set('design', list);
   }
   if (opts.catchUpSeveral) {
     const quiet = agents.find((a) => a.id === 'brief');
@@ -5659,6 +5684,49 @@ export function createMockServer(opts: MockOptions = {}) {
       res.writeHead(404).end();
       return true;
     }
+    // A single range, as the Mac answers one (a relayed download asks in ranges).
+    const range = /^bytes=(\d+)-(\d*)$/.exec(String(req.headers.range ?? ''));
+    if (range) {
+      const len = found.bytes.length;
+      const start = Number(range[1]);
+      const last = Math.min(range[2] ? Number(range[2]) : len - 1, len - 1);
+      if (start >= len || start > last) {
+        res.writeHead(416, { 'Content-Range': `bytes */${len}` }).end();
+        return true;
+      }
+      res
+        .writeHead(206, {
+          'Content-Type': found.mime,
+          'Content-Length': last - start + 1,
+          'Content-Range': `bytes ${start}-${last}/${len}`,
+          'Accept-Ranges': 'bytes',
+        })
+        .end(found.bytes.subarray(start, last + 1));
+      return true;
+    }
+    // A big file, slowly (the chip's progress) or cut off part way.
+    if (opts.bigFile && found.bytes.length > 10 * 1024 * 1024) {
+      res.writeHead(200, {
+        'Content-Type': found.mime,
+        'Content-Length': found.bytes.length,
+      });
+      const piece = 256 * 1024;
+      let at = 0;
+      const tick = setInterval(() => {
+        if (opts.bigFile === 'cut' && at >= found.bytes.length / 3) {
+          clearInterval(tick);
+          res.destroy();
+          return;
+        }
+        res.write(found.bytes.subarray(at, at + piece));
+        at += piece;
+        if (at >= found.bytes.length) {
+          clearInterval(tick);
+          res.end();
+        }
+      }, 120);
+      return true;
+    }
     // `?w=` asks for a thumbnail; the mock has no image library, so it
     // sends the original, which the phone scales down just the same.
     res
@@ -5734,6 +5802,9 @@ export function createMockServer(opts: MockOptions = {}) {
     : null;
 
   return {
+    /** Puts a file on this "Mac" as an agent's attachment (tests); returns its path. */
+    attachFile: (agentId: string, name: string, mime: string, bytes: Buffer) =>
+      attach(agentId, `t_${randomUUID().slice(0, 8)}`, name, mime, bytes).path,
     listen: () =>
       new Promise<string>((resolve) => {
         server.listen(opts.port ?? 0, () => {
