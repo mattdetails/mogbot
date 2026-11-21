@@ -99,10 +99,8 @@ interface DropdownBaseProps {
   /** Extra class on the trigger/menu wrapper. */
   className?: string;
   /**
-   * When a pointer opens the menu, focus the menu itself rather than its first
-   * item, so nothing looks chosen before the user chooses — the way a native
-   * popup menu opens. Arrow keys still reach the items, and a keyboard open
-   * (Enter / Space on the trigger) focuses the first item as usual.
+   * Kept for the callers that pass it: every pointer open is quiet now (the
+   * menu takes focus itself; the first row only for a keyboard open).
    */
   quietOpen?: boolean;
   /** Space between the trigger and the menu, px (`MENU_GAP`, 6, by default). */
@@ -148,7 +146,6 @@ export function Dropdown({
   search,
   openOnHover = false,
   className,
-  quietOpen = false,
   gap = MENU_GAP,
 }: DropdownProps) {
   if (presentation === 'popover' && (typeof ariaLabel !== 'string' || !ariaLabel.trim())) {
@@ -317,25 +314,23 @@ export function Dropdown({
     // With a filter field, focus belongs in the field — you opened the menu to
     // search it. ArrowDown from there hands focus to the list.
     if (hasSearch) return;
-    if (presentation === 'menu') {
-      if (quietOpen && openedByPointerRef.current) {
-        menuRef.current?.focus({ preventScroll: true });
-        return;
-      }
-      focusEnabledMenuItemAt(0);
+    // Opened by a pointer, every menu and popover takes focus itself, so no
+    // row wears a focus ring until the keyboard is used (Designer, 20 Nov).
+    // Arrow keys still reach the rows; a keyboard open (Enter / Space on the
+    // trigger) focuses the first one.
+    if (openedByPointerRef.current) {
+      menuRef.current?.focus({ preventScroll: true });
       return;
     }
-    // A popover a pointer opened (quietOpen) takes focus itself, so no row
-    // wears a focus ring until the keyboard is used.
-    if (quietOpen && openedByPointerRef.current) {
-      menuRef.current?.focus({ preventScroll: true });
+    if (presentation === 'menu') {
+      focusEnabledMenuItemAt(0);
       return;
     }
     const focusable = menuRef.current?.querySelector<HTMLElement>(
       'button:not(:disabled), summary, input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])'
     );
     (focusable ?? menuRef.current)?.focus({ preventScroll: true });
-  }, [focusEnabledMenuItemAt, hasSearch, isOpen, portal, portalPos, presentation, quietOpen]);
+  }, [focusEnabledMenuItemAt, hasSearch, isOpen, portal, portalPos, presentation]);
 
   useEffect(() => {
     return () => {
