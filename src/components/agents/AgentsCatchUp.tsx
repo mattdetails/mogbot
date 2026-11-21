@@ -31,7 +31,7 @@ import {
 import { useAgentsSelector } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { formatAge, formatAgo } from '../../lib/formatAgo';
-import { draftFrom, draftOf } from '../../lib/draftCard';
+import { draftOf } from '../../lib/draftCard';
 import {
   answersHere,
   catchItems,
@@ -368,10 +368,12 @@ function Preview({
           {more > 0 && <span className="agents-catchup__chip-more">+{more} more</span>}
         </span>
       </div>
-      <div className="agents-catchup__field">
-        <span className="agents-catchup__field-label">From</span>
-        <span className="agents-catchup__field-value">{draftFrom(draft, approval)}</span>
-      </div>
+      {approval?.sendFrom && (
+        <div className="agents-catchup__field">
+          <span className="agents-catchup__field-label">From</span>
+          <span className="agents-catchup__field-value">{approval.sendFrom}</span>
+        </div>
+      )}
       {draft.subject && (
         <div className="agents-catchup__field">
           <span className="agents-catchup__field-label">Subject</span>

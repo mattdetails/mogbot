@@ -21,7 +21,7 @@ type Ask = {
   minutesAgo: number;
   detail?: string;
   /** A send: the email as it would go (the preview panel's fields and words). */
-  send?: { to: string; cc?: string; subject: string; body: string };
+  send?: { from?: string; to: string; cc?: string; subject: string; body: string };
 };
 
 const ASKS: Ask[] = [
@@ -34,6 +34,7 @@ const ASKS: Ask[] = [
     minutesAgo: 180,
     detail: 'send_email ×12\nfrom: you\nto: leads from Native OS',
     send: {
+      from: 'julian@example.com',
       to: 'Sam Carter <sam@northwind.example>',
       cc: 'ops@native.example, pipeline@native.example',
       subject: 'Your site, faster',
@@ -69,12 +70,14 @@ const approval = (a: Ask, over: Record<string, unknown> = {}) =>
       status: 'pending',
       ...(a.send
         ? {
+            sendFrom: a.send.from,
             plan: {
               actions: [
                 {
                   kind: 'send',
                   summary: a.title,
                   target: a.send.to,
+                  sendFrom: a.send.from,
                   text: `Subject: ${a.send.subject}\nCC: ${a.send.cc ?? ''}\n\n${a.send.body}`,
                 },
               ],
