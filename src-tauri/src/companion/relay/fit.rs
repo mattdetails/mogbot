@@ -29,7 +29,9 @@ fn size(v: &Value) -> usize {
 /// Drop the oldest of `messages` until `v` fits, and say there is more.
 fn drop_oldest(v: &mut Value) {
     let Some(obj) = v.as_object_mut() else { return };
-    let Some(Value::Array(list)) = obj.get("messages") else { return };
+    let Some(Value::Array(list)) = obj.get("messages") else {
+        return;
+    };
     let sizes: Vec<usize> = list.iter().map(size).collect();
     let mut total = size(&Value::Object(obj.clone()));
     let mut drop = 0;
@@ -86,7 +88,11 @@ pub fn fit(text: String) -> Option<String> {
     let Ok(mut frame) = serde_json::from_str::<Value>(&text) else {
         return None;
     };
-    let kind = frame.get("t").and_then(Value::as_str).unwrap_or("").to_string();
+    let kind = frame
+        .get("t")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
     let slot = match kind.as_str() {
         "res" => "result",
         "evt" => "event",
@@ -114,10 +120,16 @@ pub fn fit(text: String) -> Option<String> {
                 "This answer is too big to send to the phone.",
             )),
         );
-        tracing::warn!(from = text.len(), "[Relay] a reply for the phone was too big even trimmed");
+        tracing::warn!(
+            from = text.len(),
+            "[Relay] a reply for the phone was too big even trimmed"
+        );
         return serde_json::to_string(&err).ok();
     }
-    tracing::warn!(from = text.len(), "[Relay] an event for the phone was too big and was left out");
+    tracing::warn!(
+        from = text.len(),
+        "[Relay] an event for the phone was too big and was left out"
+    );
     None
 }
 
@@ -174,8 +186,9 @@ mod tests {
 
     #[test]
     fn a_reply_with_nothing_to_trim_becomes_an_error() {
-        let keys: serde_json::Map<String, Value> =
-            (0..FRAME_MAX / 6).map(|i| (format!("k{i}"), json!(i))).collect();
+        let keys: serde_json::Map<String, Value> = (0..FRAME_MAX / 6)
+            .map(|i| (format!("k{i}"), json!(i)))
+            .collect();
         let t = json!({ "t": "res", "id": 9, "ok": true, "result": keys }).to_string();
         assert!(t.len() > FRAME_MAX);
         let out = fit(t).unwrap();

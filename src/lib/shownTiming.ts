@@ -24,7 +24,8 @@ export function countEvent() {
 export function noteOverview(ms: number) {
   overviews.push(Math.round(ms));
   if (overviews.length > 20) overviews = overviews.slice(-20);
-  if (ms >= SLOW_OVERVIEW_MS) logger.info('[Timing] slow overview in the window', { ms: Math.round(ms) });
+  if (ms >= SLOW_OVERVIEW_MS)
+    logger.info('[Timing] slow overview in the window', { ms: Math.round(ms) });
 }
 
 /** Start watching the window being hidden and shown (once). */

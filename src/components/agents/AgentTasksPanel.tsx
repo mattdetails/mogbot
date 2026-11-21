@@ -201,7 +201,6 @@ export function AgentTasksPanel({
               placeholder={TASK_COPY.addPlaceholder}
               value={draft}
               maxLength={400}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {

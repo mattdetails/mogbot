@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ChromeNotice } from './ChromeNotice';
 import { ModalProvider } from '../../contexts/ModalContext';
-import { chromeNeedsAttention, reachedForChrome, type UserChromeStatus } from '../../lib/userChrome';
+import {
+  chromeNeedsAttention,
+  reachedForChrome,
+  type UserChromeStatus,
+} from '../../lib/userChrome';
 
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock('@tauri-apps/api/core', async (importOriginal) => ({
@@ -91,7 +95,9 @@ describe('reachedForChrome', () => {
       false
     );
     expect(
-      reachedForChrome([{ kind: 'agent', work: { steps: [step('Using your Chrome · example.com')] } }])
+      reachedForChrome([
+        { kind: 'agent', work: { steps: [step('Using your Chrome · example.com')] } },
+      ])
     ).toBe(true);
     // An older turn's browser use doesn’t count once the user has spoken again.
     expect(

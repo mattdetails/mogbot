@@ -18,8 +18,9 @@ export class File {
   open(_mode?: FileMode) {
     return { writeBytes: async (_b: Uint8Array) => {}, close: () => {} };
   }
-  async move(to: File, _opts?: { overwrite?: boolean }) {
+  move(to: File, _opts?: { overwrite?: boolean }): Promise<void> {
     this.uri = to.uri;
+    return Promise.resolve();
   }
 }
 

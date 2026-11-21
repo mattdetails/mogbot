@@ -315,7 +315,9 @@ export function chromeNeedsAttention(s: UserChromeStatus | null): boolean {
  * on the first action that needs the browser, never after a plain reply or
  * draft (spec-chrome-onboarding, "When the card shows").
  */
-export function reachedForChrome(messages: readonly { kind: string; work?: { steps?: { label: string }[] } }[]): boolean {
+export function reachedForChrome(
+  messages: readonly { kind: string; work?: { steps?: { label: string }[] } }[]
+): boolean {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
     if (m.kind === 'user') return false;

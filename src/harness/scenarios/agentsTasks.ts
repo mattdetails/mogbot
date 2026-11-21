@@ -69,7 +69,11 @@ const scenario = (
   looksRightWhen: string,
   tasks: { doing?: string; toDo: number; waits: number } | undefined,
   board: unknown,
-  { commands: extraCommands, pausedAgent, ...more }: Partial<Scenario> & { pausedAgent?: boolean } = {}
+  {
+    commands: extraCommands,
+    pausedAgent,
+    ...more
+  }: Partial<Scenario> & { pausedAgent?: boolean } = {}
 ): Scenario => ({
   id: `agents-tasks-${id}`,
   title: `Agents — ${title}`,
@@ -96,12 +100,7 @@ const scenario = (
 });
 
 /** The sidebar's three task sub lines (DRYRUN-MISSING.md): 5 to do, Idle, 14 to do · Busy. */
-function sidebarRow(
-  id: string,
-  title: string,
-  looksRightWhen: string,
-  paused = false
-): Scenario {
+function sidebarRow(id: string, title: string, looksRightWhen: string, paused = false): Scenario {
   return {
     id,
     title,
@@ -117,7 +116,11 @@ function sidebarRow(
           minutesAgo: 3,
           tasks: { toDo: 5, waits: 0 },
         }),
-        agent('mail', 'Mail', { color: 'blue', minutesAgo: 20, ...(paused ? { paused: true } : {}) }),
+        agent('mail', 'Mail', {
+          color: 'blue',
+          minutesAgo: 20,
+          ...(paused ? { paused: true } : {}),
+        }),
         agent('scout', 'Scout', {
           color: 'orange',
           minutesAgo: 1,

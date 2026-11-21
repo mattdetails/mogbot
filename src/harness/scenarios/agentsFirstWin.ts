@@ -179,9 +179,7 @@ const SITE_USED_CHROME = SITE_HANDED_BACK.map((m) =>
           endedAt: now - MIN,
           stepCount: 1,
           fileCount: 0,
-          steps: [
-            { at: now - 90_000, kind: 'web', label: 'Used your Chrome', outcome: 'failed' },
-          ],
+          steps: [{ at: now - 90_000, kind: 'web', label: 'Used your Chrome', outcome: 'failed' }],
         },
       }
     : m
