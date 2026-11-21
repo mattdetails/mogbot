@@ -241,8 +241,8 @@ export const agentsCatchUpScenarios: Scenario[] = [
   ),
   scenario(
     'entry-stale',
-    'the entry while the Mac can’t be read',
-    'The same card with “Start catching up” off (the disabled neutral button) and a quiet line under the keys: “● From HH:MM · couldn’t reach your Mac”. The rows under “Or pick one” are dimmed to 55% and don’t open.',
+    'the entry when it can’t be refreshed',
+    'The same card with “Start catching up” off (the disabled neutral button) and a quiet line under the keys: “● From HH:MM · couldn’t refresh”. The rows under “Or pick one” are dimmed to 55% and don’t open.',
     {
       ...withAsks(ASKS, HAPPENED),
       // Read once, then the Mac stops answering.

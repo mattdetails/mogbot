@@ -129,5 +129,10 @@ export const catchUpDoneFrom = (done: number, agents: number): string =>
 export const catchUpCaughtUpBody = (lastDecision?: string): string =>
   lastDecision ? `${CATCH_UP.nothingNeedsYou} Last one ${lastDecision}.` : CATCH_UP.nothingNeedsYou;
 
-/** Stale: what the card shows was read at this time, and the Mac couldn't be read since. */
-export const catchUpStale = (readAt: string): string => `From ${readAt} · couldn’t reach your Mac`;
+/**
+ * Stale: what the card shows was read at this time, and couldn't be read
+ * since. The phone couldn't reach the Mac; on the desk the app is on the Mac,
+ * so it says it couldn't refresh.
+ */
+export const catchUpStale = (readAt: string, on: 'desk' | 'phone' = 'phone'): string =>
+  `From ${readAt} · ${on === 'desk' ? 'couldn’t refresh' : 'couldn’t reach your Mac'}`;

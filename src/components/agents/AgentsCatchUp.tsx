@@ -446,7 +446,7 @@ function Entry({
           {stale && (
             <p className="agents-catchup__stale">
               <span className="agents-catchup__stale-dot" aria-hidden="true" />
-              {catchUpStale(stale)}
+              {catchUpStale(stale, 'desk')}
             </p>
           )}
         </div>
