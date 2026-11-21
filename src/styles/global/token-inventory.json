@@ -6034,7 +6034,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 224
+      "consumerCount": 225
     },
     {
       "name": "--border-strong",
@@ -6066,7 +6066,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 384
+      "consumerCount": 385
     },
     {
       "name": "--border-width-emphasis",
@@ -6994,7 +6994,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 694
+      "consumerCount": 695
     },
     {
       "name": "--spacing-lg",
@@ -7002,7 +7002,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 334
+      "consumerCount": 335
     },
     {
       "name": "--spacing-xl",
@@ -7066,7 +7066,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 82
+      "consumerCount": 83
     },
     {
       "name": "--radius-pill",
@@ -7690,7 +7690,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 224
+      "consumerCount": 225
     },
     {
       "name": "--border-strong",

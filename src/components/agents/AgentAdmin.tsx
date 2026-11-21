@@ -191,7 +191,7 @@ export function AgentAdminSettings() {
       {deleted && deleted.length > 0 && (
         <>
           <h4 className="agent-admin-settings__heading">Recently deleted</h4>
-          <div className="settings-section">
+          <div className="settings-section agent-admin-deleted">
             {deleted.map((d) => (
               <Row
                 key={d.id}

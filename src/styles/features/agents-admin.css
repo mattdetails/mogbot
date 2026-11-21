@@ -21,7 +21,8 @@
 }
 
 .agent-admin-settings__heading {
-  margin: var(--spacing-md) 0 var(--spacing-xs);
+  /* 16px above a section's label, 4px between the label and its card. */
+  margin: var(--spacing-lg) 0 var(--spacing-xs);
   font-size: var(--font-size-label);
   font-weight: var(--font-weight-label);
   color: var(--text-secondary);
@@ -56,9 +57,29 @@
   color: var(--text-secondary);
 }
 
-/* Recently deleted's rows start flush under their heading, as a group's do. */
-.agent-admin-settings__heading + .settings-section > .settings-row:first-child {
-  padding-top: 0;
+/* Recently deleted: one card with its full border and a 12px radius at all
+   four corners; its rows have the same 12px inside, so the first row never
+   touches the top edge, and no hairlines between them (the fill and the
+   hover change only). The card keeps the group's surface. */
+.settings-group > .agent-admin-deleted {
+  gap: 0;
+  margin: 0;
+  padding: 0 var(--spacing-md);
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--settings-card-surface);
+}
+
+.settings-group .agent-admin-deleted > .settings-row {
+  padding: var(--spacing-md) 0;
+}
+
+.settings-group .agent-admin-deleted > .settings-row::before {
+  display: none;
+}
+
+.settings-group .agent-admin-deleted > .settings-row + .settings-row {
+  border-top: 0;
 }
 
 .agent-admin-activity__who {
