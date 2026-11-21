@@ -186,6 +186,7 @@ import {
   hintDot,
   needsYou,
   ROUTINES_NEED_THE_COMPUTER,
+  setAgentPaused,
 } from '../../lib/agents';
 import { AgentStarters } from './AgentStarters';
 import { BlockReplyContext, type BlockReply } from './blocks/blockReply';
@@ -2262,6 +2263,7 @@ export const AgentChat = memo(function AgentChat({
                         onApps={openReach ? () => openReach(agent.id) : undefined}
                         teamIndependence={teamIndependence}
                         actions={actions}
+                        onPause={(a, paused) => void setAgentPaused(a.id, paused)}
                         onFiles={() => setFilesOpen(true)}
                       />
                       <AgentFilesModal

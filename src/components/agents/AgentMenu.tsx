@@ -8,7 +8,8 @@
  * and memory; going back is Rewind on each message. Rows open the existing
  * popovers and pages; the menu adds only Tasks.
  *
- * Not here yet: "Pause this agent" (there is no per-agent pause on the Mac).
+ * Pause this agent (Resume once paused) sits above Delete: it stops what the
+ * agent is doing and switches its routines off; messages still reach it.
  *
  * @module components/agents/AgentMenu
  */
@@ -21,6 +22,8 @@ import {
   FileTextIcon,
   PaperclipIcon,
   MoreHorizontalIcon,
+  PauseIcon,
+  PlayIcon,
   PlugIcon,
   RoutineIcon,
   SettingsSlidersIcon,
@@ -45,6 +48,8 @@ export const MENU_COPY = {
   apps: 'Apps and logins',
   model: 'Model',
   independence: 'Independence',
+  pause: 'Pause this agent',
+  resume: 'Resume',
   delete: 'Delete this agent',
 } as const;
 
@@ -86,6 +91,7 @@ export function AgentMenu({
   onModel,
   onApps,
   actions,
+  onPause,
   onFiles,
 }: {
   agent: Agent;
@@ -103,6 +109,8 @@ export function AgentMenu({
   onApps?: () => void;
   /** Instructions (Edit), Independence (on its own), Take over, Delete. */
   actions: AgentActions;
+  /** Pause (or resume) this agent. Absent where the Mac can't (older build). */
+  onPause?: (agent: Agent, paused: boolean) => void;
   /** Its Files list. */
   onFiles: () => void;
 }) {
@@ -174,6 +182,14 @@ export function AgentMenu({
       {takeover.map((item) => (
         <Row key={item.label} icon={item.icon} label={item.label} onSelect={item.run} />
       ))}
+      {!agent.isMain && onPause && (
+        <Row
+          icon={agent.paused ? <PlayIcon size={12} /> : <PauseIcon size={12} />}
+          label={agent.paused ? MENU_COPY.resume : MENU_COPY.pause}
+          value={agent.paused ? 'Paused' : undefined}
+          onSelect={() => onPause(agent, !agent.paused)}
+        />
+      )}
       {!agent.isMain && (
         <Row
           icon={<TrashIcon size={12} />}

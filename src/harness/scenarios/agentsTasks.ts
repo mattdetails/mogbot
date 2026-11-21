@@ -69,7 +69,7 @@ const scenario = (
   looksRightWhen: string,
   tasks: { doing?: string; toDo: number; waits: number } | undefined,
   board: unknown,
-  { commands: extraCommands, ...more }: Partial<Scenario> = {}
+  { commands: extraCommands, pausedAgent, ...more }: Partial<Scenario> & { pausedAgent?: boolean } = {}
 ): Scenario => ({
   id: `agents-tasks-${id}`,
   title: `Agents — ${title}`,
@@ -84,6 +84,7 @@ const scenario = (
         role: 'Drafts and sends the intro emails.',
         minutesAgo: 3,
         ...(tasks ? { tasks } : {}),
+        ...(pausedAgent ? { paused: true } : {}),
       }),
     ]),
     agents_messages: () => [msg('user', 'Draft the intros.', 9, { agentId: ID })],
@@ -217,6 +218,26 @@ export const agentsTasksScenarios: Scenario[] = [
     { steps: [{ click: '.agent-chat__more' }, { wait: 400 }], requires: '.agent-menu' }
   ),
 
+  scenario(
+    'menu-pause',
+    'the agent menu, Pause this agent',
+    'In the ⋯ menu, above the red Delete this agent, one row “Pause this agent” with a pause icon, in the same ink as Take over; nothing amber or red on it.',
+    { doing: 'Drafting intros', toDo: 2, waits: 1 },
+    LOAD(OPEN, RECENT),
+    { steps: [{ click: '.agent-chat__more' }, { wait: 400 }], requires: '.agent-menu' }
+  ),
+  scenario(
+    'menu-resume',
+    'the agent menu, a paused agent',
+    'The same row reads “Resume” with a play icon and “Paused” muted at the right; the rest of the menu is unchanged.',
+    { doing: 'Drafting intros', toDo: 2, waits: 1 },
+    LOAD(OPEN, RECENT),
+    {
+      steps: [{ click: '.agent-chat__more' }, { wait: 400 }],
+      requires: '.agent-menu',
+      pausedAgent: true,
+    }
+  ),
   // ---- “＋ Add a task” at the foot of the panel (Designer's G-6) ----
   scenario(
     'add',
