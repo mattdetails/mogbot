@@ -133,7 +133,22 @@ export const phoneScenarios: Scenario[] = [
     'phoneMacTailscale',
     'Phone — 2. Tailscale on this Mac, done',
     'Back, the bar at 2 of 7, “Turn on Tailscale on this Mac”, one line, a green-ticked “Done. Tailscale is on, signed in as julian@example.com.”, a big Continue and Skip for now.',
-    { tailscale: LOGIN }
+    { tailscale: LOGIN },
+    {
+      // Arrives from Get the app with the check already read, so it holds:
+      // a screen moves on by itself only when its check passes after it arrived.
+      // Steps run before a scenario's command, so they open the panel themselves.
+      storage: { ...at('phoneGetApp'), [PHONE_ROUTE_KEY]: 'tailscale' },
+      command: undefined,
+      openSelector: '.mode-toggle [data-tab-value="agents"]',
+      steps: [
+        { key: 'mod+k' },
+        { fill: '.command-palette-input', value: 'Paired phones' },
+        { click: '.command-palette [role="option"]', text: 'Paired phones' },
+        { wait: 1500 },
+        { click: '.phone-modal button', text: 'I already have the app' },
+      ],
+    }
   ),
   flowStep(
     'phone-install-tailscale',
