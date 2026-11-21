@@ -176,7 +176,8 @@ export const http: HttpAdapter = {
     );
     const res = await task.downloadAsync().catch(async (e: unknown) => {
       await FileSystem.deleteAsync(dest, { idempotent: true });
-      throw e;
+      // Broken off after some of it came: say that, not "not connected".
+      throw written > 0 && expected > 0 ? new ShortDownload(shortDownload(written, expected)) : e;
     });
     if (!res || res.status !== 200) {
       await FileSystem.deleteAsync(dest, { idempotent: true });
