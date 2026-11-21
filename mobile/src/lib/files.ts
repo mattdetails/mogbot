@@ -12,12 +12,12 @@
 import { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES, toBase64Url } from '@shipstudio/companion-protocol';
 import * as Crypto from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
+import { File, FileMode } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { fromBase64Url, standardToUrl } from './identity';
-import type { HttpAdapter, LocalFiles } from './transport';
+import type { FileSink, HttpAdapter, LocalFiles } from './transport';
 
 /** A file chosen on the phone, before it is uploaded. */
 export interface PickedFile {
@@ -153,14 +153,28 @@ export const http: HttpAdapter = {
     if (!res) throw new Error('Upload cancelled');
     return { status: res.status, body: res.body };
   },
-  async download(url, headers, key) {
+  async download(url, headers, key, onProgress) {
     const dest = await cachePath(key);
     const info = await FileSystem.getInfoAsync(dest);
     if (info.exists && info.size) return { status: 200, uri: dest };
     await FileSystem.makeDirectoryAsync(CACHE, { intermediates: true }).catch(() => {});
-    const res = await FileSystem.downloadAsync(url, dest, { headers });
-    if (res.status !== 200) await FileSystem.deleteAsync(dest, { idempotent: true });
-    return { status: res.status, uri: res.uri };
+    // Straight to disk (any size), with how far it's got.
+    const task = FileSystem.createDownloadResumable(
+      url,
+      dest,
+      { headers },
+      ({ totalBytesWritten, totalBytesExpectedToWrite }) =>
+        onProgress?.(
+          totalBytesWritten,
+          totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : null
+        )
+    );
+    const res = await task.downloadAsync().catch(async (e: unknown) => {
+      await FileSystem.deleteAsync(dest, { idempotent: true });
+      throw e;
+    });
+    if (!res || res.status !== 200) await FileSystem.deleteAsync(dest, { idempotent: true });
+    return { status: res?.status ?? 0, uri: res?.uri ?? dest };
   },
 };
 
@@ -191,6 +205,9 @@ export const localFiles: LocalFiles = {
     const info = await FileSystem.getInfoAsync(dest);
     return info.exists && info.size ? dest : null;
   },
+  async stream(key) {
+    return openSink(await cachePath(key));
+  },
   async write(key, bytes) {
     const dest = await cachePath(key);
     await FileSystem.makeDirectoryAsync(CACHE, { intermediates: true }).catch(() => {});
@@ -200,6 +217,36 @@ export const localFiles: LocalFiles = {
     return dest;
   },
 };
+
+/**
+ * A download written piece by piece into `<dest>.part`, moved to `dest` once
+ * whole: a file that didn't finish is never taken for the cached copy.
+ */
+export function openSink(dest: string): FileSink {
+  const part = new File(`${dest}.part`);
+  if (part.exists) part.delete();
+  part.create({ intermediates: true });
+  const handle = part.open(FileMode.ReadWrite);
+  let open = true;
+  const close = () => {
+    if (open) handle.close();
+    open = false;
+  };
+  return {
+    append: (piece) => handle.writeBytes(piece),
+    async commit() {
+      close();
+      const done = new File(dest);
+      await part.move(done, { overwrite: true });
+      return dest;
+    },
+    abort() {
+      close();
+      if (part.exists) part.delete();
+      return Promise.resolve();
+    },
+  };
+}
 
 /** Everything downloaded from this Mac. Forgetting the Mac wipes it. */
 export const clearCache = () => FileSystem.deleteAsync(CACHE, { idempotent: true });

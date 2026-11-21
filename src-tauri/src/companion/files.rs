@@ -35,12 +35,9 @@ const MAX_THUMB_ALLOC: u64 = 256 * 1024 * 1024;
 /// Thumbnails kept, by file and width (attachments never change).
 const THUMBS_KEPT: usize = 128;
 const THUMB_BYTES_KEPT: usize = 32 * 1024 * 1024;
-/// A whole file past [`MAX_FILE_BYTES`] and up to this is streamed from disk
-/// rather than refused: an agent's video (Julian's wife's 60 MB MP4, 20 Nov)
-/// opens on the phone. Never read into memory here; a phone on the relay
-/// still holds it whole, so it stays bounded.
-pub const MAX_STREAM_BYTES: u64 = 100 * 1024 * 1024;
-/// A streamed file's pieces.
+/// A download's pieces, read from disk as they go: no file is ever read
+/// into memory whole, so there is no cap on what the phone can open (the
+/// owner, 20 Nov: "There shouldn't be a cap"). Uploads keep theirs.
 const STREAM_CHUNK: usize = 256 * 1024;
 
 /// The device behind the request's bearer token, if it may make this
@@ -510,21 +507,13 @@ pub async fn download(c: Arc<Companion>, req: Request<Incoming>) -> Response<Bod
         // Never more than an attachment's cap in memory at once: a whole
         // file past it, or a range wider than it, is refused (a player asks
         // in ranges) (CTO review 2026-11-14).
-        if range.is_none() && len > MAX_FILE_BYTES && len <= MAX_STREAM_BYTES {
-            return Ok(Read {
-                bytes: Payload::File(served.path.clone(), len),
-                mime: served.mime.clone(),
-                range,
-                total: Some(len),
-                served,
-            });
-        }
-        if too_big(len, range) {
-            return Err(StatusCode::PAYLOAD_TOO_LARGE);
-        }
-        let bytes = read_bytes(&served.path, range).map_err(|_| StatusCode::NOT_FOUND)?;
+        // Streamed from disk, whole or a range, whatever its size.
+        let (start, count) = match range {
+            Some((a, b)) => (a, b - a + 1),
+            None => (0, len),
+        };
         Ok(Read {
-            bytes: Payload::Bytes(bytes),
+            bytes: Payload::File(served.path.clone(), start, count),
             mime: served.mime.clone(),
             range,
             total: Some(len),
@@ -543,7 +532,8 @@ pub async fn download(c: Arc<Companion>, req: Request<Incoming>) -> Response<Bod
 /// What a download answers with: bytes in hand, or a file streamed from disk.
 enum Payload {
     Bytes(Vec<u8>),
-    File(PathBuf, u64),
+    /// The file, from `start`, `count` bytes.
+    File(PathBuf, u64, u64),
 }
 
 struct Read {
@@ -555,39 +545,22 @@ struct Read {
     served: Served,
 }
 
-/// Whether serving `range` of a file `len` long would read more than
-/// [`MAX_FILE_BYTES`] into memory.
-fn too_big(len: u64, range: Option<(u64, u64)>) -> bool {
-    match range {
-        Some((start, end)) => end.saturating_sub(start).saturating_add(1) > MAX_FILE_BYTES,
-        None => len > MAX_FILE_BYTES,
-    }
-}
-
-fn read_bytes(path: &std::path::Path, range: Option<(u64, u64)>) -> std::io::Result<Vec<u8>> {
-    use std::io::{Read as _, Seek, SeekFrom};
-    let Some((start, end)) = range else {
-        return std::fs::read(path);
-    };
-    let mut file = std::fs::File::open(path)?;
-    file.seek(SeekFrom::Start(start))?;
-    let mut buf = vec![0; (end - start + 1) as usize];
-    file.read_exact(&mut buf)?;
-    Ok(buf)
-}
-
 /// A file from disk in [`STREAM_CHUNK`] pieces, each read off the async
 /// threads; a read that fails ends the body short (the length then says so).
-fn file_body(path: PathBuf) -> Body {
+fn file_body(path: PathBuf, start: u64, count: u64) -> Body {
     use futures_util::StreamExt;
     use hyper::body::Frame;
-    let pieces = futures_util::stream::unfold(Some((path, 0u64)), |at| async move {
-        let (path, offset) = at?;
+    let pieces = futures_util::stream::unfold(Some((path, start, count)), |at| async move {
+        let (path, offset, left) = at?;
+        if left == 0 {
+            return None;
+        }
+        let want = STREAM_CHUNK.min(usize::try_from(left).unwrap_or(STREAM_CHUNK));
         let read = tokio::task::spawn_blocking(move || -> std::io::Result<(PathBuf, Vec<u8>)> {
             use std::io::{Read as _, Seek, SeekFrom};
             let mut file = std::fs::File::open(&path)?;
             file.seek(SeekFrom::Start(offset))?;
-            let mut buf = vec![0; STREAM_CHUNK];
+            let mut buf = vec![0; want];
             let n = file.read(&mut buf)?;
             buf.truncate(n);
             Ok((path, buf))
@@ -596,8 +569,8 @@ fn file_body(path: PathBuf) -> Body {
         match read {
             Ok(Ok((_, buf))) if buf.is_empty() => None,
             Ok(Ok((path, buf))) => {
-                let next = offset + buf.len() as u64;
-                Some((Bytes::from(buf), Some((path, next))))
+                let n = buf.len() as u64;
+                Some((Bytes::from(buf), Some((path, offset + n, left - n))))
             }
             _ => None,
         }
@@ -609,12 +582,12 @@ fn file_body(path: PathBuf) -> Body {
 fn respond(read: Read, head: bool) -> Response<Body> {
     let (len, payload) = match read.bytes {
         Payload::Bytes(b) => (b.len() as u64, Payload::Bytes(b)),
-        Payload::File(p, n) => (n, Payload::File(p, n)),
+        Payload::File(p, start, n) => (n, Payload::File(p, start, n)),
     };
     let mut res = Response::new(match (head, payload) {
         (true, _) => body(Bytes::new()),
         (false, Payload::Bytes(b)) => body(b),
-        (false, Payload::File(path, _)) => file_body(path),
+        (false, Payload::File(path, start, n)) => file_body(path, start, n),
     });
     if read.range.is_some() {
         *res.status_mut() = StatusCode::PARTIAL_CONTENT;
@@ -662,12 +635,32 @@ mod tests {
     /// CTO review 2026-11-14: a whole attachment was read into memory,
     /// whatever its size.
     #[test]
-    fn nothing_past_the_cap_is_read_into_memory() {
-        assert!(!too_big(MAX_FILE_BYTES, None));
-        assert!(too_big(MAX_FILE_BYTES + 1, None));
-        assert!(!too_big(10 * MAX_FILE_BYTES, Some((0, 1023))));
-        assert!(!too_big(10 * MAX_FILE_BYTES, Some((0, MAX_FILE_BYTES - 1))));
-        assert!(too_big(10 * MAX_FILE_BYTES, Some((0, MAX_FILE_BYTES))));
+    fn a_download_is_streamed_from_disk_a_range_or_whole_whatever_its_size() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("clip.mp4");
+        let data: Vec<u8> = (0..(MAX_FILE_BYTES as u32 + 777))
+            .map(|i| (i % 251) as u8)
+            .collect();
+        std::fs::write(&path, &data).unwrap();
+        let collect = |start: u64, n: u64| {
+            rt.block_on(async {
+                file_body(path.clone(), start, n)
+                    .collect()
+                    .await
+                    .unwrap()
+                    .to_bytes()
+            })
+        };
+        // Past the old 25 MB cap, whole: every byte, in order.
+        assert!(collect(0, data.len() as u64) == data[..]);
+        // A range in the middle, across piece boundaries.
+        let (a, n) = (STREAM_CHUNK as u64 - 5, 3 * STREAM_CHUNK as u64 + 11);
+        assert!(collect(a, n) == data[a as usize..(a + n) as usize]);
+        // Nothing asked, nothing sent.
+        assert!(collect(10, 0).is_empty());
     }
 
     #[test]

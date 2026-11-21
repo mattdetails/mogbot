@@ -5610,6 +5610,26 @@ export function createMockServer(opts: MockOptions = {}) {
       res.writeHead(404).end();
       return true;
     }
+    // A single range, as the Mac answers one (a relayed download asks in ranges).
+    const range = /^bytes=(\d+)-(\d*)$/.exec(String(req.headers.range ?? ''));
+    if (range) {
+      const len = found.bytes.length;
+      const start = Number(range[1]);
+      const last = Math.min(range[2] ? Number(range[2]) : len - 1, len - 1);
+      if (start >= len || start > last) {
+        res.writeHead(416, { 'Content-Range': `bytes */${len}` }).end();
+        return true;
+      }
+      res
+        .writeHead(206, {
+          'Content-Type': found.mime,
+          'Content-Length': last - start + 1,
+          'Content-Range': `bytes ${start}-${last}/${len}`,
+          'Accept-Ranges': 'bytes',
+        })
+        .end(found.bytes.subarray(start, last + 1));
+      return true;
+    }
     // `?w=` asks for a thumbnail; the mock has no image library, so it
     // sends the original, which the phone scales down just the same.
     res
@@ -5685,6 +5705,9 @@ export function createMockServer(opts: MockOptions = {}) {
     : null;
 
   return {
+    /** Puts a file on this "Mac" as an agent's attachment (tests); returns its path. */
+    attachFile: (agentId: string, name: string, mime: string, bytes: Buffer) =>
+      attach(agentId, `t_${randomUUID().slice(0, 8)}`, name, mime, bytes).path,
     listen: () =>
       new Promise<string>((resolve) => {
         server.listen(opts.port ?? 0, () => {

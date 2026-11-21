@@ -89,9 +89,14 @@ one ordering domain (a request's response can't overtake the event it caused),
 auth happens once per connection, and revoking a device closes it at once.
 
 **Files go over HTTP**, so a 25 MB upload never holds up a message and
-downloads get `Range`. A whole file the phone downloads (an agent's video) may be up to 100 MB:
-past 25 MB the Mac streams it from disk rather than reading it into memory
-(`files::MAX_STREAM_BYTES`); a range is still at most 25 MB:
+downloads get `Range`. There is no cap on what the phone can open (an agent's video, any
+size): the Mac streams every download from disk, whole or a range, never reading it into
+memory, and logs one `[Relay] file:` line per relayed file (kind, status, bytes, time, how it
+ended). The phone writes a download to `<cache>.part` as it arrives and moves it into place
+once whole (a failure leaves nothing), showing "4.2 MB of 20 MB" on the file. Over Tailscale
+that's one GET; over the relay it is a run of 1 MB `Range` requests on one socket, each written
+before the next is asked for, so the phone never holds more than 1 MB of it (a 20 MB video
+held whole and base64'd froze phone 1.0.1, 20 Nov). Uploads keep the 25 MB cap:
 
 | Route | |
 | --- | --- |
