@@ -124,12 +124,14 @@ async fn seal_out(keys: &mut MacChannel, ch: u32, out: &mpsc::Sender<Out>, plain
         return false;
     };
     if sealed.len() + 4 > MAX_PAYLOAD {
-        // The relay will close the phone's socket for this (1009): said here,
-        // so the reason is findable.
+        // The relay would close the phone's socket for this (1009), and the
+        // phone would ask for the same thing again: never sent. Frames are
+        // fitted before this (`fit`), so this is the last guard.
         tracing::warn!(
             bytes = sealed.len(),
-            "[Relay] a frame for the phone is over the relay's payload limit"
+            "[Relay] a frame for the phone is over the relay's payload limit and was not sent"
         );
+        return true;
     }
     out.send(Out::Payload(ch, sealed)).await.is_ok()
 }
@@ -327,6 +329,8 @@ async fn serve(
             }
             msg = from_handler.recv() => match msg {
                 Some(Message::Text(text)) => {
+                    // Over the relay's limit, a frame is trimmed first (`fit`).
+                    let Some(text) = super::fit::fit(text) else { continue };
                     let welcome = !authed && is_welcome(&text);
                     let framed = match sess.as_mut() {
                         None => text,

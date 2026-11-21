@@ -141,6 +141,10 @@ clear 404 unlinks it (`checkStillThere`; any other answer keeps it).
   a connection). At most 4 Mac sockets
   may wait on their challenge; a fifth closes the oldest (4401 `superseded`).
 
+  The Mac never sends a frame past that: a reply that would be (a chat's latest 100 messages with long lines came to
+  270–299 KB on 20 Nov, and the phone asked again every ~2 s) gives up its oldest messages with `more: true`, long text is
+  cut with a marker, and what still can't fit is answered `tooLarge` (`relay/fit.rs`). Over Tailscale nothing is trimmed.
+
 ### The encrypted channel (phone ↔ Mac, end to end)
 
 All over the channel's binary payloads. Base64url is unpadded. `scheme` = `PAIRING_SCHEME`.
