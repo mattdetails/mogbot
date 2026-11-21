@@ -48,9 +48,23 @@ pub fn layout(agent: &Agent, home: &Path, work_dirs: Vec<String>) -> Layout {
             copy: None,
         },
         Some(project) => {
+            let copy = super::task::active(agent).cloned();
+            // The app's tidy between turns (memory, then compact) with no
+            // copy open: in the agent's own home, never the user's folder,
+            // the project only read (`policy::turn_dirs`). Before, such a
+            // tidy was skipped, and a bound agent's copy is dropped after
+            // any turn that changed nothing, so bound agents grew past the
+            // 200k cap to 800k (21 Nov).
+            if copy.is_none() && super::tidy::is_quiet(&agent.id) {
+                return Layout {
+                    cwd: home.to_path_buf(),
+                    add_dirs: work_dirs.into_iter().filter(|d| d != project).collect(),
+                    project: None,
+                    copy: None,
+                };
+            }
             let mut add_dirs = vec![home.to_string_lossy().to_string()];
             add_dirs.extend(work_dirs.into_iter().filter(|d| d != project));
-            let copy = super::task::active(agent).cloned();
             Layout {
                 cwd: copy
                     .as_ref()
@@ -380,6 +394,25 @@ mod tests {
         .unwrap();
         agent.project = project.map(str::to_string);
         agent
+    }
+
+    #[test]
+    fn a_tidy_with_no_copy_open_runs_in_its_home_never_the_users_folder() {
+        let mut bound = agent(Some("/u/ShipStudio/acme"));
+        bound.id = "tidy-layout-test".into();
+        let home = Path::new("/u/agents/tidy-layout-test");
+        let dirs = || vec!["/u/ShipStudio/acme".to_string(), "/u/lib".to_string()];
+        // A normal turn with no copy names the project (the runner makes a copy first).
+        let normal = layout(&bound, home, dirs());
+        assert_eq!(normal.project, Some(PathBuf::from("/u/ShipStudio/acme")));
+        // The app's tidy: in its home, the project left out of its folders.
+        let quiet = super::super::tidy::QuietTurn::begin(&bound.id, false);
+        let tidy = layout(&bound, home, dirs());
+        assert_eq!(tidy.cwd, home);
+        assert_eq!(tidy.project, None);
+        assert_eq!(tidy.add_dirs, vec!["/u/lib".to_string()]);
+        drop(quiet);
+        assert_eq!(layout(&bound, home, dirs()).project, normal.project);
     }
 
     #[test]

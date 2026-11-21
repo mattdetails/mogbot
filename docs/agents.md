@@ -678,13 +678,16 @@ on its first turn, Codex's own default threshold. These also reach a
 take-over (its command line is the turn's).
 
 *Between turns* (`runner::maybe_tidy`). After a turn that **finished**, with
-nothing queued, no card waiting on the user, not taken over, not a turn
-answering outside text (it can't write its memory), and not a bound agent
-with no copy open (its turn would run in the user's own folder), when the
+nothing queued, no card waiting on the user, not taken over and not a turn
+answering outside text (it can't write its memory), when the
 reading is ≥ 70% of the window or ≥ 200k tokens (`tidy::TIDY_PERCENT`,
 `tidy::TIDY_TOKENS`): two quiet turns in the same conversation, whose words never
 reach the chat (`tidy::QuietTurn`; no drafts, no bubbles, no vanished-session
-retry, no "Interrupted" note):
+retry, no "Interrupted" note). A bound agent with no copy open tidies in its
+own home, its project left out and only read (`project::layout`), never in
+the user's folder. It used to be skipped instead, and since a copy that
+changed nothing is dropped after its turn, bound agents were never tidied
+and grew to 400-800k tokens (21 Nov):
 
 1. **Memory first.** An app-owned prompt (`tidy::memory_prompt`) asks the
    agent to update `## Memory` in its CLAUDE.md with durable facts, and to
