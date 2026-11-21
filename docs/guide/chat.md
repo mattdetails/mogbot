@@ -31,7 +31,7 @@ An agent can keep a page for a conversation, like a tracker or a status board. I
 
 ## Files it names
 
-When a reply names a file in the agent's folder or one of your projects, the path is a link: click it to open the file in its usual app (⌘-click shows it in Finder; folders and anything that runs are only ever shown in Finder). A screenshot or picture it names (PNG, JPG, GIF or WebP) also appears under the reply, like a picture it attached; click it to open it. A path that isn't on this Mac any more is grey and struck through ("Not found on this Mac"), and a path anywhere else on your Mac stays plain text, with nothing to click. On your phone it is the same: tap a path to open the file there, pictures appear under the reply, a missing one says "(Not found on this Mac)", and paths elsewhere are plain text.
+When a reply names a file in the agent's folder or one of your projects, the path is a link: click it to open the file in its usual app (⌘-click shows it in Finder; folders and anything that runs are only ever shown in Finder). A screenshot or picture it names (PNG, JPG, GIF or WebP) also appears under the reply, like a picture it attached; click it to open it. A path that isn't on this Mac any more is grey and struck through ("Not found on this Mac"), and a path anywhere else on your Mac stays plain text, with nothing to click. On your phone every path is the same monospace chip: tap one to open the file there, pictures appear under the reply, a missing one is struck through and muted, and a path elsewhere on your Mac is a chip with nothing to tap.
 
 ## Drafts to send
 

@@ -55,7 +55,7 @@ describe('drawing them', () => {
       );
     };
 
-  it('a file is a link; a missing one is struck through and says so; outside is plain words', async () => {
+  it('every path is one chip: a file is a link; a missing one is the chip, muted, with no suffix; outside is the chip, not a link', async () => {
     const kinds = new Map([
       ['~/a/report.pdf', 'file' as const],
       ['~/a/gone.pdf', 'missing' as const],
@@ -65,8 +65,14 @@ describe('drawing them', () => {
       <Markdown text={'Open `~/a/report.pdf`, `~/a/gone.pdf` and `/etc/secret.txt`.'} />,
       { wrapper: wrap(kinds) }
     );
+    // Only the file opens.
     expect(screen.getAllByRole('link')).toHaveLength(1);
-    expect(screen.getByText(` (${PATH_MISSING})`)).toBeTruthy();
+    expect(screen.getByRole('link', { name: '~/a/report.pdf' })).toBeTruthy();
+    // The missing one says so in its label, and has no "(Not found…)" text beside it.
+    expect(screen.getByLabelText(`~/a/gone.pdf, ${PATH_MISSING.toLowerCase()}`)).toBeTruthy();
+    expect(screen.queryByText(` (${PATH_MISSING})`)).toBeNull();
+    expect(screen.queryByText(PATH_MISSING)).toBeNull();
+    // Outside is still shown, as text.
     expect(screen.getByText('/etc/secret.txt')).toBeTruthy();
   });
 

@@ -224,27 +224,40 @@ export const BARE_PATH =
 /** What a missing path says, as on the desk. */
 export const PATH_MISSING = 'Not found on this Mac';
 
+/**
+ * Every path in a reply is one look: a monospace chip, the code tint, no
+ * underline (the desk's one-chip rule, Chat UI's 8a0bfec76). A path that
+ * opens is a link; one outside the allowlist is the same chip with nothing
+ * to tap; one that's missing is the chip struck through and muted.
+ */
 function PathText({ path, children }: { path: string; children: ReactNode }) {
   const comp = useComputer();
   const styles = useStyles();
   const open = useContext(PathContext);
   const kinds = useContext(PathKinds);
   const kind = kinds?.get(path.trim());
-  if (!open || kind === 'outside') return <>{children}</>;
+  if (!open) return <>{children}</>;
   if (kind === 'missing') {
     return (
       <Text
-        style={styles.pathMissing}
+        style={styles.pathChipMissing}
+        accessibilityRole="text"
         accessibilityLabel={`${path}, ${PATH_MISSING.toLowerCase()}`}
       >
         {children}
-        <Text style={styles.pathMissingNote}>{` (${PATH_MISSING})`}</Text>
+      </Text>
+    );
+  }
+  if (kind === 'outside') {
+    return (
+      <Text style={styles.pathChip} accessibilityRole="text">
+        {children}
       </Text>
     );
   }
   return (
     <Text
-      style={styles.path}
+      style={styles.pathChip}
       onPress={() => open(path)}
       accessibilityRole="link"
       accessibilityHint={`Opens the file from ${comp.your}`}
@@ -598,9 +611,21 @@ const useBaseStyles = makeStyles((colors) => ({
     backgroundColor: colors.surfaceControl,
   },
   link: { color: colors.accentFocus, textDecorationLine: 'underline' },
-  path: { textDecorationLine: 'underline', textDecorationColor: colors.textMuted },
-  pathMissing: { textDecorationLine: 'line-through', color: colors.textMuted },
-  pathMissingNote: { textDecorationLine: 'none', color: colors.textMuted },
+  pathChip: {
+    fontFamily: fonts.mono,
+    fontSize: type.body,
+    color: colors.textStrong,
+    backgroundColor: colors.surfaceControl,
+    borderRadius: radius.sm,
+  },
+  pathChipMissing: {
+    fontFamily: fonts.mono,
+    fontSize: type.body,
+    color: colors.textMuted,
+    backgroundColor: colors.surfaceControl,
+    borderRadius: radius.sm,
+    textDecorationLine: 'line-through',
+  },
   quote: {
     borderLeftWidth: 2,
     borderLeftColor: colors.borderStrong,
