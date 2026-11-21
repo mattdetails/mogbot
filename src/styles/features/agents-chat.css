@@ -73,6 +73,13 @@
   padding-inline: var(--spacing-sm) var(--agents-column-inset);
 }
 
+/* Compact: the title sits right after the toggle, at the header's column gap,
+   never centred in what's left (the page's title and toggle start on the
+   list's edge where nothing clears the traffic lights). */
+.agent-chat__header:has(> .agent-chat__mode) > .agent-chat__title {
+  justify-self: start;
+}
+
 /* Collapsed, the nav row floats over the header band; it carries the band's
    hairline so the line runs unbroken across the window. */
 .agents-mode .workspace-sidebar.is-hidden .workspace-sidebar-top-row {
