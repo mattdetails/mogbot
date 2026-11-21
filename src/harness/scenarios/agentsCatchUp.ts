@@ -20,6 +20,8 @@ type Ask = {
   why: string;
   minutesAgo: number;
   detail?: string;
+  /** A send: the email as it would go (the preview panel's fields and words). */
+  send?: { to: string; cc?: string; subject: string; body: string };
 };
 
 const ASKS: Ask[] = [
@@ -31,6 +33,12 @@ const ASKS: Ask[] = [
     why: 'Each one goes to a lead from Native OS. Nothing is sent until you allow it.',
     minutesAgo: 180,
     detail: 'send_email ×12\nfrom: you\nto: leads from Native OS',
+    send: {
+      to: 'Sam Carter <sam@northwind.example>',
+      cc: 'ops@native.example, pipeline@native.example',
+      subject: 'Your site, faster',
+      body: 'Hi Sam, I build marketing sites for studios like yours. Northwind’s pages could load in under a second with a rebuild, and I can show you how in 20 minutes.\n\nWould Thursday work? I can share the before and after first.\n\nJulian',
+    },
   },
   {
     id: 'mail',
@@ -59,6 +67,20 @@ const approval = (a: Ask, over: Record<string, unknown> = {}) =>
       detail: a.detail ?? '',
       summary: a.why,
       status: 'pending',
+      ...(a.send
+        ? {
+            plan: {
+              actions: [
+                {
+                  kind: 'send',
+                  summary: a.title,
+                  target: a.send.to,
+                  text: `Subject: ${a.send.subject}\nCC: ${a.send.cc ?? ''}\n\n${a.send.body}`,
+                },
+              ],
+            },
+          }
+        : {}),
       ...over,
     },
   });
@@ -255,7 +277,7 @@ const CATCH_UP_PAGE: Scenario[] = [
     'all-clear',
     'all clear',
     'Nothing waiting and nothing happened: the entry is one calm line, a ringed check, “All caught up” and “Nothing needs you.” (no time: nothing was answered here). No card, no list.',
-    build([])
+    build(HAPPENED)
   ),
   scenario(
     'narrow',

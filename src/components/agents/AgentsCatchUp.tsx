@@ -25,12 +25,13 @@ import {
   failurePill,
   summarizeTeam,
   type Agent,
+  type Approval,
   type AgentMessage,
 } from '../../lib/agents';
 import { useAgentsSelector } from '../../lib/agentsStore';
 import { asCommandError, formatCommandError } from '../../lib/errors';
 import { formatAge, formatAgo } from '../../lib/formatAgo';
-import { draftOf } from '../../lib/draftCard';
+import { draftFrom, draftOf } from '../../lib/draftCard';
 import {
   answersHere,
   catchItems,
@@ -219,7 +220,7 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
             />
           </>
         ) : (
-          <AllClear lastDecision={lastDecision} onOpenInFlight={onOpenInFlight} />
+          <AllClear lastDecision={lastDecision} />
         )}
         {upNext.length > 0 && (
           <section className="agents-catchup__section">
@@ -241,10 +242,10 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
         {happened.length > 0 && (
           <WhileAway
             happened={happened}
-            all={showAllHappened}
+            // All clear shows every row; under a decision, three and “Show more”.
+            all={!item || showAllHappened}
             onAll={() => setShowAllHappened(true)}
             onOpenAgent={onOpenAgent}
-            onOpenInFlight={onOpenInFlight}
           />
         )}
       </div>
@@ -258,13 +259,11 @@ function WhileAway({
   all,
   onAll,
   onOpenAgent,
-  onOpenInFlight,
 }: {
   happened: Agent[];
   all: boolean;
   onAll: () => void;
   onOpenAgent: (id: string) => void;
-  onOpenInFlight: () => void;
 }) {
   // Three rows, then “Show N more” (the spec's count).
   const shown = all ? happened : happened.slice(0, 3);
@@ -290,11 +289,6 @@ function WhileAway({
       {rest > 0 && (
         <TextButton tabIndex={0} onClick={onAll} aria-expanded={false}>
           {catchUpMore(rest)}
-        </TextButton>
-      )}
-      {all && (
-        <TextButton tabIndex={0} onClick={onOpenInFlight}>
-          {CATCH_UP.whatsInFlight}
         </TextButton>
       )}
     </section>
@@ -345,6 +339,48 @@ function Row({
     </button>
   ) : (
     <div className={cls}>{inner}</div>
+  );
+}
+
+/** The thing being approved, as the mock shows it: a recessed panel of field rows
+ *  (recipients as chips, From, Subject) and the message's first lines, then “Read all”. */
+function Preview({
+  draft,
+  approval,
+}: {
+  draft: NonNullable<ReturnType<typeof draftOf>>;
+  approval: Approval | undefined;
+}) {
+  const recipients = [draft.to, ...draft.cc.split(',').map((c) => c.trim())].filter(Boolean);
+  const shown = recipients.slice(0, 2);
+  const more = recipients.length - shown.length;
+  const words = draft.body.trim().split(/\s+/).filter(Boolean).length;
+  return (
+    <div className="agents-catchup__preview">
+      <div className="agents-catchup__field">
+        <span className="agents-catchup__field-label">To</span>
+        <span className="agents-catchup__chips">
+          {shown.map((r) => (
+            <span key={r} className="agents-catchup__chip">
+              {r}
+            </span>
+          ))}
+          {more > 0 && <span className="agents-catchup__chip-more">+{more} more</span>}
+        </span>
+      </div>
+      <div className="agents-catchup__field">
+        <span className="agents-catchup__field-label">From</span>
+        <span className="agents-catchup__field-value">{draftFrom(draft, approval)}</span>
+      </div>
+      {draft.subject && (
+        <div className="agents-catchup__field">
+          <span className="agents-catchup__field-label">Subject</span>
+          <span className="agents-catchup__field-value">{draft.subject}</span>
+        </div>
+      )}
+      <p className="agents-catchup__excerpt">{draft.body}</p>
+      <span className="agents-catchup__read-all">{`Read all ${words} words`}</span>
+    </div>
   );
 }
 
@@ -420,13 +456,7 @@ function Decision({
       </p>
       <h3 className="agents-catchup__ask">{headline(item)}</h3>
       {why(item) && <p className="agents-catchup__why">{why(item)}</p>}
-      {draft && (
-        <div className="agents-catchup__words">
-          <span className="agents-catchup__words-label">Sends as you, word for word</span>
-          {draft.subject && <strong>{draft.subject}</strong>}
-          <div>{draft.body}</div>
-        </div>
-      )}
+      {draft && <Preview draft={draft} approval={approval} />}
       <div className="agents-catchup__actions">
         {here ? (
           <>
@@ -484,13 +514,7 @@ function Decision({
   );
 }
 
-function AllClear({
-  lastDecision,
-  onOpenInFlight,
-}: {
-  lastDecision?: string;
-  onOpenInFlight: () => void;
-}) {
+function AllClear({ lastDecision }: { lastDecision?: string }) {
   return (
     <section className="agents-catchup__clear" tabIndex={-1}>
       <span className="agents-catchup__ring" aria-hidden="true">
@@ -498,9 +522,6 @@ function AllClear({
       </span>
       <h3>{CATCH_UP.allClear}</h3>
       <p>{catchUpAllClearBody(lastDecision)}</p>
-      <Button tabIndex={0} variant="secondary" onClick={onOpenInFlight}>
-        {CATCH_UP.whatsInFlight}
-      </Button>
     </section>
   );
 }
