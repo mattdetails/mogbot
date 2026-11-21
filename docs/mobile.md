@@ -712,7 +712,10 @@ request, the diff and the photo viewer push over them. At
   the keyboard up the composer sits `composer.keyboardGap` (10pt) above the
   keys: the sticky view, the list's lift and the pill share one offset
   (`lift`), so they move with the keyboard frame for frame. Hold a
-  message to copy, quote or select text; paths in a reply open through
+  message for its sheet (`messageActions`, the message-actions spec): Copy
+  first, then Reply (Quote on a Mac without replies), Copy as Markdown, the
+  three ways back on your own messages, Remember this, Select text last; a
+  row only where its action exists. Paths in a reply open through
   `agents.fetchPath`.
 - **Lines, cards and bars** (`components/surfaces.tsx`, the desk's
   `AgentCard.tsx`; docs/agents.md "Lines, cards and bars"). Everything in a

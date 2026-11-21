@@ -17,13 +17,7 @@ type SFSymbol = Extract<SymbolViewProps['name'], string>;
 
 export type AgentAction = 'pin' | 'unpin' | 'markUnread' | 'mute' | 'unmute' | 'hide' | 'unhide';
 export type MessageAction =
-  | 'copy'
-  | 'copyMarkdown'
-  | 'reply'
-  | 'quote'
-  | 'select'
-  | 'remember'
-  | GoBackAction;
+  'copy' | 'copyMarkdown' | 'reply' | 'quote' | 'select' | 'remember' | GoBackAction;
 
 export interface Action<Id extends string> {
   id: Id;
@@ -106,18 +100,21 @@ export function messageActions(
 ): Action<MessageAction>[] {
   if (!message.text.trim()) return [];
   if (message.kind !== 'agent' && message.kind !== 'user') return [];
-  const out: Action<MessageAction>[] = reply
-    ? [{ id: 'reply', title: REPLY.action, icon: 'arrowshape.turn.up.left' }]
-    : [];
-  out.push({ id: 'copy', title: 'Copy', icon: 'doc.on.doc' });
+  // The message-actions spec (Designer, 20 Nov), the phone's long-press
+  // sheet: one order every time, Copy first, words on every row. A row is
+  // here only where the action exists: Reply on a Mac that takes replies
+  // (Quote, its stand-in, only on one that doesn't), the three ways back on
+  // your own messages, Remember this (the desk's pin) where memory is
+  // served. Select text last: on a phone it's the only way to copy part.
+  const out: Action<MessageAction>[] = [{ id: 'copy', title: 'Copy', icon: 'doc.on.doc' }];
+  out.push(
+    reply
+      ? { id: 'reply', title: REPLY.action, icon: 'arrowshape.turn.up.left' }
+      : { id: 'quote', title: 'Quote', icon: 'text.quote' }
+  );
   if (message.kind === 'agent' && /[*_`#>[\]|-]/.test(message.text)) {
     out.push({ id: 'copyMarkdown', title: 'Copy as Markdown', icon: 'text.badge.checkmark' });
   }
-  out.push(
-    { id: 'quote', title: 'Quote', icon: 'text.quote' },
-    { id: 'select', title: 'Select text', icon: 'selection.pin.in.out' }
-  );
-  if (remember) out.push({ id: 'remember', title: 'Remember this', icon: 'pin' });
   if (goBack && message.kind === 'user') {
     out.push(
       { id: 'edit', title: GO_BACK_LABELS.edit, icon: 'pencil' },
@@ -125,6 +122,8 @@ export function messageActions(
       { id: 'rewind', title: GO_BACK_LABELS.rewind, icon: 'arrow.uturn.left' }
     );
   }
+  if (remember) out.push({ id: 'remember', title: 'Remember this', icon: 'pin' });
+  out.push({ id: 'select', title: 'Select text', icon: 'selection.pin.in.out' });
   return out;
 }
 

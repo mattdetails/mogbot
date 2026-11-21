@@ -283,6 +283,8 @@ export interface MockOptions {
    * available" and loading states (`QA_MOCK_FLAGS=--lost-pictures`).
    */
   lostPictures?: boolean;
+  /** `--sheet-messages`: a very long message of yours and a reply with code and links (the long-press sheet). */
+  sheetMessages?: boolean;
   /** The App Store screenshots' cast (dev/mock-store.ts), at this stage of its story. */
   store?: StoreStage;
 }
@@ -1980,6 +1982,27 @@ export function createMockServer(opts: MockOptions = {}) {
         a.hidden = true;
       }
     }
+  }
+  if (opts.sheetMessages) {
+    const list = messages.get('design') ?? [];
+    const t = Date.now();
+    list.push(
+      {
+        id: 'sheet_long',
+        agentId: 'design',
+        ts: t - 4 * 60_000,
+        kind: 'user',
+        text: `Here is everything I want on the launch page. ${'The hero says what it does in one line, the pricing sits under it, and the sign-up form is one field. '.repeat(14)}That's it.`,
+      },
+      {
+        id: 'sheet_code',
+        agentId: 'design',
+        ts: t - 3 * 60_000,
+        kind: 'agent',
+        text: 'Fixed it. The change is in `src/components/Hero.tsx`:\n\n```tsx\n<Hero title="Ship faster" cta="Start free" />\n```\n\nPreview it at [the staging site](https://staging.example.com) or read [the notes](https://example.com/notes).',
+      }
+    );
+    messages.set('design', list);
   }
   if (opts.catchUpSeveral) {
     const quiet = agents.find((a) => a.id === 'brief');

@@ -60,7 +60,9 @@ One row at the end of the chat shows your agent's key and one phrase about what 
 
 ## Reply to a message
 
-On the phone, drag any message to the right to reply to it (or hold it and pick Reply, the first item). The message follows your finger up to 72 points; past 48 the arrow circle fills and you feel one tap, and letting go sets the reply. It only counts when the drag is mostly sideways, so scrolling is never taken. With VoiceOver or TalkBack, use the Reply action. The reply shows as one outlined line at the top of the message box with a × to cancel; one reply at a time. Once sent, a one-line pill sits above your bubble, outside it, with the words you replied to ("Attachment · name" for a picture, the name first in a room). Tap the pill to go to the original, which glows once; if it's gone the pill says "Message not available". Needs a Mac that supports replies.
+On the phone, drag any message to the right to reply to it (or hold it and pick Reply). The message follows your finger up to 72 points; past 48 the arrow circle fills and you feel one tap, and letting go sets the reply. It only counts when the drag is mostly sideways, so scrolling is never taken. With VoiceOver or TalkBack, use the Reply action. The reply shows as one outlined line at the top of the message box with a × to cancel; one reply at a time. Once sent, a one-line pill sits above your bubble, outside it, with the words you replied to ("Attachment · name" for a picture, the name first in a room). Tap the pill to go to the original, which glows once; if it's gone the pill says "Message not available". Needs a Mac that supports replies.
+
+Hold any message on the phone for its sheet, always in the same order: **Copy**, **Reply**, **Copy as Markdown** (on a reply with formatting), **Edit and resend**, **Fork from here** and **Rewind to here** (on your own messages), **Remember this**, and **Select text** to copy part of it. A row shows only where that action is possible. Scrolling or swiping a message never opens it.
 
 ## Tasks
 
