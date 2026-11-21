@@ -215,8 +215,7 @@ pub(super) fn delegated(agent_id: &str) -> bool {
 /// Written when the request is sent, replaced by the next one between the
 /// same two; in memory only, like `owed`.
 type OnwardMap = HashMap<(String, String), Vec<AgentRef>>;
-pub(super) static ONWARD: LazyLock<Mutex<OnwardMap>> =
-    LazyLock::new(Default::default);
+pub(super) static ONWARD: LazyLock<Mutex<OnwardMap>> = LazyLock::new(Default::default);
 
 /// `asker`'s turn is sending `helper` a request: whoever that turn owes an
 /// answer is owed the one `helper`'s reply makes possible too.

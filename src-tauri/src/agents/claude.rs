@@ -125,7 +125,14 @@ pub(super) fn interactive_args(
     system_prompt_file: &str,
     add_dirs: &[String],
 ) -> Vec<String> {
-    let print = args(model, session_id, true, mcp_config, system_prompt_file, add_dirs);
+    let print = args(
+        model,
+        session_id,
+        true,
+        mcp_config,
+        system_prompt_file,
+        add_dirs,
+    );
     let mut out = Vec::with_capacity(print.len());
     let mut it = print.into_iter();
     while let Some(arg) = it.next() {

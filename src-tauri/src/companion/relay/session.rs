@@ -229,21 +229,29 @@ fn registry() -> &'static Mutex<Registry> {
 /// on a new socket, park now".
 pub fn go_live(session: &Session) -> mpsc::Receiver<()> {
     let (tx, rx) = mpsc::channel(1);
-    registry().lock().unwrap_or_else(|e| e.into_inner()).live.insert(
-        session.sid.clone(),
-        Live {
-            yield_tx: tx,
-            key: session.key,
-            prev: session.prev_key,
-            last_k: session.last_k,
-        },
-    );
+    registry()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .live
+        .insert(
+            session.sid.clone(),
+            Live {
+                yield_tx: tx,
+                key: session.key,
+                prev: session.prev_key,
+                last_k: session.last_k,
+            },
+        );
     rx
 }
 
 /// This channel ended without parking.
 pub fn forget(sid: &str) {
-    registry().lock().unwrap_or_else(|e| e.into_inner()).live.remove(sid);
+    registry()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .live
+        .remove(sid);
 }
 
 /// Keep the session for [`GRACE`].

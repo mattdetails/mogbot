@@ -2933,7 +2933,9 @@ async fn run(
                 return Err(bad_params("Pause takes an agentId."));
             }
             let Some(paused) = params.get("paused").and_then(Value::as_bool) else {
-                return Err(bad_params("Pause takes `paused`: true to pause, false to resume."));
+                return Err(bad_params(
+                    "Pause takes `paused`: true to pause, false to resume.",
+                ));
             };
             Ok(b.agent_pause(agent_id, paused).await?)
         }

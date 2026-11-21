@@ -316,9 +316,7 @@ pub(super) fn pickup_after(
 ) -> Pickup {
     if mark.stopped {
         Pickup::Stopped
-    } else if driven
-        || mark.took.iter().any(|m| m.room.is_some())
-        || next_pickup_of(mark).is_none()
+    } else if driven || mark.took.iter().any(|m| m.room.is_some()) || next_pickup_of(mark).is_none()
     {
         Pickup::Continue(cause.interrupted_line())
     } else if !session_found {

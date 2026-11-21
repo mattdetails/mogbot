@@ -189,7 +189,8 @@ fn a_turn_the_wallet_moves_to_another_claude_account_keeps_your_chrome() {
     };
     assert!(first.is_this_mac());
     // It ran out on this Mac's account: the next try is on the added one.
-    let Choice::Run(second) = wallet::choose(&candidates, std::slice::from_ref(&first.id), now) else {
+    let Choice::Run(second) = wallet::choose(&candidates, std::slice::from_ref(&first.id), now)
+    else {
         panic!("no account to move to");
     };
     assert_eq!(second.id, "work-max");

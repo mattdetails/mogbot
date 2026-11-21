@@ -114,7 +114,13 @@ fn a_switch_is_told_once_with_what_was_recorded() {
 
     // Answered: not again.
     assert_eq!(
-        notice(Engine::Claude, &h, &[], std::slice::from_ref(&me), std::slice::from_ref(&n.key)),
+        notice(
+            Engine::Claude,
+            &h,
+            &[],
+            std::slice::from_ref(&me),
+            std::slice::from_ref(&n.key)
+        ),
         None
     );
     // The previous account added back: nothing to say.
@@ -154,7 +160,14 @@ fn before_any_history_a_weekly_reset_that_moved_says_so_without_a_name() {
         who: Some("claude-org:me".into()),
         weekly_reset: Some(SAT_10AM),
     };
-    let n = notice(Engine::Claude, &h, &samples, std::slice::from_ref(&personal), &[]).expect("told");
+    let n = notice(
+        Engine::Claude,
+        &h,
+        &samples,
+        std::slice::from_ref(&personal),
+        &[],
+    )
+    .expect("told");
     assert!(n.by_reset);
     assert_eq!(n.before_email, None, "no name was recorded, none is said");
     assert_eq!(n.before_weekly_reset, Some(MON_4PM + 7 * D));

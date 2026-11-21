@@ -56,8 +56,7 @@ pub enum Source {
 /// Request id → the answer being given and where from, while it is.
 type InFlight = HashMap<String, (String, Option<Source>)>;
 
-static IN_FLIGHT: LazyLock<Mutex<InFlight>> =
-    LazyLock::new(Default::default);
+static IN_FLIGHT: LazyLock<Mutex<InFlight>> = LazyLock::new(Default::default);
 
 fn in_flight_map() -> std::sync::MutexGuard<'static, InFlight> {
     IN_FLIGHT.lock().unwrap_or_else(|e| e.into_inner())

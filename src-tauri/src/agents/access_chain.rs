@@ -281,7 +281,8 @@ pub fn decide(agent: &Agent, r: &LoginRequest, tried: &Tried, here: &Here, team:
     if let Some(no) = team
         .iter()
         .filter(|_| !here.user_named)
-        .filter(|s| same(s) && s.status == ApprovalStatus::Denied).rfind(|s| turned_on.is_none_or(|on| s.at > on))
+        .filter(|s| same(s) && s.status == ApprovalStatus::Denied)
+        .rfind(|s| turned_on.is_none_or(|on| s.at > on))
     {
         // A plain no on a card an import raised (a setup ask, for an agent
         // nobody was working with yet) said "don't connect it", not "never

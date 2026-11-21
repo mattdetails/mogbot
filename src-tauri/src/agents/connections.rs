@@ -622,10 +622,7 @@ pub fn reads_only(tool_name: &str) -> bool {
         "get", "list", "search", "read", "fetch", "find", "query", "view", "describe", "show",
         "lookup", "retrieve", "whoami", "me", "count",
     ];
-    let first = t
-        .split(['_', '-', '.'])
-        .next()
-        .unwrap_or("");
+    let first = t.split(['_', '-', '.']).next().unwrap_or("");
     // camelCase: "getIssue", "listChannels".
     let lead: String = tool_name
         .chars()
