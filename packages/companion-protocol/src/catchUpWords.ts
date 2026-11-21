@@ -57,11 +57,11 @@ export const catchUpOf = (at: number, n: number): string =>
   `${catchUpCount(at)} of ${catchUpCount(n)}`;
 
 /** A group's label: "Needs you · 3", "Up next · 2". */
-export const catchUpGroup = (label: string, n: number): string =>
-  `${label} · ${catchUpCount(n)}`;
+export const catchUpGroup = (label: string, n: number): string => `${label} · ${catchUpCount(n)}`;
 
 /** "1 thing", "6 things". */
-export const catchUpThings = (n: number): string => `${catchUpCount(n)} ${n === 1 ? 'thing' : 'things'}`;
+export const catchUpThings = (n: number): string =>
+  `${catchUpCount(n)} ${n === 1 ? 'thing' : 'things'}`;
 
 /** The summary row in the queue: "6 things, no decisions". */
 export const catchUpThingsNoDecisions = (n: number): string => `${catchUpThings(n)}, no decisions`;
@@ -74,7 +74,9 @@ export const catchUpThingsHead = (n: number): string => `${catchUpThings(n)} · 
  * clock format and appears only when it is known.
  */
 export const catchUpAllClearBody = (lastDecision?: string): string =>
-  lastDecision ? `${CATCH_UP.nothingNeedsYou} Last decision: ${lastDecision}.` : CATCH_UP.nothingNeedsYou;
+  lastDecision
+    ? `${CATCH_UP.nothingNeedsYou} Last decision: ${lastDecision}.`
+    : CATCH_UP.nothingNeedsYou;
 
 /** How many rows the summary shows before "+ N more". */
 export const CATCH_UP_SUMMARY_ROWS = 6;
@@ -97,3 +99,43 @@ export function catchUpAge(ts: number, now: number = Date.now()): string {
   if (d < 7) return `${d}d`;
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+/* ------------------------------------------- the entry (spec-catchup-entry, A) */
+
+/** The entry's fixed words: one hero card, then the quiet list. */
+export const CATCH_UP_ENTRY = {
+  start: 'Start catching up',
+  review: 'Review it',
+  continue: 'Continue',
+  orPickOne: 'Or pick one',
+  open: 'Open',
+  allCaughtUp: 'All caught up',
+  earlierToday: 'Earlier today',
+} as const;
+
+/** "7 things need you" / "1 thing needs you". */
+export const catchUpNeedYou = (n: number): string =>
+  `${catchUpThings(n)} ${n === 1 ? 'needs' : 'need'} you`;
+
+/** "From 6 agents" / "From 1 agent". No time estimate: it would be a guess. */
+export const catchUpFromAgents = (n: number): string =>
+  `From ${catchUpCount(n)} ${n === 1 ? 'agent' : 'agents'}`;
+
+/** One thing waiting: "From Mail", the agent it's from. */
+export const catchUpFromAgent = (name: string): string => `From ${name}`;
+
+/** Mid-run: "3 done · from 4 agents" (the agents still waiting). */
+export const catchUpDoneFrom = (done: number, agents: number): string =>
+  `${catchUpCount(done)} done · from ${catchUpCount(agents)} ${agents === 1 ? 'agent' : 'agents'}`;
+
+/** All caught up's line: "Nothing needs you. Last one 2:02 pm." when known. */
+export const catchUpCaughtUpBody = (lastDecision?: string): string =>
+  lastDecision ? `${CATCH_UP.nothingNeedsYou} Last one ${lastDecision}.` : CATCH_UP.nothingNeedsYou;
+
+/**
+ * Stale: what the card shows was read at this time, and couldn't be read
+ * since. The phone couldn't reach the Mac; on the desk the app is on the Mac,
+ * so it says it couldn't refresh.
+ */
+export const catchUpStale = (readAt: string, on: 'desk' | 'phone' = 'phone'): string =>
+  `From ${readAt} · ${on === 'desk' ? 'couldn’t refresh' : 'couldn’t reach your Mac'}`;

@@ -790,6 +790,16 @@ export interface Methods {
    * `files::shareable` accepts for that agent; folders and apps are refused.
    */
   'agents.fetchPath': { params: { agentId: string; path: string }; result: BlobRef };
+  /**
+   * The paths written in an agent's reply, checked against what a tap may
+   * open (the desk's `agents_check_paths`; at most 64): an image is drawn
+   * under the reply, a file or folder is a link, a missing one is muted, one
+   * outside the allowlist is plain text. Never the real path back.
+   */
+  'agents.checkPaths': {
+    params: { agentId: string; paths: string[] };
+    result: PathCheck[];
+  };
   'agents.search': { params: { query: string }; result: SearchHit[] };
 
   'agents.schedule.preview': { params: { when: string }; result: SchedulePreview };
@@ -995,12 +1005,20 @@ export interface DictationWord {
   heardAs: string[];
 }
 
+/** One path from a reply, as the Mac judged it (`agents::files::PathCheck`). */
+export interface PathCheck {
+  /** As the reply wrote it. */
+  path: string;
+  kind: 'image' | 'file' | 'folder' | 'missing' | 'outside';
+}
+
 export type MethodName = keyof Methods;
 export type Params<M extends MethodName> = Methods[M]['params'];
 export type Result<M extends MethodName> = Methods[M]['result'];
 
 /** Methods that only read. Not written to the audit log, as in Remote Access. */
 export const READ_ONLY_METHODS = [
+  'agents.checkPaths',
   'dictation.words',
   'system.status',
   'devices.self',

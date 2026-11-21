@@ -21,6 +21,7 @@ import {
 } from '../lib/files';
 import { useChatGallery, viewerParams } from '../lib/gallery';
 import { attachmentSource, describeError, download, retryAttachmentSource } from '../lib/session';
+import { ShortDownload } from '../lib/transport';
 import { useAttachmentSources } from '../lib/relayImages';
 import type { PendingAttachment } from '../lib/sync';
 import { alpha, iconSize, radius, space, type, PRESSED } from '../lib/theme';
@@ -236,8 +237,12 @@ function Thumb({
 }
 
 /** Open a file the way the phone opens files: Quick Look for documents. */
-export async function openFile(agentId: string, file: Attachment) {
-  const uri = await download({ agentId, path: file.path });
+export async function openFile(
+  agentId: string,
+  file: Attachment,
+  onProgress?: (received: number, total: number | null) => void
+) {
+  const uri = await download({ agentId, path: file.path }, onProgress);
   await preview(uri, file.mime);
 }
 
@@ -253,16 +258,24 @@ export function FileChip({
   const colors = useColors();
   const styles = useStyles();
   const [busy, setBusy] = useState(false);
+  // How much of it has come, while it downloads (a big video takes a while).
+  const [got, setGot] = useState<{ received: number; total: number | null } | null>(null);
+  // A download that stopped part way: said under the chip, where the file is (not as a toast over it).
+  const [stopped, setStopped] = useState<string | null>(null);
   const run = async (action: 'open' | 'share') => {
     if (file.localUri || busy) return;
     setBusy(true);
+    setStopped(null);
+    const progress = (received: number, total: number | null) => setGot({ received, total });
     try {
-      if (action === 'open') await openFile(agentId, file);
-      else await share(await download({ agentId, path: file.path }), file.mime);
+      if (action === 'open') await openFile(agentId, file, progress);
+      else await share(await download({ agentId, path: file.path }, progress), file.mime);
     } catch (error) {
-      onError?.(describeError(error));
+      if (error instanceof ShortDownload) setStopped(error.message);
+      else onError?.(describeError(error));
     } finally {
       setBusy(false);
+      setGot(null);
     }
   };
   return (
@@ -292,11 +305,20 @@ export function FileChip({
           {file.name}
         </T>
         <T variant="caption" color={colors.textMuted}>
-          {formatSize(file.size)}
+          {stopped
+            ? stopped
+            : busy && got
+              ? downloadedLine(got.received, got.total ?? file.size)
+              : formatSize(file.size)}
         </T>
       </View>
     </Pressable>
   );
+}
+
+/** "4.2 of 20 MB" while a file comes in; just what's come when its size isn't known. */
+export function downloadedLine(received: number, total: number | null | undefined): string {
+  return total ? `${formatSize(received)} of ${formatSize(total)}` : formatSize(received);
 }
 
 export interface Staged {

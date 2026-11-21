@@ -106,6 +106,7 @@ import { asCommandError, formatCommandError } from '../../lib/errors';
 import { useHeightReveal } from './useAgentMotion';
 import { useCardGuard } from './useCardGuard';
 import { useProseLinks } from './useProseLinks';
+import { ProseImages, useProsePaths } from './useProsePaths';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import {
   connectorTextParts,
@@ -297,7 +298,16 @@ export const AgentBubble = memo(function AgentBubble({
   const streamIn = useStreamIn(message.id, message.text, message.ts, !!scripted);
   // Blocks (`show`) draw in place of the text, which is their plain version.
   const blocks = readBlocks(message);
+  // Paths in the finished reply: images drawn under it, the rest marked.
+  const proseRef = useRef<HTMLDivElement>(null);
+  const pathImages = useProsePaths(
+    agent.id,
+    proseRef,
+    streamIn.phase === 'done' && !blocks ? message.text : ''
+  );
   const attachments = attachmentsOutsideBlocks(message.attachments, blocks);
+  // Files it shared, or images its words name: under the reply, actions beside.
+  const pictures = attachments.length > 0 || pathImages.length > 0;
   const replies = useReply();
   const onReply = replies && canReplyTo(message) ? () => replies.reply(message) : undefined;
   const actions = <MessageActions ts={message.ts} />;
@@ -337,8 +347,8 @@ export const AgentBubble = memo(function AgentBubble({
       className="agent-chat__row agent-chat__row--agent"
       data-arrived={arrived || undefined}
       data-stopped={message.stopped || undefined}
-      data-actions={attachments.length === 0 || undefined}
-      data-attachments={attachments.length > 0 || undefined}
+      data-actions={!pictures || undefined}
+      data-attachments={pictures || undefined}
       data-local-links={(message.localLinks?.length ?? 0) > 0 || undefined}
       data-blocks={blocks ? true : undefined}
       data-work={message.work ? true : undefined}
@@ -350,7 +360,11 @@ export const AgentBubble = memo(function AgentBubble({
         </div>
       ) : (
         message.text && (
-          <div className="agent-bubble agent-bubble--agent agent-markdown" onClick={onClick}>
+          <div
+            ref={proseRef}
+            className="agent-bubble agent-bubble--agent agent-markdown"
+            onClick={onClick}
+          >
             <Prose text={message.text} />
             {tools}
           </div>
@@ -358,9 +372,12 @@ export const AgentBubble = memo(function AgentBubble({
       )}
       {message.stopped && <span className="agent-bubble__stopped">Stopped</span>}
       <LocalLinks message={message} />
-      {attachments.length > 0 ? (
+      {pictures ? (
         <div className="agent-chat__line agent-chat__line--agent">
-          <MessageAttachments agent={agent} attachments={attachments} side="agent" />
+          <ProseImages agentId={agent.id} images={pathImages} />
+          {attachments.length > 0 && (
+            <MessageAttachments agent={agent} attachments={attachments} side="agent" />
+          )}
           {actions}
         </div>
       ) : (

@@ -2620,6 +2620,20 @@ impl Backend for Stub {
         Ok(())
     }
 
+    async fn check_paths(
+        &self,
+        _agent_id: &str,
+        paths: Vec<String>,
+    ) -> Result<Value, CommandError> {
+        let home = self.home.path().to_path_buf();
+        let checks = crate::agents::files::check_paths(&paths, &home, std::slice::from_ref(&home));
+        let shown: Vec<_> = checks
+            .into_iter()
+            .map(|c| crate::agents::files::PathCheck { full: None, ..c })
+            .collect();
+        Ok(serde_json::to_value(shown).unwrap_or_default())
+    }
+
     async fn shareable_path(
         &self,
         _agent_id: &str,

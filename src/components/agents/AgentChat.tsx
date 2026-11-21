@@ -186,8 +186,10 @@ import {
   hintDot,
   needsYou,
   ROUTINES_NEED_THE_COMPUTER,
+  setAgentPaused,
 } from '../../lib/agents';
 import { AgentStarters } from './AgentStarters';
+import { StatusPill } from '../primitives/StatusPill';
 import { BlockReplyContext, type BlockReply } from './blocks/blockReply';
 import { answerAfter } from '../../../packages/companion-protocol/src/blocks';
 import {
@@ -210,6 +212,7 @@ import { ImportTalkBar } from './ImportTalkBar';
 import { ImportGuideAsk, ImportGuideProvider, useImportGuide } from './ImportGuide';
 import { ChiefPhoneOffer, reachedFirstResult } from './ChiefPhoneOffer';
 import { ChromeNotice } from './ChromeNotice';
+import { reachedForChrome } from '../../lib/userChrome';
 import { WaitingForYouBar } from './WaitingForYouBar';
 import { TeamSetupCard } from './TeamSetupCard';
 import {
@@ -705,6 +708,11 @@ export const AgentChat = memo(function AgentChat({
             ?.scrollIntoView({ block: 'center', behavior: scrollMotion() })
         }
       />
+      {agent.paused && (
+        <StatusPill tone="idle" className="agent-chat__paused">
+          Paused
+        </StatusPill>
+      )}
       {renamingConversation && (
         <RenameConversation
           agentId={agent.id}
@@ -2262,6 +2270,7 @@ export const AgentChat = memo(function AgentChat({
                         onApps={openReach ? () => openReach(agent.id) : undefined}
                         teamIndependence={teamIndependence}
                         actions={actions}
+                        onPause={(a, paused) => void setAgentPaused(a.id, paused)}
                         onFiles={() => setFilesOpen(true)}
                       />
                       <AgentFilesModal
@@ -2370,11 +2379,9 @@ export const AgentChat = memo(function AgentChat({
                         {((greetingOnly && importChoice !== 'undecided') || freshAsked) &&
                           engineReady &&
                           chiefStarters}
-                        {/* Mogbot for Chrome: missing or not connected, in every chat; the
-              Chief's waits for the first result, as the phone's does. */}
-                        {engineReady && !busy && (!agent.isMain || reachedFirstResult(shown)) && (
-                          <ChromeNotice />
-                        )}
+                        {/* Mogbot for Chrome: missing or not connected, and only once the
+              newest turn reached for the user's Chrome; never after a plain reply. */}
+                        {engineReady && !busy && reachedForChrome(shown) && <ChromeNotice />}
                         {/* The phone, offered once the first thing asked for is back. */}
                         {agent.isMain &&
                           engineReady &&

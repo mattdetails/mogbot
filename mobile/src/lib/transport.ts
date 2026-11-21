@@ -36,7 +36,12 @@ import {
   type WireError,
 } from '@shipstudio/companion-protocol';
 import { checkMac, macReset, notYourMac, updateMac, type Pinned } from './identity';
-import { queuedRelayRequest, relayRequest, type RelayHttpAnswer } from './relayHttp';
+import {
+  queuedRelayDownload,
+  queuedRelayRequest,
+  relayRequest,
+  type RelayHttpAnswer,
+} from './relayHttp';
 import { RELAY_NOT_YOUR_MAC, RelaySocket } from './relaySocket';
 import { pairedComputer } from './computer';
 
@@ -156,8 +161,24 @@ export interface HttpAdapter {
   download(
     url: string,
     headers: Record<string, string>,
-    key: string
+    key: string,
+    onProgress?: DownloadProgress
   ): Promise<{ status: number; uri: string }>;
+}
+
+/** A download that ended before the length the Mac gave: said as itself, not as "not connected". */
+export class ShortDownload extends Error {}
+
+/** Bytes downloaded so far, and the whole file's when the Mac said. */
+export type DownloadProgress = (received: number, total: number | null) => void;
+
+/** A download written to disk as it arrives: its `.part` until `commit`. */
+export interface FileSink {
+  append(piece: Uint8Array): Promise<void>;
+  /** Closes it and moves it into the cache under its key; resolves its URI. */
+  commit(): Promise<string>;
+  /** Closes it and deletes the `.part`. */
+  abort(): Promise<void>;
 }
 
 /**
@@ -171,6 +192,8 @@ export interface LocalFiles {
   cached(key: string): Promise<string | null>;
   /** Keep `bytes` under `key`; resolves its file URI. */
   write(key: string, bytes: Uint8Array): Promise<string>;
+  /** A file under `key` to write piece by piece (absent: `write` the whole). */
+  stream?(key: string): Promise<FileSink>;
 }
 
 /** Downloads over the relay give up after this long with nothing arriving. */
@@ -481,7 +504,8 @@ export class DirectTransport implements Transport {
 
   async download(
     source: { blobId: string } | { agentId: string; path: string },
-    width?: number
+    width?: number,
+    onProgress?: DownloadProgress
   ): Promise<string> {
     const w = width ? Math.round(width) : 0;
     const [path, key] =
@@ -495,11 +519,39 @@ export class DirectTransport implements Transport {
       const files = this.files();
       const kept = await files.cached(key);
       if (kept) return kept;
+      // Straight to disk as it comes, never whole in memory (any size).
+      if (files.stream) {
+        const sink = await files.stream(key);
+        try {
+          // A range at a time, each written before the next is asked for.
+          const res = await queuedRelayDownload(
+            this.route.url,
+            {
+              fingerprint: this.opts.pinned.fingerprint,
+              random: this.random,
+              WebSocketImpl: this.opts.WebSocketImpl,
+            },
+            {
+              path,
+              headers: this.authHeaders,
+              idleMs: RELAY_HTTP_IDLE_MS,
+              onBody: (piece) => sink.append(piece),
+              onReceived: onProgress,
+            }
+          ).catch((e: unknown) => Promise.reject(e instanceof WireFailure ? e : notConnected()));
+          if (res.status !== 200 && res.status !== 206) throw httpFailure(res.status);
+          return await sink.commit();
+        } catch (e) {
+          await sink.abort().catch(() => {});
+          throw e;
+        }
+      }
       const res = await this.relayHttp({
         method: 'GET',
         path,
         headers: this.authHeaders,
         idleMs: RELAY_HTTP_IDLE_MS,
+        onReceived: onProgress,
       });
       if (res.status === 200) return files.write(key, res.body);
       throw httpFailure(res.status);
@@ -507,8 +559,8 @@ export class DirectTransport implements Transport {
     const http = this.http();
     const url = this.baseUrl + path;
     const res = await http
-      .download(url, this.authHeaders, key)
-      .catch(() => Promise.reject(notConnected()));
+      .download(url, this.authHeaders, key, onProgress)
+      .catch((e: unknown) => Promise.reject(e instanceof ShortDownload ? e : notConnected()));
     if (res.status === 200) return res.uri;
     throw httpFailure(res.status);
   }

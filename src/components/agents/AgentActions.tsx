@@ -24,7 +24,7 @@ import {
   ShieldCheckIcon,
   TerminalIcon,
   TrashIcon,
-  UndoIcon,
+  HistoryIcon,
 } from '@/components/icons';
 import { ContextMenuItem, ContextMenuSeparator } from '../primitives/ContextMenu';
 import { DropdownDivider, DropdownItem } from '../primitives/Dropdown';
@@ -149,7 +149,9 @@ export function AgentActionItems({
     },
     ...withDivider([
       ...takeoverItems(agent, onTakeOver, onHandBack),
-      ...(onGoBack ? [{ label: GO_BACK_MENU, icon: <UndoIcon size={12} />, run: onGoBack }] : []),
+      ...(onGoBack
+        ? [{ label: GO_BACK_MENU, icon: <HistoryIcon size={12} />, run: onGoBack }]
+        : []),
       {
         // How full this one is, only when its engine said. Never waits on a
         // turn: the turn stays in its own conversation.

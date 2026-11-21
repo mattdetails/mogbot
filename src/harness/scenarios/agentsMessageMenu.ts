@@ -135,6 +135,18 @@ export const agentsMessageMenuScenarios: Scenario[] = [
     { requires: '.agent-chat__row--user .agent-message__more' }
   ),
   scenario(
+    'one-at-a-time',
+    'one menu at a time: the switcher closes when the ⋯ opens',
+    `The header’s agent switcher was opened first, then the reply’s ⋯: only the ⋯ menu is open, the switcher closed (its chevron points down again). ${MENU_AGENT}`,
+    [
+      msg('user', 'Keyboard shortcuts, with my decisions.', 6),
+      msg('agent', 'The sheet is above.', 5),
+    ],
+    {
+      steps: [{ click: '.agent-chat__name-button' }, { wait: 300 }, OPEN_AGENT, { wait: 300 }],
+    }
+  ),
+  scenario(
     'keyboard',
     'the keyboard: Tab reaches the ⋯',
     'The agent’s ⋯ has keyboard focus: it shows (full opacity) with the neutral focus ring, and nothing else changed. Enter opens the menu with Copy focused; Esc closes it and focus is back on the ⋯ (checked by the sweep script with real keys).',

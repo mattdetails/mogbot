@@ -221,6 +221,8 @@ export interface MockOptions {
    * minutes after pairing, and the shortest list Home can have.
    */
   solo?: boolean;
+  /** `--catchup-single`: the same with Acme Site's copy kept, so exactly one thing waits. */
+  catchUpSingle?: boolean;
   /** Catch up with exactly one decision (Ops' push) and one thing that happened (Acme Site). */
   catchUpOne?: boolean;
   /** The Designer's chat ends on replies: to its words, to a picture, and to a message that's gone. */
@@ -283,6 +285,15 @@ export interface MockOptions {
    * available" and loading states (`QA_MOCK_FLAGS=--lost-pictures`).
    */
   lostPictures?: boolean;
+  /** `--sheet-messages`: a very long message of yours and a reply with code and links (the long-press sheet). */
+  sheetMessages?: boolean;
+  /**
+   * A 20 MB video in the Designer's chat, served slowly (`slow`) so the file
+   * chip's "4.2 MB of 20 MB" can be seen, or cut off part way (`cut`).
+   */
+  bigFile?: 'slow' | 'cut';
+  /** `--reply-paths`: a Designer reply naming an image, a file, a missing file and one outside (the four path states). */
+  replyPaths?: boolean;
   /** The App Store screenshots' cast (dev/mock-store.ts), at this stage of its story. */
   store?: StoreStage;
 }
@@ -1981,6 +1992,66 @@ export function createMockServer(opts: MockOptions = {}) {
       }
     }
   }
+  if (opts.sheetMessages) {
+    const list = messages.get('design') ?? [];
+    const t = Date.now();
+    list.push(
+      {
+        id: 'sheet_long',
+        agentId: 'design',
+        ts: t - 4 * 60_000,
+        kind: 'user',
+        text: `Here is everything I want on the launch page. ${'The hero says what it does in one line, the pricing sits under it, and the sign-up form is one field. '.repeat(14)}That's it.`,
+      },
+      {
+        id: 'sheet_code',
+        agentId: 'design',
+        ts: t - 3 * 60_000,
+        kind: 'agent',
+        text: 'Fixed it. The change is in `src/components/Hero.tsx`:\n\n```tsx\n<Hero title="Ship faster" cta="Start free" />\n```\n\nPreview it at [the staging site](https://staging.example.com) or read [the notes](https://example.com/notes).',
+      }
+    );
+    messages.set('design', list);
+  }
+  if (opts.catchUpSingle) {
+    const s = agents.find((a) => a.id === 'site');
+    if (s) s.copy = undefined;
+  }
+  if (opts.bigFile) {
+    const list = messages.get('design') ?? [];
+    const t = Date.now();
+    const clip = attach(
+      'design',
+      'big_clip',
+      'launch-walkthrough.mp4',
+      'video/mp4',
+      Buffer.alloc(20 * 1024 * 1024, 7)
+    );
+    list.push({
+      id: 'big_clip',
+      agentId: 'design',
+      ts: t - 60_000,
+      kind: 'agent',
+      text: 'Here’s the walkthrough of the launch flow, all three pages.',
+      attachments: [clip],
+    });
+    messages.set('design', list);
+  }
+  if (opts.replyPaths) {
+    const list = messages.get('design') ?? [];
+    list.push({
+      id: 'paths_1',
+      agentId: 'design',
+      ts: Date.now() - 2 * 60_000,
+      kind: 'agent',
+      text: [
+        'Done. The new hero is in `~/Library/Application Support/Mogbot/agents/design/shots/hero-after.png`.',
+        '',
+        'The notes are in `~/Desktop/Projects/acme-site/HERO-NOTES.md`, and the old draft `~/Desktop/Projects/acme-site/hero-draft.png` is gone. I also looked at `/etc/hosts.txt`.',
+      ].join('\n'),
+    });
+    messages.set('design', list);
+  }
   if (opts.catchUpSeveral) {
     const quiet = agents.find((a) => a.id === 'brief');
     if (quiet) {
@@ -3196,6 +3267,40 @@ export function createMockServer(opts: MockOptions = {}) {
   ];
   let tasksRead = 0;
   const methods: Partial<Record<MethodName, Handler>> = {
+    // Paths in a reply (`--reply-paths`): the Mac's check, and an image fetched as a file.
+    ...(opts.replyPaths
+      ? {
+          'agents.checkPaths': (p: Record<string, unknown>) =>
+            (p.paths as string[]).map((path) => ({
+              path,
+              kind: path.startsWith('/etc/')
+                ? 'outside'
+                : /draft|gone/.test(path)
+                  ? 'missing'
+                  : /\.(png|jpe?g|gif|webp)$/i.test(path)
+                    ? 'image'
+                    : 'file',
+            })),
+          'agents.fetchPath': (p: Record<string, unknown>, c: Conn) => {
+            const bytes = siteScreenshot();
+            const blobId = `blob_${randomUUID().replace(/-/g, '')}`;
+            const name = String(p.path).split('/').pop() ?? 'file';
+            const ref: BlobRef = {
+              blobId,
+              name,
+              mime: name.endsWith('.png') ? 'image/png' : 'text/markdown',
+              size: bytes.length,
+            };
+            blobs.set(blobId, {
+              ...ref,
+              bytes,
+              deviceId: c.deviceId,
+              expiresAt: Date.now() + BLOB_TTL_MS,
+            });
+            return ref;
+          },
+        }
+      : {}),
     'agents.conversations': (p) => convList(String(p.agentId)),
     'agents.conversationSelect': (p) => {
       const c = convsOf(String(p.agentId));
@@ -5310,9 +5415,12 @@ export function createMockServer(opts: MockOptions = {}) {
           deviceId: entry.device.id,
           resume: canReplay ? 'replay' : 'snapshot',
           // What the real Mac advertises in P1, not what the mock happens to implement.
-          methods: opts.tasks
-            ? [...realWelcome.methods, 'agents.taskAdd', 'agents.taskDrop', 'agents.taskMove']
-            : realWelcome.methods,
+          methods: [
+            ...(realWelcome.methods as MethodName[]),
+            ...(opts.tasks
+              ? (['agents.taskAdd', 'agents.taskDrop', 'agents.taskMove'] as MethodName[])
+              : []),
+          ],
           features: realWelcome.features,
           // The zone the mock's parser reads times in: this machine's own.
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -5474,6 +5582,26 @@ export function createMockServer(opts: MockOptions = {}) {
       res.writeHead(200, { 'Content-Type': 'text/plain' }).end(pairingLink());
       return;
     }
+    // Answers the first `n` cards waiting, on the desk (qa:web's Catch up mid-run).
+    if (req.method === 'GET' && req.url?.startsWith('/dev/answer?')) {
+      const n = Number(new URL(req.url, 'http://x').searchParams.get('n') ?? 1);
+      let done = 0;
+      for (const [agentId, list] of messages) {
+        for (const m of list) {
+          if (done >= n) break;
+          if (m.approval?.status !== 'pending' || m.approval.login || m.approval.secret) continue;
+          putMessage({ ...m, approval: { ...m.approval, status: 'denied' } });
+          settle(agentId);
+          done += 1;
+        }
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/plain',
+        ...(opts.cors ? { 'Access-Control-Allow-Origin': '*' } : {}),
+      });
+      res.end(`answered ${done}`);
+      return;
+    }
     if (opts.torture && req.method === 'GET' && req.url?.startsWith('/dev/torture?')) {
       const q = new URL(req.url, 'http://x').searchParams;
       const out = await tortureAction(
@@ -5610,6 +5738,49 @@ export function createMockServer(opts: MockOptions = {}) {
       res.writeHead(404).end();
       return true;
     }
+    // A single range, as the Mac answers one (a relayed download asks in ranges).
+    const range = /^bytes=(\d+)-(\d*)$/.exec(String(req.headers.range ?? ''));
+    if (range) {
+      const len = found.bytes.length;
+      const start = Number(range[1]);
+      const last = Math.min(range[2] ? Number(range[2]) : len - 1, len - 1);
+      if (start >= len || start > last) {
+        res.writeHead(416, { 'Content-Range': `bytes */${len}` }).end();
+        return true;
+      }
+      res
+        .writeHead(206, {
+          'Content-Type': found.mime,
+          'Content-Length': last - start + 1,
+          'Content-Range': `bytes ${start}-${last}/${len}`,
+          'Accept-Ranges': 'bytes',
+        })
+        .end(found.bytes.subarray(start, last + 1));
+      return true;
+    }
+    // A big file, slowly (the chip's progress) or cut off part way.
+    if (opts.bigFile && found.bytes.length > 10 * 1024 * 1024) {
+      res.writeHead(200, {
+        'Content-Type': found.mime,
+        'Content-Length': found.bytes.length,
+      });
+      const piece = 256 * 1024;
+      let at = 0;
+      const tick = setInterval(() => {
+        if (opts.bigFile === 'cut' && at >= found.bytes.length / 3) {
+          clearInterval(tick);
+          res.destroy();
+          return;
+        }
+        res.write(found.bytes.subarray(at, at + piece));
+        at += piece;
+        if (at >= found.bytes.length) {
+          clearInterval(tick);
+          res.end();
+        }
+      }, 120);
+      return true;
+    }
     // `?w=` asks for a thumbnail; the mock has no image library, so it
     // sends the original, which the phone scales down just the same.
     res
@@ -5685,6 +5856,9 @@ export function createMockServer(opts: MockOptions = {}) {
     : null;
 
   return {
+    /** Puts a file on this "Mac" as an agent's attachment (tests); returns its path. */
+    attachFile: (agentId: string, name: string, mime: string, bytes: Buffer) =>
+      attach(agentId, `t_${randomUUID().slice(0, 8)}`, name, mime, bytes).path,
     listen: () =>
       new Promise<string>((resolve) => {
         server.listen(opts.port ?? 0, () => {

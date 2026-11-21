@@ -169,6 +169,22 @@ const SITE_HANDED_BACK = [
   },
 ];
 
+/** The same turn, which tried the user's Chrome (the notice's only trigger). */
+const SITE_USED_CHROME = SITE_HANDED_BACK.map((m) =>
+  m.id === 'a1'
+    ? {
+        ...m,
+        work: {
+          startedAt: now - 2 * MIN,
+          endedAt: now - MIN,
+          stepCount: 1,
+          fileCount: 0,
+          steps: [{ at: now - 90_000, kind: 'web', label: 'Used your Chrome', outcome: 'failed' }],
+        },
+      }
+    : m
+);
+
 /** The first message, a second after Send: the turn has started, no step yet. */
 const SENT_FIRST = [
   chiefGreeting('chief', now - 2 * MIN),
@@ -392,28 +408,28 @@ export const agentsFirstWinScenarios: Scenario[] = [
     id: 'agents-chrome-notice',
     title: 'Agents — Mogbot for Chrome isn’t connected: the chat says so, with one button',
     looksRightWhen:
-      'Under the Chief’s first result, one calm card: a Chrome icon, “Mogbot for Chrome isn’t connected”, one muted line (agents reach the sites you’re signed in to through it, and it isn’t installed yet), then “Not now” and a neutral “Install Mogbot for Chrome”. Never the accent on the button; no warning colour.',
+      'Under a turn that tried to use Chrome (never after a plain reply), one calm card: a Chrome icon, “Mogbot for Chrome isn’t connected”, one muted line (agents reach the sites you’re signed in to through it, and it isn’t installed yet; the line doesn’t repeat the name), then “Not now” and a neutral “Install Mogbot for Chrome”. Never the accent on the button; no warning colour.',
     command: 'agents.open',
     phoneOffer: true,
     requires: '[data-testid="chrome-notice"]',
     commands: {
       agents_overview: { ...BASE_OVERVIEW, importChoice: 'declined' },
       agents_messages: (args: Record<string, unknown>) =>
-        args.agentId === 'chief' ? SITE_HANDED_BACK : [],
+        args.agentId === 'chief' ? SITE_USED_CHROME : [],
     },
   },
   {
     id: 'agents-chrome-notice-installed',
     title: 'Agents — Mogbot for Chrome installed but not connected: Finish setting it up',
     looksRightWhen:
-      'Under the Chief’s first result, the same calm card: a Chrome icon, “Mogbot for Chrome isn’t connected”, its line now “…so agents can’t use the sites you’re signed in to. Open Chrome, or finish setting it up.”, then “Not now” and a neutral “Finish setting it up”. No warning colour, never the accent.',
+      'Under a turn that tried to use Chrome, the same calm card: a Chrome icon, “Mogbot for Chrome isn’t connected”, its line now “Agents can’t use the sites you’re signed in to until it’s connected. Open Chrome, or finish setting it up.”, then “Not now” and a neutral “Finish setting it up”. No warning colour, never the accent.',
     command: 'agents.open',
     phoneOffer: true,
     requires: '[data-testid="chrome-notice"]',
     commands: {
       agents_overview: { ...BASE_OVERVIEW, importChoice: 'declined' },
       agents_messages: (args: Record<string, unknown>) =>
-        args.agentId === 'chief' ? SITE_HANDED_BACK : [],
+        args.agentId === 'chief' ? SITE_USED_CHROME : [],
       // Switched on and installed in Chrome, but no browser has connected.
       agents_user_chrome_status: {
         supported: true,

@@ -11,7 +11,9 @@ describe('shownTiming', () => {
   it('logs, a second after the window is shown, its first frame, the events and the overviews', () => {
     vi.useFakeTimers();
     const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => setTimeout(() => cb(0), 16));
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
+      setTimeout(() => cb(0), 16)
+    );
     let hidden = false;
     const doc = new EventTarget() as unknown as Document;
     Object.defineProperty(doc, 'hidden', { get: () => hidden });

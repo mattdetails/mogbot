@@ -7,11 +7,12 @@
  * @module components/agents/AgentTasksPanel
  */
 
-import { useEffect, useState } from 'react';
-import { CheckIcon, ChevronRightIcon, CloseIcon } from '@/components/icons';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AddIcon, CheckIcon, ChevronRightIcon, CloseIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
+import { TextField } from '../primitives/TextField';
 import { getTaskBoard, type AgentTask } from '../../lib/agentTasks';
-import type { TaskCounts } from '../../lib/agents';
+import { addAgentTask, type TaskCounts } from '../../lib/agents';
 
 export const TASK_COPY = {
   title: 'Tasks',
@@ -21,6 +22,9 @@ export const TASK_COPY = {
   done: 'Done today',
   empty: 'Nothing on the list. Ask for something and it lands here.',
   failed: 'Couldn’t reach your Mac. This list is from',
+  add: 'Add a task',
+  addPlaceholder: 'What needs doing?',
+  addFailed: 'Couldn’t add it. Try again.',
 } as const;
 
 /** "5 to do". */
@@ -96,24 +100,46 @@ export function AgentTasksPanel({
 }) {
   const [lists, setLists] = useState<{ open: AgentTask[]; recent: AgentTask[] } | null>(null);
   const [failedAt, setFailedAt] = useState<number | null>(null);
-  const [asOf, setAsOf] = useState<number>(() => Date.now());
+  const [, setAsOf] = useState<number>(() => Date.now());
+  // "＋ Add a task": one line that becomes an input; the new line lands in Next.
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [addFailed, setAddFailed] = useState(false);
+  const live = useRef(true);
   useEffect(() => {
-    let live = true;
+    live.current = true;
+    return () => {
+      live.current = false;
+    };
+  }, []);
+  const load = useCallback(() => {
     getTaskBoard()
       .then((board) => {
-        if (!live) return;
+        if (!live.current) return;
         const mine = board.find((b) => b.agentId === agentId);
         setLists({ open: mine?.open ?? [], recent: mine?.recent ?? [] });
         setAsOf(Date.now());
         setFailedAt(null);
       })
-      .catch(() => live && setFailedAt(asOf));
-    return () => {
-      live = false;
-    };
+      .catch(() => live.current && setFailedAt(Date.now()));
+  }, [agentId]);
+  useEffect(() => {
     // The board is read when the panel opens; a registry change re-opens it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, counts?.toDo, counts?.waits, counts?.doing]);
+    load();
+  }, [load, counts?.toDo, counts?.waits, counts?.doing]);
+  const submit = () => {
+    const title = draft.trim();
+    if (!title) return;
+    setAddFailed(false);
+    addAgentTask(agentId, title)
+      .then(() => {
+        if (!live.current) return;
+        setDraft('');
+        setAdding(false);
+        load();
+      })
+      .catch(() => live.current && setAddFailed(true));
+  };
 
   const groups = lists ? groupTasks(lists.open, lists.recent) : [];
   const openCount = counts?.toDo ?? lists?.open.filter((t) => t.state !== 'doing').length ?? 0;
@@ -166,6 +192,39 @@ export function AgentTasksPanel({
             </section>
           ))
       )}
+      <div className="agent-tasks__add">
+        {adding ? (
+          <>
+            <TextField
+              className="agent-tasks__add-input"
+              aria-label={TASK_COPY.add}
+              placeholder={TASK_COPY.addPlaceholder}
+              value={draft}
+              maxLength={400}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submit();
+                if (e.key === 'Escape') {
+                  setAdding(false);
+                  setDraft('');
+                  setAddFailed(false);
+                }
+              }}
+            />
+            {addFailed && (
+              <p className="agent-tasks__failed" role="status">
+                {TASK_COPY.addFailed}
+              </p>
+            )}
+          </>
+        ) : (
+          <button type="button" className="agent-tasks__add-row" onClick={() => setAdding(true)}>
+            <AddIcon size={14} />
+            {TASK_COPY.add}
+          </button>
+        )}
+      </div>
     </aside>
   );
 }

@@ -1300,6 +1300,15 @@ impl Backend for DesktopBackend {
         .await
     }
 
+    async fn check_paths(&self, agent_id: &str, paths: Vec<String>) -> Result<Value, CommandError> {
+        let checks = cmd::check_paths_for(agent_id.to_string(), paths).await?;
+        let shown: Vec<_> = checks
+            .into_iter()
+            .map(|c| crate::agents::files::PathCheck { full: None, ..c })
+            .collect();
+        json(shown)
+    }
+
     async fn shareable_path(
         &self,
         agent_id: &str,

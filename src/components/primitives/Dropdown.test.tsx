@@ -28,7 +28,9 @@ function renderMenu(options: { onFirst?: () => void; onLast?: () => void } = {})
 }
 
 describe('Dropdown', () => {
-  it('opens from its trigger and focuses the first enabled menu item', async () => {
+  it('opens from its trigger: a pointer focuses the menu, a keyboard open the first enabled item', async () => {
+    // Every pointer open is quiet (Designer, 20 Nov): no row is ringed until
+    // the keyboard is used.
     const user = userEvent.setup();
     renderMenu();
 
@@ -36,9 +38,13 @@ describe('Dropdown', () => {
     await user.click(trigger);
 
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('menu')).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Alpha' })).toHaveFocus();
+    expect(screen.getByRole('menu')).toHaveFocus();
     expect(screen.getByRole('menuitem', { name: 'Disabled' })).toBeDisabled();
+
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(trigger).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('menuitem', { name: 'Alpha' })).toHaveFocus();
   });
 
   it('with quietOpen, a pointer open focuses the menu and a keyboard open the first item', async () => {
@@ -148,7 +154,7 @@ describe('Dropdown', () => {
     expect(trigger).toHaveFocus();
 
     await user.click(trigger);
-    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Alpha' }), { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
@@ -188,7 +194,9 @@ describe('Dropdown', () => {
     );
 
     const trigger = screen.getByRole('button', { name: 'Review consolidations' });
-    await user.click(trigger);
+    // A keyboard open focuses the first control; a pointer open, the popover.
+    trigger.focus();
+    await user.keyboard('{Enter}');
 
     const popover = screen.getByRole('dialog', { name: 'Review safe CSS consolidations' });
     expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
@@ -250,7 +258,8 @@ describe('Dropdown', () => {
       </Dropdown>
     );
 
-    await user.click(screen.getByRole('button', { name: 'Open repositioned popover' }));
+    screen.getByRole('button', { name: 'Open repositioned popover' }).focus();
+    await user.keyboard('{Enter}');
     const apply = screen.getByRole('button', { name: 'Apply consolidation' });
     expect(screen.getByText('src/styles/site.css')).toHaveFocus();
 
@@ -317,7 +326,7 @@ describe('Dropdown', () => {
     const outside = screen.getByRole('button', { name: 'Outside' });
 
     await user.click(trigger);
-    expect(screen.getByRole('menuitem', { name: 'Alpha' })).toHaveFocus();
+    expect(screen.getByRole('menu')).toHaveFocus();
 
     // What the user clicked keeps focus — pulling it back to the trigger would
     // steal it from the terminal/panel they just aimed at.
@@ -361,10 +370,30 @@ describe('Dropdown', () => {
         <DropdownItem onSelect={vi.fn()}>Controlled item</DropdownItem>
       </Dropdown>
     );
-    expect(screen.getByRole('menuitem', { name: 'Controlled item' })).toHaveFocus();
+    // Opened after a pointer click: the menu takes focus, not its first row.
+    expect(screen.getByRole('menu')).toHaveFocus();
 
     await user.click(trigger);
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
     expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('keeps one menu open at a time: opening another closes the first', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Dropdown portal trigger={(p) => <button {...p}>First</button>}>
+          <DropdownItem onSelect={() => {}}>One</DropdownItem>
+        </Dropdown>
+        <Dropdown portal trigger={(p) => <button {...p}>Second</button>}>
+          <DropdownItem onSelect={() => {}}>Two</DropdownItem>
+        </Dropdown>
+      </>
+    );
+    await user.click(screen.getByRole('button', { name: 'First' }));
+    expect(screen.getByRole('menuitem', { name: 'One' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Second' }));
+    expect(screen.getByRole('menuitem', { name: 'Two' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'First' })).toHaveAttribute('aria-expanded', 'false');
   });
 });

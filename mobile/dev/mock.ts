@@ -86,7 +86,8 @@ function selfSigned(dir: string) {
     cors: args.includes('--cors'),
     hung: args.includes('--hung'),
     solo: args.includes('--solo'),
-    catchUpOne: args.includes('--catchup-one'),
+    catchUpOne: args.includes('--catchup-one') || args.includes('--catchup-single'),
+    catchUpSingle: args.includes('--catchup-single'),
     replies: args.includes('--replies'),
     mdTables: args.includes('--md-tables'),
     headerStates: args.includes('--header-states'),
@@ -103,6 +104,13 @@ function selfSigned(dir: string) {
     probe: args.includes('--probe'),
     restarted: args.includes('--restarted'),
     lostPictures: args.includes('--lost-pictures'),
+    sheetMessages: args.includes('--sheet-messages'),
+    ...(args.includes('--big-file-cut')
+      ? { bigFile: 'cut' as const }
+      : args.includes('--big-file')
+        ? { bigFile: 'slow' as const }
+        : {}),
+    replyPaths: args.includes('--reply-paths'),
     ...(['pending', 'allowed', 'published'].includes(arg('--store') ?? '')
       ? { store: arg('--store') as 'pending' | 'allowed' | 'published' }
       : {}),

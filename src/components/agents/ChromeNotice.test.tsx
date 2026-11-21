@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ChromeNotice } from './ChromeNotice';
 import { ModalProvider } from '../../contexts/ModalContext';
-import { chromeNeedsAttention, type UserChromeStatus } from '../../lib/userChrome';
+import {
+  chromeNeedsAttention,
+  reachedForChrome,
+  type UserChromeStatus,
+} from '../../lib/userChrome';
 
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock('@tauri-apps/api/core', async (importOriginal) => ({
@@ -79,5 +83,29 @@ describe('ChromeNotice', () => {
     );
     await waitFor(() => expect(invoke).toHaveBeenCalled());
     expect(screen.queryByTestId('chrome-notice')).toBeNull();
+  });
+});
+
+describe('reachedForChrome', () => {
+  const step = (label: string) => ({ label });
+  it('is true only when the newest turn reached for the user’s Chrome', () => {
+    expect(reachedForChrome([])).toBe(false);
+    expect(reachedForChrome([{ kind: 'agent' }])).toBe(false);
+    expect(reachedForChrome([{ kind: 'agent', work: { steps: [step('Read Hero.tsx')] } }])).toBe(
+      false
+    );
+    expect(
+      reachedForChrome([
+        { kind: 'agent', work: { steps: [step('Using your Chrome · example.com')] } },
+      ])
+    ).toBe(true);
+    // An older turn's browser use doesn’t count once the user has spoken again.
+    expect(
+      reachedForChrome([
+        { kind: 'agent', work: { steps: [step('Used your Chrome')] } },
+        { kind: 'user' },
+        { kind: 'agent', work: { steps: [step('Ran npm test')] } },
+      ])
+    ).toBe(false);
   });
 });

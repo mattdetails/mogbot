@@ -905,7 +905,10 @@ const holdMessage = async (page, start) => {
     if (!el) return null;
     el.scrollIntoView({ block: 'center' });
     const r = el.getBoundingClientRect();
-    return { x: r.x + Math.min(r.width / 2, 120), y: r.y + Math.min(r.height / 2, 20) };
+    // On the part of it that's on screen (a message taller than the screen has its top off it).
+    const top = Math.max(r.y, 90);
+    const bottom = Math.min(r.y + r.height, innerHeight - 160);
+    return { x: r.x + Math.min(r.width / 2, 120), y: Math.min(top + 20, (top + bottom) / 2) };
   })()`);
   if (!box) throw new Error(`No message to hold: ${start}`);
   await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...box });
@@ -4667,6 +4670,235 @@ async function main() {
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
     await sleep(4000);
     await each(FIRST_RUN);
+  }
+
+  if (phase('message-sheet')) {
+    // The long-press sheet (message-actions spec): your message, a reply with
+    // code and links, a very long one; and neither a scroll nor a swipe opens it.
+    const open = (what) => `/${what}/i.test(document.body.innerText)`;
+    const sheetUp = () => page.eval(`/Select text/.test(document.body.innerText)`);
+    // The sheet's own backdrop ("Close menu") closes it.
+    // The web build's sheet doesn't take a synthetic tap outside it: the chat
+    // is opened again instead, so every case starts with no sheet up.
+    const close = async () => {
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(5000);
+      if (await sheetUp()) throw new Error('The sheet would not close');
+    };
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--replies', '--sheet-messages');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(7000);
+      await holdMessage(page, 'Is this the right sheet?');
+      await screen(page, theme, {
+        name: 'sheet-yours',
+        check:
+          'Your message held: Copy, Reply, Edit and resend, Fork from here, Rewind to here, Remember this, Select text; the time it was sent as the title',
+      });
+      await close();
+      await holdMessage(page, 'Fixed it. The change');
+      await screen(page, theme, {
+        name: 'sheet-agent-code',
+        check:
+          'A reply with code and links held: Copy, Reply, Copy as Markdown, Remember this, Select text',
+      });
+      await close();
+      await holdMessage(page, 'Here is everything');
+      await screen(page, theme, {
+        name: 'sheet-long',
+        check: 'A very long message held: the same sheet, nothing cut off',
+      });
+      await close();
+      // A finger that moves (a scroll) never opens it.
+      const box = await page.eval(`(() => {
+        const el = [...document.querySelectorAll('[tabindex="0"]')].filter((e) => (e.innerText ?? '').trim().startsWith('Fixed it. The change')).pop();
+        if (!el) return null;
+        el.scrollIntoView({ block: 'center' });
+        const r = el.getBoundingClientRect();
+        return { x: r.x + 60, y: r.y + 20 };
+      })()`);
+      if (box) {
+        const at = (type, y, buttons) =>
+          page.send('Input.dispatchMouseEvent', {
+            type,
+            x: box.x,
+            y,
+            button: 'left',
+            buttons,
+            clickCount: 1,
+          });
+        await at('mousePressed', box.y, 1);
+        for (let i = 1; i <= 8; i++) {
+          await at('mouseMoved', box.y - i * 30, 1);
+          await sleep(30);
+        }
+        await sleep(600);
+        await at('mouseReleased', box.y - 240, 0);
+        await sleep(800);
+      }
+      const afterScroll = await sheetUp();
+      console.log(
+        `[qa:web] long-press after a scroll-drag: ${afterScroll ? 'OPENED (bad)' : 'not opened'}`
+      );
+      await screen(page, theme, {
+        name: 'sheet-not-on-scroll',
+        check: 'A drag up the chat (a scroll) held past 300 ms: no sheet',
+      });
+      if (afterScroll) await close();
+      // A swipe to reply sets a reply, never the sheet.
+      await dragMessage(page, 'Is this the right sheet?', 70).catch(() => {});
+      await sleep(600);
+      const afterSwipe = await sheetUp();
+      console.log(
+        `[qa:web] long-press after a swipe: ${afterSwipe ? 'OPENED (bad)' : 'not opened'}`
+      );
+      await screen(page, theme, {
+        name: 'sheet-not-on-swipe',
+        check: 'A swipe right on your message: the reply line in the box, no sheet',
+      });
+      void open;
+    }
+  }
+
+  if (phase('catchup-entry')) {
+    // Catch up's entry, option A (spec-catchup-entry): one card into the flow, quiet rows under it.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      // The web build draws the tab strip at the top, over the hero's title
+      // (on iOS the tabs sit at the bottom): hidden for these shots.
+      const hideTabs = () =>
+        page.eval(`(() => {
+          const all = [...document.querySelectorAll('body *')].filter((e) => {
+            const t = e.innerText ?? '';
+            return ['Catch up', 'Agents', 'Projects', 'Search'].every((w) => t.includes(w)) && e.getBoundingClientRect().top < 120 && e.getBoundingClientRect().height < 120;
+          });
+          const strip = all.pop();
+          if (strip) strip.style.visibility = 'hidden';
+          // The web's small header title sits over the card too (iOS shows the large title above it).
+          for (const e of document.querySelectorAll('body *')) {
+            const r = e.getBoundingClientRect();
+            if (e.children.length === 0 && (e.innerText ?? '').trim() === 'Catch up' && r.top < 60) {
+              e.style.visibility = 'hidden';
+            }
+          }
+          return !!strip;
+        })()`);
+      const shot = async (s) => {
+        await hideTabs();
+        await sleep(300);
+        await screen(page, theme, s);
+      };
+      const open = async (...flags) => {
+        await startMock(...flags);
+        await dropCaches(page);
+        await page.goto(`${WEB}/catch-up`);
+        await sleep(7000);
+      };
+      await open('--solo');
+      await shot({
+        name: 'catchup-entry-nothing',
+        check: 'Nothing waiting: no card; “All caught up”, calm, and the way to Agents',
+      });
+      await open('--catchup-single');
+      await shot({
+        name: 'catchup-entry-one',
+        check: 'One: “1 thing needs you”, what it is with the agent, its key, Review it; no list',
+      });
+      await open();
+      await shot({
+        name: 'catchup-entry-many',
+        check:
+          'Many: “N things need you”, “From N agents” (no minutes), the waiting keys, Start catching up; “Or pick one” rows with no buttons; no pill in the header',
+      });
+      // Part of a run: Start, back to the tab, three answered (on the desk here).
+      await page.clickText('Start catching up');
+      await sleep(3000);
+      await page.eval('history.back()');
+      await sleep(1500);
+      await fetch(`${MOCK}/dev/answer?n=3`);
+      await sleep(3500);
+      await shot({
+        name: 'catchup-entry-midrun',
+        check:
+          'Back part way: “N left”, “2 done · from N agents”, a thin progress bar, the remaining keys, Continue',
+      });
+      // Offline: the same card, its button off, the stale line; the rows dimmed.
+      await open();
+      await stopMock();
+      await sleep(17000);
+      await shot({
+        name: 'catchup-entry-offline',
+        check:
+          'Offline: the card with Start catching up off, “From hh:mm · couldn’t reach your Mac”; rows dimmed',
+      });
+    }
+  }
+
+  if (phase('file-chip')) {
+    // A big file an agent sent: the chip while it downloads, done, and cut off.
+    const NAME = 'launch-walkthrough.mp4';
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--big-file');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(6000);
+      await scrollToIncludes(NAME)(page).catch(() => {});
+      await sleep(700);
+      await screen(page, theme, {
+        name: 'file-chip-rest',
+        check: 'The video as a file chip: MP4 badge, its name, “20 MB”',
+      });
+      await page.clickText(NAME);
+      await sleep(3500);
+      await screen(page, theme, {
+        name: 'file-chip-progress',
+        check: 'Downloading: a spinner on the badge, “6.0 MB of 20 MB” counting up under the name',
+      });
+      await sleep(10000);
+      await screen(page, theme, {
+        name: 'file-chip-done',
+        check: 'Done: the chip as at rest (the viewer opens on a phone; the web has none)',
+      });
+      await startMock('--big-file-cut');
+      await dropCaches(page);
+      // The first run's download is in the web stand-in's cache: forget it, or it just opens.
+      await page.eval(
+        `Object.keys(localStorage).filter((k) => k.includes('launch-walkthrough')).forEach((k) => localStorage.removeItem(k))`
+      );
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(6000);
+      await scrollToIncludes(NAME)(page).catch(() => {});
+      await sleep(700);
+      await page.clickText(NAME);
+      await sleep(4800);
+      await screen(page, theme, {
+        name: 'file-chip-failed',
+        check:
+          'Cut off part way: the chip back at rest and the chat’s note saying it couldn’t be fetched',
+      });
+    }
+  }
+
+  if (phase('reply-paths')) {
+    // Paths in a reply (the four states): an image under it, a file as a link,
+    // a missing one struck through, one outside the allowlist as plain words.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--reply-paths');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(8000);
+      await scrollToIncludes('The notes are in')(page).catch(() => {});
+      await sleep(1500);
+      await screen(page, theme, {
+        name: 'reply-paths',
+        check:
+          'One reply, four paths: hero-after.png as a link with its picture under the reply; HERO-NOTES.md a link; hero-draft.png struck through “(Not found on this Mac)”; /etc/hosts.txt plain words',
+      });
+    }
   }
 
   if (phase('catchup-dir2')) {

@@ -32,7 +32,7 @@ import {
   previewText,
   type CatchUpEyebrow,
 } from '@shipstudio/companion-protocol';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, {
@@ -150,9 +150,22 @@ export default function CatchUp() {
   const fresh = useMemo(() => all.filter((i) => i.kind !== 'reply'), [all]);
   const happened = useMemo(() => all.filter((i) => i.kind === 'reply'), [all]);
   const [queue, setQueue] = useState<CatchQueue | null>(null);
+  // Opened on one thing from Catch up's list: that one first, the rest after it.
+  const { agent: atAgent, message: atMessage } = useLocalSearchParams<{
+    agent?: string;
+    message?: string;
+  }>();
   useEffect(() => {
-    if (ready) setQueue((q) => (q ? syncQueue(q, fresh) : startQueue(fresh)));
-  }, [ready, fresh]);
+    if (!ready) return;
+    setQueue((q) => {
+      if (q) return syncQueue(q, fresh);
+      const start = startQueue(fresh);
+      const chosen = atAgent
+        ? fresh.find((i) => i.agentId === atAgent && (!atMessage || i.messageId === atMessage))
+        : undefined;
+      return chosen ? jumpTo(start, chosen.key) : start;
+    });
+  }, [ready, fresh, atAgent, atMessage]);
   // Cards sent to the end, tagged "Later" until they are the open one again.
   const [laterKeys, setLaterKeys] = useState<ReadonlySet<string>>(new Set());
   // The summary: opened from the queue's last row, or by finishing the decisions.

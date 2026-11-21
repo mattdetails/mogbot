@@ -40,6 +40,16 @@ export interface RelayHttpInit {
   idleMs?: number;
   /** The fraction of the body handed to the socket, 0 to 1. */
   onProgress?: (fraction: number) => void;
+  /**
+   * A 200's body, piece by piece as it arrives, instead of collected: a
+   * download goes straight to disk and never sits whole in memory (a 20 MB
+   * video froze the JS thread, 20 Nov). Pieces are handed over one at a
+   * time, in order; the answer resolves once the last is taken, with an
+   * empty `body`. A piece it rejects ends the request with that error.
+   */
+  onBody?: (piece: Uint8Array) => Promise<void>;
+  /** Bytes of the answer's body so far, and its length when the Mac said. */
+  onReceived?: (received: number, total: number | null) => void;
 }
 
 export interface RelayHttpAnswer {
@@ -90,14 +100,12 @@ export function requestFrames(
   head.more = true;
   return [
     head,
-    ...pieces.slice(1).map(
-      (p, i): RelayHttpBody => ({
-        t: 'httpBody',
-        id,
-        body: toBase64Url(p),
-        more: i < pieces.length - 2,
-      })
-    ),
+    ...pieces.slice(1).map((p, i): RelayHttpBody => ({
+      t: 'httpBody',
+      id,
+      body: toBase64Url(p),
+      more: i < pieces.length - 2,
+    })),
   ];
 }
 
@@ -114,6 +122,11 @@ export function relayRequest(
     let status = 0;
     let headers: Record<string, string> = {};
     const parts: Uint8Array[] = [];
+    // Streamed pieces are written one after another; this is the last write.
+    let writing: Promise<void> = Promise.resolve();
+    let streaming = false;
+    let received = 0;
+    let total: number | null = null;
     let settled = false;
     let idle: ReturnType<typeof setTimeout> | null = null;
 
@@ -159,16 +172,155 @@ export function relayRequest(
       if (frame.t === 'httpRes') {
         status = typeof frame.status === 'number' ? frame.status : 0;
         headers = frame.headers && typeof frame.headers === 'object' ? frame.headers : {};
+        streaming = status === 200 && !!init.onBody;
+        const length = Number(header(headers, 'content-length'));
+        total = Number.isFinite(length) && length >= 0 ? length : null;
       } else if (frame.t !== 'httpBody' || !status) {
         return;
       }
       if (typeof frame.body === 'string' && frame.body) {
         const bytes = fromBase64Url(frame.body);
         if (!bytes) return end(new Error(`${comp.theCap}’s answer couldn’t be read.`));
-        parts.push(bytes);
+        received += bytes.length;
+        init.onReceived?.(received, total);
+        if (streaming) {
+          const sink = init.onBody!;
+          writing = writing.then(() => sink(bytes));
+          writing.catch((e: unknown) => end(e));
+        } else parts.push(bytes);
       }
-      if (!frame.more)
+      if (!frame.more) {
+        if (streaming) {
+          writing.then(
+            () => end(undefined, { status, headers, body: new Uint8Array(0) }),
+            (e: unknown) => end(e)
+          );
+          return;
+        }
         end(undefined, { status, headers, body: join(parts.length ? parts : [new Uint8Array(0)]) });
+      }
+    };
+    socket.onclose = (ev) => end(new RelayClosed((ev as { code?: number })?.code ?? 1006));
+  });
+}
+
+/** A relayed download asks for this much at a time: all the phone ever holds of it. */
+export const RELAY_DOWNLOAD_RANGE = 1024 * 1024;
+
+export interface RelayDownloadInit {
+  path: string;
+  headers?: Record<string, string>;
+  /** Give up when nothing arrives for this long. */
+  idleMs?: number;
+  signal?: AbortSignal;
+  /** Each piece of the file, in order; the next range waits until it's taken. */
+  onBody: (piece: Uint8Array) => Promise<void>;
+  onReceived?: (received: number, total: number | null) => void;
+}
+
+/** "bytes 0-1048575/20971520" → 20971520. */
+const totalOf = (contentRange: string | undefined) => {
+  const m = /\/(\d+)\s*$/.exec(contentRange ?? '');
+  return m ? Number(m[1]) : null;
+};
+
+/**
+ * A file from the pinned Mac, on one socket, as a run of `Range` requests of
+ * {@link RELAY_DOWNLOAD_RANGE}: each range's pieces are handed to `onBody`
+ * and the next is asked for only once they are taken, so the phone never
+ * holds more than one range, however big the file (a socket can't be
+ * paused; asked whole, a 20 MB video sat in memory while it was written).
+ * Each answer stays well under what a Mac keeps unacked, so it works with
+ * Macs from before 1.1.1 too. Resolves the first answer's status: 200 or
+ * 206 when it all came, else the Mac's (nothing was handed over).
+ */
+export function relayDownload(
+  url: string,
+  deps: RelayHttpDeps,
+  init: RelayDownloadInit
+): Promise<{ status: number }> {
+  const comp = pairedComputer();
+  return new Promise((resolve, reject) => {
+    const socket = new RelaySocket(url, deps);
+    let id = 0;
+    let from = 0;
+    let total: number | null = null;
+    let status = 0;
+    let writing: Promise<void> = Promise.resolve();
+    let settled = false;
+    let idle: ReturnType<typeof setTimeout> | null = null;
+
+    const end = (error?: unknown, answer?: { status: number }) => {
+      if (settled) return;
+      settled = true;
+      if (idle) clearTimeout(idle);
+      init.signal?.removeEventListener('abort', onAbort);
+      socket.onopen = socket.onmessage = socket.onclose = socket.onerror = null;
+      socket.close();
+      if (answer) resolve(answer);
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- passes on whatever the socket reported, unchanged
+      else reject(error);
+    };
+    const touch = () => {
+      if (!init.idleMs) return;
+      if (idle) clearTimeout(idle);
+      idle = setTimeout(() => end(new Error(`${comp.theCap} stopped answering.`)), init.idleMs);
+    };
+    const onAbort = () => end(new DOMExceptionLike('Aborted', 'AbortError'));
+    if (init.signal?.aborted) return onAbort();
+    init.signal?.addEventListener('abort', onAbort);
+
+    const ask = () => {
+      id += 1;
+      status = 0;
+      touch();
+      const last = from + RELAY_DOWNLOAD_RANGE - 1;
+      socket.send(
+        JSON.stringify({
+          t: 'http',
+          id,
+          method: 'GET',
+          path: init.path,
+          headers: { ...init.headers, range: `bytes=${from}-${last}` },
+        } satisfies RelayHttpRequest)
+      );
+    };
+    socket.onopen = ask;
+    socket.onmessage = (ev) => {
+      touch();
+      let frame: RelayHttpResponse | RelayHttpBody;
+      try {
+        frame = JSON.parse(String(ev.data)) as RelayHttpResponse | RelayHttpBody;
+      } catch {
+        return;
+      }
+      if (!frame || frame.id !== id) return;
+      if (frame.t === 'httpRes') {
+        status = typeof frame.status === 'number' ? frame.status : 0;
+        const h = frame.headers && typeof frame.headers === 'object' ? frame.headers : {};
+        if (status === 206) total = totalOf(header(h, 'content-range'));
+        else if (status === 200) {
+          // The whole file (a Mac that ignores ranges, or one this small).
+          const n = Number(header(h, 'content-length'));
+          total = Number.isFinite(n) && n >= 0 ? n : null;
+        } else return end(undefined, { status });
+      } else if (frame.t !== 'httpBody' || !status) {
+        return;
+      }
+      if (typeof frame.body === 'string' && frame.body) {
+        const bytes = fromBase64Url(frame.body);
+        if (!bytes) return end(new Error(`${comp.theCap}’s answer couldn’t be read.`));
+        from += bytes.length;
+        init.onReceived?.(from, total);
+        writing = writing.then(() => init.onBody(bytes));
+        writing.catch((e: unknown) => end(e));
+      }
+      if (frame.more) return;
+      const done = status === 200 || total === null || from >= total;
+      writing.then(
+        () => (done ? end(undefined, { status }) : ask()),
+        (e: unknown) => end(e)
+      );
     };
     socket.onclose = (ev) => end(new RelayClosed((ev as { code?: number })?.code ?? 1006));
   });
@@ -212,6 +364,28 @@ export async function queuedRelayRequest(
     for (let attempt = 1; ; attempt++) {
       try {
         return await relayRequest(url, deps, init);
+      } catch (e) {
+        const busy = e instanceof RelayClosed && e.code === 4429;
+        if (!busy || attempt >= RELAY_BUSY_TRIES || init.signal?.aborted) throw e;
+        await pause(RELAY_BUSY_WAIT_MS * attempt);
+      }
+    }
+  } finally {
+    free();
+  }
+}
+
+/** `relayDownload`, taking one of the same {@link RELAY_HTTP_AT_ONCE} slots. */
+export async function queuedRelayDownload(
+  url: string,
+  deps: RelayHttpDeps,
+  init: RelayDownloadInit
+): Promise<{ status: number }> {
+  await slot();
+  try {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await relayDownload(url, deps, init);
       } catch (e) {
         const busy = e instanceof RelayClosed && e.code === 4429;
         if (!busy || attempt >= RELAY_BUSY_TRIES || init.signal?.aborted) throw e;

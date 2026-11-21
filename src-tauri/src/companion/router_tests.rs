@@ -1484,6 +1484,53 @@ async fn fetch_path_stages_a_file_for_this_device_and_refuses_folders() {
     }
 }
 
+/// The phone's half of paths in a reply: the same check as the desk's, kinds
+/// only, never the real path back.
+#[tokio::test]
+async fn check_paths_says_what_each_path_is_and_never_the_real_one() {
+    use crate::companion::testkit::{Stub, AGENT};
+    let (c, stub) = Stub::companion();
+    let home = stub.home.path();
+    std::fs::write(home.join("shot.png"), [0x89, b'P', b'N', b'G']).unwrap();
+    std::fs::write(home.join("notes.md"), "# hi").unwrap();
+    std::fs::write(home.join("logo.svg"), "<svg/>").unwrap();
+    std::fs::create_dir(home.join("folder")).unwrap();
+    let shot = home.join("shot.png").to_string_lossy().to_string();
+    let gone = home.join("gone.pdf").to_string_lossy().to_string();
+    let checks = dispatch(
+        &c,
+        &caller("dev_a"),
+        "agents.checkPaths",
+        json!({ "agentId": AGENT, "paths": [shot, "notes.md", "logo.svg", "folder", gone, "/etc/hosts"] }),
+    )
+    .await
+    .unwrap();
+    let kinds: Vec<&str> = checks
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["kind"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        kinds,
+        ["image", "file", "file", "folder", "missing", "outside"]
+    );
+    assert!(checks
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|c| c.get("full").is_none()));
+    let many: Vec<String> = (0..65).map(|i| format!("f{i}.md")).collect();
+    assert!(dispatch(
+        &c,
+        &caller("dev_a"),
+        "agents.checkPaths",
+        json!({ "agentId": AGENT, "paths": many })
+    )
+    .await
+    .is_err());
+}
+
 #[tokio::test]
 async fn schedule_methods_need_an_id_except_create() {
     use crate::companion::testkit::{Stub, AGENT};
