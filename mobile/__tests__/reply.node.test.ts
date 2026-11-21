@@ -70,7 +70,7 @@ describe('what a reply quotes', () => {
 
 describe('Reply in the menu and the draft', () => {
   it('comes first when the Mac takes replies, and is absent otherwise', () => {
-    expect(messageActions(msg(), false, false, false, true)[0].id).toBe('reply');
+    expect(messageActions(msg(), false, false, true)[0].id).toBe('reply');
     expect(messageActions(msg())[0].id).toBe('copy');
   });
 });

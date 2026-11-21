@@ -77,7 +77,6 @@ import {
   pendingApprovalIds,
 } from '../lib/agents';
 import { messageActions, plainText, type Action, type MessageAction } from '../lib/actions';
-import { canReadAloud, readAloud, stopReading, useReading } from '../lib/readAloud';
 import { announce } from '../lib/a11y';
 import { addQuote, setComposer } from '../lib/drafts';
 import { TALK_OFFERED } from '../lib/talk';
@@ -654,7 +653,6 @@ export function ChatView({
         messageActions(
           m,
           remember,
-          canReadAloud(),
           canGoBack() && m.kind === 'user',
           canReply && !!replyRefFor(m, state.agentName)
         ),
@@ -714,9 +712,6 @@ export function ChatView({
               void Clipboard.setStringAsync(m.text);
               haptic.success();
               break;
-            case 'listen':
-              if (!readAloud(id, m.id, m.text)) showError('This phone can’t read aloud right now.');
-              break;
             case 'quote':
               addQuote(id, m.kind === 'agent' ? plainText(m.text) : m.text);
               break;
@@ -731,14 +726,6 @@ export function ChatView({
       );
     },
     [id, router, showError, viewing, canReply, replyActions]
-  );
-
-  // A reply read aloud stops when its chat closes.
-  useEffect(
-    () => () => {
-      if (useReading.getState().reading?.agentId === id) stopReading();
-    },
-    [id]
   );
 
   const openPath = useCallback(

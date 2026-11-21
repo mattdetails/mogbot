@@ -19,7 +19,6 @@ export type AgentAction = 'pin' | 'unpin' | 'markUnread' | 'mute' | 'unmute' | '
 export type MessageAction =
   | 'copy'
   | 'copyMarkdown'
-  | 'listen'
   | 'reply'
   | 'quote'
   | 'select'
@@ -100,8 +99,6 @@ export function toggleFor(
 export function messageActions(
   message: Pick<AgentMessage, 'kind' | 'text'>,
   remember = false,
-  /** This build can read aloud (lib/readAloud.ts): an agent's reply gets Listen. */
-  listen = false,
   /** The Mac can go back (`agents.conversationRewind`): your messages get the three ways back. */
   goBack = false,
   /** The Mac takes replies (`messages.reply`): Reply comes first. */
@@ -115,9 +112,6 @@ export function messageActions(
   out.push({ id: 'copy', title: 'Copy', icon: 'doc.on.doc' });
   if (message.kind === 'agent' && /[*_`#>[\]|-]/.test(message.text)) {
     out.push({ id: 'copyMarkdown', title: 'Copy as Markdown', icon: 'text.badge.checkmark' });
-  }
-  if (listen && message.kind === 'agent') {
-    out.push({ id: 'listen', title: 'Listen', icon: 'speaker.wave.2' });
   }
   out.push(
     { id: 'quote', title: 'Quote', icon: 'text.quote' },

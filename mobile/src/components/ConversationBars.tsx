@@ -10,14 +10,6 @@ import { engineCantAskBar } from '../lib/agents';
 import { drivenBar, importBar, revisingBar } from '../lib/bars';
 import { setupBar } from '../lib/teamSetup';
 import { DEMO_BAR, isDemo } from '../lib/demo';
-import {
-  canPause,
-  pauseReading,
-  readingBar,
-  resumeReading,
-  stopReading,
-  useReading,
-} from '../lib/readAloud';
 import { useApp } from '../lib/store';
 import { useLinkBar } from './ConnectionPill';
 import { BarStack, type BarSpec } from './surfaces';
@@ -65,29 +57,9 @@ export function ConversationBars({
   const cantAsk = engineCantAskBar(agent, engines);
   const connection = useConnectionBar();
   const demo = useDemoBar();
-  const reading = readingBar(
-    useReading((s) => s.reading),
-    agent.id
-  );
   const bars: BarSpec[] = [];
   if (demo) bars.push(demo);
   if (connection) bars.push(connection);
-  // A reply read aloud (lib/readAloud.ts): the bar pauses it, its ✕ stops it.
-  if (reading) {
-    const paused = reading.title === 'Paused';
-    bars.push({
-      id: 'reading',
-      ...reading,
-      icon: paused ? 'pause.fill' : 'speaker.wave.2',
-      ...(canPause()
-        ? {
-            onPress: paused ? resumeReading : pauseReading,
-            pressHint: paused ? 'Carries on reading' : 'Pauses reading',
-          }
-        : {}),
-      action: { label: 'Stop reading', icon: 'xmark', onPress: stopReading },
-    });
-  }
   const driven = drivenBar(agent);
   // Only known live: while the Mac is away it's what was last seen, said so.
   if (driven) {

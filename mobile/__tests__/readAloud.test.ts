@@ -79,13 +79,9 @@ describe('what is said', () => {
 });
 
 describe('reading aloud', () => {
-  it('offers Listen on an agent’s reply only, and only in a build that can', () => {
+  it('never offers Listen on a reply: cut in 1.1.1 (it didn’t work and the voice was robotic); Talk still speaks', () => {
     const reply = { kind: 'agent' as const, text: 'Hello there' };
-    expect(messageActions(reply, false, true).map((a) => a.id)).toContain('listen');
-    expect(messageActions(reply, false, false).map((a) => a.id)).not.toContain('listen');
-    expect(
-      messageActions({ kind: 'user', text: 'Hi' }, false, true).map((a) => a.id)
-    ).not.toContain('listen');
+    expect(messageActions(reply, true, true, true).map((a) => a.id)).not.toContain('listen');
   });
 
   it('says nothing and reports it in a build without a voice', () => {

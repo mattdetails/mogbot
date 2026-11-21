@@ -41,7 +41,7 @@ const keys = (items: Item[]) =>
 
 describe('the three ways back on a long-press', () => {
   const ids = (m: Pick<AgentMessage, 'kind' | 'text'>, goBack: boolean) =>
-    messageActions(m, false, false, goBack).map((a) => a.id);
+    messageActions(m, false, goBack).map((a) => a.id);
 
   it('are on your own messages, after what was there, when the Mac can go back', () => {
     expect(ids({ kind: 'user', text: 'Fix it' }, true)).toEqual([
@@ -52,7 +52,7 @@ describe('the three ways back on a long-press', () => {
       'fork',
       'rewind',
     ]);
-    expect(messageActions({ kind: 'user', text: 'x' }, false, false, true).slice(-3)).toEqual([
+    expect(messageActions({ kind: 'user', text: 'x' }, false, true).slice(-3)).toEqual([
       { id: 'edit', title: 'Edit and resend', icon: 'pencil' },
       { id: 'fork', title: 'Fork from here', icon: 'arrow.triangle.branch' },
       { id: 'rewind', title: 'Rewind to here', icon: 'arrow.uturn.left' },

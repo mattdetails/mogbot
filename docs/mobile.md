@@ -1254,19 +1254,11 @@ The phone can start work as well as answer it. Each piece is gated by
   message.wav" and deleted from the phone once sent; a failed upload sends
   the words and says so. Otherwise nothing is written to a file. No audio
   ever goes anywhere but the paired Mac.
-- **Listen** (`lib/readAloud.ts`). Hold an agent's reply → **Listen**: the
-  phone's own voice reads it (expo-speech: AVSpeechSynthesizer, Android's
-  TextToSpeech), never a service. It reads the reply as it would be said
-  (`speakable`: markdown's marks gone, a code block as "Code.", a bare link
-  as "a link to example.com"), in pieces of at most 4,000 characters cut at
-  sentence ends. One reply at a time; another stops the first. A bar over
-  the composer ("Reading aloud", `BAR_ORDER`'s `reading`) pauses and carries
-  on with a tap (iOS; Android's engine can only stop) and stops with its ✕;
-  leaving the chat or the app stops it. **Silent mode:** on iOS it plays in
-  the app's own audio session, set to `soloAmbient` before every reading
-  (dictation leaves it set for recording), so the Ring/Silent switch mutes
-  it as it mutes a game, and the bar says so. Android has no silent switch
-  for media and plays at media volume, which its bar says instead.
+- **Listen was cut in 1.1.1.** Holding a reply no longer offers it, and the
+  "Reading aloud" bar is gone: it often didn't play and the phone's built-in
+  voice sounded robotic. `lib/readAloud.ts` stays only as Talk's voice
+  (`speakable`, pieces at sentence ends, `soloAmbient` so the Silent switch
+  mutes it).
 - **Talk** (`app/talk.tsx`, the loop in `lib/talk.ts`). A hands-free
   conversation with one agent: the waveform button in any chat's header
   (the Chief's too, and on the Agents tab's embedded chat), or Home Screen →
@@ -1277,7 +1269,7 @@ The phone can start work as well as answer it. Each piece is gated by
   hearing now), and End. Nothing new underneath: listening is dictation's
   recognizer (`useDictation`, held, so its own 3 s silence stop never ends
   your turn), sending is `send` (the outbox while the Mac is away, and the
-  screen says so), speaking is Listen's voice (`readAloud`).
+  screen says so), speaking is the phone's own voice (`readAloud`).
   **The loop** is a pure reducer (`talkReducer`): listening → countdown →
   sending → waiting → speaking → listening, until End or leaving. After you
   speak, 1.2 s of quiet (`TALK_SILENCE_MS`) starts a visible countdown of
@@ -1900,8 +1892,8 @@ build row says to unlock it rather than waiting silently.
   fake recognizer (streaming, Stop, Send, ×, silence, errors, the fallback,
   Android 12) and holding it for a voice message (let go, slide away, the
   recording only when asked for); `waveform.node.test.ts` the level→bar
-  mapping and easing; `readAloud.test.ts` Listen (what's said, pieces,
-  pause, stop, a stopped reading's late callbacks); `siri.node.test.ts` and
+  mapping and easing; `readAloud.test.ts` Talk's voice (what's said, pieces,
+  pause, stop, a stopped reading's late callbacks; no Listen in the menu); `siri.node.test.ts` and
   `liveActivity.test.ts` what Siri sends and what the Lock Screen may show;
   `voiceBuild.node.test.ts` the app config for both.
   `talk.test.ts` Talk's loop (round trip, countdown, Cancel, Send now, a
