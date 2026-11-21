@@ -6298,7 +6298,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 27
+      "consumerCount": 25
     },
     {
       "name": "--accent-overlay",
@@ -6690,7 +6690,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 6
+      "consumerCount": 8
     },
     {
       "name": "--motion-celebrate",
@@ -6698,7 +6698,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 4
+      "consumerCount": 5
     },
     {
       "name": "--motion-celebrate-ring",
@@ -6714,7 +6714,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 3
+      "consumerCount": 4
     },
     {
       "name": "--motion-stagger",
@@ -6746,7 +6746,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 259
+      "consumerCount": 258
     },
     {
       "name": "--motion-press",
@@ -6770,7 +6770,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 3
+      "consumerCount": 5
     },
     {
       "name": "--motion-exit",
@@ -6778,7 +6778,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 3
+      "consumerCount": 5
     },
     {
       "name": "--motion-exit-screen",
@@ -6810,7 +6810,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 8
+      "consumerCount": 10
     },
     {
       "name": "--motion-breathe",
@@ -6826,7 +6826,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 4
     },
     {
       "name": "--motion-travel-rise",
@@ -6842,7 +6842,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 2
+      "consumerCount": 4
     },
     {
       "name": "--motion-scale-modal",
@@ -7858,7 +7858,7 @@
       "layer": "semantic",
       "owner": "global/semantic",
       "status": "canonical",
-      "consumerCount": 27
+      "consumerCount": 25
     },
     {
       "name": "--syntax-property",
