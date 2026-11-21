@@ -59,6 +59,34 @@ function getAgentShortcuts(quickMessage: string | null): HelpShortcut[] {
   const mac = isMac();
   return [
     {
+      id: 'catch-up',
+      label: 'Catch up',
+      description: 'Go through what needs you, one at a time (⌃⌥⇧C if an agent’s key is C)',
+      keys: [kbd('ctrl', 'alt', 'C')],
+    },
+    {
+      id: 'open-project-by-number',
+      label: 'Open a project by its number',
+      description: 'The Nth project in the sidebar order, from anywhere',
+      keys: [kbd('ctrl', 'alt', 'shift', '1–9')],
+    },
+    ...(mac
+      ? [
+          {
+            id: 'card-allow',
+            label: 'Allow the card in front',
+            description: 'Only when no text box has the cursor',
+            keys: ['⌘↩'],
+          },
+          {
+            id: 'card-deny',
+            label: 'Deny the card in front',
+            description: 'Only when no text box has the cursor',
+            keys: ['⌘⌫'],
+          },
+        ]
+      : []),
+    {
       id: 'agents-new',
       label: 'New agent',
       description: 'Describe the agent you want, or start from a ready-made one',

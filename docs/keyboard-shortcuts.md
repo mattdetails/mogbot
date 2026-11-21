@@ -68,6 +68,13 @@ macOS adds the search field to Help and the window list to Window.
 
 ## Page-only keys
 
+The map's page-level keys (designs/keyboard, `lib/designedShortcuts`), none bare, so typing never fires one:
+
+- **⌃⌥⇧1–9** opens the Nth project in `projectShortcutOrder`, from anywhere (`useProjectNumberShortcuts`).
+- **⌃⌥C** is Catch up, or **⌃⌥⇧C** when an agent holds the key C (`useDesignedShortcuts`).
+- **⌘↩ / ⌘⌫** press Allow / Deny on the first card still waiting, only when no text box or terminal has focus; the card's own guard still holds (Allow waits for it to arm). Mac only: elsewhere ⌃↩ sends a message.
+- **⇧⌘A** switches Agents and Projects (the Go menu's `toggle_mode`).
+
 Not in the menu bar, so they never fire through the preview iframe:
 
 - Agents: an agent's own key (A–Z, 0–9) opens it when no text field has the
