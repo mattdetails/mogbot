@@ -43,6 +43,11 @@
   --agents-composer-button-radius: var(--radius-6);
   /* The quiet header's hint dot (spec-header-dropdown.md). */
   --size-hint-dot: 6px;
+  /* Catch up's entry (spec-catchup-entry, A): the hero's corners, the mid-run
+     bar's width, and the rows dimmed while the Mac can't be read. */
+  --radius-catchup-hero: 20px;
+  --size-catchup-progress: 320px;
+  --catchup-stale-opacity: 0.55;
   /* The quiet header's name button: 32 tall. */
   --size-quiet-name-button: 32px;
   /* The quiet header's ⌄ panel: 344 wide, 30px rows, 14px task marks; it

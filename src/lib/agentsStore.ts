@@ -65,6 +65,8 @@ export interface AgentsState {
   importChoice: ImportChoice | null;
   loaded: boolean;
   error: string | null;
+  /** When the overview was last read from the Mac (ms), for "From 20:14 · couldn't reach…". */
+  readAt: number | null;
   /** Chat lines per agent, oldest first; absent until that chat is opened. */
   messages: Record<string, AgentMessage[]>;
   /** Chats with lines older than the ones loaded. */
@@ -93,6 +95,7 @@ let state: AgentsState = {
   importChoice: null,
   loaded: false,
   error: null,
+  readAt: null,
   messages: {},
   older: {},
   drafts: {},
@@ -155,6 +158,7 @@ export async function refreshAgents(): Promise<void> {
       importChoice: overview.importChoice ?? null,
       loaded: true,
       error: null,
+      readAt: Date.now(),
     });
     syncFolders(overview.folders, state.agents);
   } catch (error) {
@@ -943,6 +947,7 @@ export function __resetAgentsStore() {
     importChoice: null,
     loaded: false,
     error: null,
+    readAt: null,
     messages: {},
     older: {},
     drafts: {},

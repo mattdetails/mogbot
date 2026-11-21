@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { Agent, AgentMessage } from './agents';
-import { answersHere, catchItems, leftCount, withLater, withRoomCards } from './catchUpDesk';
+import {
+  answersHere,
+  catchItems,
+  entryCard,
+  leftCount,
+  withLater,
+  withRoomCards,
+  type CatchItem,
+} from './catchUpDesk';
 
 const agent = (id: string) => ({ id, name: id }) as Agent;
 const ask = (id: string, ts: number, over = {}) =>
@@ -69,5 +77,52 @@ describe('withRoomCards', () => {
     );
     expect(groups[0].approvals.map((m) => m.id)).toEqual(['r1', 'a1']);
     expect(groups[1].approvals.map((m) => m.id)).toEqual(['m1']);
+  });
+});
+
+describe('entryCard (the entry’s hero, option A)', () => {
+  const item = (id: string, agentId: string, ts: number) =>
+    ({ key: id, agent: agent(agentId), message: ask(id, ts), ts }) as CatchItem;
+  const headline = (i: CatchItem) => `ask ${i.key}`;
+
+  it('is nothing when nothing waits (the All caught up line instead)', () => {
+    expect(entryCard([], 0, headline)).toBeNull();
+  });
+
+  it('with several: the count, from how many agents (no time estimate), Start, and the list', () => {
+    const card = entryCard(
+      [item('a', 'lead', 1), item('b', 'mail', 2), item('c', 'lead', 3)],
+      0,
+      headline
+    )!;
+    expect(card).toMatchObject({
+      state: 'many',
+      title: '3 things need you',
+      sub: 'From 2 agents',
+      action: 'Start catching up',
+      list: true,
+    });
+    expect(card.agents.map((a) => a.id)).toEqual(['lead', 'mail']);
+  });
+
+  it('with one: who and what, Review it, and no list', () => {
+    expect(entryCard([item('a', 'lead', 1)], 0, headline)).toMatchObject({
+      state: 'one',
+      title: '1 thing needs you',
+      sub: 'lead: ask a',
+      action: 'Review it',
+      list: false,
+    });
+  });
+
+  it('mid-run: what is left, how many done, Continue, and how far through', () => {
+    expect(entryCard([item('b', 'mail', 2), item('c', 'scout', 3)], 1, headline)).toMatchObject({
+      state: 'midRun',
+      title: '2 left',
+      sub: '1 done · from 2 agents',
+      action: 'Continue',
+      list: true,
+      progress: 1 / 3,
+    });
   });
 });

@@ -10,6 +10,13 @@
  */
 
 import type { Agent, AgentMessage } from './agents';
+import {
+  CATCH_UP_ENTRY,
+  catchUpDoneFrom,
+  catchUpFromAgents,
+  catchUpLeft,
+  catchUpNeedYou,
+} from '../../packages/companion-protocol/src/catchUpWords';
 
 export interface CatchItem {
   key: string;
@@ -91,3 +98,59 @@ export function withLater(items: CatchItem[], later: string[]): CatchItem[] {
 /** What is left to decide this pass: everything not put off. */
 export const leftCount = (items: CatchItem[], later: string[]): number =>
   items.filter((i) => !later.includes(i.key)).length;
+
+/** What the entry's hero card says (spec-catchup-entry, option A). */
+export interface EntryCard {
+  state: 'many' | 'one' | 'midRun';
+  /** "7 things need you", "1 thing needs you" or "4 left". */
+  title: string;
+  /** "From 6 agents", "<Agent>: <what>" or "3 done · from 4 agents". */
+  sub: string;
+  /** Start catching up, Review it or Continue. */
+  action: string;
+  /** The waiting agents, each once, in queue order: their keys. */
+  agents: Agent[];
+  /** Whether "Or pick one" lists the items (not for a single one). */
+  list: boolean;
+  /** Mid-run: how far through, 0–1. */
+  progress?: number;
+}
+
+/** The hero card for what waits; null when nothing does (the "All caught up" line). */
+export function entryCard(
+  items: CatchItem[],
+  doneCount: number,
+  headlineOf: (i: CatchItem) => string
+): EntryCard | null {
+  if (items.length === 0) return null;
+  const agents = [...new Map(items.map((i) => [i.agent.id, i.agent])).values()];
+  if (doneCount > 0) {
+    return {
+      state: 'midRun',
+      title: catchUpLeft(items.length),
+      sub: catchUpDoneFrom(doneCount, agents.length),
+      action: CATCH_UP_ENTRY.continue,
+      agents,
+      list: true,
+      progress: doneCount / (doneCount + items.length),
+    };
+  }
+  if (items.length === 1) {
+    return {
+      state: 'one',
+      title: catchUpNeedYou(1),
+      sub: `${items[0].agent.name}: ${headlineOf(items[0])}`,
+      action: CATCH_UP_ENTRY.review,
+      agents,
+      list: false,
+    };
+  }
+  return {
+    state: 'many',
+    title: catchUpNeedYou(items.length),
+    sub: catchUpFromAgents(agents.length),
+    action: CATCH_UP_ENTRY.start,
+    agents,
+    list: true,
+  };
+}
