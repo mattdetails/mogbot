@@ -551,8 +551,8 @@ export const agentsRoomsScenarios: Scenario[] = [
     id: 'agents-catchup-room-approval',
     title: 'Rooms — Catch up counts a card asked for in a room',
     looksRightWhen:
-      'Catch up (the bell) opens on its entry: “1 thing needs you”, Acme Site’s “Push to GitHub”, its key and Review it, the same request What’s in flight shows “in Pricing launch”; never “nothing waiting” while the bell says 1.',
-    requires: '.agents-catchup__hero',
+      'Catch up (the bell) opens on its page: the queue’s “Needs you · 1” row, Acme Site’s “Push to GitHub” open on the right with Allow and Deny, the same request What’s in flight shows “in Pricing launch”; never “nothing waiting” while the bell says 1.',
+    requires: '.agents-catchup__card',
     openSelector: AGENTS_TAB,
     steps: [{ click: '.agents-inflight button' }],
     commands: {
