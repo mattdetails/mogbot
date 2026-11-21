@@ -83,18 +83,13 @@ describe('withRoomCards', () => {
 describe('entryCard (the entry’s hero, option A)', () => {
   const item = (id: string, agentId: string, ts: number) =>
     ({ key: id, agent: agent(agentId), message: ask(id, ts), ts }) as CatchItem;
-  const headline = (i: CatchItem) => `ask ${i.key}`;
 
   it('is nothing when nothing waits (the All caught up line instead)', () => {
-    expect(entryCard([], 0, headline)).toBeNull();
+    expect(entryCard([], 0)).toBeNull();
   });
 
   it('with several: the count, from how many agents (no time estimate), Start, and the list', () => {
-    const card = entryCard(
-      [item('a', 'lead', 1), item('b', 'mail', 2), item('c', 'lead', 3)],
-      0,
-      headline
-    )!;
+    const card = entryCard([item('a', 'lead', 1), item('b', 'mail', 2), item('c', 'lead', 3)], 0)!;
     expect(card).toMatchObject({
       state: 'many',
       title: '3 things need you',
@@ -105,18 +100,18 @@ describe('entryCard (the entry’s hero, option A)', () => {
     expect(card.agents.map((a) => a.id)).toEqual(['lead', 'mail']);
   });
 
-  it('with one: who and what, Review it, and no list', () => {
-    expect(entryCard([item('a', 'lead', 1)], 0, headline)).toMatchObject({
+  it('with one: who it is from, Review it, and the one row under it', () => {
+    expect(entryCard([item('a', 'lead', 1)], 0)).toMatchObject({
       state: 'one',
       title: '1 thing needs you',
-      sub: 'lead: ask a',
+      sub: 'From lead',
       action: 'Review it',
-      list: false,
+      list: true,
     });
   });
 
   it('mid-run: what is left, how many done, Continue, and how far through', () => {
-    expect(entryCard([item('b', 'mail', 2), item('c', 'scout', 3)], 1, headline)).toMatchObject({
+    expect(entryCard([item('b', 'mail', 2), item('c', 'scout', 3)], 1)).toMatchObject({
       state: 'midRun',
       title: '2 left',
       sub: '1 done · from 2 agents',

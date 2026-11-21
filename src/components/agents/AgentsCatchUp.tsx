@@ -315,7 +315,7 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
           done={done}
           happened={happened}
           lastDecision={lastDecision}
-          stale={stale ? clock(readAt!) : null}
+          stale={stale ? clock(readAt) : null}
           onStart={startFlow}
           onSummary={() => startFlow('summary')}
         />
@@ -410,46 +410,38 @@ function Entry({
       </div>
     );
   }
-  const card = entryCard(items, done.length, headline)!;
+  const card = entryCard(items, done.length)!;
   const { title, sub, action, agents } = card;
   const midRun = card.state === 'midRun';
   return (
     <div className="agents-catchup__entry" data-stale={stale ? true : undefined}>
       <section className="agents-catchup__hero" aria-label={title}>
-        <div className="agents-catchup__hero-text">
-          <h3 className="agents-catchup__hero-title" aria-live="polite">
-            {title}
-          </h3>
-          <p className="agents-catchup__hero-sub">{sub}</p>
-          {midRun && (
+        <h3 className="agents-catchup__hero-title" aria-live="polite">
+          {title}
+        </h3>
+        <p className="agents-catchup__hero-sub">{sub}</p>
+        {midRun && (
+          <span
+            className="agents-catchup__progress"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={done.length + items.length}
+            aria-valuenow={done.length}
+            aria-label={catchUpDoneFrom(done.length, agents.length)}
+          >
             <span
-              className="agents-catchup__progress"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={done.length + items.length}
-              aria-valuenow={done.length}
-              aria-label={catchUpDoneFrom(done.length, agents.length)}
-            >
-              <span
-                className="agents-catchup__progress-fill"
-                style={{
-                  ['--catchup-progress' as string]: `${(card.progress ?? 0) * 100}%`,
-                }}
-              />
-            </span>
-          )}
-          <span className="agents-catchup__hero-keys">
-            {agents.map((a) => (
-              <AgentKey key={a.id} id={a.id} name={a.name} color={a.color} size="md" />
-            ))}
+              className="agents-catchup__progress-fill"
+              style={{
+                ['--catchup-progress' as string]: `${(card.progress ?? 0) * 100}%`,
+              }}
+            />
           </span>
-          {stale && (
-            <p className="agents-catchup__stale">
-              <span className="agents-catchup__stale-dot" aria-hidden="true" />
-              {catchUpStale(stale, 'desk')}
-            </p>
-          )}
-        </div>
+        )}
+        <span className="agents-catchup__hero-keys">
+          {agents.map((a) => (
+            <AgentKey key={a.id} id={a.id} name={a.name} color={a.color} size="md" />
+          ))}
+        </span>
         <Button
           tabIndex={0}
           variant="strong"
@@ -458,8 +450,9 @@ function Entry({
           onClick={() => onStart()}
           aria-keyshortcuts="Enter"
         >
-          {action} <kbd aria-hidden="true">↵</kbd>
+          {action}
         </Button>
+        {stale && <p className="agents-catchup__stale">{catchUpStale(stale, 'desk')}</p>}
       </section>
       {card.list && (
         <section className="agents-catchup__entry-list">
@@ -468,7 +461,6 @@ function Entry({
             {items.map((i) => (
               <Row
                 key={i.key}
-                muted={Boolean(stale)}
                 lead={
                   <AgentKey id={i.agent.id} name={i.agent.name} color={i.agent.color} size="md" />
                 }

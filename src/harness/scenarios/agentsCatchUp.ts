@@ -152,11 +152,14 @@ const START = { click: '.agents-catchup__start' };
 /** Scenarios about the entry itself, which stay on it. */
 const ENTRY = new Set([
   'entry-many',
+  'entry-many-narrow',
   'entry-one',
+  'entry-one-narrow',
   'entry-mid-run',
+  'entry-mid-run-narrow',
   'entry-caught-up',
   'entry-stale',
-  'entry-narrow',
+  'entry-stale-narrow',
   'summary',
   'all-clear',
 ]);
@@ -200,25 +203,64 @@ const longAsk: Ask = {
   detail: 'send_email ×42',
 };
 
-export const agentsCatchUpScenarios: Scenario[] = [
-  // The entry (spec-catchup-entry, option A).
-  scenario(
+/** Each state at Designer's two widths (designs/catchup-desk, sheet A). */
+const ENTRY_WIDTHS: [string, number, string][] = [
+  ['', 1440, ''],
+  ['-narrow', 800, 'narrow'],
+];
+
+const ENTRY_COLUMN = (width: number) =>
+  width > 1200
+    ? 'The header and everything under it share one centred 960px column: “Catch up” over the card’s left edge, “Close esc” ending on its right, a hairline under the header across the column only.'
+    : 'In an 800px window the column is the pane less its gutters, header and content on the same edges, a hairline under the header across the column only.';
+
+const ENTRY_CARD = 'One card (16px radius, a 1px border, no shadow), stacked and left-aligned';
+
+/** The Mac answers once, then stops: what's shown is from that read. */
+const staleCommands = () => ({
+  ...withAsks(ASKS, HAPPENED),
+  agents_overview: (() => {
+    const first = withAsks(ASKS, HAPPENED).agents_overview as () => unknown;
+    let reads = 0;
+    return () => {
+      reads += 1;
+      // The registry changes once; reading it again, the Mac doesn't answer.
+      if (reads === 1) setTimeout(() => void emit('agents://registry', {}), 400);
+      if (reads > 1) throw new Error('The Mac didn’t answer');
+      return first();
+    };
+  })(),
+});
+
+const ENTRY_STATES: [
+  string,
+  string,
+  () => string,
+  () => Scenario['commands'],
+  Partial<Scenario>,
+][] = [
+  [
     'entry-many',
     'the entry: several waiting',
-    'Under the header, one 20px-radius card: “3 things need you” (24/600), “From 3 agents” (no time estimate), their keys in a row, and on the right a neutral strong “Start catching up ↵”. Below, “Or pick one”: the three asks as quiet grouped rows on one panel (key, what it wants, “Agent · time ago”, “Open ›”), hairlines between. No buttons in the rows, no accent.',
-    withAsks(ASKS, HAPPENED)
-  ),
-  scenario(
+    () =>
+      `${ENTRY_CARD}: “3 things need you” (24/600), “From 3 agents” (no time estimate), their keys, then a neutral strong “Start catching up” that hugs its words (never the accent). No bar. Below, “Or pick one” and the three asks on one bordered panel (key, what it wants, “Agent · time ago”, “Open ›”), hairlines between.`,
+    () => withAsks(ASKS, HAPPENED),
+    {},
+  ],
+  [
     'entry-one',
     'the entry: one waiting',
-    'The card says “1 thing needs you”, the line “Dev Research: …” (who and what), its one key, and “Review it ↵”. No “Or pick one” list.',
-    build([STUCK, ...HAPPENED], { devresearch: STUCK_LINES })
-  ),
-  scenario(
+    () =>
+      `${ENTRY_CARD}: “1 thing needs you”, “From Dev Research”, its one key, and “Review it”. Below, “Or pick one” with its one row.`,
+    () => build([STUCK, ...HAPPENED], { devresearch: STUCK_LINES }),
+    {},
+  ],
+  [
     'entry-mid-run',
     'the entry mid-run: one answered, Continue',
-    'After Allow on the first card and Esc back: the card says “2 left”, “1 done · from 2 agents” with a thin bar a third full, the two remaining keys, and “Continue ↵”. Or pick one lists the two left.',
-    withAsks(ASKS, HAPPENED),
+    () =>
+      `After Allow on the first card and Esc back. ${ENTRY_CARD}: “2 left”, “1 done · from 2 agents”, a bar the card’s full width a third full, the two remaining keys, and “Continue”. Or pick one lists the two left.`,
+    () => withAsks(ASKS, HAPPENED),
     {
       steps: [
         START,
@@ -231,45 +273,36 @@ export const agentsCatchUpScenarios: Scenario[] = [
       ],
       mockEvents: true,
       requires: '.agents-catchup__progress',
-    }
+    },
+  ],
+  [
+    'entry-stale',
+    'the entry when it can’t be refreshed',
+    () =>
+      `${ENTRY_CARD}: “3 things need you”, “From 3 agents”, the keys, “Start catching up” off (the disabled neutral button), and under it one line “From HH:MM · couldn’t refresh”. The rows under “Or pick one” look as they do but don’t open.`,
+    staleCommands,
+    { mockEvents: true, steps: [{ wait: 1200 }], requires: '.agents-catchup__stale' },
+  ],
+];
+
+export const agentsCatchUpScenarios: Scenario[] = [
+  // The entry, Direction A (Julian's pick): the four states, each wide and narrow.
+  ...ENTRY_STATES.flatMap(([id, title, looks, commands, more]) =>
+    ENTRY_WIDTHS.map(([suffix, width, where]) =>
+      scenario(
+        `${id}${suffix}`,
+        `${title}${where ? ` (${where})` : ''}`,
+        `${ENTRY_COLUMN(width)} ${looks()}`,
+        commands(),
+        { ...more, viewport: { width, height: 900 } }
+      )
+    )
   ),
   scenario(
     'entry-caught-up',
     'the entry: all caught up, earlier today',
     'Nothing waiting: no card. One calm line, a ringed check, “All caught up” and “Nothing needs you.”; then “Earlier today” and one row “While you were away · 6 things, no decisions ›”.',
     build(HAPPENED)
-  ),
-  scenario(
-    'entry-stale',
-    'the entry when it can’t be refreshed',
-    'The same card with “Start catching up” off (the disabled neutral button) and a quiet line under the keys: “● From HH:MM · couldn’t refresh”. The rows under “Or pick one” are dimmed to 55% and don’t open.',
-    {
-      ...withAsks(ASKS, HAPPENED),
-      // Read once, then the Mac stops answering.
-      agents_overview: (() => {
-        const first = withAsks(ASKS, HAPPENED).agents_overview as () => unknown;
-        let reads = 0;
-        return () => {
-          reads += 1;
-          // The registry changes once; reading it again, the Mac doesn't answer.
-          if (reads === 1) setTimeout(() => void emit('agents://registry', {}), 400);
-          if (reads > 1) throw new Error('The Mac didn’t answer');
-          return first();
-        };
-      })(),
-    },
-    {
-      mockEvents: true,
-      steps: [{ wait: 1200 }],
-      requires: '.agents-catchup__stale',
-    }
-  ),
-  scenario(
-    'entry-narrow',
-    'the entry in a narrow window',
-    'In an 800px window the card stacks: the words and keys, then “Start catching up ↵” full width under them; the rows fill the column.',
-    withAsks(ASKS, HAPPENED),
-    { viewport: { width: 800, height: 800 } }
   ),
   scenario(
     'one',

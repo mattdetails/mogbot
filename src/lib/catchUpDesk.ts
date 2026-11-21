@@ -13,6 +13,7 @@ import type { Agent, AgentMessage } from './agents';
 import {
   CATCH_UP_ENTRY,
   catchUpDoneFrom,
+  catchUpFromAgent,
   catchUpFromAgents,
   catchUpLeft,
   catchUpNeedYou,
@@ -110,18 +111,14 @@ export interface EntryCard {
   action: string;
   /** The waiting agents, each once, in queue order: their keys. */
   agents: Agent[];
-  /** Whether "Or pick one" lists the items (not for a single one). */
+  /** Whether "Or pick one" lists the items (always, now; one item is a row too). */
   list: boolean;
   /** Mid-run: how far through, 0–1. */
   progress?: number;
 }
 
 /** The hero card for what waits; null when nothing does (the "All caught up" line). */
-export function entryCard(
-  items: CatchItem[],
-  doneCount: number,
-  headlineOf: (i: CatchItem) => string
-): EntryCard | null {
+export function entryCard(items: CatchItem[], doneCount: number): EntryCard | null {
   if (items.length === 0) return null;
   const agents = [...new Map(items.map((i) => [i.agent.id, i.agent])).values()];
   if (doneCount > 0) {
@@ -139,10 +136,11 @@ export function entryCard(
     return {
       state: 'one',
       title: catchUpNeedYou(1),
-      sub: `${items[0].agent.name}: ${headlineOf(items[0])}`,
+      sub: catchUpFromAgent(items[0].agent.name),
       action: CATCH_UP_ENTRY.review,
       agents,
-      list: false,
+      // The one item is under the card too, as it is with more.
+      list: true,
     };
   }
   return {

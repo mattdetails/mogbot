@@ -443,6 +443,21 @@
   padding-inline: var(--agents-page-inset);
 }
 
+/* A hairline under it, the column's width, not the window's. */
+.agents-catchup__head[data-mode='entry']::after {
+  position: absolute;
+  right: var(--agents-page-inset);
+  bottom: 0;
+  left: var(--agents-page-inset);
+  height: var(--border-width-default);
+  background: var(--border-default);
+  content: '';
+}
+
+.agents-catchup__head[data-mode='entry'] .agents-catchup__title {
+  font-size: var(--font-size-h4);
+}
+
 /* Close's words, not its quiet hover box, end on the card's right edge. */
 .agents-catchup__head[data-mode='entry'] > .button:last-child {
   /* The head buttons' padding (10px, the spec's) and their border. */
@@ -951,26 +966,19 @@ button.agents-catchup__row:hover:not(.is-selected) {
   gap: var(--spacing-xl);
   min-height: 0;
   overflow-y: auto;
-  padding: var(--spacing-lg) var(--agents-page-inset) var(--spacing-2xl);
+  padding: var(--spacing-xl) var(--agents-page-inset) var(--spacing-2xl);
 }
 
+/* Direction A: one card, stacked and left-aligned: the count, who from, the
+   bar (mid-run only), the keys, then the one button and, stale, its line. */
 .agents-catchup__hero {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-xl);
+  flex-direction: column;
+  align-items: flex-start;
   padding: var(--spacing-xl);
   background: var(--surface-panel);
   border: var(--border-width-default) solid var(--border-default);
-  border-radius: var(--radius-catchup-hero);
-  box-shadow: var(--shadow-sm);
-}
-
-.agents-catchup__hero-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-  min-width: 0;
+  border-radius: var(--catchup-card-radius);
 }
 
 .agents-catchup__hero-title {
@@ -982,9 +990,10 @@ button.agents-catchup__row:hover:not(.is-selected) {
 }
 
 .agents-catchup__hero-sub {
-  margin: 0;
+  max-width: 100%;
+  margin: var(--spacing-xs) 0 0;
   overflow: hidden;
-  font-size: var(--font-size-subhead-lg);
+  font-size: var(--font-size-body-lg);
   color: var(--text-secondary);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -994,16 +1003,16 @@ button.agents-catchup__row:hover:not(.is-selected) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-tight);
-  margin-top: var(--spacing-xs);
+  margin-top: var(--spacing-md);
 }
 
-/* Mid-run: how far through, one thin bar (the meter's own tokens). */
+/* Mid-run: how far through, one bar the card's width (the meter's tokens). */
 .agents-catchup__progress {
   position: relative;
   display: block;
   width: 100%;
-  max-width: var(--size-catchup-progress);
   height: var(--meter-height);
+  margin-top: var(--spacing-md);
   overflow: hidden;
   background: var(--meter-track);
   border-radius: var(--meter-radius);
@@ -1018,35 +1027,22 @@ button.agents-catchup__row:hover:not(.is-selected) {
   transition: width var(--transition-arrive);
 }
 
+/* Neutral strong, never the accent; it hugs its words. */
 .agents-catchup .agents-catchup__start {
   flex: none;
   height: var(--size-control-large);
+  margin-top: var(--spacing-lg);
   padding-inline: var(--spacing-lg);
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-subhead);
+  border-radius: var(--radius-card);
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-heading);
 }
 
-.agents-catchup__start kbd {
-  margin-left: var(--spacing-xs);
-  font-family: inherit;
-  opacity: 0.6;
-}
-
-/* Stale: what's shown was read before the Mac stopped answering. */
+/* Couldn't refresh: from when what's shown is, under the button that's off. */
 .agents-catchup__stale {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin: 0;
+  margin: var(--spacing-sm) 0 0;
   font-size: var(--font-size-body-md);
   color: var(--text-secondary);
-}
-
-.agents-catchup__stale-dot {
-  width: var(--size-hint-dot);
-  height: var(--size-hint-dot);
-  background: var(--text-muted);
-  border-radius: var(--radius-pill);
 }
 
 /* "Or pick one": grouped rows on one panel, hairlines between them. */
@@ -1057,8 +1053,8 @@ button.agents-catchup__row:hover:not(.is-selected) {
 }
 
 .agents-catchup__entry-list h3 {
-  margin: 0 var(--spacing-xs);
-  font-size: var(--font-size-subhead);
+  margin: 0;
+  font-size: var(--font-size-body-md);
   font-weight: var(--font-weight-body);
   color: var(--text-secondary);
 }
@@ -1068,13 +1064,14 @@ button.agents-catchup__row:hover:not(.is-selected) {
   flex-direction: column;
   overflow: hidden;
   background: var(--surface-panel);
+  border: var(--border-width-default) solid var(--border-default);
   border-radius: var(--radius-lg);
 }
 
 .agents-catchup__entry-rows .agents-catchup__row {
   height: auto;
   min-height: var(--size-agents-list-row);
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
   border: none;
   border-radius: 0;
 }
@@ -1090,9 +1087,10 @@ button.agents-catchup__row:hover:not(.is-selected) {
   color: var(--text-secondary);
 }
 
-/* Stale, the rows can't be opened: dimmed, as the card's button is off. */
-.agents-catchup__entry[data-stale] .agents-catchup__entry-rows {
-  opacity: var(--catchup-stale-opacity);
+/* Stale, the rows can't be opened (the card's line says why); drawn as they
+   are, as in Direction A, with no pointer. */
+.agents-catchup__entry[data-stale] .agents-catchup__entry-rows .agents-catchup__row {
+  cursor: default;
 }
 
 /* Nothing waiting: one calm line, never an empty card. */
@@ -1126,16 +1124,4 @@ button.agents-catchup__row:hover:not(.is-selected) {
   color: var(--text-secondary);
   border: var(--border-width-default) solid var(--border-strong);
   border-radius: var(--radius-pill);
-}
-
-/* Narrow (Catch up's own 880px line): the button goes under the words, full width. */
-@media (max-width: 880px) {
-  .agents-catchup__hero {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .agents-catchup .agents-catchup__start {
-    width: 100%;
-  }
 }

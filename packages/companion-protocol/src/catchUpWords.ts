@@ -121,6 +121,9 @@ export const catchUpNeedYou = (n: number): string =>
 export const catchUpFromAgents = (n: number): string =>
   `From ${catchUpCount(n)} ${n === 1 ? 'agent' : 'agents'}`;
 
+/** One thing waiting: "From Mail", the agent it's from. */
+export const catchUpFromAgent = (name: string): string => `From ${name}`;
+
 /** Mid-run: "3 done · from 4 agents" (the agents still waiting). */
 export const catchUpDoneFrom = (done: number, agents: number): string =>
   `${catchUpCount(done)} done · from ${catchUpCount(agents)} ${agents === 1 ? 'agent' : 'agents'}`;

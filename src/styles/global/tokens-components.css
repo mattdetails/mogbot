@@ -45,9 +45,6 @@
   --size-hint-dot: 6px;
   /* Catch up's entry (spec-catchup-entry, A): the hero's corners, the mid-run
      bar's width, and the rows dimmed while the Mac can't be read. */
-  --radius-catchup-hero: 20px;
-  --size-catchup-progress: 320px;
-  --catchup-stale-opacity: 0.55;
   --catchup-head-button-pad: 10px; /* css-ok: the spec's 10px ghost-button padding in the Catch up header */
   /* The quiet header's name button: 32 tall. */
   --size-quiet-name-button: 32px;
