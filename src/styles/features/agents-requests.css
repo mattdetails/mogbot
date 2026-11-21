@@ -641,10 +641,25 @@ button.agents-catchup__row:hover:not(.is-selected) {
   min-height: 0;
   overflow: auto;
   flex-direction: column;
-  align-items: center;
-  /* Centred, an optical 24px above true centre. */
-  justify-content: center;
-  padding: 40px 40px 88px; /* css-ok: the spec's 40px pane, 24px above centre */
+  align-items: flex-start;
+  /* Top-aligned: the card starts on the same line as the queue's first label
+     (the queue's own 20px top), so nothing floats in the middle of the pane. */
+  justify-content: flex-start;
+  padding: 20px 24px 88px;
+}
+
+/* All clear keeps its centre, whatever the pane's top alignment. */
+.agents-catchup__pane > .agents-catchup__clear {
+  margin: auto;
+  align-self: center;
+}
+
+/* While you were away: one quiet line at the bottom of the queue, the row's
+   height and no fill. */
+.agents-catchup__whileaway {
+  margin-top: var(--spacing-md);
+  border-top: var(--border-width-default) solid var(--border-subtle);
+  padding-top: var(--spacing-sm);
 }
 
 .agents-catchup__card {
@@ -1014,25 +1029,6 @@ button.agents-catchup__row:hover:not(.is-selected) {
 }
 
 /* Mid-run: how far through, one bar the card's width (the meter's tokens). */
-.agents-catchup__progress {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: var(--meter-height);
-  margin-top: var(--spacing-md);
-  overflow: hidden;
-  background: var(--meter-track);
-  border-radius: var(--meter-radius);
-}
-
-.agents-catchup__progress-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--catchup-progress);
-  background: var(--meter-fill);
-  border-radius: inherit;
-  transition: width var(--transition-arrive);
-}
 
 /* Neutral strong, never the accent; it hugs its words. */
 .agents-catchup .agents-catchup__start {
@@ -1131,4 +1127,220 @@ button.agents-catchup__row:hover:not(.is-selected) {
   color: var(--text-secondary);
   border: var(--border-width-default) solid var(--border-strong);
   border-radius: var(--radius-pill);
+}
+
+/* ----------------------------------------------- Catch up v3 (one column)
+   designs/catchup-v3: one centred 720px column; the header's title and
+   buttons sit on the same edges; the bar and its bottom line run the whole
+   pane. Nothing is a separate state: the decision, what's next, and what
+   happened stack in that order. */
+.agents-catchup__head {
+  padding-inline: max(var(--spacing-lg), calc((100% - 720px) / 2));
+}
+
+.agents-catchup__column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 28px;
+  width: min(100% - 48px, 720px);
+  min-height: 0;
+  margin: 0 auto;
+  padding: 32px 0 88px;
+  overflow-y: auto;
+}
+
+.agents-catchup__column .agents-catchup__card {
+  width: 100%;
+}
+
+.agents-catchup__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: 0 0 14px;
+}
+
+.agents-catchup__ticks {
+  display: flex;
+  gap: 4px;
+}
+
+.agents-catchup__tick {
+  width: 28px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-selected);
+}
+
+.agents-catchup__tick[data-current] {
+  background: var(--text-primary);
+}
+
+.agents-catchup__count {
+  font-size: var(--font-size-body-md);
+  color: var(--text-muted);
+}
+
+.agents-catchup__section h3 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-body-md);
+  font-weight: var(--font-weight-label);
+  color: var(--text-muted);
+}
+
+.agents-catchup__section .agents-catchup__row {
+  border-radius: var(--radius-lg);
+}
+
+.agents-catchup__section .agents-catchup__row:hover {
+  background: var(--surface-control);
+}
+
+.agents-catchup__away .agents-catchup__sum-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  text-align: left;
+  font-size: var(--font-size-body-md);
+}
+
+.agents-catchup__away .agents-catchup__sum-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The decision's preview (designs/catchup-v3): a recessed panel of field rows,
+   recipients as chips, the message's first lines, then “Read all”. */
+.agents-catchup__preview {
+  display: flex;
+  flex-direction: column;
+  margin: 18px 0 0;
+  padding: 4px 16px;
+  background: var(--surface-recessed);
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+.agents-catchup__field {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-height: 40px;
+  border-top: var(--border-width-default) solid var(--border-subtle);
+}
+
+.agents-catchup__field:first-child {
+  border-top: none;
+}
+
+.agents-catchup__field-label {
+  flex: none;
+  width: 56px;
+  font-size: var(--font-size-body-md);
+  color: var(--text-muted);
+}
+
+.agents-catchup__field-value {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--font-size-subhead);
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-catchup__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.agents-catchup__chip,
+.agents-catchup__chip-more {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: var(--font-size-body-md);
+}
+
+.agents-catchup__chip {
+  background: var(--surface-control);
+  color: var(--text-primary);
+}
+
+.agents-catchup__chip-more {
+  color: var(--text-muted);
+}
+
+.agents-catchup__excerpt {
+  margin: 10px 0 4px;
+  font-size: var(--font-size-subhead);
+  line-height: 1.55;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.agents-catchup__read-all {
+  display: block;
+  margin: 0 0 10px;
+  font-size: var(--font-size-body-md);
+  color: var(--text-muted);
+}
+
+/* The title holds two lines, then ends. */
+.agents-catchup__ask {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Narrow: Open chat and Later keep a real gap, and the key chips stay inside
+   their own button (no clipped “O” against “Later”). */
+.agents-catchup__actions .button--ghost + .button--ghost,
+.agents-catchup__actions .button--ghost:last-child {
+  margin-left: var(--spacing-md);
+}
+
+.agents-catchup__actions .button--ghost kbd {
+  flex: none;
+}
+
+/* The recipients stay on one chip row: the first chip shortens, “+N more”
+   never drops to a line of its own. */
+.agents-catchup__chips {
+  flex-wrap: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.agents-catchup__chips .agents-catchup__chip:first-child {
+  display: block;
+  flex: 0 1 auto;
+  line-height: 24px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agents-catchup__chip-more {
+  flex: none;
+  white-space: nowrap;
 }
