@@ -65,6 +65,13 @@
   display: none;
 }
 
+/* No hairlines between rows, in Admins or Recently deleted (the two cards
+   match): the rows' fill and hover carry the grouping, not a line. The note
+   under the Admins rows keeps its own separator, which is not a row's. */
+.settings-group.agent-admin-settings .settings-row::before {
+  display: none;
+}
+
 /* A list or an empty line in a card is not a row: it takes no hairline across
    its top (the group draws one above every non-row child). */
 .settings-group .settings-section > .agent-admin-activity::before,
