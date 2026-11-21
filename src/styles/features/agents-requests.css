@@ -1014,25 +1014,6 @@ button.agents-catchup__row:hover:not(.is-selected) {
 }
 
 /* Mid-run: how far through, one bar the card's width (the meter's tokens). */
-.agents-catchup__progress {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: var(--meter-height);
-  margin-top: var(--spacing-md);
-  overflow: hidden;
-  background: var(--meter-track);
-  border-radius: var(--meter-radius);
-}
-
-.agents-catchup__progress-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--catchup-progress);
-  background: var(--meter-fill);
-  border-radius: inherit;
-  transition: width var(--transition-arrive);
-}
 
 /* Neutral strong, never the accent; it hugs its words. */
 .agents-catchup .agents-catchup__start {
