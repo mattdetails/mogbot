@@ -21,7 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { makeStyles, useColors } from '../lib/appearance';
 import { haptic } from '../lib/haptics';
-import { SWIPE_ANGLE_DEG, SWIPE_ARM, swipeOffset } from '../lib/reply';
+import { SWIPE_ARM, SWIPE_START, swipeDecision, swipeOffset } from '../lib/reply';
 import { iconSize, radius, reply, space, type } from '../lib/theme';
 import { Icon, T } from './ui';
 
@@ -38,10 +38,25 @@ export const ReplyContext = createContext<ReplyActions | null>(null);
 export const useReplyActions = () => useContext(ReplyContext);
 
 /**
- * Any message dragged to the right: it follows the finger on a rubber band
- * (72 at most), a circle with an arrow fills at 48 with one haptic, and
- * letting go past it replies. Only a mostly sideways drag counts, so a
- * scroll is never taken. Under Reduce Motion nothing animates back.
+ * Whether the chat's list is moving, so a swipe never starts mid-scroll:
+ * `moving` while a finger drags it or it coasts, `movedAt` the last scroll
+ * event (ms, `Date.now`). Absent outside a chat list: the swipe then judges
+ * the touch alone.
+ */
+export interface ScrollGuard {
+  moving: SharedValue<boolean>;
+  movedAt: SharedValue<number>;
+}
+export const ScrollGuardContext = createContext<ScrollGuard | null>(null);
+
+/**
+ * Any message dragged to the right: once the finger is 24 to the right
+ * (within 20 degrees of flat) it follows on a rubber band (72 at most), a
+ * circle with an arrow fills at 48 with one haptic, and letting go past it
+ * replies. A touch that moves 10 up or down first belongs to the list, and
+ * nothing swipes while the chat scrolls or within 200 ms of it moving, so a
+ * scroll whose thumb arcs sideways is never taken (`swipeDecision`). Under
+ * Reduce Motion nothing animates back.
  */
 export function SwipeReply({
   onReply,
@@ -58,16 +73,37 @@ export function SwipeReply({
   const styles = useStyles();
   const colors = useColors();
   const reduced = useReducedMotion();
+  const guard = useContext(ScrollGuardContext);
   const x = useSharedValue(0);
   const armed = useSharedValue(false);
+  const start = useSharedValue({ x: 0, y: 0 });
+  const decided = useSharedValue(false);
   const [body, setBody] = useState({ y: 0, h: 0 });
-  // 25 degrees: after 12 sideways, vertical drift past tan(25°)·12 ≈ 5.6 hands the touch to the list.
-  const slop = Math.tan((SWIPE_ANGLE_DEG * Math.PI) / 180) * 12;
   const pan = Gesture.Pan()
-    .activeOffsetX([12, 9999])
-    .failOffsetY([-slop, slop])
+    .manualActivation(true)
+    .onTouchesDown((e) => {
+      const t = e.changedTouches[0];
+      if (!t) return;
+      start.set({ x: t.absoluteX, y: t.absoluteY });
+      decided.set(false);
+    })
+    .onTouchesMove((e, state) => {
+      if (decided.get()) return;
+      const t = e.allTouches[0];
+      if (!t) return;
+      const since = guard
+        ? guard.moving.get()
+          ? 0
+          : Date.now() - guard.movedAt.get()
+        : Number.POSITIVE_INFINITY;
+      const now = swipeDecision(t.absoluteX - start.get().x, t.absoluteY - start.get().y, since);
+      if (now === 'wait') return;
+      decided.set(true);
+      if (now === 'go') state.activate();
+      else state.fail();
+    })
     .onUpdate((e) => {
-      const off = swipeOffset(e.translationX);
+      const off = swipeOffset(e.translationX - SWIPE_START);
       x.set(off);
       const now = off >= SWIPE_ARM;
       if (now !== armed.get()) {

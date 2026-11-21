@@ -43,7 +43,35 @@ export function replyRefFor(
 export const SWIPE_MAX = 72;
 export const SWIPE_ARM = 48;
 /** A swipe counts only below this angle from the horizontal. */
-export const SWIPE_ANGLE_DEG = 25;
+export const SWIPE_ANGLE_DEG = 20;
+/** How far right the finger must go before the bubble moves (12 took thumb arcs mid-scroll). */
+export const SWIPE_START = 24;
+/** Vertical travel that hands the touch to the list for good. */
+export const SWIPE_FAIL_Y = 10;
+/** Leftward travel that rules a swipe out. */
+export const SWIPE_FAIL_LEFT = 8;
+/** After the list last moved, how long a touch is still treated as part of the scroll. */
+export const SCROLL_QUIET_MS = 200;
+
+/**
+ * What a touch on a message is so far, from how far it has moved since it went
+ * down and whether the chat was scrolling: 'fail' gives it to the list for good,
+ * 'go' starts the swipe, 'wait' decides on the next move. A chat that is
+ * dragging, coasting or moved within `SCROLL_QUIET_MS` never swipes, so a
+ * scroll whose thumb arcs sideways is never taken for a reply.
+ */
+export function swipeDecision(
+  dx: number,
+  dy: number,
+  sinceScrollMs: number
+): 'fail' | 'go' | 'wait' {
+  'worklet';
+  if (sinceScrollMs < SCROLL_QUIET_MS) return 'fail';
+  if (Math.abs(dy) > SWIPE_FAIL_Y || dx < -SWIPE_FAIL_LEFT) return 'fail';
+  if (dx < SWIPE_START) return 'wait';
+  const angle = (Math.atan2(Math.abs(dy), dx) * 180) / Math.PI;
+  return angle < SWIPE_ANGLE_DEG ? 'go' : 'fail';
+}
 
 /** How far the bubble has moved after the finger moved `dx` (a rubber band, 0 to `SWIPE_MAX`). */
 export function swipeOffset(dx: number): number {

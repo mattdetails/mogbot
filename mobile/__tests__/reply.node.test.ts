@@ -2,7 +2,10 @@ import {
   SWIPE_ARM,
   SWIPE_MAX,
   replyRefFor,
+  SCROLL_QUIET_MS,
+  SWIPE_START,
   swipeArmed,
+  swipeDecision,
   swipeIsHorizontal,
   swipeOffset,
 } from '../src/lib/reply';
@@ -69,5 +72,27 @@ describe('Reply in the menu and the draft', () => {
   it('comes first when the Mac takes replies, and is absent otherwise', () => {
     expect(messageActions(msg(), false, false, false, true)[0].id).toBe('reply');
     expect(messageActions(msg())[0].id).toBe('copy');
+  });
+});
+
+describe('a swipe is never a scroll (Julian, 20 Nov: scrolling kept starting replies)', () => {
+  const calm = 10_000;
+  it('never swipes while the chat scrolls or just after', () => {
+    expect(swipeDecision(40, 0, 0)).toBe('fail');
+    expect(swipeDecision(40, 0, SCROLL_QUIET_MS - 1)).toBe('fail');
+    expect(swipeDecision(40, 0, SCROLL_QUIET_MS)).toBe('go');
+  });
+  it('waits until the finger is well to the right', () => {
+    expect(swipeDecision(12, 0, calm)).toBe('wait');
+    expect(swipeDecision(SWIPE_START - 1, 2, calm)).toBe('wait');
+    expect(swipeDecision(SWIPE_START, 2, calm)).toBe('go');
+  });
+  it('hands a thumb arc to the list', () => {
+    // A scroll that drifts 14 sideways while moving 11 down: the old 12/5.6 rule's case, now the list's.
+    expect(swipeDecision(14, 11, calm)).toBe('fail');
+    expect(swipeDecision(30, -11, calm)).toBe('fail');
+    // Sideways enough but steeper than 20 degrees.
+    expect(swipeDecision(26, 10, calm)).toBe('fail');
+    expect(swipeDecision(-9, 0, calm)).toBe('fail');
   });
 });
