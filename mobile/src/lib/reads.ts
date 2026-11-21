@@ -9,6 +9,12 @@
  * - **Never a burst.** At most `READ_SLOTS` reads are at the Mac at once;
  *   the rest wait their turn, except a `first` read (the chat on screen), which
  *   goes ahead of the ones waiting. Changes never wait.
+ * - **Background last.** A `background` read (a chat read ahead for Catch up
+ *   or a row's "Needs your OK") goes only when nothing else waits, at most
+ *   `BACKGROUND_SLOTS` at once: over the relay the replies come back one
+ *   after another, and ten 40 KB pages asked on reconnecting held what the
+ *   screen was waiting for 2.5-4 s behind them (Julian's trail, 21 Nov).
+ *   Asked for by a screen meanwhile, it moves up and counts as one.
  * - **Remembered.** The last answer to each read is kept for this Mac:
  *   a screen opening draws it from its first frame (`last`), and one that
  *   wants it no older than a few seconds is answered from it (`fresh`). Any
@@ -22,6 +28,8 @@ import { READ_ONLY_METHODS, type MethodName } from '@shipstudio/companion-protoc
 
 /** At most this many reads at the Mac at once. */
 export const READ_SLOTS = 6;
+/** Of those, at most this many `background` reads. */
+export const BACKGROUND_SLOTS = 2;
 
 /** Changes that move no reading: where the phone is looking, and a dictation written out again. */
 const NEUTRAL = new Set<string>(['agents.focus', 'rooms.focus', 'dictation.transcribe']);
@@ -32,6 +40,8 @@ export const isRead = (method: MethodName) => READS.has(method);
 export interface CallOptions {
   /** Goes ahead of the reads waiting for a slot (what the user is looking at). */
   first?: boolean;
+  /** Read ahead, nobody waiting on it: goes after every other read (`BACKGROUND_SLOTS`). */
+  background?: boolean;
 }
 
 export interface Reads {
@@ -58,17 +68,37 @@ export interface Reads {
 export function createReads(now: () => number = Date.now, slots = READ_SLOTS): Reads {
   const inflight = new Map<string, Promise<unknown>>();
   const kept = new Map<string, { at: number; value: unknown }>();
-  const queue: { go: () => void; key: string }[] = [];
+  /** Waiting for a slot: started with whether it still counts as background. */
+  type Waiting = { go: (background: boolean) => void; key: string };
+  const queue: Waiting[] = [];
+  /** Background reads waiting: they go only when `queue` is empty. */
+  const later: Waiting[] = [];
   let running = 0;
+  let runningLater = 0;
   let epoch = 0;
   const keyOf = (method: MethodName, params: unknown) => `${method} ${JSON.stringify(params)}`;
 
-  function slot<T>(run: () => Promise<T>, key: string, first: boolean): Promise<T> {
-    const start = (): Promise<T> => {
+  /** A slot came free: the next read waiting, else a background one if there's room. */
+  function next() {
+    if (running >= slots) return;
+    const waiting = queue.shift();
+    if (waiting) waiting.go(false);
+    else if (runningLater < BACKGROUND_SLOTS) later.shift()?.go(true);
+  }
+
+  function slot<T>(
+    run: () => Promise<T>,
+    key: string,
+    first: boolean,
+    background: boolean
+  ): Promise<T> {
+    const start = (asBackground: boolean): Promise<T> => {
       running++;
+      if (asBackground) runningLater++;
       const done = () => {
         running--;
-        queue.shift()?.go();
+        if (asBackground) runningLater--;
+        next();
       };
       let out: Promise<T>;
       try {
@@ -79,11 +109,25 @@ export function createReads(now: () => number = Date.now, slots = READ_SLOTS): R
       }
       return out.finally(done);
     };
-    if (running < slots) return start();
-    return new Promise<void>((go) => {
+    if (background) {
+      if (running < slots && !queue.length && runningLater < BACKGROUND_SLOTS) return start(true);
+      return new Promise<boolean>((go) => later.push({ go, key })).then(start);
+    }
+    if (running < slots) return start(false);
+    return new Promise<boolean>((go) => {
       if (first) queue.unshift({ go, key });
       else queue.push({ go, key });
     }).then(start);
+  }
+
+  /** A background read a screen now wants: out of `later`, into the queue (or started). */
+  function promote(key: string, first: boolean) {
+    const at = later.findIndex((q) => q.key === key);
+    if (at < 0) return;
+    const [waiting] = later.splice(at, 1);
+    if (running < slots) waiting.go(false);
+    else if (first) queue.unshift(waiting);
+    else queue.push(waiting);
   }
 
   function call<T>(
@@ -103,10 +147,12 @@ export function createReads(now: () => number = Date.now, slots = READ_SLOTS): R
       // The same read, still waiting for a slot, is wanted first now.
       const at = opts.first ? queue.findIndex((q) => q.key === key) : -1;
       if (at > 0) queue.unshift(...queue.splice(at, 1));
+      // Read ahead in the background, and now a screen is waiting on it.
+      if (!opts.background) promote(key, !!opts.first);
       return already as Promise<T>;
     }
     const asked = epoch;
-    const run: Promise<T> = slot(request, key, !!opts.first)
+    const run: Promise<T> = slot(request, key, !!opts.first, !!opts.background && !opts.first)
       .then((value) => {
         if (asked === epoch) kept.set(key, { at: now(), value });
         return value;

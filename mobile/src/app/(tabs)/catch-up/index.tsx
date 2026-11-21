@@ -77,7 +77,7 @@ import {
 } from '../../../lib/needsYou';
 import { useInFlight } from '../../../lib/once';
 import { useRefresh } from '../../../lib/refresh';
-import { answerApproval, canCall, describeError, loadLatest } from '../../../lib/session';
+import { AHEAD, answerApproval, canCall, describeError, loadLatest } from '../../../lib/session';
 import { announce } from '../../../lib/a11y';
 import { useApp } from '../../../lib/store';
 import { progress as setupProgress } from '../../../lib/teamSetup';
@@ -159,7 +159,8 @@ export default function CatchUp() {
   );
   const missingKey = missing.join(',');
   useEffect(() => {
-    for (const id of missingKey ? missingKey.split(',') : []) void loadLatest(id).catch(() => {});
+    for (const id of missingKey ? missingKey.split(',') : [])
+      void loadLatest(id, AHEAD).catch(() => {});
   }, [missingKey]);
 
   const { refreshing, onRefresh, outcome, dismiss } = useRefresh(() => {

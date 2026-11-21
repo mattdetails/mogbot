@@ -150,3 +150,91 @@ it('asking for a read already waiting as first moves it to the front, still one 
   await expect(c).resolves.toBe('x');
   hold.shift()?.();
 });
+
+it('background reads wait for every other read, at most two at once, and move up when a screen asks', async () => {
+  const reads = createReads(Date.now, 3);
+  const hold: Array<{ name: string; go: () => void }> = [];
+  const started: string[] = [];
+  const request = (name: string) => () =>
+    new Promise<string>((res) => {
+      started.push(name);
+      hold.push({ name, go: () => res(name) });
+    });
+  const ahead = [0, 1, 2, 3].map((i) =>
+    reads.call('agents.messages', { agentId: `bg${i}` }, request(`bg${i}`), { background: true })
+  );
+  // Two background reads at once, never a third, even with a slot free.
+  expect(started).toEqual(['bg0', 'bg1']);
+  const screen = reads.call('agents.missions', {}, request('missions'));
+  expect(started).toEqual(['bg0', 'bg1', 'missions']);
+  // A screen now wants bg3: one request, out of the background lane, next in.
+  const open = reads.call('agents.messages', { agentId: 'bg3' }, request('again'), { first: true });
+  hold.find((h) => h.name === 'missions')?.go();
+  await screen;
+  await new Promise((r) => setTimeout(r, 0));
+  expect(started).toEqual(['bg0', 'bg1', 'missions', 'bg3']);
+  for (const h of hold.splice(0)) h.go();
+  await new Promise((r) => setTimeout(r, 0));
+  for (const h of hold.splice(0)) h.go();
+  await expect(open).resolves.toBe('bg3');
+  await Promise.all(ahead);
+  expect(started).toHaveLength(5);
+});
+
+/**
+ * Julian's reconnect (21 Nov, 15:52 UTC): Catch up read ten chats' newest
+ * pages (~40 KB each) as `first` the moment the agents list arrived, and the
+ * relay delivered the replies one after another, ~110 ms apart. The reads the
+ * screen itself was waiting on (missions, rooms, team setup) came back at
+ * 2.4-2.6 s instead of ~0.15 s. Replayed here on a link that carries one
+ * reply at a time: 100 ms there and back, then 360 KB/s.
+ */
+it('on reconnecting, what the screen waits for is not held behind ten chats read ahead', async () => {
+  async function reconnect(ahead: { first?: boolean; background?: boolean }) {
+    let clock = 0;
+    let linkFree = 0;
+    const deliveries: Array<{ at: number; go: () => void }> = [];
+    const answered: Record<string, number> = {};
+    const reads = createReads(() => clock);
+    const reply = (name: string, kb: number) => () =>
+      new Promise<void>((res) => {
+        // The Mac answers at once; the reply waits for the link.
+        const at = Math.max(clock + 50, linkFree) + (kb / 360) * 1000;
+        linkFree = at;
+        deliveries.push({ at: at + 50, go: () => ((answered[name] = clock), res()) });
+      });
+    const pages = Array.from({ length: 10 }, (_, i) =>
+      reads.call('agents.messages', { agentId: `a${i}` }, reply(`a${i}`, 40), ahead)
+    );
+    const screen = [
+      reads.call('agents.missions', {}, reply('missions', 4)),
+      reads.call('rooms.list', {}, reply('rooms', 2)),
+      reads.call('agents.teamSetup', {}, reply('teamSetup', 3)),
+    ];
+    while (deliveries.length) {
+      deliveries.sort((a, b) => a.at - b.at);
+      const next = deliveries.shift()!;
+      clock = next.at;
+      next.go();
+      for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+    }
+    await Promise.all([...pages, ...screen]);
+    return answered;
+  }
+  const before = await reconnect({ first: true });
+  const after = await reconnect({ background: true });
+  const slowest = (a: Record<string, number>) => Math.max(a.missions, a.rooms, a.teamSetup);
+  // Before: the screen's reads waited for the pages ahead of them.
+  expect(slowest(before)).toBeGreaterThan(700);
+  // After: behind at most the two pages already on the link.
+  expect(slowest(after)).toBeLessThan(slowest(before) / 2);
+  // And every chat is still read, in about the same time overall.
+  expect(Math.max(...Object.values(after))).toBeLessThan(Math.max(...Object.values(before)) + 500);
+  console.log(
+    `[reconnect] screen's reads answered by ${Math.round(slowest(before))} ms before, ${Math.round(
+      slowest(after)
+    )} ms after; last chat page ${Math.round(Math.max(...Object.values(before)))} -> ${Math.round(
+      Math.max(...Object.values(after))
+    )} ms`
+  );
+});

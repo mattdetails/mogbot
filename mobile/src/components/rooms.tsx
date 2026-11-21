@@ -48,7 +48,14 @@ import {
   workingHere,
   type RoomItem,
 } from '../lib/rooms';
-import { describeError, loadLatest, loadOlder, sendToRoom, setOpenChat } from '../lib/session';
+import {
+  AHEAD,
+  describeError,
+  loadLatest,
+  loadOlder,
+  sendToRoom,
+  setOpenChat,
+} from '../lib/session';
 import { getApp, useApp } from '../lib/store';
 import {
   CHIP_H,
@@ -200,7 +207,7 @@ function RoomChat({ id }: { id: string }) {
     carded.forEach((m, i) => {
       if (ownLoaded[i] || asked.current.has(m.id)) return;
       asked.current.add(m.id);
-      loadLatest(m.id).catch(() => {});
+      loadLatest(m.id, AHEAD).catch(() => {});
     });
   }, [connected, carded, ownLoaded]);
   const liveCopies = useMemo(() => liveCopyCards(members, messages, own), [members, messages, own]);

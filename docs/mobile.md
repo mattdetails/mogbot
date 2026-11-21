@@ -1490,8 +1490,13 @@ check says); each agent's capabilities; this device.
 
 **The chat on screen reads first.** Reads queue past six at once
 (`lib/reads.ts`); a chat's page (`loadLatest`, `loadOlder`) goes ahead of the
-reads waiting (Catch up's chats, rooms, team setup), so a slow Mac never makes
-the open chat wait behind background reads. Changes never queue at all.
+reads waiting, so a slow Mac never makes the open chat wait behind background
+reads. Changes never queue at all. Chats only read ahead (Catch up's cards, a
+row's or a room's "Needs your OK"; `loadLatest(id, AHEAD)`) go last: only when
+no other read waits, at most two at once (`BACKGROUND_SLOTS`), and a screen
+that asks for one meanwhile moves it up. Over the relay replies arrive one
+after another, and ten 40 KB pages read ahead as soon as the agents list
+landed held missions, rooms and team setup 2.4-2.6 s behind them (21 Nov).
 
 **Timings in the trail** (`lib/readTimings.ts`). After each welcome the link's
 trail (sent to the Mac with the next hello, and in its log as "phone connected

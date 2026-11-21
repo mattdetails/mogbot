@@ -498,8 +498,10 @@ const loading = new Map<string, Promise<void>>();
 /** A page of an agent's chat, or (for a `room:<id>` key) a room's thread. */
 /** A chat's page is what the user is looking at: it goes ahead of the background reads (`lib/reads`). */
 const FIRST: CallOptions = { first: true };
+/** A chat read ahead (Catch up's cards, a row's "Needs your OK"): after every other read. */
+export const AHEAD: CallOptions = { background: true };
 
-function readPage(key: string, before?: string) {
+function readPage(key: string, before?: string, opts: CallOptions = FIRST) {
   const roomId = roomIdOf(key);
   const at = before ? { before } : {};
   // One conversation's chat: its own lines (`lib/conversations`).
@@ -514,13 +516,13 @@ function readPage(key: string, before?: string) {
         conversation: conv.conversation,
         ...at,
       },
-      FIRST
+      opts
     );
   return roomId
-    ? call('rooms.messages', { roomId, limit: PAGE, ...at }, FIRST)
+    ? call('rooms.messages', { roomId, limit: PAGE, ...at }, opts)
     : // Timelines as their folded lines: the steps were most of a page, and
       // are read as one opens (`lib/turnSteps`). An older Mac sends them anyway.
-      call('agents.messages', { agentId: key, limit: PAGE, work: 'summary', ...at }, FIRST);
+      call('agents.messages', { agentId: key, limit: PAGE, work: 'summary', ...at }, opts);
 }
 
 /** What the Mac holds as this socket's focus; undefined when unsure (a send failed). */
@@ -601,11 +603,18 @@ export const teamSetup = {
   check: () => teamSetupThen(call('agents.teamSetup.check', {})),
 };
 
-/** The newest page. Concurrent calls for one chat share the request. */
-export function loadLatest(agentId: string): Promise<void> {
+/**
+ * The newest page. Concurrent calls for one chat share the request; `AHEAD`
+ * reads it behind everything else, and a screen asking meanwhile moves it up.
+ */
+export function loadLatest(agentId: string, opts: CallOptions = FIRST): Promise<void> {
   const running = loading.get(agentId);
-  if (running) return running;
-  const run = readPage(agentId)
+  if (running) {
+    // The same read again (shared by `lib/reads`), only to move it up.
+    if (!opts.background) readPage(agentId, undefined, opts).catch(() => {});
+    return running;
+  }
+  const run = readPage(agentId, undefined, opts)
     .then((page) => update((s) => mergePage(s, agentId, page, false)))
     .finally(() => loading.delete(agentId));
   loading.set(agentId, run);

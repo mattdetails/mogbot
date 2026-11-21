@@ -47,6 +47,7 @@ import { formatAgo, needsYou, pendingApproval } from '../../../lib/agents';
 import { buildHome, homeSections } from '../../../lib/home';
 import { haptic } from '../../../lib/haptics';
 import {
+  AHEAD,
   call,
   canCall,
   describeError,
@@ -146,7 +147,7 @@ export default function Agents() {
     )
   );
   useEffect(() => {
-    for (const key of unsaid) loadLatest(key.slice(0, key.lastIndexOf(':'))).catch(() => {});
+    for (const key of unsaid) loadLatest(key.slice(0, key.lastIndexOf(':')), AHEAD).catch(() => {});
   }, [unsaid]);
   const caps = useApp(
     useShallow((s) => ({
@@ -183,7 +184,7 @@ export default function Agents() {
   );
   useEffect(() => {
     for (const key of roomsUnsaid) {
-      loadLatest(roomKey(key.slice(0, key.lastIndexOf(':')))).catch(() => {});
+      loadLatest(roomKey(key.slice(0, key.lastIndexOf(':'))), AHEAD).catch(() => {});
     }
   }, [roomsUnsaid]);
   const [showHidden, setShowHidden] = useState(false);
