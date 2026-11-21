@@ -72,6 +72,12 @@
   display: none;
 }
 
+/* The separator above the Admins note runs from the note's text inset to the
+   toggles' right edge: the same inset on both sides, not out to the card's edge. */
+.settings-group.agent-admin-settings .settings-section > .agent-admin-settings__note::before {
+  right: 0;
+}
+
 /* A list or an empty line in a card is not a row: it takes no hairline across
    its top (the group draws one above every non-row child). */
 .settings-group .settings-section > .agent-admin-activity::before,

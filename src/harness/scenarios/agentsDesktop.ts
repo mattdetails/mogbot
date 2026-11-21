@@ -511,6 +511,22 @@ export const agentsDesktopScenarios: Scenario[] = [
     },
   },
   {
+    id: 'settings-agents-deleted-1440',
+    title: 'Settings — Admins and Recently deleted at 1440px',
+    looksRightWhen:
+      'At 1440px: the Admins card and the Recently deleted card share one inset and edge; no hairlines between rows; the separator above the Admins note ends at the toggles’ right edge.',
+    command: 'agents.admins',
+    requires: '.agent-admin-deleted .settings-row',
+    clipSelector: 'section[aria-labelledby="agents-settings-admins"]',
+    viewport: { width: 1440, height: 1000 },
+    commands: {
+      agents_overview: overview(TEAM),
+      agents_desktop_settings: DESKTOP_SETTINGS,
+      agents_admin_activity: [],
+      agents_recently_deleted: DELETED_TWO,
+    },
+  },
+  {
     id: 'settings-agents-defaults',
     title: 'Settings — new agents start on Codex, on GPT-5.5',
     looksRightWhen:
