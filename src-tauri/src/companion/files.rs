@@ -139,7 +139,10 @@ pub async fn upload(c: Arc<Companion>, req: Request<Incoming>) -> Response<Body>
         {
             Ok(r) => r,
             // Over this phone's staging budget: the sentence says what to do.
-            Err(e) => return refusal(StatusCode::TOO_MANY_REQUESTS, e),
+            Err(e) => {
+                tracing::info!(device = %device.id, "[Companion] upload: refused, staging full");
+                return refusal(StatusCode::TOO_MANY_REQUESTS, e);
+            }
         };
     let read = tokio::time::timeout(
         UPLOAD_TIMEOUT,
@@ -152,6 +155,21 @@ pub async fn upload(c: Arc<Companion>, req: Request<Incoming>) -> Response<Body>
         ),
     )
     .await;
+    // One line per upload, so a picture that never arrived is visible here
+    // (20 Nov: nothing was logged either way). Never its name.
+    let how = match &read {
+        Err(_) => "timed out",
+        Ok(Upload::TooBig) => "too big",
+        Ok(Upload::Stalled) => "stalled",
+        Ok(Upload::Revoked) => "phone removed",
+        Ok(Upload::Broken) => "broken off",
+        Ok(Upload::Done(_)) => "arrived",
+    };
+    let bytes = match &read {
+        Ok(Upload::Done(n)) => *n,
+        _ => 0,
+    };
+    tracing::info!(device = %device.id, mime = mime.as_deref().unwrap_or("-"), bytes, "[Companion] upload: {how}");
     let size = match read {
         Err(_) => return status_only(StatusCode::REQUEST_TIMEOUT),
         Ok(Upload::TooBig) => return status_only(StatusCode::PAYLOAD_TOO_LARGE),
