@@ -85,3 +85,35 @@ export function useRun(): number | null {
     () => started
   );
 }
+
+/**
+ * How many keys fit one line: a row of `size` keys with `gap` between, across
+ * `width`. At least one. The last one that fits is a "+N" chip when some don't.
+ */
+export function keysThatFit(width: number, size: number, gap: number): number {
+  if (!(width > 0)) return 1;
+  return Math.max(1, Math.floor((width + gap) / (size + gap)));
+}
+
+/**
+ * Rows with the same title and agent, one row each with how many there were
+ * ("Use capture post · ×3"). Order is kept: the first of each group stands for it.
+ */
+export function collapseRepeats<T>(
+  rows: T[],
+  key: (row: T) => string
+): { row: T; count: number }[] {
+  const out: { row: T; count: number }[] = [];
+  const at = new Map<string, number>();
+  for (const row of rows) {
+    const k = key(row);
+    const i = at.get(k);
+    if (i === undefined) {
+      at.set(k, out.length);
+      out.push({ row, count: 1 });
+    } else {
+      out[i].count += 1;
+    }
+  }
+  return out;
+}

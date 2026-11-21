@@ -123,7 +123,7 @@ const useVariants = makeStyles(() => ({
   display: {
     fontFamily: fonts.semibold,
     fontSize: type.display,
-    lineHeight: lineHeight(type.display, 1.15),
+    lineHeight: lineHeight(type.display, 1.25),
     letterSpacing: track(type.display, tracking.display),
   },
   mono: { fontFamily: fonts.mono, fontSize: type.small, lineHeight: lineHeight(type.small, 1.5) },

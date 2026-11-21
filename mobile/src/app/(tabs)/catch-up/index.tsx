@@ -38,8 +38,10 @@ import {
 } from '../../../lib/agents';
 import { makeStyles, useColors } from '../../../lib/appearance';
 import {
+  collapseRepeats,
   endRun,
   heroWords,
+  keysThatFit,
   staleLine,
   startRun,
   useRun,
@@ -68,6 +70,7 @@ import {
   heroMark,
   iconSize,
   keySize,
+  lineHeight,
   PRESSED,
   radius,
   space,
@@ -212,6 +215,19 @@ export default function CatchUp() {
         : '/one-at-a-time'
     );
   };
+  // Identical rows (same agent, same words) are one row, "×3" in its line.
+  const pickRows = useMemo(
+    () =>
+      collapseRepeats(items, (i) => {
+        const card = i.messageId
+          ? chats[i.agentId]?.messages.find((m) => m.id === i.messageId)
+          : undefined;
+        const agent = overview?.agents.find((a) => a.id === i.agentId);
+        const [title] = agent ? rowWords(i, agent, card, null) : [i.key];
+        return `${i.agentId}\n${title}`;
+      }),
+    [items, overview, chats]
+  );
   const keys = useMemo(
     () =>
       groups
@@ -244,7 +260,7 @@ export default function CatchUp() {
           {items.length === 0 || !hero ? (
             <AllClear loading={missing.length > 0} compact={happened.length > 0} />
           ) : (
-            <Animated.View entering={ENTER} layout={MOVE}>
+            <Animated.View entering={ENTER} layout={MOVE} style={styles.full}>
               <Hero
                 words={hero}
                 keys={keys}
@@ -255,7 +271,7 @@ export default function CatchUp() {
             </Animated.View>
           )}
           {items.length > 1 && (
-            <Animated.View entering={ENTER} layout={MOVE} style={styles.since}>
+            <Animated.View entering={ENTER} layout={MOVE} style={[styles.since, styles.full]}>
               <T
                 variant="caption"
                 color={colors.textMuted}
@@ -265,13 +281,20 @@ export default function CatchUp() {
                 Or pick one
               </T>
               <View style={[styles.sinceList, !live && styles.dim]}>
-                {items.map((item, i) => {
+                {pickRows.map(({ row: item, count }, i) => {
                   const agent = overview?.agents.find((a) => a.id === item.agentId);
                   return agent ? (
-                    <Animated.View key={item.key} entering={ENTER} exiting={LEAVE} layout={MOVE}>
+                    <Animated.View
+                      key={item.key}
+                      entering={ENTER}
+                      exiting={LEAVE}
+                      layout={MOVE}
+                      style={styles.full}
+                    >
                       <PickRow
                         item={item}
                         agent={agent}
+                        count={count}
                         first={i === 0}
                         onPress={() => open(item)}
                       />
@@ -393,18 +416,7 @@ function Hero({
           />
         </View>
       )}
-      <View style={styles.heroKeys} accessibilityElementsHidden importantForAccessibility="no">
-        {keys.map((a) => (
-          <AgentKey
-            key={a.id}
-            id={a.id}
-            name={a.name}
-            color={a.color}
-            state={agentKeyState(a)}
-            size={catchUpSizes.heroKey}
-          />
-        ))}
-      </View>
+      <KeysRow keys={keys} />
       <Button
         title={words.button}
         variant="answer"
@@ -424,15 +436,61 @@ function Hero({
   );
 }
 
+/** The waiting keys on one line: as many as fit, the last one a "+N" chip. Never wraps or scrolls. */
+function KeysRow({ keys }: { keys: Agent[] }) {
+  const colors = useColors();
+  const styles = useStyles();
+  const [width, setWidth] = useState(0);
+  const size = catchUpSizes.heroKey;
+  const gap = catchUpSizes.heroKeyGap;
+  const fit = keysThatFit(width, size, gap);
+  const shown = keys.length > fit ? keys.slice(0, fit - 1) : keys;
+  const more = keys.length - shown.length;
+  return (
+    <View
+      style={styles.heroKeys}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      accessibilityElementsHidden
+      importantForAccessibility="no"
+    >
+      {shown.map((a) => (
+        <AgentKey
+          key={a.id}
+          id={a.id}
+          name={a.name}
+          color={a.color}
+          state={agentKeyState(a)}
+          size={size}
+        />
+      ))}
+      {more > 0 && (
+        <View
+          style={[
+            styles.moreKey,
+            { width: size, height: size, backgroundColor: colors.surfaceControl },
+          ]}
+        >
+          <T variant="caption" color={colors.textSecondary}>
+            {`+${more}`}
+          </T>
+        </View>
+      )}
+    </View>
+  );
+}
+
 /** One thing waiting, quietly: its key, what it wants, who and when. No buttons. */
 function PickRow({
   item,
   agent,
+  count,
   first,
   onPress,
 }: {
   item: FeedItem;
   agent: Agent;
+  /** Identical rows this one stands for ("×3"). */
+  count: number;
   first: boolean;
   onPress: () => void;
 }) {
@@ -471,7 +529,7 @@ function PickRow({
             {title}
           </T>
           <T variant="small" color={colors.textMuted} numberOfLines={1}>
-            {`${agent.name} · ${when}`}
+            {count > 1 ? `${agent.name} · ${when} · ×${count}` : `${agent.name} · ${when}`}
           </T>
         </View>
         <Icon name="chevron.right" size={iconSize.inline} color={colors.textMuted} />
@@ -591,7 +649,14 @@ const useStyles = makeStyles((colors) => ({
   // A notice above it keeps the same 16 to what follows.
   top: { marginBottom: space.lg },
   summary: { gap: space['2xs'], paddingHorizontal: space.xs },
-  grow: { flex: 1 },
+  grow: { flex: 1, minWidth: 0 },
+  // A wrapper takes the column's width; its content never sets it.
+  full: { alignSelf: 'stretch', minWidth: 0 },
+  moreKey: {
+    borderRadius: radius.inner,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   group: {
     borderRadius: radius.card,
     backgroundColor: colors.surfacePanel,
@@ -643,9 +708,21 @@ const useStyles = makeStyles((colors) => ({
     backgroundColor: colors.surfacePanel,
   },
   heroText: { gap: space.xs },
-  heroTitle: { fontFamily: fonts.semibold, fontSize: catchUpSizes.heroTitle },
-  heroSub: { fontSize: catchUpSizes.heroSub },
-  heroKeys: { flexDirection: 'row', flexWrap: 'wrap', gap: catchUpSizes.heroKeyGap },
+  // Line height at least 1.2x the size, or the glyph tops are cut flat (Julian, 21 Nov).
+  heroTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: catchUpSizes.heroTitle,
+    lineHeight: lineHeight(catchUpSizes.heroTitle, 1.25),
+  },
+  heroSub: { fontSize: catchUpSizes.heroSub, lineHeight: lineHeight(catchUpSizes.heroSub, 1.4) },
+  heroKeys: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: catchUpSizes.heroKeyGap,
+    alignSelf: 'stretch',
+    // No overflow clip: a key's cap and shadow would be cut flat at the row's edge.
+    paddingVertical: 2,
+  },
   heroBar: {
     height: catchUpSizes.heroBar,
     borderRadius: radius.pill,

@@ -876,7 +876,11 @@ const useStyles = makeStyles((colors) => ({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderSubtle,
   },
-  pageTitle: { fontSize: catchUp.title, fontFamily: fonts.semibold },
+  pageTitle: {
+    fontSize: catchUp.title,
+    lineHeight: lineHeight(catchUp.title, 1.3),
+    fontFamily: fonts.semibold,
+  },
   count: { marginLeft: catchUp.countGap },
   body: { flex: 1 },
   scroll: { padding: space.lg, gap: space.lg },
@@ -961,7 +965,11 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: 'center',
     backgroundColor: colors.surfaceControl,
   },
-  doneTitle: { fontSize: catchUp.clearTitle, fontFamily: fonts.semibold },
+  doneTitle: {
+    fontSize: catchUp.clearTitle,
+    lineHeight: lineHeight(catchUp.clearTitle, 1.3),
+    fontFamily: fonts.semibold,
+  },
   doneText: { textAlign: 'center', fontSize: catchUp.clearBody },
 }));
 
