@@ -2,7 +2,7 @@
  * Catch up's entry (spec-catchup-entry, option A): the hero card's words for
  * each state, and never a time estimate.
  */
-import { heroWords, staleLine } from '../src/lib/catchUpEntry';
+import { collapseRepeats, heroWords, keysThatFit, staleLine } from '../src/lib/catchUpEntry';
 
 describe('heroWords', () => {
   it('says nothing when nothing waits: the all-clear line stands in', () => {
@@ -54,5 +54,29 @@ describe('staleLine', () => {
   });
   it('never invents a time', () => {
     expect(staleLine(0, 'your Mac', clock)).toBe('Couldn’t reach your Mac');
+  });
+});
+
+describe('keysThatFit', () => {
+  it('counts the keys a line holds, at least one', () => {
+    // 330 across at 34pt keys with 6pt gaps: 8 fit.
+    expect(keysThatFit(330, 34, 6)).toBe(8);
+    expect(keysThatFit(0, 34, 6)).toBe(1);
+    expect(keysThatFit(20, 34, 6)).toBe(1);
+  });
+});
+
+describe('collapseRepeats', () => {
+  it('turns identical rows into one, with how many there were, order kept', () => {
+    const rows = [
+      { k: 'a', t: 'Use capture post' },
+      { k: 'b', t: 'Edit Hero' },
+      { k: 'a', t: 'Use capture post' },
+      { k: 'a', t: 'Use capture post' },
+    ];
+    expect(collapseRepeats(rows, (r) => `${r.k}\n${r.t}`)).toEqual([
+      { row: rows[0], count: 3 },
+      { row: rows[1], count: 1 },
+    ]);
   });
 });
