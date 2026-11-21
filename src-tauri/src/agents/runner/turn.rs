@@ -366,7 +366,8 @@ pub(super) async fn run_turn(
         &agent,
         &super::policy::Places::current(),
         work_dirs(),
-        layout.copy.is_some(),
+        // A tidy in its home (`project::layout`) leaves the project as it is too.
+        layout.copy.is_some() || layout.project.is_none(),
     );
     layout.add_dirs = policy_dirs(&layout, &home, dirs.add_dirs);
     if engine == Engine::Claude {

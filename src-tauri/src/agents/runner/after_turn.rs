@@ -29,7 +29,6 @@ pub(super) async fn maybe_tidy(app: &AppHandle, agent_id: &str, finished: bool) 
         waiting_on_user: store::pending_approvals(agent_id).map_or(true, |p| !p.is_empty()),
         driven: driven(agent_id),
         outside: from_outside(agent_id),
-        in_users_folder: agent.project.is_some() && super::task::active(&agent).is_none(),
     };
     if !super::tidy::between_turns(moment) {
         return;

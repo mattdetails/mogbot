@@ -102,14 +102,11 @@ pub struct Moment {
     pub driven: bool,
     /// The turn answered outside text: it can't write its own memory.
     pub outside: bool,
-    /// A project-bound agent with no copy open: its turn would run in the
-    /// user's own folder, which a tidy never does.
-    pub in_users_folder: bool,
 }
 
 /// Whether to tidy now: only between turns, never mid-task.
 pub fn between_turns(m: Moment) -> bool {
-    m.finished && !m.queued && !m.waiting_on_user && !m.driven && !m.outside && !m.in_users_folder
+    m.finished && !m.queued && !m.waiting_on_user && !m.driven && !m.outside
 }
 
 /// The app's own message asking the agent to update its memory first.
@@ -289,10 +286,6 @@ mod tests {
             },
             Moment {
                 outside: true,
-                ..idle
-            },
-            Moment {
-                in_users_folder: true,
                 ..idle
             },
         ] {
