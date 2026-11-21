@@ -21,7 +21,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from 'react';
-import { ArrowUpIcon, MicrophoneIcon, PlusIcon } from '@/components/icons';
+import { MicrophoneIcon, PlusIcon } from '@/components/icons';
 import { IconButton } from '../primitives/IconButton';
 import { TextArea } from '../primitives/TextField';
 import { ComposerAttachments, ComposerQuotes } from './AgentAttachments';
@@ -451,7 +451,9 @@ export const AgentComposer = memo(function AgentComposer({
             aria-label={dictating ? 'Stop dictating' : 'Dictate'}
             title={dictating ? 'Stop dictating (Esc to discard)' : 'Dictate (⌘⇧D, or hold ⌥Space)'}
           />
-          {working && !canSend && !blank && !dictating ? (
+          {/* No Send button: Enter sends (⌘Enter sends now while it works).
+              Stop shows while it works with nothing typed. */}
+          {working && !canSend && !blank && !dictating && (
             <IconButton
               tabIndex={0}
               variant="default"
@@ -461,21 +463,6 @@ export const AgentComposer = memo(function AgentComposer({
               onClick={onStop}
               aria-label={`Stop ${agentName}`}
               title="Stop (Esc twice)"
-            />
-          ) : (
-            <IconButton
-              tabIndex={0}
-              type="submit"
-              variant="default"
-              className="agent-composer__send"
-              icon={<ArrowUpIcon size={14} />}
-              disabled={sendDisabled(dictation.phase, canSend)}
-              aria-label="Send"
-              title={
-                busy
-                  ? `Queue it: ${agentName} reads it when it finishes (↵). Interrupt and send now: ⌘↵`
-                  : 'Send'
-              }
             />
           )}
         </div>
