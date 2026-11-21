@@ -39,8 +39,8 @@ pub mod remote_access;
 // (docs/design/own-browser-layer.md).
 pub mod state;
 pub mod static_server;
-pub mod timing;
 mod stray_browsers;
+pub mod timing;
 pub mod types;
 pub mod user_chrome;
 pub mod utils;
@@ -382,7 +382,7 @@ pub fn run() {
             agents::tray_accounts::spawn(_app.handle().clone());
             agents::disk::spawn(_app.handle().clone());
             // The engines' CLIs, asked now rather than when Agents first opens.
-            agents::engine::look_early();
+            agents::engine::look_early(_app.handle().clone());
 
             // Start the agent preview bridge (global loopback MCP server) at
             // launch so it's listening before any agent session spawns —

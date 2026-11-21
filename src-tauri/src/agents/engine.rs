@@ -160,6 +160,8 @@ pub fn forget_binary(engine: Engine) {
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .remove(&engine);
+    // Nor is the last look the answer: the next overview looks again.
+    *LAST_LOOK.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }
 
 /// Whether the engine can run a turn on some account: this Mac's own
@@ -254,7 +256,72 @@ async fn asks(engine: Engine, binary: Option<&std::path::Path>) -> bool {
     }
 }
 
+/// The last full look at the engines, and when it was taken.
+static LAST_LOOK: Mutex<Option<(Vec<EngineInfo>, Instant)>> = Mutex::new(None);
+/// Set while a look runs in the background, so only one does.
+static LOOKING_BEHIND: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Told when a look behind the answer finds something changed.
+static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+/// How old a last look may be and still be the answer while a new one runs.
+const SERVE_LAST_FOR: Duration = Duration::from_secs(600);
+
+/// The engines, for the overview (the chat list, desk and phone), the
+/// defaults and the usage view.
+///
+/// The overview is read on every chat line, and each time the engines'
+/// minute-long caches ran out it waited on their CLIs (`claude auth status`,
+/// `opencode models` and `opencode debug config`): about a second on the
+/// owner's Mac (983 ms measured; the OpenCode pair alone 1.1 to 2.3 s),
+/// once a minute, and on the first look after the window had been away.
+/// So the last look is the answer at once and a new look runs behind it,
+/// at most one at a time. When that look finds anything changed (signed in
+/// or out, installed, its models), the registry event says so and the
+/// overview is read again: signing in still shows within the look's time.
+/// Only the first look (nothing seen yet) or one older than
+/// [`SERVE_LAST_FOR`] is waited for.
 pub async fn overview() -> Vec<EngineInfo> {
+    let last = servable(
+        &LAST_LOOK.lock().unwrap_or_else(|e| e.into_inner()),
+        Instant::now(),
+    );
+    if let Some(last) = last {
+        look_behind(last.clone());
+        return last;
+    }
+    look().await
+}
+
+/// The last look, when it may answer now: there is one, young enough.
+fn servable(last: &Option<(Vec<EngineInfo>, Instant)>, now: Instant) -> Option<Vec<EngineInfo>> {
+    let (engines, at) = last.as_ref()?;
+    (now.duration_since(*at) < SERVE_LAST_FOR).then(|| engines.clone())
+}
+
+/// Whether two looks say anything different (the window would show it).
+fn differ(a: &[EngineInfo], b: &[EngineInfo]) -> bool {
+    serde_json::to_value(a).ok() != serde_json::to_value(b).ok()
+}
+
+/// A new look, in the background, unless one is already running; the
+/// overview is read again if it differs from `served`.
+fn look_behind(served: Vec<EngineInfo>) {
+    use std::sync::atomic::Ordering;
+    if LOOKING_BEHIND.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    tauri::async_runtime::spawn(async move {
+        let now = look().await;
+        LOOKING_BEHIND.store(false, Ordering::Release);
+        if differ(&served, &now) {
+            if let Some(app) = APP.get() {
+                let _ = tauri::Emitter::emit(app, super::runner::EVENT_REGISTRY, ());
+            }
+        }
+    });
+}
+
+/// Ask every engine (each answer is cached on its own, a minute for a yes).
+async fn look() -> Vec<EngineInfo> {
     // One look at a time: a second asker (the launch's early look, then the
     // Agents view's; the view and the Usage view) waits for the first and
     // answers from what it just cached, instead of starting every CLI again.
@@ -265,13 +332,16 @@ pub async fn overview() -> Vec<EngineInfo> {
         info(Engine::Codex),
         info(Engine::OpenCode)
     );
-    vec![claude, codex, opencode]
+    let engines = vec![claude, codex, opencode];
+    *LAST_LOOK.lock().unwrap_or_else(|e| e.into_inner()) = Some((engines.clone(), Instant::now()));
+    engines
 }
 
 /// Look at the engines once at launch, while the window loads: the Agents
 /// view's first overview then reads the binaries and sign-ins from cache
 /// rather than waiting on each CLI.
-pub fn look_early() {
+pub fn look_early(app: tauri::AppHandle) {
+    let _ = APP.set(app);
     tauri::async_runtime::spawn(async {
         let _ = overview().await;
     });
@@ -356,6 +426,28 @@ pub fn normalize_model(engine: Engine, model: &str) -> Result<Option<String>, Co
 mod tests {
     use super::*;
 
+    #[test]
+    fn the_last_look_answers_while_young_and_a_change_is_seen() {
+        let now = Instant::now();
+        let at = now - Duration::from_secs(90);
+        let looked = vec![
+            engine(Engine::Claude, true, true),
+            // Installed, not signed in: still the answer (the owner's Codex).
+            engine(Engine::Codex, true, false),
+            engine(Engine::OpenCode, false, false),
+        ];
+        let served = servable(&Some((looked.clone(), at)), now).expect("served");
+        assert!(!differ(&served, &looked));
+        // Nothing looked at yet: the overview waits for its first look.
+        assert!(servable(&None, now).is_none());
+        // Too old to stand in for a look.
+        assert!(servable(&Some((looked.clone(), now - SERVE_LAST_FOR)), now).is_none());
+        // Signing in is a change, so the overview is read again.
+        let mut signed_in = looked.clone();
+        signed_in[1].signed_in = true;
+        assert!(differ(&looked, &signed_in));
+    }
+
     fn engine(id: Engine, installed: bool, signed_in: bool) -> EngineInfo {
         EngineInfo {
             id,
@@ -428,5 +520,44 @@ mod tests {
         assert!(!asks(Engine::Codex, Some(&old)).await);
         // Not installed: nothing is claimed.
         assert!(!asks(Engine::Codex, None).await);
+    }
+
+    /// What the overview pays for the engines on this Mac's real CLIs:
+    /// the first look, one straight after (all cached), one after the
+    /// minute-long caches ran out, then the overview after another minute,
+    /// which answers from the last look while a new one runs behind it.
+    /// `cargo test --release -j 2 --lib engine_overview_cost -- --ignored --nocapture`
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore = "runs this Mac's engine CLIs and waits two minutes"]
+    async fn engine_overview_cost() {
+        let ms = |t: Instant| t.elapsed().as_secs_f64() * 1000.0;
+        let t = Instant::now();
+        let first = look().await;
+        println!("first look: {:.0} ms", ms(t));
+        let t = Instant::now();
+        look().await;
+        println!("cached look: {:.1} ms", ms(t));
+        for e in &first {
+            println!(
+                "  {:?} installed={} signed_in={}",
+                e.id, e.installed, e.signed_in
+            );
+        }
+        tokio::time::sleep(Duration::from_secs(61)).await;
+        let t = Instant::now();
+        look().await;
+        println!(
+            "look after the caches ran out (what every overview waited on): {:.0} ms",
+            ms(t)
+        );
+        tokio::time::sleep(Duration::from_secs(61)).await;
+        let t = Instant::now();
+        overview().await;
+        println!(
+            "overview after the caches ran out, served from the last look: {:.2} ms",
+            ms(t)
+        );
+        // The look behind it finishes on its own; let it, so nothing is cut off.
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
 }

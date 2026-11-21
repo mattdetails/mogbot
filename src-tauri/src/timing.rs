@@ -158,11 +158,13 @@ fn summary(kind: &'static str, due: Due) {
 }
 
 /// Sends waiting for their turn: agent → (message, when it was stored).
-static SENT: LazyLock<Mutex<HashMap<String, (String, Instant)>>> = LazyLock::new(Default::default);
+static SENT: LazyLock<Mutex<HashMap<String, Sent>>> = LazyLock::new(Default::default);
+/// A send waiting for its turn: the message, and when it was stored.
+type Sent = (String, Instant);
 /// Turns taken from the queue, waiting for their engine: agent → (the
-/// send it answers and when that was stored, if one, and when taken).
-static TAKEN: LazyLock<Mutex<HashMap<String, (Option<(String, Instant)>, Instant)>>> =
-    LazyLock::new(Default::default);
+/// send it answers, if one, and when the turn was taken).
+type Taken = HashMap<String, (Option<Sent>, Instant)>;
+static TAKEN: LazyLock<Mutex<Taken>> = LazyLock::new(Default::default);
 
 /// The user's message is in the log: `took` since the send arrived.
 pub fn send_stored(agent: &str, message: &str, took: Duration) {
