@@ -123,6 +123,7 @@ pub const METHODS: &[&str] = &[
     "agents.watchLive",
     "agents.files",
     "agents.fetchPath",
+    "agents.checkPaths",
     "agents.search",
     "agents.schedule.preview",
     "agents.schedule.create",
@@ -1059,6 +1060,10 @@ pub trait Backend: Send + Sync + 'static {
     async fn discard_copy(&self, agent_id: &str, copy_id: &str) -> Result<(), CommandError>;
     /// `agents_files`: everything shared in one conversation, newest first.
     async fn files(&self, agent_id: &str) -> Result<Value, CommandError>;
+    /// The paths in an agent's reply, checked against what a tap may open
+    /// (`agents::files::check_paths`, the desk's own check): image, file,
+    /// folder, missing or outside. Never the real path back (`full` is dropped).
+    async fn check_paths(&self, agent_id: &str, paths: Vec<String>) -> Result<Value, CommandError>;
     /// A path from an agent's reply, resolved as `share_file` resolves it
     /// (its home and the user's projects; folders refused).
     async fn shareable_path(
@@ -1507,6 +1512,13 @@ struct TranscribeParams {
 struct PathParams {
     agent_id: String,
     path: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckPathsParams {
+    agent_id: String,
+    paths: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -3323,6 +3335,13 @@ async fn run(
                 ),
                 "expiresAt": expires_at,
             }))
+        }
+        "agents.checkPaths" => {
+            let p: CheckPathsParams = parse(params)?;
+            if p.paths.len() > 64 {
+                return Err(bad_params("At most 64 paths at a time."));
+            }
+            Ok(b.check_paths(&p.agent_id, p.paths).await?)
         }
         "agents.fetchPath" => {
             let p: PathParams = parse(params)?;

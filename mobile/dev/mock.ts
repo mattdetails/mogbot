@@ -110,6 +110,7 @@ function selfSigned(dir: string) {
       : args.includes('--big-file')
         ? { bigFile: 'slow' as const }
         : {}),
+    replyPaths: args.includes('--reply-paths'),
     ...(['pending', 'allowed', 'published'].includes(arg('--store') ?? '')
       ? { store: arg('--store') as 'pending' | 'allowed' | 'published' }
       : {}),

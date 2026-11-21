@@ -873,6 +873,20 @@ fn add_copy_root(agent_id: &str, roots: &mut Vec<std::path::PathBuf>) {
     }
 }
 
+/// The same check for any caller (the desk command, a phone): the reply's
+/// paths against this agent's open allowlist (its home, your projects, its copy).
+pub async fn check_paths_for(
+    agent_id: String,
+    paths: Vec<String>,
+) -> Result<Vec<files::PathCheck>, CommandError> {
+    let (home, mut roots) = path_roots(&agent_id).await?;
+    blocking(move || {
+        add_copy_root(&agent_id, &mut roots);
+        Ok(files::check_paths(&paths, &home, &roots))
+    })
+    .await
+}
+
 /// The paths written in a reply, checked before anyone clicks (at most 64):
 /// an image is drawn in the bubble, a file or folder is a link, one that
 /// isn't there is muted, and one outside the open allowlist is plain text.

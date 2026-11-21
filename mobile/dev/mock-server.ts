@@ -292,6 +292,8 @@ export interface MockOptions {
    * chip's "4.2 MB of 20 MB" can be seen, or cut off part way (`cut`).
    */
   bigFile?: 'slow' | 'cut';
+  /** `--reply-paths`: a Designer reply naming an image, a file, a missing file and one outside (the four path states). */
+  replyPaths?: boolean;
   /** The App Store screenshots' cast (dev/mock-store.ts), at this stage of its story. */
   store?: StoreStage;
 }
@@ -2035,6 +2037,21 @@ export function createMockServer(opts: MockOptions = {}) {
     });
     messages.set('design', list);
   }
+  if (opts.replyPaths) {
+    const list = messages.get('design') ?? [];
+    list.push({
+      id: 'paths_1',
+      agentId: 'design',
+      ts: Date.now() - 2 * 60_000,
+      kind: 'agent',
+      text: [
+        'Done. The new hero is in `~/Library/Application Support/Mogbot/agents/design/shots/hero-after.png`.',
+        '',
+        'The notes are in `~/Desktop/Projects/acme-site/HERO-NOTES.md`, and the old draft `~/Desktop/Projects/acme-site/hero-draft.png` is gone. I also looked at `/etc/hosts.txt`.',
+      ].join('\n'),
+    });
+    messages.set('design', list);
+  }
   if (opts.catchUpSeveral) {
     const quiet = agents.find((a) => a.id === 'brief');
     if (quiet) {
@@ -3250,6 +3267,40 @@ export function createMockServer(opts: MockOptions = {}) {
   ];
   let tasksRead = 0;
   const methods: Partial<Record<MethodName, Handler>> = {
+    // Paths in a reply (`--reply-paths`): the Mac's check, and an image fetched as a file.
+    ...(opts.replyPaths
+      ? {
+          'agents.checkPaths': (p: Record<string, unknown>) =>
+            (p.paths as string[]).map((path) => ({
+              path,
+              kind: path.startsWith('/etc/')
+                ? 'outside'
+                : /draft|gone/.test(path)
+                  ? 'missing'
+                  : /\.(png|jpe?g|gif|webp)$/i.test(path)
+                    ? 'image'
+                    : 'file',
+            })),
+          'agents.fetchPath': (p: Record<string, unknown>, c: Conn) => {
+            const bytes = siteScreenshot();
+            const blobId = `blob_${randomUUID().replace(/-/g, '')}`;
+            const name = String(p.path).split('/').pop() ?? 'file';
+            const ref: BlobRef = {
+              blobId,
+              name,
+              mime: name.endsWith('.png') ? 'image/png' : 'text/markdown',
+              size: bytes.length,
+            };
+            blobs.set(blobId, {
+              ...ref,
+              bytes,
+              deviceId: c.deviceId,
+              expiresAt: Date.now() + BLOB_TTL_MS,
+            });
+            return ref;
+          },
+        }
+      : {}),
     'agents.conversations': (p) => convList(String(p.agentId)),
     'agents.conversationSelect': (p) => {
       const c = convsOf(String(p.agentId));
@@ -5364,9 +5415,12 @@ export function createMockServer(opts: MockOptions = {}) {
           deviceId: entry.device.id,
           resume: canReplay ? 'replay' : 'snapshot',
           // What the real Mac advertises in P1, not what the mock happens to implement.
-          methods: opts.tasks
-            ? [...realWelcome.methods, 'agents.taskAdd', 'agents.taskDrop', 'agents.taskMove']
-            : realWelcome.methods,
+          methods: [
+            ...(realWelcome.methods as MethodName[]),
+            ...(opts.tasks
+              ? (['agents.taskAdd', 'agents.taskDrop', 'agents.taskMove'] as MethodName[])
+              : []),
+          ],
           features: realWelcome.features,
           // The zone the mock's parser reads times in: this machine's own.
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
