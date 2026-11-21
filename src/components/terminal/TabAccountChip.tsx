@@ -238,7 +238,7 @@ export function TabAccountChip({ sessionId, onSwitch }: TabAccountChipProps) {
     >
       {offer && (
         <>
-          <p className="tab-account-chip__suggest" role="note">
+          <p className="tab-account-chip__suggest">
             {/* "5-hour" kept on one line. */}
             {offer.line.replace(/5-hour/g, '5\u2011hour')}
           </p>

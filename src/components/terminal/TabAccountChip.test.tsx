@@ -195,7 +195,9 @@ describe('TabAccountChip — the 5-hour and weekly limits, and the offer', () =>
       fireEvent.click(chip());
       await Promise.resolve();
     });
-    expect(screen.getByRole('note').textContent).toContain('(an estimate)');
+    expect(document.querySelector('.tab-account-chip__suggest')?.textContent).toContain(
+      '(an estimate)'
+    );
     await act(async () => {
       fireEvent.click(screen.getByText('Continue on Personal'));
       await Promise.resolve();
