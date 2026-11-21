@@ -39,6 +39,7 @@ pub mod remote_access;
 // (docs/design/own-browser-layer.md).
 pub mod state;
 pub mod static_server;
+pub mod timing;
 mod stray_browsers;
 pub mod types;
 pub mod user_chrome;
@@ -143,6 +144,9 @@ fn raise_open_file_limit() {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Launch to the first overview is timed from here (`timing`).
+    timing::launch();
+
     // A Mac app launched from Finder gets 256 open files. Agents' turns, the
     // phone's sockets and a git status per project at once ran past that
     // (a phone pairing logged hundreds of "Too many open files"): raise it.

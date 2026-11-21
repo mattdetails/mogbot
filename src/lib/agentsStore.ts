@@ -36,6 +36,7 @@ import {
 import { asCommandError, formatCommandError } from './errors';
 import { initDefaultAgent, terminalIdOf } from './agent';
 import { logger } from './logger';
+import { countEvent, noteOverview, watchShown } from './shownTiming';
 import { syncFolders } from './agentGroups';
 import { getRoomMessages, getRooms, roomIdOf, roomKey, ROOMS_EVENT, type Room } from './agentRooms';
 import {
@@ -137,7 +138,9 @@ function followEngine(engine: AgentEngine | null) {
 export async function refreshAgents(): Promise<void> {
   const mine = ++refreshStarted;
   try {
+    const asked = performance.now();
     const overview = await getAgentsOverview();
+    noteOverview(performance.now() - asked);
     if (mine < refreshLanded) return;
     refreshLanded = mine;
     setClockHour24(overview.hour24);
@@ -644,6 +647,7 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && held.size > 0) applyHeld();
   });
+  watchShown(document);
 }
 
 function hold(event: Held) {
@@ -753,34 +757,42 @@ function start() {
   void Promise.all([
     listen<unknown>(AGENT_EVENTS.message, (e) =>
       safely('message', () => {
+        countEvent();
         applyHeld();
         if (!readableMessage(e.payload)) return resync('message');
         upsertMessage(e.payload);
       })
     ),
-    listen<unknown>(AGENT_EVENTS.status, (e) =>
-      readableStatus(e.payload)
-        ? hold({ kind: 'status', agentId: e.payload.agentId, status: e.payload.status })
-        : resync('status')
-    ),
+    listen<unknown>(AGENT_EVENTS.status, (e) => {
+      countEvent();
+      if (readableStatus(e.payload)) {
+        hold({ kind: 'status', agentId: e.payload.agentId, status: e.payload.status });
+      } else {
+        resync('status');
+      }
+    }),
     listen(AGENT_EVENTS.registry, () =>
       safely('registry', () => {
+        countEvent();
         applyHeld();
         scheduleRefresh();
         // A deleted agent leaves its rooms; a room's row follows its members.
         scheduleRoomsRefresh();
       })
     ),
-    listen<unknown>(AGENT_EVENTS.draft, (e) =>
-      readableDraft(e.payload)
-        ? hold({
-            kind: 'draft',
-            agentId: e.payload.agentId,
-            id: e.payload.id,
-            text: e.payload.text,
-          })
-        : resync('draft')
-    ),
+    listen<unknown>(AGENT_EVENTS.draft, (e) => {
+      countEvent();
+      if (readableDraft(e.payload)) {
+        hold({
+          kind: 'draft',
+          agentId: e.payload.agentId,
+          id: e.payload.id,
+          text: e.payload.text,
+        });
+      } else {
+        resync('draft');
+      }
+    }),
     listen(ROOMS_EVENT, () => scheduleRoomsRefresh()),
     listen<unknown>(AGENT_EVENTS.conversations, (e) =>
       safely('conversations', () => {

@@ -69,7 +69,10 @@ pub struct Held {
 impl Drop for Held {
     fn drop(&mut self) {
         HELD_AT.with(|h| h.set(None));
-        *HOLDER.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        let held = HOLDER.lock().unwrap_or_else(|e| e.into_inner()).take();
+        if let Some((at, since)) = held {
+            crate::timing::lock_held(at, since.elapsed());
+        }
     }
 }
 
@@ -97,13 +100,22 @@ pub fn take() -> Result<Held, CommandError> {
         );
         return Err(CommandError::expected(BUSY));
     }
-    let deadline = Instant::now() + wait();
+    let asked = Instant::now();
+    let deadline = asked + wait();
     let mut pause = Duration::from_millis(1);
+    // Who held it while this waited, for the line a long wait leaves.
+    let mut held_by: Option<&'static Location<'static>> = None;
     let guard = loop {
         match LOCK.try_lock() {
             Ok(guard) => break guard,
             Err(TryLockError::Poisoned(e)) => break e.into_inner(),
             Err(TryLockError::WouldBlock) => {
+                if held_by.is_none() {
+                    held_by = HOLDER
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .map(|(at, _)| at);
+                }
                 if Instant::now() >= deadline {
                     let holder = *HOLDER.lock().unwrap_or_else(|e| e.into_inner());
                     match holder {
@@ -122,6 +134,7 @@ pub fn take() -> Result<Held, CommandError> {
             }
         }
     };
+    crate::timing::lock_waited(here, asked.elapsed(), held_by);
     HELD_AT.with(|h| h.set(Some(here)));
     *HOLDER.lock().unwrap_or_else(|e| e.into_inner()) = Some((here, Instant::now()));
     Ok(Held { _guard: guard })

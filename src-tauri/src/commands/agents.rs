@@ -260,14 +260,23 @@ pub async fn agents_overview(app: AppHandle) -> Result<AgentsOverview, CommandEr
     // On a launch the engines' answer is the slow one, and the store work
     // stays off the async workers every other command shares.
     let store_app = app.clone();
+    let began = std::time::Instant::now();
     let (engines, views) = tokio::join!(
-        engine::overview(),
-        blocking(move || {
-            agents::ensure_main()?;
-            attachments::grant_asset_scope(&store_app);
-            agent_views()
-        })
+        async {
+            let engines = engine::overview().await;
+            (engines, began.elapsed())
+        },
+        async move {
+            let views = blocking(move || {
+                agents::ensure_main()?;
+                attachments::grant_asset_scope(&store_app);
+                agent_views()
+            })
+            .await;
+            (views, began.elapsed())
+        }
     );
+    let ((engines, engines_took), (views, views_took)) = (engines, views);
     let mut agents = views?;
     let engine_ready = engines
         .iter()
@@ -296,7 +305,7 @@ pub async fn agents_overview(app: AppHandle) -> Result<AgentsOverview, CommandEr
         agents = blocking(agent_views).await?;
     }
     let (defaults, independence, import_choice, hour24, folders) = rest;
-    Ok(AgentsOverview {
+    let overview = AgentsOverview {
         agents,
         engine_ready,
         engines,
@@ -305,7 +314,15 @@ pub async fn agents_overview(app: AppHandle) -> Result<AgentsOverview, CommandEr
         import_choice,
         hour24,
         folders,
-    })
+    };
+    crate::timing::overview(
+        began.elapsed(),
+        engines_took,
+        views_took,
+        overview.agents.len(),
+        || crate::timing::json_bytes(&overview),
+    );
+    Ok(overview)
 }
 
 /// Every agent as the overview shows it.
@@ -398,7 +415,9 @@ pub async fn agents_messages(
     conversation: Option<String>,
 ) -> Result<Vec<store::AgentMessage>, CommandError> {
     const MAX: usize = 5000;
-    blocking(move || {
+    let began = std::time::Instant::now();
+    let of = agent_id.clone();
+    let page = blocking(move || {
         let limit = limit.unwrap_or(400).min(MAX);
         // The newest page reaches back to a card still waiting on the user,
         // so the chat always holds what its row says needs your OK.
@@ -423,7 +442,11 @@ pub async fn agents_messages(
         }
         Ok(page)
     })
-    .await
+    .await?;
+    crate::timing::messages(&of, began.elapsed(), page.len(), || {
+        crate::timing::json_bytes(&page)
+    });
+    Ok(page)
 }
 
 /// What the turn that ended on `message_id` did, steps and all: a "What it
@@ -521,6 +544,7 @@ pub(crate) async fn send_in(
     written_at: Option<i64>,
     reply_to: Option<String>,
 ) -> Result<store::AgentMessage, CommandError> {
+    let began = std::time::Instant::now();
     let text = text.trim().to_string();
     let said = text.clone();
     let incoming = attachments.unwrap_or_default();
@@ -668,6 +692,7 @@ pub(crate) async fn send_in(
         && message.reply_to.is_none()
         && agents::typed_answer::fresh(written, store::now_ms());
     let message = runner::record(&app, message)?;
+    crate::timing::send_stored(&agent_id, &message.id, began.elapsed());
     // "Approve it", typed by the user into a chat with one open card: that
     // card is allowed as their answer (`typed_answer`). Only this, the user's
     // own send, gets here.

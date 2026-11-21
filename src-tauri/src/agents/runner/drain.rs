@@ -452,13 +452,16 @@ pub(super) async fn drain_turns(app: &AppHandle, agent_id: &str, progressed: &mu
             return;
         }
         set_queued(&agent_id, true);
+        let waiting = std::time::Instant::now();
         let permit = wait_for_slot(&app, &agent_id).await;
+        let slot_wait = waiting.elapsed();
         set_queued(&agent_id, false);
         // No slot: the wait was stopped. Whatever arrived since is decided again.
         let Some(_permit) = permit else { continue };
         let Some(batch) = take_batch(&agent_id) else {
             continue;
         };
+        crate::timing::turn_taken(&agent_id, slot_wait);
         *progressed = true;
         let Batch {
             prompt,

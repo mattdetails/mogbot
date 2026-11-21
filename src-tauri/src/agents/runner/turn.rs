@@ -144,7 +144,7 @@ impl Timing {
         };
         let tail = self.result.map(|r| r.elapsed().as_millis() as u64);
         tracing::info!(
-            target: "agents::timing",
+            target: "app_lib::timing",
             agent = agent_id,
             prep_ms = self.spawned.duration_since(self.began).as_millis() as u64,
             boot_ms = since(self.boot).unwrap_or(0),
@@ -633,6 +633,7 @@ pub(super) async fn run_turn(
     if let Some(pid) = pid {
         procs::register(agent_id, pid);
     }
+    crate::timing::turn_spawned(agent_id);
     let mut timing = Timing::spawned(began);
 
     // What identifies this turn's process, for the next launch to recognise a leftover.
