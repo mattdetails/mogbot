@@ -249,7 +249,7 @@ const CATCH_UP_PAGE: Scenario[] = [
     'the summary open (while you were away)',
     'Opened from the entry’s “Earlier today › While you were away” row: the summary row is selected and the header says “Summary”. The card: a clock tile, “While you were away” and “6 things · no decisions”; six 52px rows with a key, one sentence and its time at the right, hairlines between; one strong Got it.',
     build(HAPPENED),
-    { steps: [{ click: '.agents-catchup__queue .agents-catchup__row:last-of-type' }] }
+    { steps: [{ click: '.agents-catchup__queue .agents-catchup__whileaway .agents-catchup__row' }] }
   ),
   scenario(
     'done',
@@ -323,7 +323,7 @@ const CATCH_UP_PAGE: Scenario[] = [
 ];
 
 /** The four flow states Designer asked for (open, answer one, Later one, All clear), at 1440 and 800. */
-const FLOW_STATES = ['several', 'answer-one', 'later', 'all-clear'];
+const FLOW_STATES = ['several', 'summary', 'all-clear'];
 const FLOW_WIDTHS: [string, number][] = [
   ['w1440', 1440],
   ['w800', 800],
@@ -338,6 +338,10 @@ export const agentsCatchUpScenarios: Scenario[] = [
       id: `${sc.id}-${suffix}`,
       title: `${sc.title} (${width}px)`,
       viewport: { width, height: 900 },
+      // With nothing waiting, the summary is what opens: no queue click needed.
+      ...(width < 880 && sc.id === 'agents-catchup-summary'
+        ? { steps: [{ click: '.agents-catchup-row' }] }
+        : {}),
     }))
   ),
 ];

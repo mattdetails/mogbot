@@ -233,12 +233,13 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
     <div className="agents-catchup">
       <header className="agents-catchup__head">
         <h2 className="agents-catchup__title">{CATCH_UP.title}</h2>
-        {/* The entry's card says the count; the header says it in the flow. */}
-        {
+        {/* The sidebar row already says how many need you, so the header says
+            the count only once there is nothing left to count (Summary, All clear). */}
+        {(summaryOpen || items.length === 0) && (
           <span className="agents-catchup__left" aria-live="polite">
             {headCount}
           </span>
-        }
+        )}
         {
           <button
             type="button"
@@ -415,8 +416,8 @@ function Queue({
         </section>
       )}
       {happened.length > 0 && (
-        <section className="agents-catchup__group">
-          <h3>{CATCH_UP.then}</h3>
+        // One quiet line at the bottom of the queue: no label, no fill.
+        <div className="agents-catchup__whileaway">
           <Row
             lead={tile(<HistoryIcon size={14} />)}
             title={CATCH_UP.whileAway}
@@ -424,7 +425,7 @@ function Queue({
             selected={open === 'summary'}
             onPick={() => onPick('summary')}
           />
-        </section>
+        </div>
       )}
     </>
   );

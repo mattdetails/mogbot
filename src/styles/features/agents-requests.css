@@ -641,10 +641,25 @@ button.agents-catchup__row:hover:not(.is-selected) {
   min-height: 0;
   overflow: auto;
   flex-direction: column;
-  align-items: center;
-  /* Centred, an optical 24px above true centre. */
-  justify-content: center;
-  padding: 40px 40px 88px; /* css-ok: the spec's 40px pane, 24px above centre */
+  align-items: flex-start;
+  /* Top-aligned: the card starts on the same line as the queue's first label
+     (the queue's own 20px top), so nothing floats in the middle of the pane. */
+  justify-content: flex-start;
+  padding: 20px 24px 88px;
+}
+
+/* All clear keeps its centre, whatever the pane's top alignment. */
+.agents-catchup__pane > .agents-catchup__clear {
+  margin: auto;
+  align-self: center;
+}
+
+/* While you were away: one quiet line at the bottom of the queue, the row's
+   height and no fill. */
+.agents-catchup__whileaway {
+  margin-top: var(--spacing-md);
+  border-top: var(--border-width-default) solid var(--border-subtle);
+  padding-top: var(--spacing-sm);
 }
 
 .agents-catchup__card {
