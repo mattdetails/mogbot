@@ -1518,8 +1518,9 @@ const ApprovalCardBody = memo(function ApprovalCard({
                 variant={skill ? 'ghost' : 'secondary'}
                 className="agent-approval__deny"
                 disabled={busy}
+                data-deny
                 onClick={() => void answer(false)}
-                aria-keyshortcuts={keys ? 'D' : undefined}
+                aria-keyshortcuts={keys ? 'D Meta+Backspace' : undefined}
               >
                 {front
                   ? 'Not now'
@@ -1541,7 +1542,7 @@ const ApprovalCardBody = memo(function ApprovalCard({
                   disabled={busy}
                   {...keyProps}
                   onClick={guard(() => void answer(true))}
-                  aria-keyshortcuts={keys ? 'A' : undefined}
+                  aria-keyshortcuts={keys ? 'A Meta+Enter' : undefined}
                 >
                   {front
                     ? 'Check again'

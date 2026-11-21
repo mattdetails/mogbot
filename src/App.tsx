@@ -61,6 +61,7 @@ import {
 import { useAppCommands } from './commands/useAppCommands';
 import { useAppMode } from './hooks/useAppMode';
 import { NativeMenuHost } from './hooks/useNativeMenu';
+import { DesignedShortcutsHost } from './hooks/useDesignedShortcuts';
 import { useMenuCommands } from './commands/useMenuCommands';
 import { useProjectNumberShortcuts } from './hooks/useProjectNumberShortcuts';
 import { PinnedProjectCommandHost } from './commands/usePinnedProjectCommands';
@@ -1186,6 +1187,7 @@ function AppContents({ initialProjectPath }: AppProps) {
       />
       {/* The menu bar's view of this window, and the window's title: its own
           component, so the agents' order it follows never re-renders App. */}
+      <DesignedShortcutsHost setView={setView} />
       <NativeMenuHost
         view={view}
         currentProjectName={currentProject?.name ?? null}

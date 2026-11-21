@@ -78,8 +78,8 @@ describe('A and D on a focused approval card', () => {
   it('D denies, and the buttons carry the hints', () => {
     const onAnswer = vi.fn(() => Promise.resolve());
     render(<ApprovalCard message={card()} agentName="Acme" paused={false} onAnswer={onAnswer} />);
-    expect(screen.getByRole('button', { name: /Deny/ })).toHaveAttribute('aria-keyshortcuts', 'D');
-    expect(screen.getByRole('button', { name: /Allow/ })).toHaveAttribute('aria-keyshortcuts', 'A');
+    expect(screen.getByRole('button', { name: /Deny/ })).toHaveAttribute('aria-keyshortcuts', 'D Meta+Backspace');
+    expect(screen.getByRole('button', { name: /Allow/ })).toHaveAttribute('aria-keyshortcuts', 'A Meta+Enter');
     const row = document.querySelector<HTMLElement>('[data-keys]')!;
     fireEvent.keyDown(row, { key: 'd' });
     expect(onAnswer).toHaveBeenCalledWith('req1', false, false, undefined);

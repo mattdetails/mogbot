@@ -6,6 +6,7 @@ import { basename } from '../lib/paths';
 import { menuNumber, menuOwnsShortcuts, onMenuAction } from '../lib/nativeMenu';
 import { familyRootOf, ensureFamilyRoot } from '../lib/worktreeFamilies';
 import { getActiveProjectOrder } from '../lib/activeProjectOrder';
+import { projectIndexForKey } from '../lib/designedShortcuts';
 
 interface Params {
   /** Pinned-row paths, in sidebar order. */
@@ -101,6 +102,15 @@ export function useProjectNumberShortcuts({
       e.stopPropagation();
     };
 
+    // ⌃⌥⇧1–9: a project by its number, from anywhere (not a menu key, so on
+    // every platform it is a page handler).
+    const byNumber = (e: KeyboardEvent) => {
+      const index = projectIndexForKey(e);
+      if (index === null || !switchProject(index)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener('keydown', byNumber, { capture: true });
     window.addEventListener('keydown', handler, { capture: true });
     const offMenu = onMenuAction((action) => {
       const n = menuNumber(action, 'go_to');
@@ -108,6 +118,7 @@ export function useProjectNumberShortcuts({
     });
 
     return () => {
+      window.removeEventListener('keydown', byNumber, { capture: true });
       window.removeEventListener('keydown', handler, { capture: true });
       offMenu();
     };
