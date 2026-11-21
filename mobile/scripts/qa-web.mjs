@@ -4684,7 +4684,7 @@ async function main() {
         name: 'catchup-entry-nothing',
         check: 'Nothing waiting: no card; “All caught up”, calm, and the way to Agents',
       });
-      await open('--catchup-one');
+      await open('--catchup-single');
       await screen(page, theme, {
         name: 'catchup-entry-one',
         check: 'One: “1 thing needs you”, what it is with the agent, its key, Review it; no list',
@@ -4695,30 +4695,13 @@ async function main() {
         check:
           'Many: “N things need you”, “From N agents” (no minutes), the waiting keys, Start catching up; “Or pick one” rows with no buttons; no pill in the header',
       });
-      // Part of a run: start, answer two, come back.
+      // Part of a run: Start, back to the tab, three answered (on the desk here).
       await page.clickText('Start catching up');
-      await page.waitFor(`/up next/i.test(document.body.innerText)`, 45000, 'the queue');
-      let answered = 0;
-      for (let i = 0; i < 20 && answered < 2; i++) {
-        if (await page.eval(`document.body.innerText.includes('Deny')`)) {
-          await sleep(2500); // a card arms a moment after it arrives
-          await page.clickText('Deny').catch(() => {});
-          answered += 1;
-          await sleep(2500);
-        } else {
-          // An approval from Up next comes to the front (a tap on its row).
-          await page
-            .clickWhere(
-              `() => [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && (e.innerText ?? '').trim() === 'Needs your OK').pop()`,
-              'an approval in Up next'
-            )
-            .catch(() => {});
-          await sleep(1200);
-        }
-      }
-      // Back in the app (a page load would forget the run).
-      await page.eval('history.back()');
       await sleep(3000);
+      await page.eval('history.back()');
+      await sleep(1500);
+      await fetch(`${MOCK}/dev/answer?n=3`);
+      await sleep(3500);
       await screen(page, theme, {
         name: 'catchup-entry-midrun',
         check:

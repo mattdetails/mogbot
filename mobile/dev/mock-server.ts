@@ -221,6 +221,8 @@ export interface MockOptions {
    * minutes after pairing, and the shortest list Home can have.
    */
   solo?: boolean;
+  /** `--catchup-single`: the same with Acme Site's copy kept, so exactly one thing waits. */
+  catchUpSingle?: boolean;
   /** Catch up with exactly one decision (Ops' push) and one thing that happened (Acme Site). */
   catchUpOne?: boolean;
   /** The Designer's chat ends on replies: to its words, to a picture, and to a message that's gone. */
@@ -1980,6 +1982,10 @@ export function createMockServer(opts: MockOptions = {}) {
         a.hidden = true;
       }
     }
+  }
+  if (opts.catchUpSingle) {
+    const s = agents.find((a) => a.id === 'site');
+    if (s) s.copy = undefined;
   }
   if (opts.catchUpSeveral) {
     const quiet = agents.find((a) => a.id === 'brief');
@@ -5472,6 +5478,26 @@ export function createMockServer(opts: MockOptions = {}) {
     }
     if (req.method === 'GET' && req.url === '/dev/link') {
       res.writeHead(200, { 'Content-Type': 'text/plain' }).end(pairingLink());
+      return;
+    }
+    // Answers the first `n` cards waiting, on the desk (qa:web's Catch up mid-run).
+    if (req.method === 'GET' && req.url?.startsWith('/dev/answer?')) {
+      const n = Number(new URL(req.url, 'http://x').searchParams.get('n') ?? 1);
+      let done = 0;
+      for (const [agentId, list] of messages) {
+        for (const m of list) {
+          if (done >= n) break;
+          if (m.approval?.status !== 'pending' || m.approval.login || m.approval.secret) continue;
+          putMessage({ ...m, approval: { ...m.approval, status: 'denied' } });
+          settle(agentId);
+          done += 1;
+        }
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/plain',
+        ...(opts.cors ? { 'Access-Control-Allow-Origin': '*' } : {}),
+      });
+      res.end(`answered ${done}`);
       return;
     }
     if (opts.torture && req.method === 'GET' && req.url?.startsWith('/dev/torture?')) {
