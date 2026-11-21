@@ -25,6 +25,8 @@ import { asCommandError, formatCommandError } from '../../lib/errors';
 
 /** What a path that isn't there says on hover. */
 export const PATH_MISSING = 'Not found on this Mac';
+/** Beside a path that isn't there, after its chip. */
+export const PATH_MISSING_NOTE = '(missing)';
 
 /** Checks this session, per agent and path, for a minute (a file may appear). */
 const cache = new Map<string, { at: number; check: PathCheck }>();
@@ -54,6 +56,14 @@ function mark(anchor: HTMLAnchorElement, check: PathCheck) {
     anchor.removeAttribute('href');
   } else if (check.kind === 'missing') {
     anchor.title = PATH_MISSING;
+    // Beside the chip, once: a text node of the paragraph, not the link.
+    const next = anchor.nextElementSibling;
+    if (!next?.classList.contains('agent-path__note')) {
+      const note = document.createElement('span');
+      note.className = 'agent-path__note';
+      note.textContent = PATH_MISSING_NOTE;
+      anchor.after(note);
+    }
   }
 }
 

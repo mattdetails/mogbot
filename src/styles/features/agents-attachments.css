@@ -317,23 +317,37 @@
   justify-content: start;
 }
 
-/* A path in a reply opens the file; it reads as code when written as code. */
-.agent-markdown a.agent-path {
-  cursor: pointer;
+/* Every path in a reply is one look: a monospace chip, the inline-code tint,
+   no underline. A link while it opens; outside the allowlist the same chip
+   with nothing to click; missing, the same chip with "(missing)" beside it. */
+.agent-markdown a.agent-path,
+.agent-markdown a[data-path] {
+  padding: 0 var(--spacing-xs);
+  font-family: var(--font-code);
+  font-size: var(--font-size-body-lg);
+  color: inherit;
+  text-decoration: none;
   overflow-wrap: anywhere;
+  background: var(--tint-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
 
-/* Outside the agent's folder and your projects: plain text, nothing to click. */
-.agent-markdown a[data-path='outside'] {
+/* A path written as code is already the chip: one tint, not two. */
+.agent-markdown a.agent-path > code {
+  padding: 0;
+  background: none;
+}
+
+.agent-markdown a[data-path='outside'],
+.agent-markdown a[data-path='outside']:hover {
   cursor: text;
   text-decoration: none;
 }
 
-/* Not on this Mac (any more): still the path, muted, struck through. */
-.agent-markdown a[data-path='missing'] {
+.agent-path__note {
+  margin-left: var(--spacing-xs);
   color: var(--text-muted);
-  text-decoration-line: line-through;
-  text-decoration-color: var(--text-faint);
 }
 
 /* Images a reply names, under it like attached pictures. */

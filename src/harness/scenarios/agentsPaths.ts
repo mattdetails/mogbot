@@ -2,8 +2,10 @@
  * File paths in an agent's reply (`useProsePaths`): the Mac checks each one
  * (`agents_check_paths`, the open allowlist) before anyone clicks. An image
  * in a project is drawn under the reply like an attached picture, a file stays
- * a link, one outside the agent's folder and your projects is plain text, and
- * one that isn't there is muted and struck through. Fictional throughout.
+ * a link, one outside the agent's folder and your projects is a chip that
+ * doesn't open, and
+ * one that isn't there keeps its chip with “(missing)” beside it. Every path
+ * is one look, a monospace chip. Fictional throughout.
  */
 
 import type { Scenario } from '../types';
@@ -59,28 +61,28 @@ export const agentsPathsScenarios: Scenario[] = [
   scenario(
     'image',
     'image paths drawn in the bubble',
-    'The reply names two screenshots; both paths stay underlined links in the text, and under the bubble the two pictures sit side by side like attached images (rounded, same size as attachments), the new hero first. Nothing is cut off; readable in both themes.',
+    'The reply names two screenshots; both paths are chips in the text, and under the bubble the two pictures sit side by side like attached images (rounded, same size as attachments), the new hero first. Nothing is cut off; readable in both themes.',
     `Done. The new hero is at ${IMAGE}, and the old one is at ${IMAGE_2} if you want them side by side.`,
     '.agent-prose-images img'
   ),
   scenario(
     'file',
     'a file path stays a link',
-    'The review note’s path is an underlined link in the text (it opens in its default app on click); no picture under the bubble.',
+    'The review note’s path is a monospace chip (the inline-code tint, no underline) that opens the file on click; no picture under the bubble.',
     `I wrote up what changed in \`${FILE}\`.`,
     '.agent-markdown a[data-path="file"]'
   ),
   scenario(
     'outside',
     'a path outside the allowlist is plain text',
-    'The Downloads path reads as plain text in the sentence: no underline, a text cursor, nothing to click or tab to. The project path beside it is still a link.',
+    'The Downloads path is the same chip but not a link: a text cursor, nothing to click or tab to. The project path beside it is a chip that opens.',
     `I couldn’t use ${OUTSIDE}, so I used ${FILE} instead.`,
     '.agent-markdown a[data-path="outside"]:not([href])'
   ),
   scenario(
     'missing',
     'a path that isn’t there',
-    'The footer screenshot’s path is muted grey and struck through, saying “Not found on this Mac” on hover; no picture for it under the bubble, and the hero beside it still draws.',
+    'The footer screenshot’s path keeps its chip, with a muted “(missing)” beside it and “Not found on this Mac” on hover; no strikethrough, no picture for it, and the hero beside it still draws.',
     `The footer shot was at ${MISSING} but I cleaned it up; the hero is still at ${IMAGE}.`,
     '.agent-markdown a[data-path="missing"]'
   ),
