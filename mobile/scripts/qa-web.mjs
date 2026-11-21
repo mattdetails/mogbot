@@ -4669,6 +4669,73 @@ async function main() {
     await each(FIRST_RUN);
   }
 
+  if (phase('catchup-entry')) {
+    // Catch up's entry, option A (spec-catchup-entry): one card into the flow, quiet rows under it.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      const open = async (...flags) => {
+        await startMock(...flags);
+        await dropCaches(page);
+        await page.goto(`${WEB}/catch-up`);
+        await sleep(7000);
+      };
+      await open('--solo');
+      await screen(page, theme, {
+        name: 'catchup-entry-nothing',
+        check: 'Nothing waiting: no card; “All caught up”, calm, and the way to Agents',
+      });
+      await open('--catchup-one');
+      await screen(page, theme, {
+        name: 'catchup-entry-one',
+        check: 'One: “1 thing needs you”, what it is with the agent, its key, Review it; no list',
+      });
+      await open();
+      await screen(page, theme, {
+        name: 'catchup-entry-many',
+        check:
+          'Many: “N things need you”, “From N agents” (no minutes), the waiting keys, Start catching up; “Or pick one” rows with no buttons; no pill in the header',
+      });
+      // Part of a run: start, answer two, come back.
+      await page.clickText('Start catching up');
+      await page.waitFor(`/up next/i.test(document.body.innerText)`, 45000, 'the queue');
+      let answered = 0;
+      for (let i = 0; i < 20 && answered < 2; i++) {
+        if (await page.eval(`document.body.innerText.includes('Deny')`)) {
+          await sleep(2500); // a card arms a moment after it arrives
+          await page.clickText('Deny').catch(() => {});
+          answered += 1;
+          await sleep(2500);
+        } else {
+          // An approval from Up next comes to the front (a tap on its row).
+          await page
+            .clickWhere(
+              `() => [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && (e.innerText ?? '').trim() === 'Needs your OK').pop()`,
+              'an approval in Up next'
+            )
+            .catch(() => {});
+          await sleep(1200);
+        }
+      }
+      // Back in the app (a page load would forget the run).
+      await page.eval('history.back()');
+      await sleep(3000);
+      await screen(page, theme, {
+        name: 'catchup-entry-midrun',
+        check:
+          'Back part way: “N left”, “2 done · from N agents”, a thin progress bar, the remaining keys, Continue',
+      });
+      // Offline: the same card, its button off, the stale line; the rows dimmed.
+      await open();
+      await stopMock();
+      await sleep(17000);
+      await screen(page, theme, {
+        name: 'catchup-entry-offline',
+        check:
+          'Offline: the card with Start catching up off, “From hh:mm · couldn’t reach your Mac”; rows dimmed',
+      });
+    }
+  }
+
   if (phase('catchup-dir2')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);

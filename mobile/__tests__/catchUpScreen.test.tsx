@@ -65,6 +65,7 @@ jest.mock('../src/components/ConnectionPill', () => ({
 }));
 jest.mock('../src/components/AgentKey', () => ({ AgentKey: () => null }));
 
+import { endRun, startRun } from '../src/lib/catchUpEntry';
 const approval = (requestId: string, over: Partial<Approval> = {}): Approval =>
   ({ requestId, title: 'Run a command', detail: 'ls', status: 'pending', ...over }) as Approval;
 const ask = (id: string, agentId: string, ts: number, over: Partial<Approval> = {}) =>
@@ -86,6 +87,7 @@ function state(chats: Record<string, AgentMessage[]>, agents = [site, ops]) {
 }
 
 beforeEach(() => {
+  endRun();
   jest.useFakeTimers();
   mockPush.mockClear();
   mockNavigate.mockClear();
@@ -94,7 +96,7 @@ beforeEach(() => {
 afterEach(() => jest.useRealTimers());
 
 describe('Catch up', () => {
-  it('counts, groups by agent, answers a low-risk card in place and only reviews a risky one', async () => {
+  it('leads with one card into the one-at-a-time flow, then the list to pick from', async () => {
     state({
       site: [
         ask('s1', 'site', 10, { risk: 'low', title: 'List files', summary: 'List the folder' }),
@@ -104,37 +106,37 @@ describe('Catch up', () => {
     await render(<CatchUp />);
     expect(screen.getByText('2 things need you')).toBeTruthy();
     expect(screen.getByText('From 2 agents')).toBeTruthy();
-    expect(screen.getByText('Acme Site')).toBeTruthy();
-    expect(screen.getByText('Ops')).toBeTruthy();
-    // One Allow on screen: the low-risk card's. The risky one says Review.
-    expect(screen.getAllByText('Allow')).toHaveLength(1);
-    expect(screen.getByText('Review')).toBeTruthy();
-    expect(screen.getByTestId('catch-up-risky')).toBeTruthy();
+    // No estimate: the app shows only what it knows.
+    expect(screen.queryByText(/minute/)).toBeNull();
+    // The list is quiet: what each wants, no answers on it.
+    expect(screen.getByText('Or pick one')).toBeTruthy();
+    expect(screen.getByText('List files')).toBeTruthy();
+    expect(screen.getByText('Delete files')).toBeTruthy();
+    expect(screen.queryByText('Allow')).toBeNull();
+    expect(screen.queryByText('One at a time')).toBeNull();
 
-    // Allow is inert for a beat, then answers the low-risk card.
+    // The card starts the flow; a row opens it at that one.
     await act(async () => {
-      jest.advanceTimersByTime(500);
+      await fireEvent.press(screen.getByText('Start catching up'));
     });
+    expect(mockPush).toHaveBeenCalledWith('/one-at-a-time');
     await act(async () => {
-      void fireEvent.press(screen.getByText('Allow'));
+      await fireEvent.press(screen.getByText('Delete files'));
     });
-    expect(mockAnswer).toHaveBeenCalledWith('site', 's1', true, false);
-
-    // Review opens the risky one in full.
-    void fireEvent.press(screen.getByText('Review'));
     expect(mockPush).toHaveBeenCalledWith({
-      pathname: '/request',
-      params: { agent: 'ops', id: 'o1' },
+      pathname: '/one-at-a-time',
+      params: { agent: 'ops', message: 'o1' },
     });
+    expect(mockAnswer).not.toHaveBeenCalled();
   });
 
-  it('an answered card leaves, and the agent with it', async () => {
+  it('an answered card leaves: one left says what it is and Review it', async () => {
     state({
       site: [ask('s1', 'site', 10, { risk: 'low' })],
       ops: [ask('o1', 'ops', 20, { risk: 'high', title: 'Delete files' })],
     });
     await render(<CatchUp />);
-    expect(screen.getByText('Acme Site')).toBeTruthy();
+    expect(screen.getByText('2 things need you')).toBeTruthy();
     await act(async () => {
       state(
         {
@@ -144,8 +146,22 @@ describe('Catch up', () => {
         [{ ...site, pendingApprovals: 0 }, ops]
       );
     });
-    expect(screen.queryByText('Acme Site')).toBeNull();
     expect(screen.getByText('1 thing needs you')).toBeTruthy();
+    expect(screen.getByText('Ops · Delete files')).toBeTruthy();
+    expect(screen.getByText('Review it')).toBeTruthy();
+    expect(screen.queryByText('Or pick one')).toBeNull();
+  });
+
+  it('back from part of a run: what is left, what is done, Continue', async () => {
+    startRun(5);
+    state({
+      site: [ask('s1', 'site', 10)],
+      ops: [ask('o1', 'ops', 20)],
+    });
+    await render(<CatchUp />);
+    expect(screen.getByText('2 left')).toBeTruthy();
+    expect(screen.getByText('3 done · from 2 agents')).toBeTruthy();
+    expect(screen.getByText('Continue')).toBeTruthy();
   });
 
   it('all clear: says so, and hands you to Agents', async () => {

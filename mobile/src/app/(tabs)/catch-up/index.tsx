@@ -16,32 +16,17 @@
  * screen.
  */
 
-import { useLinkLive } from '../../../lib/linkLive';
-import type { Agent, AgentMessage } from '@shipstudio/companion-protocol';
-import { failurePill, previewText } from '@shipstudio/companion-protocol';
+import type { Agent } from '@shipstudio/companion-protocol';
+import { failurePill, previewText, type AgentMessage } from '@shipstudio/companion-protocol';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import ReanimatedSwipeable, {
-  type SwipeableMethods,
-} from 'react-native-gesture-handler/ReanimatedSwipeable';
-import Animated, {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
-  ReduceMotion,
-  interpolate,
-  useAnimatedStyle,
-  type SharedValue,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, LinearTransition, ReduceMotion } from 'react-native-reanimated';
 import { AgentKey } from '../../../components/AgentKey';
-import { useArmed } from '../../../components/ApprovalCard';
 import { ConnectionBar } from '../../../components/ConnectionPill';
-import { useCopyParts } from '../../../components/copy';
 import { DemoCard } from '../../../components/DemoCard';
 import { RefreshStatus } from '../../../components/RefreshStatus';
 import { Button, Icon, T, useRipple } from '../../../components/ui';
-import { AgentAccent } from '../../../lib/accent';
 import {
   agentKeyState,
   askingLine,
@@ -49,14 +34,19 @@ import {
   failedTurn,
   failureLine,
   formatAgo,
-  skillSummary,
+  formatClock,
 } from '../../../lib/agents';
-import { makeStyles, useColors, useLargeText } from '../../../lib/appearance';
+import { makeStyles, useColors } from '../../../lib/appearance';
 import {
-  fromLine,
+  endRun,
+  heroWords,
+  staleLine,
+  startRun,
+  useRun,
+  type HeroWords,
+} from '../../../lib/catchUpEntry';
+import {
   groupByAgent,
-  headline,
-  offersLine,
   FIRST_LOOK_MS,
   sinceItems,
   sinceTitle,
@@ -66,22 +56,13 @@ import { haptic } from '../../../lib/haptics';
 import { SETUP_TITLE } from '../../../lib/home';
 import { loadSeen, markSeen } from '../../../lib/landing';
 import { largeTitle } from '../../../lib/navigation';
-import {
-  answersInPlace,
-  feedItems,
-  offerCount,
-  waitingCount,
-  highRisk,
-  rowAction,
-  type FeedItem,
-} from '../../../lib/needsYou';
-import { useInFlight } from '../../../lib/once';
+import { feedItems, waitingCount, type FeedItem } from '../../../lib/needsYou';
 import { useRefresh } from '../../../lib/refresh';
-import { answerApproval, canCall, describeError, loadLatest } from '../../../lib/session';
-import { announce } from '../../../lib/a11y';
+import { canCall, loadLatest } from '../../../lib/session';
 import { useApp } from '../../../lib/store';
 import { progress as setupProgress } from '../../../lib/teamSetup';
 import {
+  catchUp as catchUpSizes,
   chromeScale,
   fonts,
   heroMark,
@@ -191,26 +172,52 @@ export default function CatchUp() {
     return { happened: day.slice(0, RECENT_MAX), recent: true };
   }, [overview, chats, since, groups]);
 
-  const screenOptions = useMemo(
-    () =>
-      largeTitle(colors, 'Catch up', {
-        headerRight:
-          items.length > 1
-            ? () => (
-                <Button
-                  title="One at a time"
-                  variant="ghost"
-                  size="compact"
-                  onPress={() => router.push('/one-at-a-time')}
-                />
-              )
-            : undefined,
-      }),
-    [colors, items.length, router]
-  );
+  // One at a time is the way to catch up: the hero card below, no header pill.
+  const screenOptions = useMemo(() => largeTitle(colors, 'Catch up'), [colors]);
 
-  // Skill offers are listed, last, but never counted: they block nothing.
-  const sub = [fromLine(groups.length), offersLine(offerCount(items))].filter(Boolean).join(' · ');
+  const waiting = waitingCount(items);
+  const run = useRun();
+  // All caught up: the next Start is a new run.
+  useEffect(() => {
+    if (waiting === 0) endRun();
+  }, [waiting]);
+  const lastSeen = useApp((s) =>
+    s.link.kind === 'reconnecting' ? s.link.lastSeenAt : s.syncedAt || 0
+  );
+  const single = items.length === 1 ? items[0] : null;
+  const singleAgent = single ? overview?.agents.find((a) => a.id === single.agentId) : undefined;
+  const singleCard = useApp((s) =>
+    single?.messageId
+      ? s.chats[single.agentId]?.messages.find((m) => m.id === single.messageId)
+      : undefined
+  );
+  const hero = heroWords(
+    waiting,
+    groups.length,
+    single && singleAgent
+      ? `${singleAgent.name} · ${rowWords(single, singleAgent, singleCard, setup ? setupProgress(setup) : null)[0]}`
+      : null,
+    run
+  );
+  const open = (at?: FeedItem) => {
+    haptic.select();
+    if (run === null || run < waiting) startRun(waiting);
+    router.push(
+      at
+        ? {
+            pathname: '/one-at-a-time',
+            params: { agent: at.agentId, ...(at.messageId ? { message: at.messageId } : {}) },
+          }
+        : '/one-at-a-time'
+    );
+  };
+  const keys = useMemo(
+    () =>
+      groups
+        .map((g) => overview?.agents.find((a) => a.id === g.agentId))
+        .filter((a): a is Agent => !!a),
+    [groups, overview]
+  );
   return (
     <>
       <Stack.Screen options={screenOptions} />
@@ -233,32 +240,46 @@ export default function CatchUp() {
         <DemoCard style={styles.top} />
         <ConnectionBar style={styles.top} />
         <View style={[styles.body, items.length === 0 && !happened.length && styles.grow]}>
-          {items.length === 0 ? (
+          {items.length === 0 || !hero ? (
             <AllClear loading={missing.length > 0} compact={happened.length > 0} />
           ) : (
-            <View style={styles.summary} accessibilityRole="header">
-              <T variant="title" color={colors.textStrong}>
-                {headline(waitingCount(items))}
-              </T>
-              {/* Offline, the connection bar above says when it last heard: not again here. */}
-              {!!sub && (
-                <T variant="small" color={colors.textSecondary}>
-                  {sub}
-                </T>
-              )}
-            </View>
+            <Animated.View entering={ENTER} layout={MOVE}>
+              <Hero
+                words={hero}
+                keys={keys}
+                live={live}
+                stale={live ? null : staleLine(lastSeen, pairedComputer().your, formatClock)}
+                onStart={() => open()}
+              />
+            </Animated.View>
           )}
-          {groups.map((g) => {
-            const agent = overview?.agents.find((a) => a.id === g.agentId);
-            if (!agent) return null;
-            return (
-              <Animated.View key={g.agentId} entering={ENTER} exiting={LEAVE} layout={MOVE}>
-                <AgentAccent agentId={agent.id}>
-                  <Group agent={agent} items={g.items} />
-                </AgentAccent>
-              </Animated.View>
-            );
-          })}
+          {items.length > 1 && (
+            <Animated.View entering={ENTER} layout={MOVE} style={styles.since}>
+              <T
+                variant="caption"
+                color={colors.textMuted}
+                style={styles.sinceTitle}
+                accessibilityRole="header"
+              >
+                Or pick one
+              </T>
+              <View style={[styles.sinceList, !live && styles.dim]}>
+                {items.map((item, i) => {
+                  const agent = overview?.agents.find((a) => a.id === item.agentId);
+                  return agent ? (
+                    <Animated.View key={item.key} entering={ENTER} exiting={LEAVE} layout={MOVE}>
+                      <PickRow
+                        item={item}
+                        agent={agent}
+                        first={i === 0}
+                        onPress={() => open(item)}
+                      />
+                    </Animated.View>
+                  ) : null;
+                })}
+              </View>
+            </Animated.View>
+          )}
           {happened.length > 0 && (
             <Animated.View entering={ENTER} layout={MOVE} style={styles.since}>
               <T
@@ -333,56 +354,128 @@ function AllClear({ loading, compact }: { loading: boolean; compact: boolean }) 
   );
 }
 
-/** One agent's waiting rows, under its key and name. */
-function Group({ agent, items }: { agent: Agent; items: FeedItem[] }) {
+/** The entry (spec-catchup-entry A): how much, from whom, and one way in. */
+function Hero({
+  words,
+  keys,
+  live,
+  stale,
+  onStart,
+}: {
+  words: HeroWords;
+  keys: Agent[];
+  live: boolean;
+  stale: string | null;
+  onStart: () => void;
+}) {
   const colors = useColors();
   const styles = useStyles();
-  const router = useRouter();
-  const ripple = useRipple();
-  const n = waitingCount(items);
   return (
-    <View style={styles.group}>
+    <View style={styles.hero} accessibilityRole="summary">
+      <View style={styles.heroText}>
+        <T style={styles.heroTitle} color={colors.textStrong} accessibilityRole="header">
+          {words.title}
+        </T>
+        {!!words.sub && (
+          <T style={styles.heroSub} color={colors.textSecondary}>
+            {words.sub}
+          </T>
+        )}
+      </View>
+      {words.progress !== null && (
+        <View style={styles.heroBar}>
+          <View
+            style={[
+              styles.heroBarFill,
+              { width: `${Math.round(words.progress * 100)}%`, backgroundColor: colors.textStrong },
+            ]}
+          />
+        </View>
+      )}
+      <View style={styles.heroKeys} accessibilityElementsHidden importantForAccessibility="no">
+        {keys.map((a) => (
+          <AgentKey
+            key={a.id}
+            id={a.id}
+            name={a.name}
+            color={a.color}
+            state={agentKeyState(a)}
+            size={catchUpSizes.heroKey}
+          />
+        ))}
+      </View>
+      <Button
+        title={words.button}
+        variant="answer"
+        size="large"
+        disabled={!live}
+        onPress={onStart}
+      />
+      {stale && (
+        <View style={styles.staleLine}>
+          <View style={[styles.staleDot, { backgroundColor: colors.textMuted }]} />
+          <T variant="small" color={colors.textSecondary}>
+            {stale}
+          </T>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** One thing waiting, quietly: its key, what it wants, who and when. No buttons. */
+function PickRow({
+  item,
+  agent,
+  first,
+  onPress,
+}: {
+  item: FeedItem;
+  agent: Agent;
+  first: boolean;
+  onPress: () => void;
+}) {
+  const colors = useColors();
+  const styles = useStyles();
+  const ripple = useRipple();
+  const setup = useApp((s) => s.teamSetup);
+  const card = useApp((s) =>
+    item.messageId
+      ? s.chats[item.agentId]?.messages.find((m) => m.id === item.messageId)
+      : undefined
+  );
+  const [title] = rowWords(item, agent, card, setup ? setupProgress(setup) : null);
+  // eslint-disable-next-line react-hooks/purity -- the clock is read in render on purpose; it only feeds a label
+  const when = formatAgo(item.ts, Date.now());
+  return (
+    <>
+      {!first && <View style={styles.divider} />}
       <Pressable
-        onPress={() => {
-          haptic.select();
-          router.push({ pathname: '/chat/[id]', params: { id: agent.id } });
-        }}
+        onPress={onPress}
         android_ripple={ripple}
         accessibilityRole="button"
-        accessibilityLabel={n ? `${agent.name}, ${n} waiting` : `${agent.name}, an offer`}
-        accessibilityHint="Opens its chat"
-        style={({ pressed }) => [styles.groupHead, pressed && PRESSED]}
+        accessibilityLabel={`${title}, ${agent.name}, ${when}`}
+        accessibilityHint="Opens it one at a time"
+        style={({ pressed }) => [styles.sinceRow, pressed && PRESSED]}
       >
         <AgentKey
           id={agent.id}
           name={agent.name}
           color={agent.color}
           state={agentKeyState(agent)}
-          size={keySize.sm}
+          size={keySize.md}
         />
-        <T
-          variant="subhead"
-          color={colors.textStrong}
-          numberOfLines={1}
-          maxFontSizeMultiplier={chromeScale}
-          style={styles.grow}
-        >
-          {agent.name}
-        </T>
-        {n > 1 && (
-          <T variant="caption" color={colors.textMuted} maxFontSizeMultiplier={chromeScale}>
-            {String(n)}
+        <View style={styles.grow}>
+          <T color={colors.textStrong} numberOfLines={1}>
+            {title}
           </T>
-        )}
+          <T variant="small" color={colors.textMuted} numberOfLines={1}>
+            {`${agent.name} · ${when}`}
+          </T>
+        </View>
         <Icon name="chevron.right" size={iconSize.inline} color={colors.textMuted} />
       </Pressable>
-      {items.map((item) => (
-        <Animated.View key={item.key} entering={ENTER} exiting={LEAVE} layout={MOVE}>
-          <View style={styles.divider} />
-          <Row item={item} agent={agent} />
-        </Animated.View>
-      ))}
-    </View>
+    </>
   );
 }
 
@@ -424,227 +517,6 @@ function rowWords(
       ];
     }
   }
-}
-
-function Row({ item, agent }: { item: FeedItem; agent: Agent }) {
-  const colors = useColors();
-  const styles = useStyles();
-  const router = useRouter();
-  const ripple = useRipple();
-  const swipe = useRef<SwipeableMethods>(null);
-  const card = useApp((s) =>
-    item.messageId
-      ? s.chats[item.agentId]?.messages.find((m) => m.id === item.messageId)
-      : undefined
-  );
-  const setup = useApp((s) => s.teamSetup);
-  const connected = useLinkLive();
-  const action = rowAction(item, card);
-  // Answered on the row only when the Mac called it low-risk and the whole
-  // of it is on the row.
-  const inline = item.kind === 'ask' && action.kind === 'answer' && answersInPlace(card);
-  const risky = item.kind === 'ask' && highRisk(card?.approval);
-  const armed = useArmed(inline, item.key);
-  const once = useInFlight();
-  const [busy, setBusy] = useState<null | 'allow' | 'deny'>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [title, said] = rowWords(item, agent, card, setup ? setupProgress(setup) : null);
-  // Answered on the row: the row shows all of what it asks (its plain line,
-  // else the exact command), never a paraphrase. Otherwise its short line,
-  // said once when it repeats the title.
-  const whole = inline
-    ? (card?.approval && skillSummary(card.approval)) ||
-      card?.approval?.summary?.trim() ||
-      card?.approval?.detail?.trim()
-    : '';
-  const line = whole || (said === title ? '' : said);
-  const copy = useCopyParts(
-    item.kind === 'keep' && card?.changes?.copy
-      ? {
-          agent,
-          copy: card.changes.copy,
-          project: card.changes.project,
-          leftOut: card.changes.leftOut,
-          warning: card.changes.warning,
-          size: 'compact',
-          onError: setError,
-        }
-      : null
-  );
-
-  const chat = () => {
-    swipe.current?.close();
-    haptic.select();
-    router.push({
-      pathname: '/chat/[id]',
-      params: { id: agent.id, ...(card ? { at: card.id } : {}) },
-    });
-  };
-  const open = () => {
-    if (item.kind === 'ask' && card) {
-      haptic.select();
-      router.push({ pathname: '/request', params: { agent: agent.id, id: card.id } });
-      return;
-    }
-    chat();
-  };
-
-  const answer = (allow: boolean) =>
-    once(async () => {
-      if (!armed || !card?.approval) return;
-      setBusy(allow ? 'allow' : 'deny');
-      setError(null);
-      try {
-        await answerApproval(agent.id, card.approval.requestId, allow, false);
-        if (allow) haptic.success();
-        else haptic.warning();
-      } catch (e) {
-        haptic.error();
-        const said = describeError(e);
-        setError(said);
-        // iOS has no live regions: say the failure, or it lands in silence.
-        announce(said);
-      } finally {
-        setBusy(null);
-      }
-    });
-
-  const when = card?.ts ?? item.ts;
-  const ago = when > 0 ? formatAgo(when) : '';
-  // Shown whole on the row and no plain line from the Mac: it's the command itself.
-  const command = !!whole && !card?.approval?.summary?.trim();
-  // One action: beside the words. Two (Deny · Allow, Discard · Keep): under them.
-  const single = !(inline && action.kind === 'answer') && !copy;
-  // At accessibility sizes the action goes under the words, which get the full width.
-  const large = useLargeText();
-  const openLabel =
-    item.kind === 'ask' && action.kind === 'answer'
-      ? 'Review'
-      : action.kind === 'open'
-        ? action.label
-        : 'Open';
-
-  return (
-    <ReanimatedSwipeable
-      ref={swipe}
-      friction={1.6}
-      overshootRight={false}
-      rightThreshold={SWIPE_W / 2}
-      onSwipeableWillOpen={() => haptic.select()}
-      renderRightActions={(progress) => <SwipeChat progress={progress} onPress={chat} />}
-    >
-      <View style={styles.row}>
-        <View style={[styles.rowMain, large && styles.rowStacked]}>
-          <Pressable
-            onPress={open}
-            android_ripple={ripple}
-            accessibilityRole="button"
-            accessibilityLabel={`${risky ? 'Risky. ' : ''}${title}. ${line}${ago ? `. ${ago}` : ''}`}
-            accessibilityHint={item.kind === 'ask' ? 'Opens the whole request' : 'Opens its chat'}
-            accessibilityActions={[{ name: 'chat', label: 'Open chat' }]}
-            onAccessibilityAction={(e) => e.nativeEvent.actionName === 'chat' && chat()}
-            style={({ pressed }) => [
-              styles.rowText,
-              large && styles.rowTextStacked,
-              pressed && PRESSED,
-            ]}
-          >
-            <View style={styles.rowTitle}>
-              {risky && (
-                <View style={styles.danger} testID="catch-up-risky">
-                  <Icon
-                    name="exclamationmark.triangle"
-                    size={iconSize.body}
-                    color={colors.accentWarning}
-                  />
-                </View>
-              )}
-              <T color={colors.textStrong} numberOfLines={large ? 6 : 2} style={styles.grow}>
-                {title}
-              </T>
-            </View>
-            {/* The exact command, as it will run, when that's all there is to show. */}
-            {!!line && (
-              <T
-                variant="small"
-                color={colors.textSecondary}
-                numberOfLines={(inline ? 4 : 2) * (large ? 2 : 1)}
-                style={command ? styles.command : undefined}
-              >
-                {line}
-              </T>
-            )}
-            {!!ago && (
-              <T variant="caption" color={colors.textMuted} maxFontSizeMultiplier={chromeScale}>
-                {ago}
-              </T>
-            )}
-          </Pressable>
-          {single && (
-            <View style={large && styles.stackedAction}>
-              <Button title={openLabel} variant="secondary" size="compact" onPress={open} />
-            </View>
-          )}
-        </View>
-        {!!error && (
-          <T variant="small" color={colors.accentErrorLight} accessibilityLiveRegion="polite">
-            {error}
-          </T>
-        )}
-        {single ? null : inline && action.kind === 'answer' ? (
-          <Animated.View
-            entering={FadeIn.duration(400).reduceMotion(ReduceMotion.System)}
-            pointerEvents={armed ? 'auto' : 'none'}
-            style={styles.answers}
-          >
-            <Button
-              title={action.deny}
-              variant="outline"
-              size="compact"
-              busy={busy === 'deny'}
-              disabled={!!busy || !connected}
-              onPress={() => void answer(false)}
-            />
-            <Button
-              title={action.allow}
-              variant="answer"
-              size="compact"
-              busy={busy === 'allow'}
-              disabled={!!busy || !connected}
-              onPress={() => void answer(true)}
-              accessibilityHint={card?.approval?.detail || undefined}
-            />
-          </Animated.View>
-        ) : (
-          <View style={styles.answers}>{copy?.actions}</View>
-        )}
-      </View>
-    </ReanimatedSwipeable>
-  );
-}
-
-/** Behind a row swiped left: its chat, at the card. */
-function SwipeChat({ progress, onPress }: { progress: SharedValue<number>; onPress: () => void }) {
-  const colors = useColors();
-  const styles = useStyles();
-  const shown = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.6, 1], [0, 0.6, 1], 'clamp'),
-  }));
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Open chat"
-      onPress={onPress}
-      style={styles.swipe}
-    >
-      <Animated.View style={[styles.swipeInner, shown]}>
-        <Icon name="bubble.left" size={iconSize.button} color={colors.textStrong} />
-        <T variant="caption" color={colors.textStrong} maxFontSizeMultiplier={chromeScale}>
-          Chat
-        </T>
-      </Animated.View>
-    </Pressable>
-  );
 }
 
 /** One thing that happened: a result, a routine, a turn that didn't finish, new replies. */
@@ -749,6 +621,26 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: 'center',
     backgroundColor: colors.surfaceControl,
   },
+  hero: {
+    gap: space.lg,
+    padding: catchUpSizes.heroPad,
+    borderRadius: radius.hero,
+    backgroundColor: colors.surfacePanel,
+  },
+  heroText: { gap: space.xs },
+  heroTitle: { fontFamily: fonts.semibold, fontSize: catchUpSizes.heroTitle },
+  heroSub: { fontSize: catchUpSizes.heroSub },
+  heroKeys: { flexDirection: 'row', flexWrap: 'wrap', gap: catchUpSizes.heroKeyGap },
+  heroBar: {
+    height: catchUpSizes.heroBar,
+    borderRadius: radius.pill,
+    backgroundColor: colors.borderSubtle,
+    overflow: 'hidden',
+  },
+  heroBarFill: { height: catchUpSizes.heroBar, borderRadius: radius.pill },
+  staleLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  staleDot: { width: space.tight, height: space.tight, borderRadius: radius.pill },
+  dim: { opacity: catchUpSizes.staleDim },
   since: { gap: space.sm },
   sinceTitle: { paddingHorizontal: space.xs },
   sinceList: {
