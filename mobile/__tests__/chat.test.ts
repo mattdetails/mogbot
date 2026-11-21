@@ -207,11 +207,11 @@ describe('contextual actions', () => {
     expect(toggleFor('markUnread')).toBeNull();
   });
 
-  it('offers Copy, Quote and Select text on words, never on cards', () => {
+  it('offers Copy first, then Quote (no replies on this Mac) and Select text last; never on cards', () => {
     expect(messageActions(msg('m', 1, { text: '**Done.** See `a.ts`' })).map((a) => a.id)).toEqual([
       'copy',
-      'copyMarkdown',
       'quote',
+      'copyMarkdown',
       'select',
     ]);
     expect(messageActions(msg('m', 1, { kind: 'user', text: 'hi' })).map((a) => a.id)).toEqual([
@@ -221,6 +221,27 @@ describe('contextual actions', () => {
     ]);
     expect(messageActions(msg('m', 1, { kind: 'approval', text: 'Run it?' }))).toEqual([]);
     expect(messageActions(msg('m', 1, { text: '  ' }))).toEqual([]);
+  });
+
+  it('in the spec’s order on a Mac that takes replies and goes back (message-actions spec)', () => {
+    const titles = (m: Parameters<typeof messageActions>[0]) =>
+      messageActions(m, true, true, true).map((a) => a.title);
+    expect(titles(msg('m', 1, { kind: 'user', text: 'Fix it' }))).toEqual([
+      'Copy',
+      'Reply',
+      'Edit and resend',
+      'Fork from here',
+      'Rewind to here',
+      'Remember this',
+      'Select text',
+    ]);
+    expect(titles(msg('m', 1, { text: 'Done, see `a.ts`' }))).toEqual([
+      'Copy',
+      'Reply',
+      'Copy as Markdown',
+      'Remember this',
+      'Select text',
+    ]);
   });
 
   it('offers Remember this only where the Mac serves memory', () => {

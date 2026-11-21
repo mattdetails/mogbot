@@ -47,12 +47,12 @@ describe('the three ways back on a long-press', () => {
     expect(ids({ kind: 'user', text: 'Fix it' }, true)).toEqual([
       'copy',
       'quote',
-      'select',
       'edit',
       'fork',
       'rewind',
+      'select',
     ]);
-    expect(messageActions({ kind: 'user', text: 'x' }, false, true).slice(-3)).toEqual([
+    expect(messageActions({ kind: 'user', text: 'x' }, false, true).slice(2, 5)).toEqual([
       { id: 'edit', title: 'Edit and resend', icon: 'pencil' },
       { id: 'fork', title: 'Fork from here', icon: 'arrow.triangle.branch' },
       { id: 'rewind', title: 'Rewind to here', icon: 'arrow.uturn.left' },

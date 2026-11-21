@@ -905,7 +905,10 @@ const holdMessage = async (page, start) => {
     if (!el) return null;
     el.scrollIntoView({ block: 'center' });
     const r = el.getBoundingClientRect();
-    return { x: r.x + Math.min(r.width / 2, 120), y: r.y + Math.min(r.height / 2, 20) };
+    // On the part of it that's on screen (a message taller than the screen has its top off it).
+    const top = Math.max(r.y, 90);
+    const bottom = Math.min(r.y + r.height, innerHeight - 160);
+    return { x: r.x + Math.min(r.width / 2, 120), y: Math.min(top + 20, (top + bottom) / 2) };
   })()`);
   if (!box) throw new Error(`No message to hold: ${start}`);
   await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...box });
@@ -4667,6 +4670,96 @@ async function main() {
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
     await sleep(4000);
     await each(FIRST_RUN);
+  }
+
+  if (phase('message-sheet')) {
+    // The long-press sheet (message-actions spec): your message, a reply with
+    // code and links, a very long one; and neither a scroll nor a swipe opens it.
+    const open = (what) => `/${what}/i.test(document.body.innerText)`;
+    const sheetUp = () => page.eval(`/Select text/.test(document.body.innerText)`);
+    // The sheet's own backdrop ("Close menu") closes it.
+    // The web build's sheet doesn't take a synthetic tap outside it: the chat
+    // is opened again instead, so every case starts with no sheet up.
+    const close = async () => {
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(5000);
+      if (await sheetUp()) throw new Error('The sheet would not close');
+    };
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--replies', '--sheet-messages');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(7000);
+      await holdMessage(page, 'Is this the right sheet?');
+      await screen(page, theme, {
+        name: 'sheet-yours',
+        check:
+          'Your message held: Copy, Reply, Edit and resend, Fork from here, Rewind to here, Remember this, Select text; the time it was sent as the title',
+      });
+      await close();
+      await holdMessage(page, 'Fixed it. The change');
+      await screen(page, theme, {
+        name: 'sheet-agent-code',
+        check:
+          'A reply with code and links held: Copy, Reply, Copy as Markdown, Remember this, Select text',
+      });
+      await close();
+      await holdMessage(page, 'Here is everything');
+      await screen(page, theme, {
+        name: 'sheet-long',
+        check: 'A very long message held: the same sheet, nothing cut off',
+      });
+      await close();
+      // A finger that moves (a scroll) never opens it.
+      const box = await page.eval(`(() => {
+        const el = [...document.querySelectorAll('[tabindex="0"]')].filter((e) => (e.innerText ?? '').trim().startsWith('Fixed it. The change')).pop();
+        if (!el) return null;
+        el.scrollIntoView({ block: 'center' });
+        const r = el.getBoundingClientRect();
+        return { x: r.x + 60, y: r.y + 20 };
+      })()`);
+      if (box) {
+        const at = (type, y, buttons) =>
+          page.send('Input.dispatchMouseEvent', {
+            type,
+            x: box.x,
+            y,
+            button: 'left',
+            buttons,
+            clickCount: 1,
+          });
+        await at('mousePressed', box.y, 1);
+        for (let i = 1; i <= 8; i++) {
+          await at('mouseMoved', box.y - i * 30, 1);
+          await sleep(30);
+        }
+        await sleep(600);
+        await at('mouseReleased', box.y - 240, 0);
+        await sleep(800);
+      }
+      const afterScroll = await sheetUp();
+      console.log(
+        `[qa:web] long-press after a scroll-drag: ${afterScroll ? 'OPENED (bad)' : 'not opened'}`
+      );
+      await screen(page, theme, {
+        name: 'sheet-not-on-scroll',
+        check: 'A drag up the chat (a scroll) held past 300 ms: no sheet',
+      });
+      if (afterScroll) await close();
+      // A swipe to reply sets a reply, never the sheet.
+      await dragMessage(page, 'Is this the right sheet?', 70).catch(() => {});
+      await sleep(600);
+      const afterSwipe = await sheetUp();
+      console.log(
+        `[qa:web] long-press after a swipe: ${afterSwipe ? 'OPENED (bad)' : 'not opened'}`
+      );
+      await screen(page, theme, {
+        name: 'sheet-not-on-swipe',
+        check: 'A swipe right on your message: the reply line in the box, no sheet',
+      });
+      void open;
+    }
   }
 
   if (phase('catchup-dir2')) {

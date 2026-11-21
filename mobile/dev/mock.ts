@@ -103,6 +103,7 @@ function selfSigned(dir: string) {
     probe: args.includes('--probe'),
     restarted: args.includes('--restarted'),
     lostPictures: args.includes('--lost-pictures'),
+    sheetMessages: args.includes('--sheet-messages'),
     ...(['pending', 'allowed', 'published'].includes(arg('--store') ?? '')
       ? { store: arg('--store') as 'pending' | 'allowed' | 'published' }
       : {}),
