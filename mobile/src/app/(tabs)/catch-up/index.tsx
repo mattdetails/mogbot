@@ -719,7 +719,8 @@ const useStyles = makeStyles((colors) => ({
     alignItems: 'center',
     gap: catchUpSizes.heroKeyGap,
     alignSelf: 'stretch',
-    overflow: 'hidden',
+    // No overflow clip: a key's cap and shadow would be cut flat at the row's edge.
+    paddingVertical: 2,
   },
   heroBar: {
     height: catchUpSizes.heroBar,

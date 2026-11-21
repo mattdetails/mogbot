@@ -4669,6 +4669,34 @@ async function main() {
     await each(FIRST_RUN);
   }
 
+  if (phase('catchup-wide')) {
+    // Catch up with the waiting keys, long titles and many rows: nothing wider than the screen, no clipped heading.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--heavy');
+      await dropCaches(page);
+      await page.goto(`${WEB}/catch-up`);
+      await sleep(8000);
+      const wide = await page.eval(`(() => {
+        const vw = document.documentElement.clientWidth;
+        let max = 0, who = '';
+        for (const e of document.querySelectorAll('body *')) {
+          const r = e.getBoundingClientRect();
+          if (r.width > 0 && r.right > max) { max = r.right; who = (e.innerText || e.tagName).slice(0, 40); }
+        }
+        return { vw, max: Math.round(max), who, sw: document.documentElement.scrollWidth };
+      })()`);
+      console.log(
+        `[qa:web] catch-up width: viewport ${wide.vw}, rightmost ${wide.max} (${wide.who}), scrollWidth ${wide.sw}`
+      );
+      await screen(page, theme, {
+        name: 'catchup-wide',
+        check:
+          'Nothing past the right margin; the heading whole (no clipped glyph tops); keys on one line with +N; titles one line, ellipsised',
+      });
+    }
+  }
+
   if (phase('catchup-entry')) {
     // Catch up's entry, option A (spec-catchup-entry): one card into the flow, quiet rows under it.
     for (const theme of THEMES) {
