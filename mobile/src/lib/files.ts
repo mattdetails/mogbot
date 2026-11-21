@@ -159,24 +159,41 @@ export const http: HttpAdapter = {
     if (info.exists && info.size) return { status: 200, uri: dest };
     await FileSystem.makeDirectoryAsync(CACHE, { intermediates: true }).catch(() => {});
     // Straight to disk (any size), with how far it's got.
+    let written = 0;
+    let expected = -1;
     const task = FileSystem.createDownloadResumable(
       url,
       dest,
       { headers },
-      ({ totalBytesWritten, totalBytesExpectedToWrite }) =>
+      ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
+        written = totalBytesWritten;
+        expected = totalBytesExpectedToWrite;
         onProgress?.(
           totalBytesWritten,
           totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : null
-        )
+        );
+      }
     );
     const res = await task.downloadAsync().catch(async (e: unknown) => {
       await FileSystem.deleteAsync(dest, { idempotent: true });
       throw e;
     });
-    if (!res || res.status !== 200) await FileSystem.deleteAsync(dest, { idempotent: true });
-    return { status: res?.status ?? 0, uri: res?.uri ?? dest };
+    if (!res || res.status !== 200) {
+      await FileSystem.deleteAsync(dest, { idempotent: true });
+      return { status: res?.status ?? 0, uri: res?.uri ?? dest };
+    }
+    // Ended before the length the Mac gave: not the file, so never kept.
+    if (expected > 0 && written < expected) {
+      await FileSystem.deleteAsync(dest, { idempotent: true });
+      throw new Error(shortDownload(written, expected));
+    }
+    return { status: res.status, uri: res.uri };
   },
 };
+
+/** A download that stopped part way, in words. */
+export const shortDownload = (got: number, of: number) =>
+  `The file stopped at ${formatSize(got)} of ${formatSize(of)}. Try again.`;
 
 /** Standard base64, as expo-file-system reads and writes it, from bytes. */
 const toBase64 = (bytes: Uint8Array) => {

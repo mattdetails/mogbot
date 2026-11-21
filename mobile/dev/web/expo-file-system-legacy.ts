@@ -69,6 +69,32 @@ export async function downloadAsync(
   return { status: res.status, uri: dest, headers: {} };
 }
 
+/** A download that says how far it has got (the file chip's "4.2 MB of 20 MB"). */
+export function createDownloadResumable(
+  url: string,
+  dest: string,
+  opts?: { headers?: Record<string, string> },
+  onProgress?: (p: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void
+) {
+  return {
+    async downloadAsync() {
+      const res = await fetch(url, { headers: opts?.headers });
+      const total = Number(res.headers.get('content-length') ?? -1);
+      const reader = res.body?.getReader();
+      let written = 0;
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        written += value.length;
+        onProgress?.({ totalBytesWritten: written, totalBytesExpectedToWrite: total });
+      }
+      // Only a marker is kept: localStorage can't hold a video.
+      if (res.status === 200) local.set(P + dest, `downloaded ${written} bytes`);
+      return { status: res.status, uri: dest, headers: {} };
+    },
+  };
+}
+
 export function createUploadTask(
   url: string,
   _file: string,

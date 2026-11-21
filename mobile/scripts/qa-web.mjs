@@ -4669,6 +4669,48 @@ async function main() {
     await each(FIRST_RUN);
   }
 
+  if (phase('file-chip')) {
+    // A big file an agent sent: the chip while it downloads, done, and cut off.
+    const NAME = 'launch-walkthrough.mp4';
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--big-file');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(6000);
+      await scrollToIncludes(NAME)(page).catch(() => {});
+      await sleep(700);
+      await screen(page, theme, {
+        name: 'file-chip-rest',
+        check: 'The video as a file chip: MP4 badge, its name, “20 MB”',
+      });
+      await page.clickText(NAME);
+      await sleep(3500);
+      await screen(page, theme, {
+        name: 'file-chip-progress',
+        check: 'Downloading: a spinner on the badge, “6.0 MB of 20 MB” counting up under the name',
+      });
+      await sleep(10000);
+      await screen(page, theme, {
+        name: 'file-chip-done',
+        check: 'Done: the chip as at rest (the viewer opens on a phone; the web has none)',
+      });
+      await startMock('--big-file-cut');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(6000);
+      await scrollToIncludes(NAME)(page).catch(() => {});
+      await sleep(700);
+      await page.clickText(NAME);
+      await sleep(4800);
+      await screen(page, theme, {
+        name: 'file-chip-failed',
+        check:
+          'Cut off part way: the chip back at rest and the chat’s note saying it couldn’t be fetched',
+      });
+    }
+  }
+
   if (phase('catchup-dir2')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);

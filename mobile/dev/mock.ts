@@ -103,6 +103,11 @@ function selfSigned(dir: string) {
     probe: args.includes('--probe'),
     restarted: args.includes('--restarted'),
     lostPictures: args.includes('--lost-pictures'),
+    ...(args.includes('--big-file-cut')
+      ? { bigFile: 'cut' as const }
+      : args.includes('--big-file')
+        ? { bigFile: 'slow' as const }
+        : {}),
     ...(['pending', 'allowed', 'published'].includes(arg('--store') ?? '')
       ? { store: arg('--store') as 'pending' | 'allowed' | 'published' }
       : {}),
