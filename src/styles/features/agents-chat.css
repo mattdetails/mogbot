@@ -120,6 +120,11 @@
 /* The quiet header: who this is, one button (key 24, the name 15/600 on one
    line, ⌄, the hint dot), 32 tall, 6px corners; hover fills it, open selects
    it. The list behind it is the conversation switcher for now. */
+.agent-chat__paused {
+  flex: none;
+  margin-inline-start: var(--spacing-sm);
+}
+
 .agent-chat__quiet {
   display: flex;
   min-width: 0;

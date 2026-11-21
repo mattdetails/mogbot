@@ -69,7 +69,7 @@ const scenario = (
   looksRightWhen: string,
   tasks: { doing?: string; toDo: number; waits: number } | undefined,
   board: unknown,
-  { commands: extraCommands, ...more }: Partial<Scenario> = {}
+  { commands: extraCommands, pausedAgent, ...more }: Partial<Scenario> & { pausedAgent?: boolean } = {}
 ): Scenario => ({
   id: `agents-tasks-${id}`,
   title: `Agents — ${title}`,
@@ -84,6 +84,7 @@ const scenario = (
         role: 'Drafts and sends the intro emails.',
         minutesAgo: 3,
         ...(tasks ? { tasks } : {}),
+        ...(pausedAgent ? { paused: true } : {}),
       }),
     ]),
     agents_messages: () => [msg('user', 'Draft the intros.', 9, { agentId: ID })],
@@ -95,7 +96,12 @@ const scenario = (
 });
 
 /** The sidebar's three task sub lines (DRYRUN-MISSING.md): 5 to do, Idle, 14 to do · Busy. */
-function sidebarRow(id: string, title: string, looksRightWhen: string): Scenario {
+function sidebarRow(
+  id: string,
+  title: string,
+  looksRightWhen: string,
+  paused = false
+): Scenario {
   return {
     id,
     title,
@@ -111,7 +117,7 @@ function sidebarRow(id: string, title: string, looksRightWhen: string): Scenario
           minutesAgo: 3,
           tasks: { toDo: 5, waits: 0 },
         }),
-        agent('mail', 'Mail', { color: 'blue', minutesAgo: 20 }),
+        agent('mail', 'Mail', { color: 'blue', minutesAgo: 20, ...(paused ? { paused: true } : {}) }),
         agent('scout', 'Scout', {
           color: 'orange',
           minutesAgo: 1,
@@ -217,6 +223,86 @@ export const agentsTasksScenarios: Scenario[] = [
     { steps: [{ click: '.agent-chat__more' }, { wait: 400 }], requires: '.agent-menu' }
   ),
 
+  scenario(
+    'menu-pause',
+    'the agent menu, Pause this agent',
+    'In the ⋯ menu, above the red Delete this agent, one row “Pause this agent” with a pause icon, in the same ink as Take over; nothing amber or red on it.',
+    { doing: 'Drafting intros', toDo: 2, waits: 1 },
+    LOAD(OPEN, RECENT),
+    { steps: [{ click: '.agent-chat__more' }, { wait: 400 }], requires: '.agent-menu' }
+  ),
+  scenario(
+    'menu-resume',
+    'the agent menu, a paused agent',
+    'The same row reads “Resume” with a play icon and “Paused” muted at the right; the rest of the menu is unchanged.',
+    { doing: 'Drafting intros', toDo: 2, waits: 1 },
+    LOAD(OPEN, RECENT),
+    {
+      steps: [{ click: '.agent-chat__more' }, { wait: 400 }],
+      requires: '.agent-menu',
+      pausedAgent: true,
+    }
+  ),
+  scenario(
+    'header-paused',
+    'the chat header, a paused agent',
+    'Beside the agent’s name a grey “Paused” tag (neutral wash, ordinary ink), the same tag and word the phone uses; nothing amber or red.',
+    undefined,
+    LOAD([], []),
+    { requires: '.agent-chat__paused', pausedAgent: true }
+  ),
+  sidebarRow(
+    'agents-sidebar-row-paused',
+    'Agents sidebar row, a paused agent',
+    'The paused agent’s row says “Paused” in a grey tag in place of its task line; the other rows are unchanged.',
+    true
+  ),
+  // ---- “＋ Add a task” at the foot of the panel (Designer's G-6) ----
+  scenario(
+    'add',
+    'the task panel, Add a task at rest',
+    'At the foot of the panel a quiet “＋ Add a task” in muted ink, left-aligned under the last group; no button chrome, no accent.',
+    { doing: 'Drafting intros', toDo: 2, waits: 1 },
+    LOAD(OPEN, RECENT),
+    { steps: [...OPEN_TASKS], requires: '.agent-tasks__add-row' }
+  ),
+  scenario(
+    'add-typing',
+    'the task panel, Add a task typing',
+    'The row has become one field with “What needs doing?” and, typed, the words as written; the field keeps the neutral focus ring (never the accent).',
+    { doing: 'Drafting intros', toDo: 2, waits: 1 },
+    LOAD(OPEN, RECENT),
+    {
+      steps: [
+        ...OPEN_TASKS,
+        { click: '.agent-tasks__add-row' },
+        { fill: '.agent-tasks__add-input', value: 'Book the venue for March' },
+        { wait: 300 },
+      ],
+      requires: '.agent-tasks__add-input',
+    }
+  ),
+  scenario(
+    'added',
+    'the task panel, after Add a task',
+    'The new line is in Next, in the words typed, “you asked …”; the field is back to “＋ Add a task”, and the header says one more to do.',
+    { doing: 'Drafting intros', toDo: 3, waits: 1 },
+    // The board as it reads once the add has landed.
+    LOAD([...OPEN.slice(0, 3), task('n1', 'Book the venue for March', 'next', 0), OPEN[3]], RECENT),
+    {
+      steps: [
+        ...OPEN_TASKS,
+        { click: '.agent-tasks__add-row' },
+        { fill: '.agent-tasks__add-input', value: 'Book the venue for March' },
+        { key: 'Enter' },
+        { wait: 700 },
+      ],
+      requires: '.agent-tasks__add-row',
+      commands: {
+        agents_task_add: () => task('n1', 'Book the venue for March', 'next', 0),
+      },
+    }
+  ),
   // ---- Fidelity QA's gate: the task data states (DRYRUN-MISSING.md, Chief Brain) ----
   scenario(
     'dropped',

@@ -47,7 +47,7 @@ Your phone checks that it's really talking to your computer before it sends anyt
 from a different computer than the one you paired with, it says it isn't
 yours and stops.
 
-A short drop is silent: the phone reconnects in the background, keeps showing what it had, and holds what you send until your computer answers. Only after about three minutes without a connection does it say so. Then it shows a short checklist of what to look at: the computer awake
+A short drop is silent: the phone reconnects in the background, keeps showing what it had, and holds what you send until your computer answers. Through the relay the conversation itself carries on across the drop: when the connection comes back it picks up the same session, so nothing you or your agent sent is lost or repeated, and you aren't asked to sign in again. Only after about three minutes without a connection does it say so. Then it shows a short checklist of what to look at: the computer awake
 with the app open, Tailscale on with the same account (when you use Tailscale), and the phone
 paired.
 
