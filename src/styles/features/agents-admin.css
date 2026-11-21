@@ -21,7 +21,8 @@
 }
 
 .agent-admin-settings__heading {
-  margin: var(--spacing-md) 0 var(--spacing-xs);
+  /* 16px above a section's label, 4px between the label and its card. */
+  margin: var(--spacing-lg) 0 var(--spacing-xs);
   font-size: var(--font-size-label);
   font-weight: var(--font-weight-label);
   color: var(--text-secondary);
@@ -56,9 +57,32 @@
   color: var(--text-secondary);
 }
 
-/* Recently deleted's rows start flush under their heading, as a group's do. */
-.agent-admin-settings__heading + .settings-section > .settings-row:first-child {
-  padding-top: 0;
+/* Recently deleted is the same card as Admins above it (the group's card:
+   inset, surface, radius, no border). Its rows take the group's own spacing,
+   so they start where Admins' rows do. Rows get no hairline between them. */
+.settings-group .agent-admin-deleted > .settings-row::before,
+.settings-group .agent-admin-deleted > .settings-row + .settings-row::before {
+  display: none;
+}
+
+/* No hairlines between rows, in Admins or Recently deleted (the two cards
+   match): the rows' fill and hover carry the grouping, not a line. The note
+   under the Admins rows keeps its own separator, which is not a row's. */
+.settings-group.agent-admin-settings .settings-row::before {
+  display: none;
+}
+
+/* The separator above the Admins note runs from the note's text inset to the
+   toggles' right edge: the same inset on both sides, not out to the card's edge. */
+.settings-group.agent-admin-settings .settings-section > .agent-admin-settings__note::before {
+  right: 0;
+}
+
+/* A list or an empty line in a card is not a row: it takes no hairline across
+   its top (the group draws one above every non-row child). */
+.settings-group .settings-section > .agent-admin-activity::before,
+.settings-group .settings-section > .agent-admin-settings__empty::before {
+  display: none;
 }
 
 .agent-admin-activity__who {

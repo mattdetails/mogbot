@@ -103,6 +103,27 @@ const TWO_CLAUDE = [
   },
 ];
 
+const DELETED_TWO = [
+  {
+    id: 'kite',
+    name: 'Kite Watch',
+    role: 'Watches the kite shop',
+    color: 'teal',
+    deletedAt: Date.now() - 60 * 60_000,
+    restorableUntil: Date.now() + 29 * 86_400_000 - 60 * 60_000,
+    deletedBy: { id: 'chief', name: 'Chief of Staff' },
+  },
+  {
+    id: 'sales',
+    name: 'Sales Digest',
+    role: 'Sends the weekly digest',
+    color: 'orange',
+    deletedAt: Date.now() - 3 * 60 * 60_000,
+    restorableUntil: Date.now() + 27 * 86_400_000,
+    deletedBy: { id: 'chief', name: 'Chief of Staff' },
+  },
+];
+
 export const agentsDesktopScenarios: Scenario[] = [
   {
     id: 'agents-quit-guard',
@@ -455,17 +476,54 @@ export const agentsDesktopScenarios: Scenario[] = [
           action: 'Deleted Kite Watch · in Recently deleted for 30 days',
         },
       ],
-      agents_recently_deleted: [
-        {
-          id: 'kite',
-          name: 'Kite Watch',
-          role: 'Watches the kite shop',
-          color: 'teal',
-          deletedAt: Date.now() - 60 * 60_000,
-          restorableUntil: Date.now() + 29 * 86_400_000 - 60 * 60_000,
-          deletedBy: { id: 'chief', name: 'Chief of Staff' },
-        },
-      ],
+      agents_recently_deleted: DELETED_TWO,
+    },
+  },
+  {
+    id: 'settings-agents-deleted',
+    title: 'Settings — Recently deleted: the card, its rows, Restore',
+    looksRightWhen:
+      'Under Recently deleted, a card with its full 1px border and rounded corners at all four corners. Its first row sits 12px below the card’s top edge, like every other row: no text touches the top. Two rows, no hairline between them; Kite Watch and Sales Digest each with a muted line (“Deleted by Chief of Staff · Restorable for 29 more days”) and an outline Restore on the right. The label “Recently deleted” clears the card by 4px.',
+    command: 'agents.admins',
+    requires: '.agent-admin-deleted .settings-row',
+    clipSelector: 'section[aria-labelledby="agents-settings-admins"]',
+    commands: {
+      agents_overview: overview(TEAM),
+      agents_desktop_settings: DESKTOP_SETTINGS,
+      agents_admin_activity: [],
+      agents_recently_deleted: DELETED_TWO,
+    },
+  },
+  {
+    id: 'settings-agents-deleted-narrow',
+    title: 'Settings — Recently deleted in an 800px window',
+    looksRightWhen:
+      'The same card at 800px wide: full border and corners, the first row clear of the top edge, no hairlines between rows, Restore on each row’s right.',
+    command: 'agents.admins',
+    requires: '.agent-admin-deleted .settings-row',
+    clipSelector: 'section[aria-labelledby="agents-settings-admins"]',
+    viewport: { width: 800, height: 900 },
+    commands: {
+      agents_overview: overview(TEAM),
+      agents_desktop_settings: DESKTOP_SETTINGS,
+      agents_admin_activity: [],
+      agents_recently_deleted: DELETED_TWO,
+    },
+  },
+  {
+    id: 'settings-agents-deleted-1440',
+    title: 'Settings — Admins and Recently deleted at 1440px',
+    looksRightWhen:
+      'At 1440px: the Admins card and the Recently deleted card share one inset and edge; no hairlines between rows; the separator above the Admins note ends at the toggles’ right edge.',
+    command: 'agents.admins',
+    requires: '.agent-admin-deleted .settings-row',
+    clipSelector: 'section[aria-labelledby="agents-settings-admins"]',
+    viewport: { width: 1440, height: 1000 },
+    commands: {
+      agents_overview: overview(TEAM),
+      agents_desktop_settings: DESKTOP_SETTINGS,
+      agents_admin_activity: [],
+      agents_recently_deleted: DELETED_TWO,
     },
   },
   {
