@@ -1572,7 +1572,13 @@ async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_ch
     let fingerprint = c.registry.identity().unwrap().fingerprint();
     let (_record, token, _) = c
         .registry
-        .add(&device(), String::new(), now_ms() as i64, &[], Some("j@x.com".into()))
+        .add(
+            &device(),
+            String::new(),
+            now_ms() as i64,
+            &[],
+            Some("j@x.com".into()),
+        )
         .unwrap();
     {
         let mut all = stub.messages.lock().unwrap();
@@ -1592,7 +1598,10 @@ async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_ch
     let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
     let link = Arc::new(Link::default());
     let (stop_tx, stop_rx) = oneshot::channel();
-    let cfg = Config { base: relay.base(), port: Some(port) };
+    let cfg = Config {
+        base: relay.base(),
+        port: Some(port),
+    };
     tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
     until("the link", || link.status().state == RelayState::Connected).await;
     let route = link.route().unwrap();
@@ -1634,4 +1643,3 @@ async fn a_chat_past_the_payload_limit_read_over_the_relay_is_trimmed_and_the_ch
     assert_eq!(again["ok"], true);
     stop_tx.send(()).unwrap();
 }
-
