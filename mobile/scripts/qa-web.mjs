@@ -4697,6 +4697,10 @@ async function main() {
       });
       await startMock('--big-file-cut');
       await dropCaches(page);
+      // The first run's download is in the web stand-in's cache: forget it, or it just opens.
+      await page.eval(
+        `Object.keys(localStorage).filter((k) => k.includes('launch-walkthrough')).forEach((k) => localStorage.removeItem(k))`
+      );
       await page.goto(`${WEB}/chat/design`);
       await sleep(6000);
       await scrollToIncludes(NAME)(page).catch(() => {});
