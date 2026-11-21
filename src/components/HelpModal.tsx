@@ -431,7 +431,7 @@ export function HelpModal({ projectPath }: HelpModalProps) {
             </TabsTab>
           </TabsList>
 
-          <TabsPanel value="shortcuts" className="help-modal-body">
+          <TabsPanel value="shortcuts" className="help-modal-body" tabIndex={0}>
             {groups.map((group, groupIndex) => (
               <div key={group.title}>
                 {groupIndex > 0 && <div className="help-divider" />}
@@ -460,7 +460,7 @@ export function HelpModal({ projectPath }: HelpModalProps) {
             ))}
           </TabsPanel>
 
-          <TabsPanel value="commands" className="help-modal-body">
+          <TabsPanel value="commands" className="help-modal-body" tabIndex={0}>
             {/* Custom Skills Section - shown first if user has any */}
             {skills.length > 0 && (
               <>

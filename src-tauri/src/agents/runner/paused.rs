@@ -34,7 +34,9 @@ pub(super) fn fate(m: &Inbound) -> Fate {
 }
 
 fn path(agent_id: &str) -> Option<std::path::PathBuf> {
-    store::agent_home(agent_id).ok().map(|h| h.join("held.json"))
+    store::agent_home(agent_id)
+        .ok()
+        .map(|h| h.join("held.json"))
 }
 
 fn with_held<T>(agent_id: &str, f: impl FnOnce(&mut Vec<Inbound>) -> T) -> T {
@@ -70,12 +72,18 @@ pub(super) fn gate(app: &AppHandle, agent_id: &str, m: Inbound) -> Option<Inboun
     match fate(&m) {
         Fate::Run => Some(m),
         Fate::Hold => {
-            tracing::info!(agent = agent_id, "[Agents] a message for a paused agent is held until Resume");
+            tracing::info!(
+                agent = agent_id,
+                "[Agents] a message for a paused agent is held until Resume"
+            );
             with_held(agent_id, |held| held.push(m));
             None
         }
         Fate::Refuse => {
-            tracing::info!(agent = agent_id, "[Agents] a routine firing for a paused agent is refused");
+            tracing::info!(
+                agent = agent_id,
+                "[Agents] a routine firing for a paused agent is refused"
+            );
             super::control::tell_dropped(app, agent_id, vec![m], Dropped::Stopped);
             None
         }

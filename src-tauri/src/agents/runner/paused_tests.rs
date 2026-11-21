@@ -70,8 +70,13 @@ fn held_messages_survive_a_restart_and_come_back_in_order() {
     // A fresh process reads the file: drop the in-memory copy.
     HELD.lock().unwrap().as_mut().unwrap().remove("p1");
     assert_eq!(held_count("p1"), 2);
-    let ids: Vec<String> = with_held("p1", |h| std::mem::take(h).into_iter().map(|m| m.id).collect());
+    let ids: Vec<String> = with_held("p1", |h| {
+        std::mem::take(h).into_iter().map(|m| m.id).collect()
+    });
     assert_eq!(ids, ["a", "b"]);
-    assert!(!store::agent_home("p1").unwrap().join("held.json").exists(), "nothing held: no file");
+    assert!(
+        !store::agent_home("p1").unwrap().join("held.json").exists(),
+        "nothing held: no file"
+    );
     store::set_root_for_tests(None);
 }

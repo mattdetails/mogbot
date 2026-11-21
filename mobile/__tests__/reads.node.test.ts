@@ -230,7 +230,7 @@ it('on reconnecting, what the screen waits for is not held behind ten chats read
   expect(slowest(after)).toBeLessThan(slowest(before) / 2);
   // And every chat is still read, in about the same time overall.
   expect(Math.max(...Object.values(after))).toBeLessThan(Math.max(...Object.values(before)) + 500);
-  console.log(
+  console.warn(
     `[reconnect] screen's reads answered by ${Math.round(slowest(before))} ms before, ${Math.round(
       slowest(after)
     )} ms after; last chat page ${Math.round(Math.max(...Object.values(before)))} -> ${Math.round(

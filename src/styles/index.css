@@ -146,6 +146,7 @@
 @import './features/agents-team.css';
 @import './features/agents-routines.css';
 @import './features/agents-requests.css';
+@import './features/agents-catchup-v3.css';
 @import './features/agents-new-agent.css';
 @import './features/agents-team-setup.css';
 @import './features/agents-motion.css';
