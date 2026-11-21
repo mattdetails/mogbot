@@ -155,6 +155,82 @@ fn summary(kind: &'static str, due: Due) {
         max_ms = due.max_ms,
         "[Timing] reads in the last minute"
     );
+    mac_short_of_memory(Instant::now());
+}
+
+/// When the Mac itself was last said to be short of memory.
+static MAC_SAID: Mutex<Option<Instant>> = Mutex::new(None);
+/// Said at most this often.
+const MAC_EVERY: Duration = Duration::from_secs(600);
+
+/// The Mac short of memory: swap 80% full or more, or the load past twice
+/// the cores. Then every app stalls coming back from idle while its pages
+/// are read back in, and this line tells that apart from the app's own
+/// slowness (21 Nov: swap 63.9 of 64.5 GB, load 30, Mogbot 670 of its
+/// 678 MB compressed). At most once in `MAC_EVERY`, from the per-minute
+/// rollup: two syscalls, no timer of its own.
+fn mac_short_of_memory(now: Instant) {
+    {
+        let mut said = MAC_SAID.lock().unwrap_or_else(|e| e.into_inner());
+        if said.is_some_and(|at| now.duration_since(at) < MAC_EVERY) {
+            return;
+        }
+        *said = Some(now);
+    }
+    let (used_mb, total_mb) = swap_mb().unwrap_or((0, 0));
+    let load = load_1m().unwrap_or(0.0);
+    let cores = std::thread::available_parallelism().map_or(1, |n| n.get());
+    if short_of_memory(used_mb, total_mb, load, cores) {
+        tracing::warn!(
+            target: "app_lib::timing",
+            swap_used_mb = used_mb,
+            swap_total_mb = total_mb,
+            load_1m = format!("{load:.1}"),
+            cores,
+            "[Timing] this Mac is short of memory"
+        );
+    } else {
+        // Not short: ask again at the next rollup, not in ten minutes.
+        *MAC_SAID.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+}
+
+fn short_of_memory(used_mb: u64, total_mb: u64, load: f64, cores: usize) -> bool {
+    (total_mb > 0 && used_mb * 100 >= total_mb * 80) || load > (cores * 2) as f64
+}
+
+#[cfg(target_os = "macos")]
+fn swap_mb() -> Option<(u64, u64)> {
+    let mut usage: libc::xsw_usage = unsafe { std::mem::zeroed() };
+    let mut size = std::mem::size_of::<libc::xsw_usage>();
+    // SAFETY: a fixed-size out struct of the documented type and its size.
+    let rc = unsafe {
+        libc::sysctlbyname(
+            c"vm.swapusage".as_ptr(),
+            std::ptr::addr_of_mut!(usage).cast(),
+            &mut size,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    (rc == 0).then(|| (usage.xsu_used >> 20, usage.xsu_total >> 20))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn swap_mb() -> Option<(u64, u64)> {
+    None
+}
+
+#[cfg(unix)]
+fn load_1m() -> Option<f64> {
+    let mut load = [0f64; 1];
+    // SAFETY: writes at most one sample into a one-element buffer.
+    (unsafe { libc::getloadavg(load.as_mut_ptr(), 1) } == 1).then_some(load[0])
+}
+
+#[cfg(not(unix))]
+fn load_1m() -> Option<f64> {
+    None
 }
 
 /// Sends waiting for their turn: agent → (message, when it was stored).
@@ -171,7 +247,9 @@ pub fn send_stored(agent: &str, message: &str, took: Duration) {
     tracing::info!(
         target: "app_lib::timing",
         agent,
-        message,
+        // Not `message`: that field is the line's own text, and a field
+        // named so replaced "[Timing] send stored" with the id (21 Nov).
+        message_id = message,
         took_ms = ms(took),
         "[Timing] send stored"
     );
@@ -190,7 +268,7 @@ pub fn turn_taken(agent: &str, slot_wait: Duration) {
         tracing::info!(
             target: "app_lib::timing",
             agent,
-            message = sent.as_ref().map(|(m, _)| m.as_str()),
+            message_id = sent.as_ref().map(|(m, _)| m.as_str()),
             since_stored_ms = sent.as_ref().map(|(_, at)| ms(at.elapsed())),
             slot_wait_ms = ms(slot_wait),
             "[Timing] turn taken"
@@ -216,7 +294,7 @@ pub fn turn_spawned(agent: &str) {
         tracing::info!(
             target: "app_lib::timing",
             agent,
-            message = sent.as_ref().map(|(m, _)| m.as_str()),
+            message_id = sent.as_ref().map(|(m, _)| m.as_str()),
             since_stored_ms = sent.as_ref().map(|(_, at)| ms(at.elapsed())),
             prep_ms = ms(prep),
             "[Timing] turn spawned"
@@ -296,5 +374,23 @@ mod tests {
         turn_taken(agent, Duration::ZERO);
         turn_spawned(agent);
         assert!(!TAKEN.lock().unwrap().contains_key(agent));
+    }
+
+    #[test]
+    fn short_of_memory_is_swap_nearly_full_or_the_load_far_past_the_cores() {
+        // 21 Nov on Julian's Mac: swap 63,885 of 64,512 MB, load 30 on 12 cores.
+        assert!(short_of_memory(63_885, 64_512, 30.0, 12));
+        assert!(short_of_memory(52_000, 64_512, 3.0, 12));
+        assert!(short_of_memory(0, 0, 25.0, 12));
+        assert!(!short_of_memory(10_000, 64_512, 8.0, 12));
+        assert!(!short_of_memory(0, 0, 0.0, 12));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn swap_and_load_are_read_on_this_mac() {
+        let (used, total) = swap_mb().expect("vm.swapusage");
+        assert!(used <= total);
+        assert!(load_1m().expect("getloadavg") >= 0.0);
     }
 }
