@@ -21,10 +21,10 @@ Agents reach your Chrome only through Mogbot for Chrome, the app's own extension
 other browser to fall back on: not a built-in one, not Claude in Chrome, not a Claude connector.
 It works the same on any Claude account, so switching accounts never needs a browser sign-in.
 
-When it isn't installed or isn't connected, a card in the chat says so, with one button:
+When it isn't installed or isn't connected and an agent reaches for Chrome, a card in the chat says so, with one button:
 **Install Mogbot for Chrome** (or **Finish setting it up** once it's on). It opens Settings →
 Chrome, where each step ticks Done by itself. **Not now** puts the card away until you next open
-the app. In the Chief of Staff's chat the card comes after the first thing you asked for is back.
+the app. It shows only after an agent's turn tried to use your Chrome, never after a plain reply or draft.
 
 An agent that needs Chrome while it isn't connected tells you so in one line and carries on with
 whatever else it can do.

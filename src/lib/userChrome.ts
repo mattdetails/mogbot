@@ -309,11 +309,26 @@ export function chromeNeedsAttention(s: UserChromeStatus | null): boolean {
   return !!s && s.supported && !(s.enabled && s.browsers.length > 0);
 }
 
+/**
+ * Whether the newest turn reached for the user's Chrome (a step "Used your
+ * Chrome" or "Using your Chrome · site", failed or not). The notice shows only
+ * on the first action that needs the browser, never after a plain reply or
+ * draft (spec-chrome-onboarding, "When the card shows").
+ */
+export function reachedForChrome(messages: readonly { kind: string; work?: { steps?: { label: string }[] } }[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.kind === 'user') return false;
+    if (m.work?.steps?.some((st) => /\byour Chrome\b/i.test(st.label))) return true;
+  }
+  return false;
+}
+
 /** The notice's one line, by how far setup got. */
 export function chromeNoticeLine(s: UserChromeStatus): string {
   return s.enabled && s.chromeInstalled
-    ? 'Mogbot for Chrome isn’t connected, so agents can’t use the sites you’re signed in to. Open Chrome, or finish setting it up.'
-    : 'Agents reach the sites you’re signed in to through Mogbot for Chrome, and it isn’t installed yet.';
+    ? 'Agents can’t use the sites you’re signed in to until it’s connected. Open Chrome, or finish setting it up.'
+    : 'Agents reach the sites you’re signed in to through it, and it isn’t installed yet.';
 }
 
 /* --------------------------------------------- a profile managed by work */
