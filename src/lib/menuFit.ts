@@ -66,3 +66,41 @@ export function fitMenuX(
   // Wider than either side allows: as far left as keeps its right edge in.
   return { left: Math.max(lo, hi - menuWidth) };
 }
+
+/**
+ * A menu that opens beside its trigger (a message's ⋯): on the side asked for
+ * while it fits there inside `area` (the chat) and the window, else the other
+ * side, else held inside; its top level with the trigger's, lifted only as
+ * far as keeps its bottom in the window. Answers the one inline edge to set
+ * across, and the top.
+ */
+export function fitMenuBeside(
+  trigger: { left: number; right: number; top: number },
+  viewport: { width: number; height: number },
+  menu: { width: number; height: number },
+  preferred: 'left' | 'right',
+  area?: { left: number; right: number }
+): { across: { left: number } | { right: number }; top: number; maxHeight: number } {
+  const lo = Math.max(MENU_EDGE, (area?.left ?? 0) + MENU_EDGE);
+  const hi = Math.min(viewport.width, area?.right ?? viewport.width) - MENU_EDGE;
+  const fitsRight = trigger.right + MENU_GAP + menu.width <= hi;
+  const fitsLeft = trigger.left - MENU_GAP - menu.width >= lo;
+  const toRight = { left: trigger.right + MENU_GAP };
+  const toLeft = { right: viewport.width - (trigger.left - MENU_GAP) };
+  const across =
+    preferred === 'right'
+      ? fitsRight || !fitsLeft
+        ? fitsRight
+          ? toRight
+          : { left: Math.max(lo, hi - menu.width) }
+        : toLeft
+      : fitsLeft || !fitsRight
+        ? fitsLeft
+          ? toLeft
+          : { left: Math.max(lo, Math.min(trigger.left, hi - menu.width)) }
+        : toRight;
+  const room = viewport.height - 2 * MENU_EDGE;
+  const height = Math.min(menu.height, room);
+  const top = Math.max(MENU_EDGE, Math.min(trigger.top, viewport.height - MENU_EDGE - height));
+  return { across, top, maxHeight: Math.max(0, Math.floor(room)) };
+}

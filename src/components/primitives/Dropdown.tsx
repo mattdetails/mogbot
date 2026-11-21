@@ -17,7 +17,7 @@ import { createPortal } from 'react-dom';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { usePortalAccentScope } from '../../contexts/AccentScopeContext';
 import { PORTAL_ANCHOR_ATTR, PORTAL_OWNER_ATTR } from './ModalFrame';
-import { fitMenu, fitMenuX, MENU_GAP } from '../../lib/menuFit';
+import { fitMenu, fitMenuBeside, fitMenuX, MENU_GAP } from '../../lib/menuFit';
 import { useLastWhileOpen, useLeaving } from '../../hooks/useLeaving';
 import { MOTION_DURATION } from '../../../packages/companion-protocol/src/motion';
 
@@ -51,8 +51,12 @@ interface DropdownBaseProps {
   children: ReactNode;
   /** Which edge of the trigger the menu aligns to. Default 'left'. */
   align?: 'left' | 'right';
-  /** Which side of the trigger the menu opens on. Default 'bottom'. */
-  side?: 'top' | 'bottom';
+  /**
+   * Which side of the trigger the menu opens on. Default 'bottom'. With
+   * `portal`, 'left' or 'right' opens it beside the trigger, level with its
+   * top, flipping sides at the window's (or `boundary`'s) edge.
+   */
+  side?: 'top' | 'bottom' | 'left' | 'right';
   /**
    * Render the menu in a body portal with fixed positioning. Use when an
    * ancestor has overflow:hidden that would clip an absolute menu (terminal
@@ -424,6 +428,30 @@ export function Dropdown({
       const btn = triggerRef.current;
       if (!btn) return;
       const rect = btn.getBoundingClientRect();
+      if (side === 'left' || side === 'right') {
+        const area = boundary ? btn.closest(boundary)?.getBoundingClientRect() : undefined;
+        const beside = fitMenuBeside(
+          rect,
+          { width: window.innerWidth, height: window.innerHeight },
+          {
+            width: menuRef.current?.offsetWidth ?? 0,
+            height: menuRef.current?.scrollHeight ?? 0,
+          },
+          side,
+          area
+        );
+        setPortalPos({
+          position: 'fixed',
+          top: beside.top,
+          bottom: 'auto',
+          ['--ss-dropdown-room' as string]: `${beside.maxHeight}px`,
+          ...('left' in beside.across
+            ? { left: beside.across.left, right: 'auto' }
+            : { right: beside.across.right, left: 'auto' }),
+          marginTop: 0,
+        });
+        return;
+      }
       // Never past the window's edge: the menu opens on the side asked for
       // unless the other has more room for it, and is never taller than the
       // room it has (it scrolls inside instead of running off the window).

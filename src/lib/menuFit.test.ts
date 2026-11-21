@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitMenu, fitMenuX } from './menuFit';
+import { fitMenu, fitMenuBeside, fitMenuX } from './menuFit';
 
 describe('fitMenuX', () => {
   // A 900px window; the conversation switcher's 320px menu.
@@ -71,5 +71,34 @@ describe('fitMenu', () => {
     const trigger = { top: 430, bottom: 460 };
     expect(fitMenu(trigger, 900, 1000, 'bottom').side).toBe('bottom');
     expect(fitMenu(trigger, 900, 200, 'top').side).toBe('top');
+  });
+});
+
+describe('fitMenuBeside', () => {
+  const view = { width: 1000, height: 800 };
+  const menu = { width: 200, height: 220 };
+  it('opens on the side asked for, level with the trigger', () => {
+    expect(fitMenuBeside({ left: 300, right: 320, top: 100 }, view, menu, 'right')).toEqual({
+      across: { left: 326 },
+      top: 100,
+      maxHeight: 784,
+    });
+    expect(fitMenuBeside({ left: 300, right: 320, top: 100 }, view, menu, 'left').across).toEqual({
+      right: 706,
+    });
+  });
+  it('flips at the window or the area’s edge', () => {
+    expect(fitMenuBeside({ left: 900, right: 920, top: 100 }, view, menu, 'right').across).toEqual({
+      right: 106,
+    });
+    expect(
+      fitMenuBeside({ left: 320, right: 340, top: 100 }, view, menu, 'left', {
+        left: 260,
+        right: 1000,
+      }).across
+    ).toEqual({ left: 346 });
+  });
+  it('is lifted only as far as keeps its bottom in the window', () => {
+    expect(fitMenuBeside({ left: 300, right: 320, top: 700 }, view, menu, 'right').top).toBe(572);
   });
 });

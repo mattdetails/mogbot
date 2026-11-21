@@ -24,7 +24,6 @@ import { TypingDots } from '../primitives/TypingDots';
 import { agentIn, useAgentsSelector } from '../../lib/agentsStore';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import {
-  CheckIcon,
   ChevronRightIcon,
   CommentIcon,
   CopyIcon,
@@ -44,7 +43,7 @@ import {
 } from '@/components/icons';
 import { Button } from '../primitives/Button';
 import { approvalKey } from './approvalKeys';
-import { Dropdown, DropdownItem } from '../primitives/Dropdown';
+import { Dropdown, DropdownDivider, DropdownItem } from '../primitives/Dropdown';
 import { IconButton } from '../primitives/IconButton';
 import { TextButton } from '../primitives/TextButton';
 import { TextField } from '../primitives/TextField';
@@ -55,7 +54,14 @@ import type { DraftAttachment } from './useComposerAttachments';
 import { MentionText } from './AgentMentions';
 import { canReplyTo } from '../../lib/replyTo';
 import { ReplyPill, useReply } from './ReplyContext';
-import { GoBackContextMenu, GoBackMenu, type GoBackAction, type GoBackState } from './AgentGoBack';
+import {
+  GO_BACK_ICONS_SM,
+  GO_BACK_ORDER,
+  GoBackContextMenu,
+  type GoBackAction,
+  type GoBackState,
+} from './AgentGoBack';
+import { GO_BACK_LABELS, goBackBlocked } from '../../../packages/companion-protocol/src/rewind';
 import { AgentPeerStatus } from './AgentPeerStatus';
 import { SecretCard } from './AgentSecretCard';
 import { LoginCard } from './AgentLoginCard';
@@ -137,50 +143,14 @@ interface Arrival {
 }
 
 /**
- * Copy and the time, on hover or keyboard focus. They keep their space, so
- * nothing shifts under the pointer; the exact time is the time's tooltip.
- * Copy isn't a Tab stop (a long chat would put dozens between you and the
- * composer): a clicked message takes focus, and ⌘C copies it (`copyOnKey`).
+ * The time under a message, on hover or keyboard focus, keeping its space so
+ * nothing shifts under the pointer; the exact time is its tooltip. Copy and
+ * the rest are in the message's ⋯ (`MessageMenu`), and ⌘C copies a focused
+ * message (`copyOnKey`).
  */
-function MessageActions({
-  text,
-  ts,
-  onRemember,
-  more,
-}: {
-  text: string;
-  ts: number;
-  /** "Remember this": offered on messages with words in them. */
-  onRemember?: () => void;
-  /** Your own message's Edit, Fork and Rewind (`AgentGoBack`). */
-  more?: ReactNode;
-}) {
-  const { copy, isCopied } = useCopyToClipboard();
+function MessageActions({ ts }: { ts: number }) {
   return (
     <div className="agent-message__actions">
-      {text && (
-        <IconButton
-          tabIndex={-1}
-          variant="ghost"
-          size="compact"
-          icon={isCopied ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
-          onClick={() => void copy(text)}
-          aria-label={isCopied ? 'Copied' : 'Copy message'}
-          title={isCopied ? 'Copied' : 'Copy'}
-        />
-      )}
-      {text && onRemember && (
-        <IconButton
-          tabIndex={-1}
-          variant="ghost"
-          size="compact"
-          icon={<PinIcon size={12} />}
-          onClick={onRemember}
-          aria-label="Remember this"
-          title="Remember this"
-        />
-      )}
-      {more}
       <time
         className="agent-message__time"
         dateTime={new Date(ts).toISOString()}
@@ -193,75 +163,88 @@ function MessageActions({
 }
 
 /**
- * The hover tools, Grok's: bare icons beside the message at its vertical
- * centre, on the open side: Reply and ⋯ (the message's menu, with Reply first).
- * Not drawn on touch or in a window under 480px; the menu is still reachable
- * by right-click and by R.
+ * The one hover control (spec-message-hover.md): a quiet ⋯ beside the bubble,
+ * level with its first line, on the outside edge (left of yours, right of the
+ * agent's). It opens the message's menu beside it, in words: Copy, Reply,
+ * Edit and resend, Fork from here, Rewind to here, Remember this, each only
+ * where it applies. Open, the ⋯ only brightens: no circle, no box. A Tab stop
+ * (Enter opens, Esc closes and gives focus back); the same rows are on a
+ * right-click of your own message.
  */
-function MessageTools({ onReply, menu }: { onReply?: () => void; menu?: ReactNode }) {
-  if (!onReply && !menu) return null;
-  return (
-    <div className="agent-message__tools">
-      {onReply && (
-        <IconButton
-          tabIndex={-1}
-          variant="ghost"
-          size="compact"
-          className="agent-message__reply"
-          icon={<ReplyIcon size={17} />}
-          onClick={onReply}
-          aria-label="Reply"
-          title="Reply (R)"
-        />
-      )}
-      {menu}
-    </div>
-  );
-}
-
-/** An agent message's ⋯: Reply first, then Copy and Remember this. */
-function AgentMessageMenu({
+function MessageMenu({
+  side,
   text,
   onReply,
   onRemember,
+  goBack,
 }: {
+  side: 'user' | 'agent';
   text: string;
   onReply?: () => void;
   onRemember?: () => void;
+  goBack?: { state: GoBackState; onPick: (action: GoBackAction) => void };
 }) {
   const { copy } = useCopyToClipboard();
+  const reason = goBack ? goBackBlocked('rewind', goBack.state) : null;
+  if (!text && !onReply && !goBack) return null;
   return (
-    <Dropdown
-      align="left"
-      portal
-      boundary=".agent-chat"
-      trigger={(p) => (
-        <IconButton
-          {...p}
-          tabIndex={-1}
-          variant="ghost"
-          size="compact"
-          className="agent-message__more"
-          icon={<MoreHorizontalIcon size={17} />}
-          aria-label="Message actions"
-          title="More"
-        />
-      )}
-    >
-      {onReply && (
-        <DropdownItem icon={<ReplyIcon size={12} />} onSelect={onReply}>
-          Reply
-        </DropdownItem>
-      )}
-      <DropdownItem icon={<CopyIcon size={12} />} onSelect={() => void copy(text)}>
-        Copy
-      </DropdownItem>
-      {onRemember && (
-        <DropdownItem icon={<PinIcon size={12} />} onSelect={onRemember}>
-          Remember this
-        </DropdownItem>
-      )}
-    </Dropdown>
+    <div className="agent-message__tools" data-side={side}>
+      <Dropdown
+        align={side === 'user' ? 'right' : 'left'}
+        side={side === 'user' ? 'left' : 'right'}
+        portal
+        quietOpen
+        boundary=".agent-chat"
+        menuClassName="agent-message__menu"
+        trigger={(p) => (
+          <IconButton
+            {...p}
+            tabIndex={0}
+            variant="ghost"
+            size="compact"
+            className="agent-message__more"
+            icon={<MoreHorizontalIcon size={16} />}
+            aria-label="Message actions"
+            title="More"
+          />
+        )}
+      >
+        {text && (
+          <DropdownItem icon={<CopyIcon size={12} />} onSelect={() => void copy(text)}>
+            Copy
+          </DropdownItem>
+        )}
+        {onReply && (
+          <DropdownItem icon={<ReplyIcon size={12} />} onSelect={onReply}>
+            Reply
+          </DropdownItem>
+        )}
+        {goBack && (
+          <>
+            <DropdownDivider />
+            {GO_BACK_ORDER.map((action) => (
+              <DropdownItem
+                key={action}
+                icon={GO_BACK_ICONS_SM[action]}
+                disabled={goBackBlocked(action, goBack.state) !== null}
+                onSelect={() => goBack.onPick(action)}
+              >
+                {GO_BACK_LABELS[action]}
+              </DropdownItem>
+            ))}
+            {reason && <p className="agent-go-back__reason">{reason}</p>}
+          </>
+        )}
+        {text && onRemember && (
+          <>
+            <DropdownDivider />
+            <DropdownItem icon={<PinIcon size={12} />} onSelect={onRemember}>
+              Remember this
+            </DropdownItem>
+          </>
+        )}
+      </Dropdown>
+    </div>
   );
 }
 
@@ -317,24 +300,14 @@ export const AgentBubble = memo(function AgentBubble({
   const attachments = attachmentsOutsideBlocks(message.attachments, blocks);
   const replies = useReply();
   const onReply = replies && canReplyTo(message) ? () => replies.reply(message) : undefined;
-  const actions = (
-    <MessageActions
-      text={message.text}
-      ts={message.ts}
-      onRemember={onRemember && (() => onRemember(message))}
-    />
-  );
-  // Reply and ⋯ beside the bubble, on its open side.
+  const actions = <MessageActions ts={message.ts} />;
+  // The ⋯ beside the bubble, on its outside edge.
   const tools = (
-    <MessageTools
+    <MessageMenu
+      side="agent"
+      text={message.text}
       onReply={onReply}
-      menu={
-        <AgentMessageMenu
-          text={message.text}
-          onReply={onReply}
-          onRemember={onRemember && message.text ? () => onRemember(message) : undefined}
-        />
-      }
+      onRemember={onRemember && message.text ? () => onRemember(message) : undefined}
     />
   );
   // Still being written: its words live in the store, not in this message.
@@ -377,12 +350,10 @@ export const AgentBubble = memo(function AgentBubble({
         </div>
       ) : (
         message.text && (
-          <>
-            <div className="agent-bubble agent-bubble--agent agent-markdown" onClick={onClick}>
-              <Prose text={message.text} />
-            </div>
+          <div className="agent-bubble agent-bubble--agent agent-markdown" onClick={onClick}>
+            <Prose text={message.text} />
             {tools}
-          </>
+          </div>
         )
       )}
       {message.stopped && <span className="agent-bubble__stopped">Stopped</span>}
@@ -468,25 +439,17 @@ export const UserBubble = memo(function UserBubble({
     replies && !failed && !sending && !tidying && canReplyTo(message)
       ? () => replies.reply(message)
       : undefined;
-  const actions = !failed && !sending && !tidying && (
-    <MessageActions
-      text={message.text}
-      ts={message.ts}
-      onRemember={onRemember && (() => onRemember(message))}
-    />
-  );
+  const actions = !failed && !sending && !tidying && <MessageActions ts={message.ts} />;
   const tools = !failed && !sending && !tidying && (
-    <MessageTools
+    <MessageMenu
+      side="user"
+      text={message.text}
       onReply={onReply}
-      menu={
-        goBack &&
-        onGoBack && (
-          <GoBackMenu
-            state={goBack}
-            onReply={onReply}
-            onPick={(action) => onGoBack(action, message)}
-          />
-        )
+      onRemember={onRemember && (() => onRemember(message))}
+      goBack={
+        goBack && onGoBack
+          ? { state: goBack, onPick: (action) => onGoBack(action, message) }
+          : undefined
       }
     />
   );
@@ -760,7 +723,7 @@ export const ErrorLine = memo(function ErrorLine({
           )}
         </div>
       )}
-      <MessageActions text={message.text} ts={message.ts} />
+      <MessageActions ts={message.ts} />
       {message.work && agent && (
         <WorkTimeline
           work={message.work}

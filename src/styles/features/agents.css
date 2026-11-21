@@ -46,6 +46,11 @@
   /* 46: the quiet header (spec-header-dropdown.md), level with the sidebar's
      own top row; every pane header beside the chat takes the same height. */
   --agents-header-height: calc(var(--control-height-standard) + (var(--spacing-sm) * 2));
+  /* The message ⋯ level with its bubble's first line: the bubble's top padding,
+     then half the difference between its line and the button. */
+  --message-more-offset: calc(
+    var(--agents-bubble-pad-y) + (var(--agents-bubble-line) - var(--button-height-compact)) / 2
+  );
   /* The collapsed home rail floats its nav row over the top-left of the
      window; the conversation header keeps clear of it. Four controls at
      control height, the row's gaps, and its padding. */

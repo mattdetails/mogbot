@@ -185,7 +185,7 @@ export function GoBackContextMenu({
   );
 }
 
-const GO_BACK_ICONS_SM: Record<GoBackAction, ReactNode> = {
+export const GO_BACK_ICONS_SM: Record<GoBackAction, ReactNode> = {
   edit: <PencilIcon size={12} />,
   fork: <BranchIcon size={12} />,
   rewind: <UndoIcon size={12} />,
