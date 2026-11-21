@@ -480,6 +480,12 @@ function PickRow({
 }
 
 /** What a row is about: its one line of what's asked, and the agent's one line of why. */
+/** "a Stripe key", "an API key": the article a noun phrase takes. */
+function withArticle(noun: string): string {
+  const n = noun.trim();
+  return /^[aeiou]/i.test(n) ? `an ${n}` : `a ${n}`;
+}
+
 function rowWords(
   item: FeedItem,
   agent: Agent,
@@ -489,6 +495,14 @@ function rowWords(
   switch (item.kind) {
     case 'ask':
     case 'mac':
+      // A key the agent asked for reads as a sentence, like the other rows:
+      // "Finance needs a Stripe key" (the Mac's "Secure input · …" is its card title).
+      if (card?.approval?.secret && item.kind === 'ask') {
+        return [
+          `${agent.name} needs ${withArticle(card.approval.secret.name)}`,
+          askingLine(card.approval),
+        ];
+      }
       return card?.approval
         ? [
             card.approval.title,
