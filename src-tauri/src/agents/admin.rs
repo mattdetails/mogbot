@@ -1499,6 +1499,10 @@ pub fn set_paused(app: &AppHandle, target: &store::Agent, on: bool) -> (usize, b
     })
     .or_log("which routines an admin paused");
     let stopped = on && runner::stop(app, &target.id);
+    // Resume: what other agents sent meanwhile runs now.
+    if !on {
+        runner::release_held(app, &target.id);
+    }
     let _ = tauri::Emitter::emit(app, runner::EVENT_REGISTRY, ());
     (changed, stopped)
 }

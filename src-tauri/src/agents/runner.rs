@@ -118,6 +118,9 @@ pub use session_env::*;
 
 mod steer;
 
+mod paused;
+pub use paused::{held_count, release as release_held};
+
 pub const EVENT_MESSAGE: &str = "agents://message";
 pub const EVENT_STATUS: &str = "agents://status";
 pub const EVENT_REGISTRY: &str = "agents://registry";
