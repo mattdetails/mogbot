@@ -89,7 +89,9 @@ one ordering domain (a request's response can't overtake the event it caused),
 auth happens once per connection, and revoking a device closes it at once.
 
 **Files go over HTTP**, so a 25 MB upload never holds up a message and
-downloads get `Range`:
+downloads get `Range`. A whole file the phone downloads (an agent's video) may be up to 100 MB:
+past 25 MB the Mac streams it from disk rather than reading it into memory
+(`files::MAX_STREAM_BYTES`); a range is still at most 25 MB:
 
 | Route | |
 | --- | --- |

@@ -35,6 +35,13 @@ const MAX_THUMB_ALLOC: u64 = 256 * 1024 * 1024;
 /// Thumbnails kept, by file and width (attachments never change).
 const THUMBS_KEPT: usize = 128;
 const THUMB_BYTES_KEPT: usize = 32 * 1024 * 1024;
+/// A whole file past [`MAX_FILE_BYTES`] and up to this is streamed from disk
+/// rather than refused: an agent's video (Julian's wife's 60 MB MP4, 20 Nov)
+/// opens on the phone. Never read into memory here; a phone on the relay
+/// still holds it whole, so it stays bounded.
+pub const MAX_STREAM_BYTES: u64 = 100 * 1024 * 1024;
+/// A streamed file's pieces.
+const STREAM_CHUNK: usize = 256 * 1024;
 
 /// The device behind the request's bearer token, if it may make this
 /// request: a live token, from the tailnet user that paired it (when both
@@ -478,7 +485,7 @@ pub async fn download(c: Arc<Companion>, req: Request<Incoming>) -> Response<Bod
             Ok(jpeg) => {
                 return respond(
                     Read {
-                        bytes: jpeg.as_ref().clone(),
+                        bytes: Payload::Bytes(jpeg.as_ref().clone()),
                         mime: "image/jpeg".into(),
                         range: None,
                         total: None,
@@ -503,12 +510,21 @@ pub async fn download(c: Arc<Companion>, req: Request<Incoming>) -> Response<Bod
         // Never more than an attachment's cap in memory at once: a whole
         // file past it, or a range wider than it, is refused (a player asks
         // in ranges) (CTO review 2026-11-14).
+        if range.is_none() && len > MAX_FILE_BYTES && len <= MAX_STREAM_BYTES {
+            return Ok(Read {
+                bytes: Payload::File(served.path.clone(), len),
+                mime: served.mime.clone(),
+                range,
+                total: Some(len),
+                served,
+            });
+        }
         if too_big(len, range) {
             return Err(StatusCode::PAYLOAD_TOO_LARGE);
         }
         let bytes = read_bytes(&served.path, range).map_err(|_| StatusCode::NOT_FOUND)?;
         Ok(Read {
-            bytes,
+            bytes: Payload::Bytes(bytes),
             mime: served.mime.clone(),
             range,
             total: Some(len),
@@ -524,8 +540,14 @@ pub async fn download(c: Arc<Companion>, req: Request<Incoming>) -> Response<Bod
     respond(read, head)
 }
 
+/// What a download answers with: bytes in hand, or a file streamed from disk.
+enum Payload {
+    Bytes(Vec<u8>),
+    File(PathBuf, u64),
+}
+
 struct Read {
-    bytes: Vec<u8>,
+    bytes: Payload,
     mime: String,
     range: Option<(u64, u64)>,
     /// The file's full length, for `Accept-Ranges` (absent for a thumbnail).
@@ -554,12 +576,45 @@ fn read_bytes(path: &std::path::Path, range: Option<(u64, u64)>) -> std::io::Res
     Ok(buf)
 }
 
+/// A file from disk in [`STREAM_CHUNK`] pieces, each read off the async
+/// threads; a read that fails ends the body short (the length then says so).
+fn file_body(path: PathBuf) -> Body {
+    use futures_util::StreamExt;
+    use hyper::body::Frame;
+    let pieces = futures_util::stream::unfold(Some((path, 0u64)), |at| async move {
+        let (path, offset) = at?;
+        let read = tokio::task::spawn_blocking(move || -> std::io::Result<(PathBuf, Vec<u8>)> {
+            use std::io::{Read as _, Seek, SeekFrom};
+            let mut file = std::fs::File::open(&path)?;
+            file.seek(SeekFrom::Start(offset))?;
+            let mut buf = vec![0; STREAM_CHUNK];
+            let n = file.read(&mut buf)?;
+            buf.truncate(n);
+            Ok((path, buf))
+        })
+        .await;
+        match read {
+            Ok(Ok((_, buf))) if buf.is_empty() => None,
+            Ok(Ok((path, buf))) => {
+                let next = offset + buf.len() as u64;
+                Some((Bytes::from(buf), Some((path, next))))
+            }
+            _ => None,
+        }
+    });
+    let frames = pieces.map(|b| Ok::<_, hyper::Error>(Frame::data(b)));
+    BodyExt::boxed(http_body_util::StreamBody::new(frames))
+}
+
 fn respond(read: Read, head: bool) -> Response<Body> {
-    let len = read.bytes.len();
-    let mut res = Response::new(if head {
-        body(Bytes::new())
-    } else {
-        body(read.bytes)
+    let (len, payload) = match read.bytes {
+        Payload::Bytes(b) => (b.len() as u64, Payload::Bytes(b)),
+        Payload::File(p, n) => (n, Payload::File(p, n)),
+    };
+    let mut res = Response::new(match (head, payload) {
+        (true, _) => body(Bytes::new()),
+        (false, Payload::Bytes(b)) => body(b),
+        (false, Payload::File(path, _)) => file_body(path),
     });
     if read.range.is_some() {
         *res.status_mut() = StatusCode::PARTIAL_CONTENT;

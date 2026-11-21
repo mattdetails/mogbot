@@ -116,6 +116,12 @@ clear 404 unlinks it (`checkStillThere`; any other answer keeps it).
    - When a resumable Mac's socket goes, its phones' sockets are kept for 30 s (an alarm). Phone
      frames in that time are numbered and held (at most 256 frames or 4 MiB per channel). After 30 s
      with no Mac they are closed 4404 as before. The Mac keeps its channel tasks for 40 s.
+   - Mac→phone, the Mac keeps at most 4 MiB per channel that the relay hasn't acked. Past it the
+     channel's next frames wait on the Mac (parked, in order, at most 8 MiB across channels, then
+     the channels wait on their own queues) and go as acks make room; a channel whose handler ended
+     is closed only once its parked frames are out. It used to close the channel there instead:
+     macOS buffers up to 4 MB per socket, so any file over ~3 MB (an agent's video) was cut off
+     mid-download on a home uplink (20 Nov).
    - The Mac pings every 10 s and treats 25 s of silence as dead, so a socket the path killed is
      replaced within seconds.
 

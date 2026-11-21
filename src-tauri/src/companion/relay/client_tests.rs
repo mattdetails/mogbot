@@ -36,6 +36,10 @@ struct Shared {
     deaf: std::sync::atomic::AtomicBool,
     /// Drops the Mac's connection without a close frame.
     cut: tokio::sync::Notify,
+    /// Acks arrive late, as over a real uplink: the Mac's send buffer and the
+    /// path hold megabytes the relay hasn't seen yet (macOS autotunes a
+    /// socket's send buffer up to 4 MB).
+    slow_acks: std::sync::atomic::AtomicBool,
     /// Per channel, the resumable counters and what the Mac hasn't acked.
     chans: Mutex<HashMap<u32, Chan>>,
 }
@@ -246,9 +250,17 @@ async fn relay_mac(
                     let _ = phone.send(Message::Binary(data[8..].to_vec()));
                 }
                 if seq % 8 == 0 {
-                    let _ = mac_tx.send(Message::Text(
-                        json!({ "t": "ack", "ch": ch, "seq": seq }).to_string(),
-                    ));
+                    let ack =
+                        Message::Text(json!({ "t": "ack", "ch": ch, "seq": seq }).to_string());
+                    if shared.slow_acks.load(Ordering::SeqCst) {
+                        let late = mac_tx.clone();
+                        tokio::spawn(async move {
+                            tokio::time::sleep(Duration::from_millis(400)).await;
+                            let _ = late.send(ack);
+                        });
+                    } else {
+                        let _ = mac_tx.send(ack);
+                    }
                 }
             }
             Message::Text(t) if t == "ping" => {
@@ -724,7 +736,7 @@ async fn a_stranger_who_only_shakes_hands_is_closed_once_idle() {
 fn a_channel_holds_at_most_its_byte_budget() {
     let (tx, rx) = mpsc::channel::<Vec<u8>>(CHANNEL_QUEUE);
     let queued = Arc::new(AtomicUsize::new(0));
-    let o = Open::new(tx, 1, queued.clone());
+    let o = Open::new(1, tx, 1, queued.clone());
     let piece = channel::MAX_PAYLOAD;
     let fits = channel::MAX_QUEUED_BYTES / piece;
     for _ in 0..fits {
@@ -1433,4 +1445,88 @@ async fn live_serve_for_an_outside_phone() {
     std::fs::write(&file, facts.to_string()).unwrap();
     println!("serving {secs} s");
     tokio::time::sleep(Duration::from_secs(secs)).await;
+}
+
+/// A video an agent sent, fetched over the relay while the relay's acks lag
+/// (Julian's wife's phone, 20 Nov: no MP4 would open over the relay). The
+/// Mac used to close the channel once 4 MB sat unacked; now it waits for the
+/// acks, and the whole file arrives.
+#[tokio::test]
+async fn a_file_bigger_than_the_unacked_budget_arrives_whole_when_acks_lag() {
+    let (sent, got) = fetch_over_relay(6 * 1024 * 1024).await;
+    assert_eq!(got.len(), sent.len());
+    assert!(got == sent, "the bytes arrived changed");
+}
+
+/// Past the 25 MB attachment cap a whole file is streamed from disk, not
+/// refused (413): a 60 MB video opened nowhere.
+#[tokio::test]
+async fn a_video_past_the_attachment_cap_is_streamed_whole() {
+    let (sent, got) = fetch_over_relay(30 * 1024 * 1024).await;
+    assert_eq!(got.len(), sent.len());
+    assert!(got == sent, "the bytes arrived changed");
+}
+
+/// Serves an MP4 of `size` bytes from the stub agent and GETs it over a
+/// resumable relay whose acks lag: what was sent, and what arrived.
+async fn fetch_over_relay(size: u32) -> (Vec<u8>, Vec<u8>) {
+    let (c, stub) = Stub::companion();
+    let fingerprint = c.registry.identity().unwrap().fingerprint();
+    let (_record, token, _) = c
+        .registry
+        .add(
+            &device(),
+            String::new(),
+            now_ms() as i64,
+            &[],
+            Some("j@x.com".into()),
+        )
+        .unwrap();
+    let dir = stub.home.path().join("attachments").join("v1");
+    std::fs::create_dir_all(&dir).unwrap();
+    let video: Vec<u8> = (0..size).map(|i| (i % 251) as u8).collect();
+    std::fs::write(dir.join("clip.mp4"), &video).unwrap();
+    let port = loopback(c.clone()).await;
+    let relay = fake_relay(json!({ "id": "user_1", "email": "j@x.com" })).await;
+    relay.shared.resume.store(true, Ordering::SeqCst);
+    relay.shared.slow_acks.store(true, Ordering::SeqCst);
+    let link = Arc::new(Link::default());
+    let (_stop_tx, stop_rx) = oneshot::channel();
+    let cfg = Config {
+        base: relay.base(),
+        port: Some(port),
+    };
+    tokio::spawn(run(c.clone(), cfg, link.clone(), stop_rx));
+    until("the link", || link.route().is_some()).await;
+    let url = link.route().unwrap().url;
+
+    // As the phone fetches a file over the relay: a channel of its own, the
+    // handshake, one GET.
+    let mut phone = Phone::connect(&url, &fingerprint).await;
+    phone
+        .send(json!({
+            "t": "http", "id": 1, "method": "GET",
+            "path": "/v1/agents/a1/attachments/attachments/v1/clip.mp4",
+            "headers": { "authorization": format!("Bearer {token}") },
+        }))
+        .await;
+    let first = phone.next_of("httpRes").await;
+    assert_eq!(first["status"], 200, "{first}");
+    let mut got = B64.decode(first["body"].as_str().unwrap_or("")).unwrap();
+    let mut more = first["more"] == true;
+    while more {
+        let f = phone.next().await;
+        assert_ne!(
+            f["t"],
+            "closed",
+            "the channel closed after {} bytes",
+            got.len()
+        );
+        if f["t"] != "httpBody" {
+            continue;
+        }
+        got.extend(B64.decode(f["body"].as_str().unwrap_or("")).unwrap());
+        more = f["more"] == true;
+    }
+    (video, got)
 }

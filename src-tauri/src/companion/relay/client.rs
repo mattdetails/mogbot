@@ -48,8 +48,15 @@ const MAX_MESSAGE: usize = 1024 * 1024;
 
 /// A resumable channel is acked every this many frames, each way.
 const ACK_EVERY: u32 = 8;
-/// Frames the relay hasn't acked, per channel, before the channel is let go.
+/// Frames the relay hasn't acked, per channel. Past it a channel's next
+/// frames wait (parked) for acks rather than going out: macOS lets a socket
+/// buffer up to 4 MB, so a fast answer (a video) can be this far ahead of the
+/// relay on any home uplink. It used to close the channel here, which cut
+/// every file over ~3 MB off mid-download (20 Nov).
 const MAX_UNACKED_BYTES: usize = 4 * 1024 * 1024;
+/// Parked frames, across channels, before the link stops taking more from
+/// the channels (they wait on their own queues, as backpressure).
+const MAX_PARKED_BYTES: usize = 8 * 1024 * 1024;
 /// Longer than the relay keeps phones for a Mac that went (30 s), so channels
 /// the relay has let go aren't held here.
 const RESUME_KEEP: Duration = Duration::from_secs(40);
@@ -256,8 +263,15 @@ struct Open {
     /// taken from the phone.
     next: u32,
     sent_upto: u32,
+    /// The channel's id, for its frames.
+    ch: u32,
     unacked: VecDeque<(u32, Vec<u8>)>,
     unacked_bytes: usize,
+    /// Payloads waiting for acks to make room ([`MAX_UNACKED_BYTES`]), not numbered yet.
+    parked: VecDeque<Vec<u8>>,
+    parked_bytes: usize,
+    /// Its handler ended with frames still parked: closed once they're out.
+    ended: bool,
     rx: u32,
 }
 
@@ -281,6 +295,11 @@ impl Chans {
     }
 }
 
+/// Payloads parked across every channel, waiting for acks.
+fn parked_bytes(open: &HashMap<u32, Open>) -> usize {
+    open.values().map(|o| o.parked_bytes).sum()
+}
+
 /// A resumable frame: channel, sequence, payload.
 fn seq_frame(ch: u32, seq: u32, payload: &[u8]) -> Message {
     let mut data = Vec::with_capacity(payload.len() + 8);
@@ -295,8 +314,9 @@ fn ack_text(ch: u32, seq: u32) -> Message {
 }
 
 impl Open {
-    fn new(tx: mpsc::Sender<Vec<u8>>, generation: u64, queued: Arc<AtomicUsize>) -> Self {
+    fn new(ch: u32, tx: mpsc::Sender<Vec<u8>>, generation: u64, queued: Arc<AtomicUsize>) -> Self {
         Open {
+            ch,
             tx,
             generation,
             queued,
@@ -304,8 +324,54 @@ impl Open {
             sent_upto: 0,
             unacked: VecDeque::new(),
             unacked_bytes: 0,
+            parked: VecDeque::new(),
+            parked_bytes: 0,
+            ended: false,
             rx: 0,
         }
+    }
+
+    /// Whether a payload of `n` bytes fits the unacked budget now. One always
+    /// fits when nothing is unacked, so a channel can't wedge.
+    fn room_for(&self, n: usize) -> bool {
+        self.unacked.is_empty() || self.unacked_bytes + n <= MAX_UNACKED_BYTES
+    }
+
+    /// Numbers a payload and keeps it until the relay acks it.
+    fn number(&mut self, payload: Vec<u8>) -> (u32, Message) {
+        let seq = self.next;
+        self.next += 1;
+        self.unacked_bytes += payload.len();
+        let frame = seq_frame(self.ch, seq, &payload);
+        self.unacked.push_back((seq, payload));
+        (seq, frame)
+    }
+
+    /// A payload for the phone: its frame to send now, or `None` when it waits
+    /// for acks (behind any already waiting, so order holds).
+    fn take(&mut self, payload: Vec<u8>) -> Option<(u32, Message)> {
+        if !self.parked.is_empty() || !self.room_for(payload.len()) {
+            self.parked_bytes += payload.len();
+            self.parked.push_back(payload);
+            return None;
+        }
+        Some(self.number(payload))
+    }
+
+    /// Parked payloads that fit now that acks made room, numbered, in order.
+    fn release(&mut self) -> Vec<(u32, Message)> {
+        let mut out = vec![];
+        while let Some(n) = self.parked.front().map(Vec::len) {
+            if !self.room_for(n) {
+                break;
+            }
+            let Some(p) = self.parked.pop_front() else {
+                break;
+            };
+            self.parked_bytes -= n;
+            out.push(self.number(p));
+        }
+        out
     }
 
     /// The relay has everything up to `seq`.
@@ -442,6 +508,24 @@ async fn session(
                                 if failed {
                                     break;
                                 }
+                                // The relay's acks may have made room for what was parked.
+                                for (seq, frame) in o.release() {
+                                    if ws.send(frame).await.is_err() {
+                                        failed = true;
+                                        break;
+                                    }
+                                    o.sent_upto = seq;
+                                }
+                                if failed {
+                                    break;
+                                }
+                                if o.ended && o.parked.is_empty() {
+                                    st.open.remove(&ch);
+                                    if ws.send(close_text(ch)).await.is_err() {
+                                        failed = true;
+                                        break;
+                                    }
+                                }
                             }
                             awaiting = false;
                             if failed {
@@ -456,6 +540,27 @@ async fn session(
                             ) {
                                 if let Some(o) = st.open.get_mut(&ch) {
                                     o.acked(seq);
+                                    // Room again: what was parked goes, in order.
+                                    let mut failed = false;
+                                    for (seq, frame) in o.release() {
+                                        if awaiting {
+                                            continue;
+                                        }
+                                        if ws.send(frame).await.is_err() {
+                                            failed = true;
+                                            break;
+                                        }
+                                        o.sent_upto = seq;
+                                    }
+                                    if failed {
+                                        break Ended::WasUp;
+                                    }
+                                    if o.ended && o.parked.is_empty() && !awaiting {
+                                        st.open.remove(&ch);
+                                        if ws.send(close_text(ch)).await.is_err() {
+                                            break Ended::WasUp;
+                                        }
+                                    }
                                 }
                             }
                             continue;
@@ -472,7 +577,7 @@ async fn session(
                                 let queued = Arc::new(AtomicUsize::new(0));
                                 let inbound = channel::Inbound::new(rx, queued.clone());
                                 // A number reused: the old one is gone.
-                                st.open.insert(ch, Open::new(tx, st.generation, queued));
+                                st.open.insert(ch, Open::new(ch, tx, st.generation, queued));
                                 tokio::spawn(channel::run(c.clone(), ch, st.generation, cfg.port, inbound, st.out_tx.clone()));
                             }
                             Some("close") => {
@@ -527,28 +632,19 @@ async fn session(
                     }
                 }
             }
-            Some(out) = st.out_rx.recv() => match out {
+            // Parked frames are bounded: past the cap the channels wait on
+            // their own queues until acks drain it.
+            Some(out) = st.out_rx.recv(), if parked_bytes(&st.open) < MAX_PARKED_BYTES => match out {
                 Out::Payload(ch, payload) => {
                     let Some(o) = st.open.get_mut(&ch) else { continue };
                     if resume {
                         // Kept until the relay acks it, so a socket that died
                         // under it doesn't lose it.
-                        let seq = o.next;
-                        o.next += 1;
-                        o.unacked_bytes += payload.len();
-                        if o.unacked_bytes > MAX_UNACKED_BYTES {
-                            st.open.remove(&ch);
-                            if ws.send(close_text(ch)).await.is_err() {
-                                break Ended::WasUp;
-                            }
-                            continue;
-                        }
+                        // Past the unacked budget it waits for acks (parked).
+                        let Some((seq, frame)) = o.take(payload) else { continue };
                         if awaiting {
-                            o.unacked.push_back((seq, payload));
                             continue;
                         }
-                        let frame = seq_frame(ch, seq, &payload);
-                        o.unacked.push_back((seq, payload));
                         if ws.send(frame).await.is_err() {
                             break Ended::WasUp;
                         }
@@ -571,7 +667,10 @@ async fn session(
                 }
                 Out::Ended(ch, generation) => {
                     // Still open on the relay's side: close the phone's socket.
-                    if st.open.get(&ch).is_some_and(|o| o.generation == generation) {
+                    if let Some(o) = st.open.get_mut(&ch).filter(|o| o.generation == generation && !o.parked.is_empty()) {
+                        // Its last frames are still waiting for acks: closed after them.
+                        o.ended = true;
+                    } else if st.open.get(&ch).is_some_and(|o| o.generation == generation) {
                         st.open.remove(&ch);
                         if ws.send(close_text(ch)).await.is_err() {
                             break Ended::WasUp;
