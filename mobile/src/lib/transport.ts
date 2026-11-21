@@ -166,6 +166,9 @@ export interface HttpAdapter {
   ): Promise<{ status: number; uri: string }>;
 }
 
+/** A download that ended before the length the Mac gave: said as itself, not as "not connected". */
+export class ShortDownload extends Error {}
+
 /** Bytes downloaded so far, and the whole file's when the Mac said. */
 export type DownloadProgress = (received: number, total: number | null) => void;
 
@@ -557,7 +560,7 @@ export class DirectTransport implements Transport {
     const url = this.baseUrl + path;
     const res = await http
       .download(url, this.authHeaders, key, onProgress)
-      .catch(() => Promise.reject(notConnected()));
+      .catch((e: unknown) => Promise.reject(e instanceof ShortDownload ? e : notConnected()));
     if (res.status === 200) return res.uri;
     throw httpFailure(res.status);
   }

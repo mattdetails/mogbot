@@ -17,7 +17,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { fromBase64Url, standardToUrl } from './identity';
-import type { FileSink, HttpAdapter, LocalFiles } from './transport';
+import { ShortDownload, type FileSink, type HttpAdapter, type LocalFiles } from './transport';
 
 /** A file chosen on the phone, before it is uploaded. */
 export interface PickedFile {
@@ -185,7 +185,7 @@ export const http: HttpAdapter = {
     // Ended before the length the Mac gave: not the file, so never kept.
     if (expected > 0 && written < expected) {
       await FileSystem.deleteAsync(dest, { idempotent: true });
-      throw new Error(shortDownload(written, expected));
+      throw new ShortDownload(shortDownload(written, expected));
     }
     return { status: res.status, uri: res.uri };
   },
