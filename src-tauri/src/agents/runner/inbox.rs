@@ -577,6 +577,11 @@ pub(super) fn push(app: &AppHandle, agent_id: &str, mut inbound: Inbound) {
     if inbound.id.is_empty() {
         inbound.id = store::new_id();
     }
+    // A paused agent takes only the user's own words (`paused`).
+    let Some(inbound) = super::paused::gate(app, agent_id, inbound) else {
+        return;
+    };
+    let mut inbound = inbound;
     if inbound.room.is_none() && inbound.conversation.is_none() {
         inbound.conversation = Some(conversation_for(agent_id, &inbound));
     }
