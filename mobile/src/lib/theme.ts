@@ -518,6 +518,8 @@ export const radius = {
   chip: 14,
   card: 16,
   sheet: 24,
+  /** Catch up's entry card (spec-catchup-entry A). */
+  hero: 32,
   pill: 999,
 } as const;
 
@@ -709,6 +711,15 @@ export const catchUp = {
   clearTitle: 20,
   clearBody: 14,
   clearGap: 18,
+  /** The entry's hero card (spec-catchup-entry A): its padding and type. */
+  heroPad: 20,
+  heroTitle: 26,
+  heroSub: 15,
+  heroKey: 34,
+  heroKeyGap: 6,
+  heroBar: 4,
+  /** Offline, what can't be answered yet is dimmed to this. */
+  staleDim: 0.55,
 } as const;
 
 /** A key's three shades (face, skirt, depth) and its legend's ink. */

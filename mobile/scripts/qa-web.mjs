@@ -4762,6 +4762,80 @@ async function main() {
     }
   }
 
+  if (phase('catchup-entry')) {
+    // Catch up's entry, option A (spec-catchup-entry): one card into the flow, quiet rows under it.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      // The web build draws the tab strip at the top, over the hero's title
+      // (on iOS the tabs sit at the bottom): hidden for these shots.
+      const hideTabs = () =>
+        page.eval(`(() => {
+          const all = [...document.querySelectorAll('body *')].filter((e) => {
+            const t = e.innerText ?? '';
+            return ['Catch up', 'Agents', 'Projects', 'Search'].every((w) => t.includes(w)) && e.getBoundingClientRect().top < 120 && e.getBoundingClientRect().height < 120;
+          });
+          const strip = all.pop();
+          if (strip) strip.style.visibility = 'hidden';
+          // The web's small header title sits over the card too (iOS shows the large title above it).
+          for (const e of document.querySelectorAll('body *')) {
+            const r = e.getBoundingClientRect();
+            if (e.children.length === 0 && (e.innerText ?? '').trim() === 'Catch up' && r.top < 60) {
+              e.style.visibility = 'hidden';
+            }
+          }
+          return !!strip;
+        })()`);
+      const shot = async (s) => {
+        await hideTabs();
+        await sleep(300);
+        await screen(page, theme, s);
+      };
+      const open = async (...flags) => {
+        await startMock(...flags);
+        await dropCaches(page);
+        await page.goto(`${WEB}/catch-up`);
+        await sleep(7000);
+      };
+      await open('--solo');
+      await shot({
+        name: 'catchup-entry-nothing',
+        check: 'Nothing waiting: no card; “All caught up”, calm, and the way to Agents',
+      });
+      await open('--catchup-single');
+      await shot({
+        name: 'catchup-entry-one',
+        check: 'One: “1 thing needs you”, what it is with the agent, its key, Review it; no list',
+      });
+      await open();
+      await shot({
+        name: 'catchup-entry-many',
+        check:
+          'Many: “N things need you”, “From N agents” (no minutes), the waiting keys, Start catching up; “Or pick one” rows with no buttons; no pill in the header',
+      });
+      // Part of a run: Start, back to the tab, three answered (on the desk here).
+      await page.clickText('Start catching up');
+      await sleep(3000);
+      await page.eval('history.back()');
+      await sleep(1500);
+      await fetch(`${MOCK}/dev/answer?n=3`);
+      await sleep(3500);
+      await shot({
+        name: 'catchup-entry-midrun',
+        check:
+          'Back part way: “N left”, “2 done · from N agents”, a thin progress bar, the remaining keys, Continue',
+      });
+      // Offline: the same card, its button off, the stale line; the rows dimmed.
+      await open();
+      await stopMock();
+      await sleep(17000);
+      await shot({
+        name: 'catchup-entry-offline',
+        check:
+          'Offline: the card with Start catching up off, “From hh:mm · couldn’t reach your Mac”; rows dimmed',
+      });
+    }
+  }
+
   if (phase('catchup-dir2')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);

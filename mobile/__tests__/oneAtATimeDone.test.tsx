@@ -14,6 +14,7 @@ jest.mock('expo-router', () => {
   const { useEffect } = jest.requireActual<typeof import('react')>('react');
   return {
     useRouter: () => ({ push: jest.fn(), back: mockBack }),
+    useLocalSearchParams: () => ({}),
     useFocusEffect: (fn: () => void | (() => void)) => useEffect(fn, [fn]),
   };
 });

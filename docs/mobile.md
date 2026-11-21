@@ -574,35 +574,22 @@ request, the diff and the photo viewer push over them. At
   agents, and always the number the list shows. Home has no bar for it: a
   waiting agent's row keeps only its own label, as the desk's sidebar row
   does (docs/agents.md, "Needs you: one place per surface").
-  - **Header.** The large title, then "3 things need you" and "From 2
-    agents" (offline, the connection bar above says when it last heard). Nothing waiting: a calm check, "All
-    caught up", one line, and **Go to Agents**.
-  - **Grouped by agent.** One card per agent, in the order of its most
-    urgent row (what blocks an agent first, then the rest; newest first
-    within each; `groupByAgent`). Its head is the agent's key (lit while it
-    needs you, `agentKeyState`), its name and how many; tapping it opens the
-    chat. Each row is one line of what's asked, the agent's one line of why,
-    and when: approvals, plans, "OK to go on?", keys, logins, a session's
-    question, changes in a task copy, a turn only you can fix, setting up
-    your team, and an import only the Mac can review.
-  - **Answers on the row.** A short plain request the Mac marked low-risk
-    is answered there (Deny · Allow, compact and neutral, the same 400 ms
-    arming; `answersInPlace`), its whole text shown (the exact command in
-    mono when there's no plain line). Anything risky (`approval.risk:
-    'high'`, decided on the Mac by `mcp::risk_of` from Bold's floor:
-    deleting for good, money, credentials, `sudo`, pushing, publishing,
-    sending, system files; plans and push cards too) wears the warning icon
-    and has **Review**, and so does a card the Mac didn't classify (an older
-    Mac, a card from before) and one that doesn't fit whole (`fitsWhole`:
-    over 160 characters or 3 lines, a plan over 3 steps). Review opens it in
-    full, where Allow is the same neutral answer as every Allow (a risky one is told apart by
-    its warning icon and words, never by a red button). The phone never works
-    risk out from a command's words. A key, a login or a question has its one
-    action ("Enter key", "Sign in", "Answer") beside the words, opening it
-    where it's answered; changes in a copy have Discard (confirmed) · Keep
-    changes on the row (`useCopyParts`, compact).
-  - **Swipe** a row left for **Chat** (its chat at the card), also in the
-    VoiceOver actions rotor. Swiping never answers.
+  - **The entry card** (Designer's spec-catchup-entry, option A, 20 Nov;
+    `lib/catchUpEntry.ts`). One at a time is the way to catch up, so under the
+    large title one card says how much and from whom and has one neutral
+    button into it: "7 things need you", "From 6 agents", the waiting agents'
+    keys, **Start catching up**. One waiting: "1 thing needs you", the agent
+    and what it wants, **Review it**. Back part way through a run: "4 left",
+    "3 done · from 4 agents", a thin progress bar, **Continue** (the run is
+    the count when you pressed Start, kept for the app's session). Offline:
+    the button is off and a line says "From 20:14 · couldn't reach your Mac"
+    (the time only when known). No time estimate: the app shows only what it
+    knows. No "One at a time" pill in the header any more. Nothing waiting: a
+    calm check, "All caught up", one line, and **Go to Agents**.
+  - **Or pick one.** With two or more, a quiet list under the card: each
+    row the agent's key, what it wants, "Agent · 38 min ago" and a chevron,
+    no buttons (answering happens one at a time); dimmed offline. A row opens
+    One at a time at that one (`?agent=&message=`), the rest after it.
   - **Answered rows leave** by themselves, here or at the desk, fading out
     while the rest close up (still under Reduce Motion), and an agent's card
     goes with its last row.
@@ -616,8 +603,7 @@ request, the diff and the photo viewer push over them. At
     while you read); with none on record the section is "Recently" (the last
     24 hours). The chats it needs (cards, copies, unread) are loaded as the
     tab opens.
-  - **One at a time** (header, with two or more) goes through them full
-    screen (below). A pushed "needs you" opens this tab.
+  - A pushed "needs you" opens this tab.
   - **Where the app opens** (`lib/landing.ts`): at launch, Catch up when
     anything waits (from the saved copy), else Agents; the Mac's first answer
     within 4 s may put that right once, only if you haven't moved. Coming
@@ -659,7 +645,7 @@ request, the diff and the photo viewer push over them. At
   (`usageSheet`, shared with the desk's popover). ↻ reads it all again.
   Adding and signing in to accounts stay on the Mac.
 - **One at a time** (`app/one-at-a-time.tsx`, `lib/catchUp.ts`), from
-  Catch up's **One at a time**: everything waiting, one card
+  Catch up's entry card or a row of its list: everything waiting, one card
   at a time, full screen. Setting up your team first, then every request
   this phone can answer (oldest first). What only happened (an agent's new
   result, a routine's run, a failed turn) isn't a decision, so it isn't a card:
