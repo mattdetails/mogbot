@@ -1128,3 +1128,93 @@ button.agents-catchup__row:hover:not(.is-selected) {
   border: var(--border-width-default) solid var(--border-strong);
   border-radius: var(--radius-pill);
 }
+
+/* ----------------------------------------------- Catch up v3 (one column)
+   designs/catchup-v3: one centred 720px column; the header's title and
+   buttons sit on the same edges; the bar and its bottom line run the whole
+   pane. Nothing is a separate state: the decision, what's next, and what
+   happened stack in that order. */
+.agents-catchup__head {
+  padding-inline: max(var(--spacing-lg), calc((100% - 720px) / 2));
+}
+
+.agents-catchup__column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 28px;
+  width: min(100% - 48px, 720px);
+  min-height: 0;
+  margin: 0 auto;
+  padding: 32px 0 88px;
+  overflow-y: auto;
+}
+
+.agents-catchup__column .agents-catchup__card {
+  width: 100%;
+}
+
+.agents-catchup__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: 0 0 14px;
+}
+
+.agents-catchup__ticks {
+  display: flex;
+  gap: 4px;
+}
+
+.agents-catchup__tick {
+  width: 28px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-selected);
+}
+
+.agents-catchup__tick[data-current] {
+  background: var(--text-primary);
+}
+
+.agents-catchup__count {
+  font-size: var(--font-size-body-md);
+  color: var(--text-muted);
+}
+
+.agents-catchup__section h3 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-body-md);
+  font-weight: var(--font-weight-label);
+  color: var(--text-muted);
+}
+
+.agents-catchup__section .agents-catchup__row {
+  border-radius: var(--radius-lg);
+}
+
+.agents-catchup__section .agents-catchup__row:hover {
+  background: var(--surface-control);
+}
+
+.agents-catchup__away .agents-catchup__sum-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  text-align: left;
+  font-size: var(--font-size-body-md);
+}
+
+.agents-catchup__away .agents-catchup__sum-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

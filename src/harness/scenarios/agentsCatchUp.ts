@@ -242,14 +242,7 @@ const CATCH_UP_PAGE: Scenario[] = [
     'the first put off with Later',
     'Lead Gen’s row sits last in Needs you with a muted “Later” in place of its age; Mail’s card is open and the header says “2 left”.',
     withAsks(ASKS, HAPPENED),
-    { steps: [{ click: '.agents-catchup__quiet button:last-child' }] }
-  ),
-  scenario(
-    'summary',
-    'the summary open (while you were away)',
-    'Opened from the entry’s “Earlier today › While you were away” row: the summary row is selected and the header says “Summary”. The card: a clock tile, “While you were away” and “6 things · no decisions”; six 52px rows with a key, one sentence and its time at the right, hairlines between; one strong Got it.',
-    build(HAPPENED),
-    { steps: [{ click: '.agents-catchup__queue .agents-catchup__whileaway .agents-catchup__row' }] }
+    { steps: [{ click: '.agents-catchup__actions button:last-of-type' }] }
   ),
   scenario(
     'done',
@@ -270,13 +263,6 @@ const CATCH_UP_PAGE: Scenario[] = [
     'In an 800px window the queue column is gone; the header count is a button (“3 left” with a chevron) and the card fills the pane at 100% − 32px.',
     withAsks(ASKS, HAPPENED),
     { viewport: { width: 800, height: 700 } }
-  ),
-  scenario(
-    'narrow-queue',
-    'narrow, the queue open in a popover',
-    'Below the count button the queue opens as a popover (the same rows and groups); picking one closes it.',
-    withAsks(ASKS, HAPPENED),
-    { viewport: { width: 800, height: 700 }, steps: [{ click: '.agents-catchup__left-button' }] }
   ),
   scenario(
     'many',
@@ -314,16 +300,16 @@ const CATCH_UP_PAGE: Scenario[] = [
     withAsks([longAsk, ...ASKS.slice(1)], HAPPENED)
   ),
   scenario(
-    'details',
-    'Details open',
-    'Details shows the request’s own words in a quiet panel hung below the card; the card and its actions do not move.',
-    withAsks(ASKS, HAPPENED),
-    { steps: [{ click: '.agents-catchup__actions [aria-expanded]' }] }
+    'long-preview',
+    'a long preview: the words run three lines, then “Read all”',
+    'The decision card with a long request: the title clamps to two lines, the preview’s message excerpt to three, then a muted “Read all 12” line; the actions stay where they were.',
+    withAsks([longAsk], HAPPENED),
+    {}
   ),
 ];
 
 /** The four flow states Designer asked for (open, answer one, Later one, All clear), at 1440 and 800. */
-const FLOW_STATES = ['several', 'summary', 'all-clear'];
+const FLOW_STATES = ['several', 'all-clear', 'long-preview'];
 const FLOW_WIDTHS: [string, number][] = [
   ['w1440', 1440],
   ['w800', 800],
