@@ -269,7 +269,7 @@ export function AgentsCatchUp({ onOpenAgent, onOpenMessage, onClose, onOpenInFli
 
   return (
     <div className="agents-catchup">
-      <header className="agents-catchup__head">
+      <header className="agents-catchup__head" data-mode={mode}>
         <h2 className="agents-catchup__title">{CATCH_UP.title}</h2>
         {/* The entry's card says the count; the header says it in the flow. */}
         {mode === 'flow' && (

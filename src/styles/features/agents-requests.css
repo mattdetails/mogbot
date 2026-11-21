@@ -437,13 +437,25 @@
   flex: 1;
 }
 
+/* On the entry, the header sits on the centred column's edges: the title
+   over the card's left edge, Close over its right, at every width. */
+.agents-catchup__head[data-mode='entry'] {
+  padding-inline: var(--agents-page-inset);
+}
+
+/* Close's words, not its quiet hover box, end on the card's right edge. */
+.agents-catchup__head[data-mode='entry'] > .button:last-child {
+  /* The head buttons' padding (10px, the spec's) and their border. */
+  margin-right: calc(-1 * (var(--catchup-head-button-pad) + var(--border-width-default)));
+}
+
 /* The count is a button only where the queue is hidden (a narrow window). */
 .agents-catchup__left-button {
   display: none;
   align-items: center;
   gap: var(--spacing-xs);
   height: 30px; /* css-ok: the spec's 30px, as the ghost buttons beside it */
-  padding: 0 10px; /* css-ok: the spec's 10px */
+  padding: 0 var(--catchup-head-button-pad);
   border: 0;
   border-radius: var(--radius-card);
   background: none;
@@ -751,7 +763,7 @@ button.agents-catchup__row:hover:not(.is-selected) {
 .agents-catchup__head .button,
 .agents-catchup__quiet .button {
   height: 30px; /* css-ok: the spec's 30px ghost button */
-  padding: 0 10px; /* css-ok: the spec's 10px */
+  padding: 0 var(--catchup-head-button-pad);
   border-radius: var(--radius-8);
   font-size: var(--font-size-13);
 }
