@@ -27,6 +27,8 @@ import CollaboratorsSvg from '../../assets/icons/collaborators.svg?react';
 import PackageSvg from '../../assets/icons/old-icons/package.svg?react';
 import PlaySvg from '../../assets/icons/old-icons/play.svg?react';
 import PauseSvg from '../../assets/icons/old-icons/pause.svg?react';
+import PauseOutlineSvg from '../../assets/icons/pause-outline.svg?react';
+import PlayOutlineSvg from '../../assets/icons/play-outline.svg?react';
 import SkipNextSvg from '../../assets/icons/old-icons/skip-next.svg?react';
 import SkipPreviousSvg from '../../assets/icons/old-icons/skip-previous.svg?react';
 import { createIcon } from './icon-base';
@@ -258,6 +260,18 @@ export const PlayIcon = createIcon(PlaySvg, {
 export const PauseIcon = createIcon(PauseSvg, {
   name: 'PauseIcon',
   source: 'icons/old-icons/pause.svg',
+  kind: 'ui',
+  defaultSize: 12,
+});
+export const PauseOutlineIcon = createIcon(PauseOutlineSvg, {
+  name: 'PauseOutlineIcon',
+  source: 'icons/pause-outline.svg',
+  kind: 'ui',
+  defaultSize: 12,
+});
+export const PlayOutlineIcon = createIcon(PlayOutlineSvg, {
+  name: 'PlayOutlineIcon',
+  source: 'icons/play-outline.svg',
   kind: 'ui',
   defaultSize: 12,
 });

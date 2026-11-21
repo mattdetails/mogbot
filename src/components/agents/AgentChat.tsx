@@ -186,8 +186,10 @@ import {
   hintDot,
   needsYou,
   ROUTINES_NEED_THE_COMPUTER,
+  setAgentPaused,
 } from '../../lib/agents';
 import { AgentStarters } from './AgentStarters';
+import { StatusPill } from '../primitives/StatusPill';
 import { BlockReplyContext, type BlockReply } from './blocks/blockReply';
 import { answerAfter } from '../../../packages/companion-protocol/src/blocks';
 import {
@@ -705,6 +707,11 @@ export const AgentChat = memo(function AgentChat({
             ?.scrollIntoView({ block: 'center', behavior: scrollMotion() })
         }
       />
+      {agent.paused && (
+        <StatusPill tone="idle" className="agent-chat__paused">
+          Paused
+        </StatusPill>
+      )}
       {renamingConversation && (
         <RenameConversation
           agentId={agent.id}
@@ -2262,6 +2269,7 @@ export const AgentChat = memo(function AgentChat({
                         onApps={openReach ? () => openReach(agent.id) : undefined}
                         teamIndependence={teamIndependence}
                         actions={actions}
+                        onPause={(a, paused) => void setAgentPaused(a.id, paused)}
                         onFiles={() => setFilesOpen(true)}
                       />
                       <AgentFilesModal

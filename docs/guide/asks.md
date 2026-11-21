@@ -18,6 +18,25 @@ An assigned line stays open until the assignee marks it done or hands it back. H
 comes with a reason ("Globex isn't a client of ours"), and the reason goes to whoever assigned it as
 a message. It never just disappears. Lines you add yourself have no one to hand back to.
 
+## Your own list
+
+You can add to an agent's list yourself. On the desk, open its tasks panel and press **Add a task** at
+the foot: the row becomes one field, **Enter** puts the line in **Next** in your own words, **Esc**
+cancels. On the phone it is in the **⋯** at the top of the tasks sheet, with **Reorder** (move a
+line one place up or down in its group) and **Drop a task**. A dropped line is closed with a reason
+("Dropped by you", or the one you give) and stays in the list, muted, for the day. All of this needs
+a computer running a recent enough Mogbot; an older one hides the rows.
+
+## What you ask isn't lost
+
+After a turn that began with your own words, the app reads what was asked and how the turn ended. If
+the agent missed something you asked for, it is added to the list with a short title of its own; if
+the agent ended on a question, the line it concerns moves to **Waits on you**. It only ever adds
+lines and parks them: it never marks anything Done or Dropped, that is the agent's call (or yours).
+It doesn't run for routines or for turns answering outside text, and it runs at most 30 times a day
+per agent. It makes one short call to the agent's own engine each time, so it counts a little against
+your plan.
+
 ## Where to see it
 
 Open **What's in flight**. **Team tasks** lists each agent with something open: its first asks, how

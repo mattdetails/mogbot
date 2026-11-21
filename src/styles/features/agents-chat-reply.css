@@ -293,6 +293,42 @@
   color: var(--accent-warning);
 }
 
+.agent-tasks__add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: 0;
+}
+
+.agent-tasks__add-row {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) 0;
+  border: 0;
+  background: none;
+  font-size: var(--font-size-13);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agent-tasks__add-row:hover {
+  color: var(--text-primary);
+}
+
+.agent-tasks__add-row:focus-visible {
+  outline: var(--border-width-default) solid var(--focus-ring);
+  outline-offset: var(--spacing-2xs);
+  border-radius: var(--radius-6);
+}
+
+/* The field is the shared TextField (its surface, border and focus ring);
+   this only makes it fill the pane. */
+.agent-tasks__add-input {
+  width: 100%;
+}
+
 .agent-tasks__empty {
   margin: 0;
   font-size: var(--font-size-13);
