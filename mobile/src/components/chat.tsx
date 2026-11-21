@@ -58,6 +58,7 @@ import { Attachments } from './attachments';
 import { LocalLinks } from './localLinks';
 import { useReveal } from '../lib/reveal';
 import { BubbleSize, Markdown } from './Markdown';
+import { CheckedReply } from './replyPaths';
 import { useUserBubble } from '../lib/userBubble';
 import { REPLY } from '@shipstudio/companion-protocol';
 import { replyRefFor } from '../lib/reply';
@@ -281,11 +282,15 @@ const MessageRowBody = memo(function MessageRowBody({
           ) : (
             // A bubble, as yours is, on the other side: a quieter fill and the
             // small corner toward the agent.
-            <View style={[styles.agentBubble, wide && { maxWidth: composer.replyMax }]}>
-              <BubbleSize.Provider value>
-                <Prose id={message.id} text={message.text} />
-              </BubbleSize.Provider>
-            </View>
+            // Paths in it are checked on the Mac: images drawn under it,
+            // missing ones struck through, ones it may not open plain text.
+            <CheckedReply agentId={message.agentId} text={message.text} onError={onError}>
+              <View style={[styles.agentBubble, wide && { maxWidth: composer.replyMax }]}>
+                <BubbleSize.Provider value>
+                  <Prose id={message.id} text={message.text} />
+                </BubbleSize.Provider>
+              </View>
+            </CheckedReply>
           )}
           {!!message.localLinks?.length && (
             <LocalLinks

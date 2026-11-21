@@ -5743,6 +5743,7 @@ export const frames = [
       "agents.watchLive",
       "agents.files",
       "agents.fetchPath",
+      "agents.checkPaths",
       "agents.search",
       "agents.schedule.preview",
       "agents.schedule.create",

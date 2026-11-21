@@ -13,7 +13,7 @@
  */
 
 import * as Clipboard from 'expo-clipboard';
-import { columnAlign } from '@shipstudio/companion-protocol';
+import { columnAlign, type PathCheck } from '@shipstudio/companion-protocol';
 import { Lexer, type Token, type Tokens } from 'marked';
 import { createContext, memo, useContext, useMemo, useState, type ReactNode } from 'react';
 import { type LayoutChangeEvent, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -39,6 +39,12 @@ import { useComputer } from '../lib/computer';
 
 /** Opens a path written in a reply; absent where paths can't be opened. */
 export const PathContext = createContext<((path: string) => void) | null>(null);
+/**
+ * What the Mac said each path in this reply is (`agents.checkPaths`): a
+ * missing one is muted and struck through, one outside what a tap may open is
+ * plain text. Absent (an older Mac, or not checked yet): every path a link.
+ */
+export const PathKinds = createContext<ReadonlyMap<string, PathCheck['kind']> | null>(null);
 
 /**
  * In a room, the members a reply can @mention, each with its name's colour:
@@ -48,6 +54,47 @@ export const PathContext = createContext<((path: string) => void) | null>(null);
 export const MentionContext = createContext<{ name: string; color: string }[] | null>(null);
 
 /** Plain words, with any member's @mention in that member's colour. */
+/** Plain words with any `~/…` path in them made a path (still words otherwise). */
+function BarePaths({ text }: { text: string }) {
+  const found = [...text.matchAll(BARE_PATH)];
+  if (!found.length) return <Mentioned text={text} />;
+  const out: ReactNode[] = [];
+  let at = 0;
+  found.forEach((m, i) => {
+    if (m.index > at) out.push(<Mentioned key={`t${i}`} text={text.slice(at, m.index)} />);
+    out.push(
+      <PathText key={`p${i}`} path={m[0]}>
+        {m[0]}
+      </PathText>
+    );
+    at = m.index + m[0].length;
+  });
+  if (at < text.length) out.push(<Mentioned key="end" text={text.slice(at)} />);
+  return <>{out}</>;
+}
+
+/** Every path a reply's words name, for `agents.checkPaths`: in code, links and plain words. */
+export function pathsIn(text: string): string[] {
+  const found = new Set<string>();
+  const walk = (tokens: Token[] | undefined) => {
+    for (const t of tokens ?? []) {
+      if (t.type === 'codespan') {
+        const code = decode((t as Tokens.Codespan).text);
+        if (looksLikePath(code)) found.add(code.trim());
+      } else if (t.type === 'link' && looksLikePath((t as Tokens.Link).href)) {
+        found.add((t as Tokens.Link).href.trim());
+      } else if (t.type === 'text' && !(t as Tokens.Text).tokens) {
+        for (const m of decode((t as Tokens.Text).text).matchAll(BARE_PATH)) found.add(m[0]);
+      }
+      const inner = t as { tokens?: Token[]; items?: { tokens?: Token[] }[] };
+      walk(inner.tokens);
+      for (const item of inner.items ?? []) walk(item.tokens);
+    }
+  };
+  walk(Lexer.lex(text, { gfm: true, breaks: true }));
+  return [...found];
+}
+
 function Mentioned({ text }: { text: string }) {
   const members = useContext(MentionContext);
   if (!members?.length || !text.includes('@')) return <>{text}</>;
@@ -153,19 +200,48 @@ function blocks(tokens: Token[], styles: Styles): ReactNode[] {
 const FILE_EXT =
   /\.(md|mdx|txt|pdf|png|jpe?g|gif|webp|svg|heic|json|csv|tsv|tsx?|jsx?|mjs|cjs|html?|css|scss|py|rs|go|rb|swift|kt|java|ya?ml|toml|lock|sql|sh|zip|docx?|xlsx?|pptx?|key|pages|numbers|mov|mp4|mp3|wav)$/i;
 
-/** `src/app/page.tsx`, `./notes.md`, `/Users/x/report.pdf`: a file, not a command. */
+/**
+ * `src/app/page.tsx`, `./notes.md`, `/Users/x/report.pdf`: a file, not a
+ * command. A path from `/` or `~/` may have spaces in its folders
+ * ("~/Library/Application Support/…", where agents keep their files), so
+ * long as it ends in a file name with an extension.
+ */
 export function looksLikePath(s: string): boolean {
   const t = s.trim();
-  if (!t || /\s/.test(t) || /^[a-z]+:\/\//i.test(t) || t.length > 300) return false;
-  if (!/^(~|\.{1,2})?\/?([\w@.+-]+\/)*[\w@+-][\w@.+-]*\.[A-Za-z0-9]{1,8}$/.test(t)) return false;
+  if (!t || /\n/.test(t) || /^[a-z]+:\/\//i.test(t) || t.length > 300) return false;
+  const rooted = /^(~\/|\/)/.test(t);
+  if (/\s/.test(t) && !rooted) return false;
+  const seg = rooted ? "[\\w@.+ ()'-]" : '[\\w@.+-]';
+  const shape = new RegExp(`^(~|\\.{1,2})?\\/?(${seg}+\\/)*[\\w@+(-]${seg}*\\.[A-Za-z0-9]{1,8}$`);
+  if (!shape.test(t)) return false;
   return t.includes('/') || FILE_EXT.test(t);
 }
+
+/** A path written in plain words (not in code): from `~/` or `/Users/`, no spaces. */
+export const BARE_PATH =
+  /(?:~|\/Users\/[\w.-]+)\/(?:[\w@.+-]+\/)*[\w@+-][\w@.+-]*\.[A-Za-z0-9]{1,8}/g;
+
+/** What a missing path says, as on the desk. */
+export const PATH_MISSING = 'Not found on this Mac';
 
 function PathText({ path, children }: { path: string; children: ReactNode }) {
   const comp = useComputer();
   const styles = useStyles();
   const open = useContext(PathContext);
-  if (!open) return <>{children}</>;
+  const kinds = useContext(PathKinds);
+  const kind = kinds?.get(path.trim());
+  if (!open || kind === 'outside') return <>{children}</>;
+  if (kind === 'missing') {
+    return (
+      <Text
+        style={styles.pathMissing}
+        accessibilityLabel={`${path}, ${PATH_MISSING.toLowerCase()}`}
+      >
+        {children}
+        <Text style={styles.pathMissingNote}>{` (${PATH_MISSING})`}</Text>
+      </Text>
+    );
+  }
   return (
     <Text
       style={styles.path}
@@ -304,7 +380,7 @@ function inline(tokens: Token[] | undefined, styles: Styles): ReactNode[] {
         return tt.tokens ? (
           <Text key={i}>{inline(tt.tokens, styles)}</Text>
         ) : (
-          <Mentioned key={i} text={decode(tt.text)} />
+          <BarePaths key={i} text={decode(tt.text)} />
         );
       }
       case 'escape':
@@ -523,6 +599,8 @@ const useBaseStyles = makeStyles((colors) => ({
   },
   link: { color: colors.accentFocus, textDecorationLine: 'underline' },
   path: { textDecorationLine: 'underline', textDecorationColor: colors.textMuted },
+  pathMissing: { textDecorationLine: 'line-through', color: colors.textMuted },
+  pathMissingNote: { textDecorationLine: 'none', color: colors.textMuted },
   quote: {
     borderLeftWidth: 2,
     borderLeftColor: colors.borderStrong,

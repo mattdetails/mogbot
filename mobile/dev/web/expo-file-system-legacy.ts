@@ -66,6 +66,12 @@ export async function downloadAsync(
   opts?: { headers?: Record<string, string> }
 ) {
   const res = await fetch(url, { headers: opts?.headers });
+  // A picture must be drawable: the bytes as an object URL (only a marker is stored).
+  if (res.status === 200 && (res.headers.get('content-type') ?? '').startsWith('image/')) {
+    const shown = URL.createObjectURL(await res.blob());
+    local.set(P + dest, 'downloaded');
+    return { status: res.status, uri: shown, headers: {} };
+  }
   return { status: res.status, uri: dest, headers: {} };
 }
 

@@ -4669,6 +4669,25 @@ async function main() {
     await each(FIRST_RUN);
   }
 
+  if (phase('reply-paths')) {
+    // Paths in a reply (the four states): an image under it, a file as a link,
+    // a missing one struck through, one outside the allowlist as plain words.
+    for (const theme of THEMES) {
+      await setTheme(page, theme);
+      await startMock('--reply-paths');
+      await dropCaches(page);
+      await page.goto(`${WEB}/chat/design`);
+      await sleep(8000);
+      await scrollToIncludes('The notes are in')(page).catch(() => {});
+      await sleep(1500);
+      await screen(page, theme, {
+        name: 'reply-paths',
+        check:
+          'One reply, four paths: hero-after.png as a link with its picture under the reply; HERO-NOTES.md a link; hero-draft.png struck through “(Not found on this Mac)”; /etc/hosts.txt plain words',
+      });
+    }
+  }
+
   if (phase('catchup-dir2')) {
     for (const theme of THEMES) {
       await setTheme(page, theme);
