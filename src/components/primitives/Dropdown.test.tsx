@@ -367,4 +367,23 @@ describe('Dropdown', () => {
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
+
+  it('keeps one menu open at a time: opening another closes the first', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Dropdown portal trigger={(p) => <button {...p}>First</button>}>
+          <DropdownItem onSelect={() => {}}>One</DropdownItem>
+        </Dropdown>
+        <Dropdown portal trigger={(p) => <button {...p}>Second</button>}>
+          <DropdownItem onSelect={() => {}}>Two</DropdownItem>
+        </Dropdown>
+      </>
+    );
+    await user.click(screen.getByRole('button', { name: 'First' }));
+    expect(screen.getByRole('menuitem', { name: 'One' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Second' }));
+    expect(screen.getByRole('menuitem', { name: 'Two' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'First' })).toHaveAttribute('aria-expanded', 'false');
+  });
 });

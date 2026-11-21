@@ -112,6 +112,9 @@ interface DropdownBaseProps {
 type DropdownProps = DropdownBaseProps &
   ({ presentation: 'popover'; ariaLabel: string } | { presentation?: 'menu'; ariaLabel?: string });
 
+/** Fired on window when a Dropdown opens, with its container: the others close. */
+const DROPDOWN_OPENED = 'ss-dropdown-opened';
+
 const DropdownContext = createContext<{ close: () => void } | null>(null);
 
 /**
@@ -235,6 +238,24 @@ export function Dropdown({
     restoreFocusOnCloseRef.current = false;
     setOpen(false);
   }, [cancelHoverClose, setOpen]);
+
+  // One menu open at a time: opening this one closes any other (a trigger
+  // stops its click, so an open menu never hears it as a click outside). A
+  // menu that holds the new trigger (a submenu's parent) stays open.
+  useEffect(() => {
+    if (!isOpen) return;
+    const me = containerRef.current;
+    window.dispatchEvent(new CustomEvent(DROPDOWN_OPENED, { detail: me }));
+    const onOther = (event: Event) => {
+      const other = (event as CustomEvent<HTMLElement | null>).detail;
+      if (!other || other === me) return;
+      if (menuRef.current?.contains(other) || me?.contains(other)) return;
+      restoreFocusOnCloseRef.current = false;
+      close();
+    };
+    window.addEventListener(DROPDOWN_OPENED, onOther);
+    return () => window.removeEventListener(DROPDOWN_OPENED, onOther);
+  }, [isOpen, close]);
 
   // The portaled menu isn't a DOM descendant of the container; exclude it so
   // clicks inside the menu don't count as "outside".
