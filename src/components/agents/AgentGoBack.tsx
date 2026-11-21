@@ -20,7 +20,7 @@ import {
   PencilIcon,
   PinIcon,
   ReplyIcon,
-  UndoIcon,
+  HistoryIcon,
 } from '@/components/icons';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import { formatAgo } from '../../lib/formatAgo';
@@ -57,7 +57,7 @@ export type { GoBackAction };
 export const GO_BACK_ICONS: Record<GoBackAction, ReactNode> = {
   edit: <PencilIcon size={14} />,
   fork: <BranchIcon size={14} />,
-  rewind: <UndoIcon size={14} />,
+  rewind: <HistoryIcon size={14} />,
 };
 
 export const GO_BACK_ORDER: GoBackAction[] = ['edit', 'fork', 'rewind'];
@@ -188,7 +188,7 @@ export function GoBackContextMenu({
 export const GO_BACK_ICONS_SM: Record<GoBackAction, ReactNode> = {
   edit: <PencilIcon size={12} />,
   fork: <BranchIcon size={12} />,
-  rewind: <UndoIcon size={12} />,
+  rewind: <HistoryIcon size={12} />,
 };
 
 /** How many of your messages ⌘K's "Go back to an earlier message…" offers. */
@@ -389,7 +389,7 @@ export function foldRows<T>(
             <TextButton
               tabIndex={0}
               aria-expanded={isOpen}
-              leftIcon={<UndoIcon size={12} />}
+              leftIcon={<HistoryIcon size={12} />}
               rightIcon={<ChevronRightIcon size={12} className="agent-go-back__chevron" />}
               onClick={() => onToggle(group.rewindId)}
             >
