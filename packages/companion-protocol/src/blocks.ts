@@ -129,10 +129,19 @@ export interface ComparisonBlock extends Base {
   options: ComparisonOption[];
 }
 
+export interface ChoiceOption {
+  label: string;
+  /** What picking it sends, as the user. */
+  reply: string;
+  /** One plain line under the label: what picking it means. */
+  description?: string;
+  recommended?: boolean;
+}
+
 export interface ChoicesBlock extends Base {
   kind: 'choices';
   question?: string;
-  options: { label: string; reply: string }[];
+  options: ChoiceOption[];
 }
 
 export type FieldType = 'text' | 'long_text' | 'choice' | 'date' | 'number';

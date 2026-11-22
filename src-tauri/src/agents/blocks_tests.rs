@@ -64,6 +64,36 @@ fn what_is_stored_reads_back_the_same() {
 }
 
 #[test]
+fn choices_keep_a_description_and_one_recommended_option() {
+    let set = one(json!({ "kind": "choices", "question": "Which host?", "options": [
+        { "label": "Vercel", "description": "Fastest to set up; free for this size.", "recommended": true },
+        { "label": "Netlify", "description": "  " },
+        "Self-host"
+    ]}))
+    .unwrap();
+    let v = stored(&set);
+    let o = &v["items"][0]["options"];
+    assert_eq!(
+        o[0]["description"],
+        "Fastest to set up; free for this size."
+    );
+    assert_eq!(o[0]["recommended"], true);
+    assert!(
+        o[1].get("description").is_none(),
+        "blank descriptions are dropped"
+    );
+    assert!(o[2].get("recommended").is_none());
+    let back: BlockSet = serde_json::from_value(v.clone()).unwrap();
+    assert_eq!(back, set);
+    assert!(message_text(&set).contains("“Vercel” (recommended)"));
+    let e = one(json!({ "kind": "choices", "options": [
+        { "label": "A", "recommended": true }, { "label": "B", "recommended": true }
+    ]}))
+    .unwrap_err();
+    assert!(e.contains("only one option"), "{e}");
+}
+
+#[test]
 fn unknown_kinds_and_missing_kinds_are_refused_with_the_list() {
     let e = one(json!({ "kind": "map", "places": [] })).unwrap_err();
     assert!(

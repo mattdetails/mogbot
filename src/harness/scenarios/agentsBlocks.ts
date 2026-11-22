@@ -196,8 +196,17 @@ const CHOICES = {
   summary: '',
   question: 'Want me to move the DNS over as well?',
   options: [
-    { label: 'Yes, move it', reply: 'Yes, move the DNS too.' },
-    { label: 'Not yet', reply: 'Not yet.' },
+    {
+      label: 'Yes, move it',
+      reply: 'Yes, move the DNS too.',
+      description: 'About 10 minutes. The site stays up while it switches over.',
+      recommended: true,
+    },
+    {
+      label: 'Not yet',
+      reply: 'Not yet.',
+      description: 'DNS stays where it is; I’ll bring it up again on Friday.',
+    },
     { label: 'What does that involve?', reply: 'What does moving the DNS involve?' },
   ],
 };
@@ -431,7 +440,7 @@ export const agentsBlocksScenarios: Scenario[] = [
     id: 'agents-blocks-decide',
     title: 'Agents — blocks: a comparison, quick replies and a form',
     looksRightWhen:
-      '“Where to host the new site”: three option cards side by side, Vercel ringed in a neutral outline with a “Recommended” badge; each with its line, cost and build time right-aligned, green + pros and red − cons under a hairline, and “Pick this” at the bottom (Vercel’s strong neutral, the others outlined; never the accent). Then “Want me to move the DNS over as well?” with three outlined buttons. Then a card “The launch event” with Event name, Date (a date input), Guests, Where as three toggle buttons, Anything else as a text area, “Optional” beside the optional ones, and “Send details” right-aligned, strong neutral.',
+      '“Where to host the new site”: three option cards side by side, Vercel ringed in a neutral outline with a “Recommended” badge; each with its line, cost and build time right-aligned, green + pros and red − cons under a hairline, and “Pick this” at the bottom (Vercel’s strong neutral, the others outlined; never the accent). Then “Want me to move the DNS over as well?” with its options one per row, full width, at reading size: “1 Yes, move it” with a Recommended badge and a grey line under it, “2 Not yet” with its line, “3 What does that involve?”, and “4 Other · Type your own answer”. Then a card “The launch event” with Event name, Date (a date input), Guests, Where as three radio rows one under the other, Anything else as a text area, “Optional” beside the optional ones, and “Send details” right-aligned, strong neutral.',
     requires: '.agent-block-compare',
     openSelector: AGENTS_TAB,
     steps: [open],

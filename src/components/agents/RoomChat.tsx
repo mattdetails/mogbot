@@ -10,7 +10,8 @@
  *
  * Each agent answers from its own session, shown the room's recent lines.
  * Approval cards, timelines and result cards appear inline, under the agent
- * whose turn they belong to, and are answered here as in its own chat.
+ * whose turn they belong to, and are answered here as in its own chat. So are
+ * a member's choices, comparisons and forms: your answer goes to that member.
  *
  * @module components/agents/RoomChat
  */
@@ -52,7 +53,12 @@ import { ConversationBar, ConversationBars } from './AgentCard';
 import { tintMentionsIn, useMentionPicker } from './AgentMentions';
 import { useDictation } from './useDictation';
 import { ComposerAttachments } from './AgentAttachments';
-import { ListeningStatus, sendDisabled, useFollowDictation } from './AgentComposer';
+import {
+  ListeningStatus,
+  sendDisabled,
+  useFollowDictation,
+  useGrowingInput,
+} from './AgentComposer';
 import {
   toOutgoing,
   useComposerAttachments,
@@ -60,6 +66,7 @@ import {
   type DraftAttachment,
 } from './useComposerAttachments';
 import { useArrivals, useFollowBottom, usePresence } from './useAgentMotion';
+import { BlockReplyContext, type BlockReply } from './blocks/blockReply';
 import {
   AgentBubble,
   ApprovalCard,
@@ -402,6 +409,41 @@ export function RoomChat({
     }
   };
 
+  /** A block's answer, as your line to the member that asked it. */
+  const answerTo = (text: string, agentId: string) => {
+    const member = members.find((m) => m.id === agentId);
+    if (!member || !text.trim()) return;
+    const entry: Pending = {
+      key: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      text,
+      ts: Date.now(),
+      mentions: [{ id: member.id, name: member.name }],
+    };
+    setPending((list) => [...list, entry]);
+    atBottomRef.current = true;
+    void deliver(entry, [member.id], false);
+  };
+  /** Outside text: the answer waits in the composer, addressed, to be read first. */
+  const stageTo = (text: string, agentId: string) => {
+    const member = members.find((m) => m.id === agentId);
+    setDraft(member ? `@${member.name} ${text}` : text);
+    inputRef.current?.focus();
+  };
+  const replyRef = useRef({ answerTo, stageTo });
+  replyRef.current = { answerTo, stageTo };
+  const shownRef = useRef(shown);
+  shownRef.current = shown;
+  const blockReply = useMemo<BlockReply>(
+    () => ({
+      send: (text, from) => replyRef.current.answerTo(text, from),
+      stage: (text, from) => replyRef.current.stageTo(text, from),
+      answerOf: (id, from) => roomAnswerAfter(shownRef.current, id, from, room.lead),
+    }),
+    // A line arriving can answer a block: re-read then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shown.length, room.lead]
+  );
+
   const stop = () =>
     void stopRoom(room.id).catch((error: unknown) =>
       showToast(formatCommandError(asCommandError(error)), 'error')
@@ -517,6 +559,7 @@ export function RoomChat({
 
   return (
     <AccentScopeProvider scope={accentScope}>
+      <BlockReplyContext.Provider value={blockReply}>
       <section
         ref={sectionRef}
         className="agent-chat agent-room"
@@ -756,6 +799,7 @@ export function RoomChat({
           </div>
         </div>
       </section>
+      </BlockReplyContext.Provider>
     </AccentScopeProvider>
   );
 
@@ -812,6 +856,7 @@ function RoomComposer({
   const setDraft = useCallback((text: string) => setComposerDraft(draftKey, text), [draftKey]);
   const dictating = dictation.phase !== 'idle';
   useFollowDictation(inputRef, draft, dictating);
+  const wrapped = useGrowingInput(inputRef, draft);
   // @ offers the room's members and @everyone, nobody else.
   const mentionable = useMemo(() => [...members, everyoneEntry(members.length)], [members]);
   const mentionPicker = useMentionPicker(mentionable, inputRef, setDraft);
@@ -828,6 +873,7 @@ function RoomComposer({
     <form
       className="agent-composer"
       data-dictation={dictation.phase}
+      data-wrapped={wrapped || undefined}
       data-has-attachments={staged.length > 0 || undefined}
       onSubmit={(e) => {
         e.preventDefault();
@@ -1310,4 +1356,27 @@ function RoomEmpty({
       </div>
     </div>
   );
+}
+
+/**
+ * Your answer to a member's block: your next line in the room to that member
+ * (named in it, or the lead's when you named nobody). Lines to others in
+ * between don't count.
+ */
+export function roomAnswerAfter(
+  messages: readonly AgentMessage[],
+  messageId: string,
+  agentId: string,
+  lead?: string
+): string | null {
+  const at = messages.findIndex((m) => m.id === messageId);
+  if (at < 0) return null;
+  for (let i = at + 1; i < messages.length; i++) {
+    const m = messages[i];
+    if (m.kind !== 'user') continue;
+    const named = m.mentions ?? [];
+    if (named.some((r) => r.id === agentId)) return m.text;
+    if (named.length === 0 && agentId === lead) return m.text;
+  }
+  return null;
 }

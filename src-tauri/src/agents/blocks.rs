@@ -54,7 +54,7 @@ pub const DESCRIPTION: &str = "Answer with UI, not just prose: post a message wi
 - checklist: `items` [{text, done, note}].\n\
 - steps: `items` [{title, detail, status: done|current|todo|failed, when}].\n\
 - comparison: `options` (2-3) [{name, summary, pros, cons, facts [{label, value}], recommended, reply (what Pick this sends; default \"Let's go with <name>.\")}].\n\
-- choices: `question`; `options` (2-6): labels, or {label, reply}.\n\
+- choices: `question`; `options` (2-6): labels, or {label, reply, description (one line), recommended}. Write a question that stands alone; the user can also type another answer.\n\
 - form: `fields` (up to 8) [{id, label, type: text|long_text|choice|date|number, options (choice), required, placeholder}]; `submit` (the button's words).\n\
 - links: `items` [{url, label, note}] (the domain is shown; nothing is fetched).\n\
 - callout: `tone` info|warning|success; `text`.\n\
@@ -440,6 +440,11 @@ pub struct Comparison {
 pub struct Choice {
     pub label: String,
     pub reply: String,
+    /// One plain line under the label: what picking it means.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub recommended: bool,
 }
 
 impl<'de> Deserialize<'de> for Choice {
@@ -450,6 +455,10 @@ impl<'de> Deserialize<'de> for Choice {
             label: String,
             #[serde(default, deserialize_with = "de_text")]
             reply: String,
+            #[serde(default, deserialize_with = "de_opt_text")]
+            description: Option<String>,
+            #[serde(default)]
+            recommended: bool,
         }
         match Value::deserialize(d)? {
             Value::Object(map) => {
@@ -458,11 +467,15 @@ impl<'de> Deserialize<'de> for Choice {
                 Ok(Choice {
                     label: f.label,
                     reply: f.reply,
+                    description: f.description.filter(|t| !t.trim().is_empty()),
+                    recommended: f.recommended,
                 })
             }
             other => Ok(Choice {
                 label: de_text(other).map_err(serde::de::Error::custom)?,
                 reply: String::new(),
+                description: None,
+                recommended: false,
             }),
         }
     }
@@ -1048,6 +1061,12 @@ fn check(block: &mut Block) -> Result<(), String> {
                     o.reply = o.label.clone();
                 }
                 too_long(&o.reply, 500, &format!("options[{i}].reply"))?;
+                if let Some(d) = &o.description {
+                    too_long(d, 200, &format!("options[{i}].description"))?;
+                }
+            }
+            if c.options.iter().filter(|o| o.recommended).count() > 1 {
+                return Err("only one option can be `recommended`.".into());
             }
         }
         Body::Form(f) => {
@@ -1550,7 +1569,13 @@ pub fn summary_of(block: &Block) -> String {
             lines.push(
                 c.options
                     .iter()
-                    .map(|o| format!("“{}”", o.label))
+                    .map(|o| {
+                        if o.recommended {
+                            format!("“{}” (recommended)", o.label)
+                        } else {
+                            format!("“{}”", o.label)
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join(" / "),
             );
