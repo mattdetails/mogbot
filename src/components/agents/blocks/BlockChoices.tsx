@@ -4,7 +4,9 @@
  * at most one), and "Other" to type your own answer. A row sends its reply
  * as your message; once answered the card shows only what you picked.
  *
- * `OptionRows` is the same rows for a form's choice field, as radios.
+ * With `questions` it is several decisions paged in one card
+ * (`BlockQuestions`). `OptionRows` is the same rows for a form's choice
+ * field, as radios.
  *
  * @module components/agents/blocks/BlockChoices
  */
@@ -19,8 +21,17 @@ import {
   type ChoicesBlock,
 } from '../../../../packages/companion-protocol/src/blocks';
 import type { Answering } from './blockReply';
+import { BlockQuestions } from './BlockQuestions';
 
 export function BlockChoices({ block, answering }: { block: ChoicesBlock; answering: Answering }) {
+  return block.questions?.length ? (
+    <BlockQuestions questions={block.questions} answering={answering} />
+  ) : (
+    <OneChoice block={block} answering={answering} />
+  );
+}
+
+function OneChoice({ block, answering }: { block: ChoicesBlock; answering: Answering }) {
   const [sent, setSent] = useState<string | null>(null);
   const [other, setOther] = useState<string | null>(null);
   const otherRef = useRef<HTMLTextAreaElement>(null);
@@ -75,13 +86,7 @@ export function BlockChoices({ block, answering }: { block: ChoicesBlock; answer
         aria-label={block.question ? undefined : 'Options'}
       >
         {block.options.map((o, i) => (
-          <OptionRow
-            key={i}
-            index={i}
-            option={o}
-            disabled={off}
-            onPick={() => choose(o.reply)}
-          />
+          <OptionRow key={i} index={i} option={o} disabled={off} onPick={() => choose(o.reply)} />
         ))}
         {other == null ? (
           <button
@@ -124,9 +129,7 @@ export function BlockChoices({ block, answering }: { block: ChoicesBlock; answer
           </div>
         )}
       </div>
-      {off && (
-        <p className="agent-block-choices__off">Answer this in the agent's own chat.</p>
-      )}
+      {off && <p className="agent-block-choices__off">Answer this in the agent's own chat.</p>}
     </div>
   );
 }

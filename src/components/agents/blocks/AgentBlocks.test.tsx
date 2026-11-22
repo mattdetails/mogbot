@@ -126,7 +126,12 @@ describe('AgentBlocks', () => {
         summary: '',
         question: 'Which host?',
         options: [
-          { label: 'Vercel', reply: 'Vercel', description: 'Fastest to set up.', recommended: true },
+          {
+            label: 'Vercel',
+            reply: 'Vercel',
+            description: 'Fastest to set up.',
+            recommended: true,
+          },
           { label: 'Netlify', reply: 'Netlify' },
         ],
       },
@@ -155,6 +160,93 @@ describe('AgentBlocks', () => {
     render(<AgentBlocks messageId="m1" agent={agent} set={{ v: 1, items: [choices] }} />);
     expect(screen.getByRole('button', { name: 'Yes' }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(/agent's own chat/)).toBeTruthy();
+  });
+
+  it('several questions page one at a time and send one answer', () => {
+    const { reply } = draw([
+      {
+        kind: 'choices',
+        summary: '',
+        options: [],
+        questions: [
+          {
+            question: 'Which host?',
+            header: 'Host',
+            options: [
+              { label: 'Vercel', reply: 'Vercel', recommended: true },
+              { label: 'Netlify', reply: 'Netlify' },
+            ],
+          },
+          {
+            question: 'Which extras?',
+            header: 'Extras',
+            multi: true,
+            options: [
+              { label: 'Analytics', reply: 'Analytics' },
+              { label: 'Forms', reply: 'Forms' },
+              { label: 'Auth', reply: 'Auth' },
+            ],
+          },
+          {
+            question: 'Which region?',
+            header: 'Region',
+            options: [
+              { label: 'US', reply: 'US' },
+              { label: 'EU', reply: 'EU' },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(screen.getByText('1 of 3')).toBeTruthy();
+    // A single pick moves on.
+    fireEvent.click(screen.getByRole('radio', { name: /Vercel/ }));
+    expect(screen.getByText('2 of 3')).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Analytics' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Auth' }));
+    expect(screen.getByText('2 of 3')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    const submit = screen.getByRole('button', { name: 'Submit' });
+    // ⌘↵ sends what's answered; the skipped region is left out.
+    fireEvent.keyDown(submit, { key: 'Enter', metaKey: true });
+    expect(reply.send).toHaveBeenCalledWith('Host: Vercel\nExtras: Analytics, Auth', agent.id);
+    expect(screen.getByText('Host: Vercel')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull();
+  });
+
+  it('Submit waits for at least one answer; Back returns to a page', () => {
+    const { reply } = draw([
+      {
+        kind: 'choices',
+        summary: '',
+        options: [],
+        questions: [
+          {
+            question: 'A?',
+            header: 'A',
+            options: [
+              { label: 'One', reply: 'One' },
+              { label: 'Two', reply: 'Two' },
+            ],
+          },
+          {
+            question: 'B?',
+            header: 'B',
+            options: [
+              { label: 'Three', reply: 'Three' },
+              { label: 'Four', reply: 'Four' },
+            ],
+          },
+        ],
+      },
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(screen.getByRole('button', { name: 'Submit' }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('A?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'Two' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(reply.send).toHaveBeenCalledWith('A: Two', agent.id);
   });
 
   it('blocks from outside text stage the words, never send them', () => {
