@@ -52,7 +52,12 @@ import { ConversationBar, ConversationBars } from './AgentCard';
 import { tintMentionsIn, useMentionPicker } from './AgentMentions';
 import { useDictation } from './useDictation';
 import { ComposerAttachments } from './AgentAttachments';
-import { ListeningStatus, sendDisabled, useFollowDictation } from './AgentComposer';
+import {
+  ListeningStatus,
+  sendDisabled,
+  useFollowDictation,
+  useGrowingInput,
+} from './AgentComposer';
 import {
   toOutgoing,
   useComposerAttachments,
@@ -812,6 +817,7 @@ function RoomComposer({
   const setDraft = useCallback((text: string) => setComposerDraft(draftKey, text), [draftKey]);
   const dictating = dictation.phase !== 'idle';
   useFollowDictation(inputRef, draft, dictating);
+  const wrapped = useGrowingInput(inputRef, draft);
   // @ offers the room's members and @everyone, nobody else.
   const mentionable = useMemo(() => [...members, everyoneEntry(members.length)], [members]);
   const mentionPicker = useMentionPicker(mentionable, inputRef, setDraft);
@@ -828,6 +834,7 @@ function RoomComposer({
     <form
       className="agent-composer"
       data-dictation={dictation.phase}
+      data-wrapped={wrapped || undefined}
       data-has-attachments={staged.length > 0 || undefined}
       onSubmit={(e) => {
         e.preventDefault();
