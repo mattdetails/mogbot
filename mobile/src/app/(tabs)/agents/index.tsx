@@ -216,10 +216,15 @@ export default function Agents() {
     const out: Row[] = [];
     const add = (a: Agent) =>
       out.push({ kind: 'agent', key: a.id, agent: a, quiet: home.quiet.has(a.id) });
-    // With Rooms below, the agents get their own label. Offline, when it last heard
-    // is the connection bar's to say, once. No "3 working" line: each key says
-    // whether its agent works, is free or needs you.
-    if (rooms?.length) out.push({ kind: 'header', key: 'h-rest', title: 'Agents' });
+    // Rooms first on the phone (the desk keeps them under the agents), then the
+    // agents under their own label. Offline, when it last heard is the connection
+    // bar's to say, once. No "3 working" line: each key says whether its agent
+    // works, is free or needs you.
+    if (rooms?.length) {
+      out.push({ kind: 'header', key: 'h-rooms', title: 'Rooms' });
+      for (const room of sortRooms(rooms)) out.push({ kind: 'room', key: `room:${room.id}`, room });
+      out.push({ kind: 'header', key: 'h-rest', title: 'Agents' });
+    }
     if (home.chief) add(home.chief);
     // In the folders made on the Mac, when there are any (the desk's sidebar).
     for (const section of homeSections(home, overview.folders)) {
@@ -228,10 +233,6 @@ export default function Agents() {
       section.agents.forEach(add);
     }
     const hidden = home.hidden;
-    if (rooms?.length) {
-      out.push({ kind: 'header', key: 'h-rooms', title: 'Rooms' });
-      for (const room of sortRooms(rooms)) out.push({ kind: 'room', key: `room:${room.id}`, room });
-    }
     if (hidden.length) {
       out.push({ kind: 'hidden', key: 'hidden', count: hidden.length });
       if (showHidden) hidden.forEach(add);

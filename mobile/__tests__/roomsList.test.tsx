@@ -84,6 +84,15 @@ it('lists rooms, with their members, from a Mac that does rooms', async () => {
   expect(screen.getByText('Month end')).toBeTruthy();
 });
 
+it('puts the rooms at the top on the phone, above the agents', async () => {
+  state(['rooms']);
+  await render(<Agents />);
+  const order = screen
+    .getAllByText(/^(Rooms|Month end|Agents|Finance)$/)
+    .map((n) => n.props.children);
+  expect(order).toEqual(['Rooms', 'Month end', 'Agents', 'Finance']);
+});
+
 it('shows no rooms from a Mac that doesn’t say it does them', async () => {
   state(undefined);
   await render(<Agents />);
