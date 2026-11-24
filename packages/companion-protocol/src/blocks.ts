@@ -440,19 +440,29 @@ export function attachmentsOutsideBlocks(
 /* ---- Answers ----------------------------------------------------------------- */
 
 /**
+ * Whether a user message answers the card `messageId`: a tap on a card says
+ * which card (`answers`), so it answers that one only; a typed line answers
+ * every card before it.
+ */
+export function answersCard(m: Pick<AgentMessage, 'kind' | 'answers'>, messageId: string): boolean {
+  return m.kind === 'user' && (m.answers == null || m.answers === messageId);
+}
+
+/**
  * What the user said after these blocks, if anything: their next message in
- * the chat. Once they have answered, a choice shows which one (when the
- * words match) and nothing on it sends again.
+ * the chat that answers them (`answersCard`). Once they have answered, a
+ * choice shows which one (when the words match) and nothing on it sends
+ * again.
  */
 export function answerAfter(
-  messages: readonly Pick<AgentMessage, 'id' | 'kind' | 'text'>[],
+  messages: readonly Pick<AgentMessage, 'id' | 'kind' | 'text' | 'answers'>[],
   messageId: string
 ): string | null {
   const at = messages.findIndex((m) => m.id === messageId);
   if (at < 0) return null;
   for (let i = at + 1; i < messages.length; i++) {
     const m = messages[i];
-    if (m.kind === 'user') return m.text;
+    if (answersCard(m, messageId)) return m.text;
   }
   return null;
 }

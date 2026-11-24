@@ -51,7 +51,9 @@ export const AgentBlocks = memo(function AgentBlocks({ messageId, agent, set }: 
   const answer = ctx?.answerOf(messageId, agent.id) ?? null;
   const staged = !!set.fromOutside;
   const answering: Answering = {
-    reply: ctx ? (text) => (staged ? ctx.stage : ctx.send)(text, agent.id) : null,
+    reply: ctx
+      ? (text) => (staged ? ctx.stage(text, agent.id) : ctx.send(text, agent.id, messageId))
+      : null,
     staged,
     answer,
   };

@@ -6,6 +6,9 @@
  * the user said after a message, if anything: an answered block shows its
  * answer and sends nothing again.
  *
+ * `card` is the message the block is on: the answer carries it, so only that
+ * card shows it, not other cards still open beside it.
+ *
  * In a room the answer goes to the member that asked: `from` is its id, and
  * `answerOf` only counts your lines to it. Outside a chat that provides one
  * (a search result, the team page) blocks still draw, and their answers are
@@ -17,7 +20,7 @@
 import { createContext, useContext } from 'react';
 
 export interface BlockReply {
-  send: (text: string, from: string) => void;
+  send: (text: string, from: string, card: string) => void;
   stage: (text: string, from: string) => void;
   answerOf: (messageId: string, from: string) => string | null;
 }

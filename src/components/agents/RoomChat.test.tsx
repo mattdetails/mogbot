@@ -372,4 +372,11 @@ describe('a block’s answer in a room', () => {
     expect(roomAnswerAfter(lines, 'q', 'ops', 'ops')).toBe('Globex.');
     expect(roomAnswerAfter(lines, 'q', 'ops', 'fin')).toBeNull();
   });
+
+  it('a tap on another card of the same member is not this card’s answer', () => {
+    const q2 = { ...q, id: 'q2' };
+    const tap = { ...to('u1', "I'll make them myself", ['ops']), answers: 'q' };
+    expect(roomAnswerAfter([q, q2, tap], 'q', 'ops')).toBe("I'll make them myself");
+    expect(roomAnswerAfter([q, q2, tap], 'q2', 'ops')).toBeNull();
+  });
 });
