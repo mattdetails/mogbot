@@ -127,6 +127,11 @@ export function ListeningStatus({
  * A room's field grows with what's typed, as an agent's chat does: up to the
  * CSS cap (440px), then it scrolls. Returns whether it runs past one line, so
  * the words take a row of their own above the tools.
+ *
+ * Once wrapped it stays wrapped until the field empties: the wrapped field is
+ * wider, so a draft just past one line fits one line again there, and
+ * unwrapping on that would flip the two layouts forever (React's "Maximum
+ * update depth exceeded", which took a room's whole pane down mid-typing).
  */
 export function useGrowingInput(
   inputRef: RefObject<HTMLTextAreaElement | null>,
@@ -149,7 +154,9 @@ export function useGrowingInput(
     el.style.height = 'auto';
     const full = el.scrollHeight;
     el.style.height = `${Math.min(full, cap)}px`;
-    setWrapped(full > oneLine * 1.5);
+    const pastOneLine = full > oneLine * 1.5;
+    setWrapped((was) => was || pastOneLine);
+    // `wrapped` re-measures the height in the wider field it moves to.
   }, [draft, inputRef, wrapped]);
   return wrapped;
 }
