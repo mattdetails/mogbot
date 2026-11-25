@@ -130,6 +130,10 @@
   --font-size-subhead: var(--font-size-14);
   --font-size-body-lg: var(--font-size-13);
   --font-size-body-md: var(--font-size-12);
+  /* The sidebar list, matched to Claude desktop (25 Nov): a row's name, and
+     the line under it and a folder's name. */
+  --font-size-list-name: var(--font-size-16);
+  --font-size-list-meta: var(--font-size-14);
 
   --font-size-body-sm: var(--font-size-11);
   --font-size-control: var(--font-size-11);

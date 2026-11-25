@@ -288,7 +288,7 @@
   align-items: center;
   gap: var(--spacing-xs);
   min-width: 0;
-  font-size: var(--font-size-body-lg);
+  font-size: var(--font-size-list-name);
   font-weight: var(--font-weight-label);
   line-height: var(--line-height-compact);
   letter-spacing: var(--tracking-name);
@@ -337,7 +337,7 @@
 .agents-list__preview {
   display: block;
   overflow: hidden;
-  font-size: var(--font-size-body-md);
+  font-size: var(--font-size-list-meta);
   line-height: var(--line-height-compact);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -688,12 +688,12 @@
   gap: var(--spacing-sm);
   /* On the rows' inset, with no hairline: the header is a label, not a row. */
   width: calc(100% - 2 * var(--spacing-sm));
-  height: var(--control-height-standard);
+  height: calc(var(--control-height-standard) + var(--spacing-2xs));
   margin: var(--spacing-xs) var(--spacing-sm) 0;
   padding: 0 var(--spacing-sm);
   border-radius: var(--radius-lg);
   font: inherit;
-  font-size: var(--font-size-caption);
+  font-size: var(--font-size-list-meta);
   font-weight: var(--font-weight-label);
   color: var(--text-muted);
   text-align: left;
