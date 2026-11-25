@@ -55,13 +55,6 @@ export interface ComposerDictation {
   retry: (() => void) | null;
 }
 
-/** Send works while listening (it stops, then sends); not while tidying. */
-export function sendDisabled(phase: DictationPhase, canSend: boolean): boolean {
-  if (phase === 'listening' || phase === 'starting') return false;
-  if (phase !== 'idle') return true;
-  return !canSend;
-}
-
 interface AgentComposerProps {
   agentId: string;
   agentName: string;

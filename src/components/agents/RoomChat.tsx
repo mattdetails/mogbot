@@ -33,7 +33,6 @@ import {
 import { guardRow } from './AgentsErrorBoundary';
 import {
   ArrowDownIcon,
-  ArrowUpIcon,
   CollaboratorsIcon,
   MicrophoneIcon,
   MoreHorizontalIcon,
@@ -52,12 +51,7 @@ import { ConversationBar, ConversationBars } from './AgentCard';
 import { tintMentionsIn, useMentionPicker } from './AgentMentions';
 import { useDictation } from './useDictation';
 import { ComposerAttachments } from './AgentAttachments';
-import {
-  ListeningStatus,
-  sendDisabled,
-  useFollowDictation,
-  useGrowingInput,
-} from './AgentComposer';
+import { ListeningStatus, useFollowDictation, useGrowingInput } from './AgentComposer';
 import {
   toOutgoing,
   useComposerAttachments,
@@ -922,7 +916,9 @@ function RoomComposer({
               }
             />
           )}
-          {showStop ? (
+          {/* No Send button, as in an agent's chat: Enter sends. Stop shows
+              while members reply with nothing typed. */}
+          {showStop && (
             <IconButton
               tabIndex={0}
               variant="secondary"
@@ -931,17 +927,6 @@ function RoomComposer({
               onClick={onStop}
               aria-label={`Stop replies in ${room.name}`}
               title="Stop replies here"
-            />
-          ) : (
-            <IconButton
-              tabIndex={0}
-              type="submit"
-              variant={!sendDisabled(dictation.phase, canSend) ? 'primary' : 'secondary'}
-              className="agent-composer__send"
-              icon={<ArrowUpIcon size={14} />}
-              disabled={sendDisabled(dictation.phase, canSend)}
-              aria-label="Send"
-              title="Send"
             />
           )}
         </div>
